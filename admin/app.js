@@ -2,7 +2,7 @@ const SUPABASE_URL="https://ajnicsvtymvvkgepjmmk.supabase.co";
 const SUPABASE_ANON_KEY="sb_publishable_8DVJ4VEsYhfq2RwbbElrGw_h-RsKoWj";
 const sbClient=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 
-async function getMyProfile(){const s=await requireSession();const rows=await sbPublic("staff_profiles?select=role,active,full_name,username&user_id=eq."+encodeURIComponent(s.user.id));return Array.isArray(rows)?rows[0]:null;}
+async function getMyProfile(){const s=await requireSession();const rows=await sbPublic("staff_profiles?select=role,active,full_name,username&user_id=eq."+encodeURIComponent(s.user.id));const p=Array.isArray(rows)?rows[0]:null;if(!p) throw new Error("Staff profile not found for this account.");return p;}
 async function sbPublic(path){const {data:{session}}=await sbClient.auth.getSession();const r=await fetch(SUPABASE_URL+"/rest/v1/"+path,{headers:{apikey:SUPABASE_ANON_KEY,Authorization:"Bearer "+(session?.access_token||SUPABASE_ANON_KEY)}});const t=await r.text();if(!r.ok)throw new Error(t);return t?JSON.parse(t):null;}
 async function requireSession(){
   const {data:{session}}=await sbClient.auth.getSession();
