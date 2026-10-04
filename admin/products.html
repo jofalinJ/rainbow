@@ -11,8 +11,8 @@
 <body>
 <aside><div class="brand">JJ <span>GOLD COVERING</span></div><nav><a href="index.html">Dashboard</a><a class="active" href="products.html">Products</a><a href="inventory.html">Inventory</a><a href="#" onclick="return comingSoon('Orders')">Orders</a><a href="#" onclick="return comingSoon('Billing')">Billing</a><a href="#" onclick="return comingSoon('Customers')">Customers</a><a href="#" onclick="return comingSoon('Reports')">Reports</a><a href="#" onclick="return comingSoon('Staff')">Staff</a><a href="#" onclick="return comingSoon('Settings')">Settings</a></nav><div class="user">Admin<br><small>Product management</small><button onclick="logout()" style="margin-top:12px">Sign out</button></div></aside>
 <main><header><div><p class="eyebrow">CATALOG</p><h1>Products</h1></div><button onclick="location.href='index.html'">Dashboard</button></header>
-<section class="panel"><div class="panelhead"><h2>Add Product</h2><span>Only fields required for the selected category are shown</span></div>
-<form id="form"><div class="entry-grid">
+<section class="panel"><div class="panelhead"><h2>Add Product</h2><span>Choose New Product or add a variant to an existing product code</span></div><div style="display:flex;gap:10px;margin-bottom:14px"><button type="button" id="newProductBtn">+ New Product</button><button type="button" id="existingBtn">+ Add Color / Size to Existing Code</button></div>
+<div id="existingBox" class="panel" style="display:none;margin:0 0 14px"><div class="field"><label>Existing Product Code<select id="existingProduct"></select></label></div><div id="variantFields" class="entry-grid"><div class="field optional" id="existingColorField"><label>New Color<input id="existingColor" placeholder="Example: Black"></label></div><div class="field optional" id="existingSizeField"><label>Size<input id="existingSize" value="0" placeholder="0 = No Size"></label></div><div class="field"><label>Stock<input id="existingStock" type="number" min="0" value="0"></label></div><div class="field"><label>Low Stock Limit<input id="existingLow" type="number" min="0" value="3"></label></div><div class="field"><button type="button" id="saveVariantBtn">Save Variant</button></div></div></div><form id="form"><div class="entry-grid">
 <div class="field"><label>Category<select id="category" required></select></label></div>
 <div class="field wide"><label>Product Name<input id="name" required></label></div>
 <div class="field"><label>Type<select id="type" required></select></label></div>
@@ -30,5 +30,5 @@
 <div class="field"><button type="submit">Save Product</button></div>
 <div class="field wide"><p id="msg"></p></div>
 </div></form></section>
-<section class="panel"><div class="panelhead"><h2>Product Catalog</h2><input id="search" placeholder="Search name, code or type"></div><table><thead><tr><th>Code</th><th>Product</th><th>Category</th><th>Type</th><th>Price</th><th>Stock</th></tr></thead><tbody id="rows"></tbody></table></section>
+<section class="panel"><div class="panelhead"><h2>Product Catalog</h2><input id="search" placeholder="Search name, code or type"></div><table><thead><tr><th>Code</th><th>Product</th><th>Category</th><th>Type</th><th>Price</th><th>Stock</th><th>Action</th></tr></thead><tbody id="rows"></tbody></table></section>
 </main><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="app.js"></script><script src="products.js"></script></body></html>
