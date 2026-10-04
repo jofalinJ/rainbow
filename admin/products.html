@@ -21,7 +21,7 @@
 <div class="field optional" id="colorField"><label>Color<input id="color" value="0" placeholder="0 = No Color"></label></div>
 <div class="field"><label>Stock<input id="stock" type="number" min="0" value="0"></label></div>
 <div class="field"><label>Low Stock Limit<input id="low" type="number" min="0" value="3"></label></div>
-<div class="field wide"><label>Product Photo<input id="imageFile" type="file" accept="image/*" capture="environment"></label></div>
+<div class="field wide"><label>Product Photo</label><div class="photo-wrap"><button type="button" id="cameraBtn">📷 Use Camera</button><button type="button" id="fileBtn">📁 Select File</button><input id="cameraFile" type="file" accept="image/*" capture="environment" hidden><input id="fileFile" type="file" accept="image/*" hidden></div><small>Camera works on mobile/tablet. Select File works on PC, tablet and mobile.</small></div>
 <div class="field optional" id="lengthField"><label>Length cm<input id="length" type="number" min="0" step=".1"></label></div>
 <div class="field optional" id="thicknessField"><label>Thickness<input id="thickness"></label></div>
 <div class="field optional" id="goldField"><label>Gold Amount g<input id="gold" type="number" min="0" step=".01"></label></div>
