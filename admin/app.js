@@ -18,8 +18,38 @@ async function sb(path,options={}){
   if(!body.trim()) return null;
   try{return JSON.parse(body);}catch(e){throw new Error("Invalid response from server.");}
 }
-async function applyRoleNavigation(){try{const p=await getMyProfile();if(!p||!p.active)return;const role=p.role;document.querySelectorAll("aside nav a").forEach(a=>{const t=a.textContent.trim().toLowerCase();if(role!=="admin"&&(t==="dashboard"||t==="reports"||t==="staff"))a.remove();if(role==="cashier"&&(t==="products"||t==="inventory"))a.remove();});const user=document.querySelector("aside .user");if(user){user.innerHTML=(p.full_name||p.username||"Staff")+"<br><small>"+(role==="cashier"?"Cashier":"Inventory Staff")+"</small><button onclick=\"logout()\" style=\"margin-top:12px\">Sign out</button>";}}catch(e){console.error(e);}}
-async function logout(){await sbClient.auth.signOut();location.href="login.html";}
+async function applyRoleNavigation(){
+  try{
+    const p=await getMyProfile();
+    if(!p||!p.active){location.href="login.html";return;}
+    const role=p.role;
+    const page=(location.pathname.split("/").pop()||"index.html").toLowerCase();
+    const allowed={
+      admin:["index.html","products.html","inventory.html","orders.html","billing.html","customers.html","reports.html","staff.html","settings.html"],
+      inventory_staff:["products.html","inventory.html"],
+      cashier:["orders.html","billing.html","customers.html"]
+    };
+    const list=allowed[role]||[];
+    if(!list.includes(page)){
+      location.href=role==="admin"?"index.html":role==="inventory_staff"?"products.html":"billing.html";
+      return;
+    }
+    document.querySelectorAll("aside nav a").forEach(a=>{
+      const href=(a.getAttribute("href")||"").split("/").pop().split("?")[0].toLowerCase();
+      const isAllowed=href&&list.includes(href);
+      const text=a.textContent.trim().toLowerCase();
+      const adminOnly=a.hasAttribute("data-admin-only")||text==="dashboard"||text==="reports"||text==="staff";
+      if(adminOnly&&role!=="admin") a.remove();
+      else if(href&&href.endsWith(".html")&&!isAllowed) a.remove();
+    });
+    const user=document.querySelector("aside .user");
+    if(user){
+      const label=role==="admin"?"Admin":role==="cashier"?"Cashier":"Inventory Staff";
+      user.innerHTML=(p.full_name||p.username||"Staff")+"<br><small>"+label+"</small><button onclick="logout()" style="margin-top:12px">Sign out</button>";
+    }
+    return p;
+  }catch(e){console.error(e);location.href="login.html";}
+}async function logout(){await sbClient.auth.signOut();location.href="login.html";}
 function comingSoon(name){alert(name+" is the next module. Products is active now.");return false;}
 
 async function loadDashboard(){
