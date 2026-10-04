@@ -11,8 +11,10 @@ async function sb(path,options={}){
   const session=await requireSession();
   const headers={apikey:SUPABASE_ANON_KEY,Authorization:"Bearer "+session.access_token,"Content-Type":"application/json",...(options.headers||{})};
   const r=await fetch(SUPABASE_URL+"/rest/v1/"+path,{...options,headers});
-  if(!r.ok) throw new Error((await r.text())||("Request failed: "+r.status));
-  return r.status===204?null:r.json();
+  const body=await r.text();
+  if(!r.ok) throw new Error(body||("Request failed: "+r.status));
+  if(!body.trim()) return null;
+  try{return JSON.parse(body);}catch(e){throw new Error("Invalid response from server.");}
 }
 async function logout(){await sbClient.auth.signOut();location.href="login.html";}
 function comingSoon(name){alert(name+" is the next module. Products is active now.");return false;}
