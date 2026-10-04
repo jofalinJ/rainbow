@@ -2,7 +2,9 @@ const SUPABASE_URL="https://ajnicsvtymvvkgepjmmk.supabase.co";
 const SUPABASE_ANON_KEY="sb_publishable_8DVJ4VEsYhfq2RwbbElrGw_h-RsKoWj";
 const sbClient=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 
-async function getMyProfile(){const s=await requireSession();const rows=await sbPublic("staff_profiles?select=role,active,full_name,username&user_id=eq."+encodeURIComponent(s.user.id));return Array.isArray(rows)?rows[0]:null;}\nasync function sbPublic(path){const {data:{session}}=await sbClient.auth.getSession();const r=await fetch(SUPABASE_URL+"/rest/v1/"+path,{headers:{apikey:SUPABASE_ANON_KEY,Authorization:"Bearer "+(session?.access_token||SUPABASE_ANON_KEY)}});const t=await r.text();if(!r.ok)throw new Error(t);return t?JSON.parse(t):null;}\nasync function requireSession(){
+async function getMyProfile(){const s=await requireSession();const rows=await sbPublic("staff_profiles?select=role,active,full_name,username&user_id=eq."+encodeURIComponent(s.user.id));return Array.isArray(rows)?rows[0]:null;}
+async function sbPublic(path){const {data:{session}}=await sbClient.auth.getSession();const r=await fetch(SUPABASE_URL+"/rest/v1/"+path,{headers:{apikey:SUPABASE_ANON_KEY,Authorization:"Bearer "+(session?.access_token||SUPABASE_ANON_KEY)}});const t=await r.text();if(!r.ok)throw new Error(t);return t?JSON.parse(t):null;}
+async function requireSession(){
   const {data:{session}}=await sbClient.auth.getSession();
   if(!session){location.href="login.html";throw new Error("Please sign in.");}
   return session;
@@ -16,7 +18,8 @@ async function sb(path,options={}){
   if(!body.trim()) return null;
   try{return JSON.parse(body);}catch(e){throw new Error("Invalid response from server.");}
 }
-async function applyRoleNavigation(){try{const p=await getMyProfile();if(!p||!p.active)return;const role=p.role;document.querySelectorAll("aside nav a").forEach(a=>{const t=a.textContent.trim().toLowerCase();if(role!=="admin"&&(t==="dashboard"||t==="reports"||t==="staff"))a.remove();if(role==="cashier"&&(t==="products"||t==="inventory"))a.remove();});const user=document.querySelector("aside .user");if(user){user.innerHTML=(p.full_name||p.username||"Staff")+"<br><small>"+(role==="cashier"?"Cashier":"Inventory Staff")+"</small><button onclick=\"logout()\" style=\"margin-top:12px\">Sign out</button>";}}catch(e){console.error(e);}}\nasync function logout(){await sbClient.auth.signOut();location.href="login.html";}
+async function applyRoleNavigation(){try{const p=await getMyProfile();if(!p||!p.active)return;const role=p.role;document.querySelectorAll("aside nav a").forEach(a=>{const t=a.textContent.trim().toLowerCase();if(role!=="admin"&&(t==="dashboard"||t==="reports"||t==="staff"))a.remove();if(role==="cashier"&&(t==="products"||t==="inventory"))a.remove();});const user=document.querySelector("aside .user");if(user){user.innerHTML=(p.full_name||p.username||"Staff")+"<br><small>"+(role==="cashier"?"Cashier":"Inventory Staff")+"</small><button onclick=\"logout()\" style=\"margin-top:12px\">Sign out</button>";}}catch(e){console.error(e);}}
+async function logout(){await sbClient.auth.signOut();location.href="login.html";}
 function comingSoon(name){alert(name+" is the next module. Products is active now.");return false;}
 
 async function loadDashboard(){
@@ -44,4 +47,5 @@ async function loadDashboard(){
     document.querySelector("#orderRows").innerHTML="<tr><td colspan='3'>Could not load orders.</td></tr>";
   }
 }
-document.addEventListener("DOMContentLoaded",()=>{requireSession().then(applyRoleNavigation).catch(console.error);});\nif(document.querySelector(".cards")){requireSession().then(loadDashboard).catch(console.error);}
+document.addEventListener("DOMContentLoaded",()=>{requireSession().then(applyRoleNavigation).catch(console.error);});
+if(document.querySelector(".cards")){requireSession().then(loadDashboard).catch(console.error);}
