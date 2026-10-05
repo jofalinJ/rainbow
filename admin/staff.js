@@ -1,3 +1,6 @@
+let staffRules=null;
+async function getStaffRules(){if(!staffRules)staffRules=await import("../src/domain/staffRules.mjs");return staffRules;}
+
 const STAFF_URL=SUPABASE_URL+"/functions/v1/create-staff-user";
 const DELETE_STAFF_URL=SUPABASE_URL+"/functions/v1/delete-staff-user";
 let deletingUserId=null;
@@ -41,7 +44,7 @@ function renderStaff(staff){
     const statusClass=s.active?"status-on":"status-off";
     const statusLabel=s.active?"Active":"Inactive";
 
-    return "<tr>"+
+    return "<tr data-testid='staff-row' data-username='"+escapeHtml(s.username||"")+"'>"+
       "<td><b>"+escapeHtml(s.full_name||"—")+"</b></td>"+
       "<td class='muted'>"+escapeHtml(s.username||"—")+"</td>"+
       "<td><select data-role-user='"+escapeHtml(s.user_id)+"' "+(isAdmin?"disabled":"")+">"+
@@ -54,7 +57,7 @@ function renderStaff(staff){
           ? "<span class='muted'>Protected</span>"
           : "<div class='staff-action-group'>"+
               "<button type='button' data-action='toggle' data-user-id='"+escapeHtml(s.user_id)+"' data-active='"+(!s.active)+"'>"+(s.active?"Deactivate":"Activate")+"</button>"+
-              "<button type='button' class='danger-button' data-action='delete' data-user-id='"+escapeHtml(s.user_id)+"' data-username='"+escapeHtml(s.username||s.full_name||"staff")+"'>Delete</button>"+
+              "<button type='button' data-testid='delete-staff' class='danger-button' data-action='delete' data-user-id='"+escapeHtml(s.user_id)+"' data-username='"+escapeHtml(s.username||s.full_name||"staff")+"'>Delete</button>"+
             "</div>"
         )+
       "</td>"+
@@ -89,7 +92,11 @@ async function createStaff(e){
 
   try{
     const session=await requireSession();
-    const username=document.querySelector("#username").value.trim().toLowerCase();
+    const rules=await getStaffRules();
+    const payload={name:document.querySelector("#name").value.trim(),username:document.querySelector("#username").value.trim().toLowerCase(),password:document.querySelector("#password").value,role:document.querySelector("#role").value};
+    const validation=rules.validateStaffCreation(payload);
+    if(!validation.ok)throw new Error(validation.error);
+    const username=validation.value.username;
 
     const r=await fetch(STAFF_URL,{
       method:"POST",
@@ -98,12 +105,7 @@ async function createStaff(e){
         apikey:SUPABASE_ANON_KEY,
         "Content-Type":"application/json"
       },
-      body:JSON.stringify({
-        name:document.querySelector("#name").value.trim(),
-        username,
-        password:document.querySelector("#password").value,
-        role:document.querySelector("#role").value
-      })
+      body:JSON.stringify(validation.value)
     });
 
     const text=await r.text();
