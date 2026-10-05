@@ -1,5 +1,6 @@
-const SUPABASE_URL="https://ajnicsvtymvvkgepjmmk.supabase.co";
-const SUPABASE_ANON_KEY="sb_publishable_8DVJ4VEsYhfq2RwbbElrGw_h-RsKoWj";
+const RAINBOW_CONFIG=window.RAINBOW_CONFIG||{};
+const SUPABASE_URL=String(RAINBOW_CONFIG.supabaseUrl||"").trim();
+const SUPABASE_ANON_KEY=String(RAINBOW_CONFIG.supabasePublishableKey||"").trim();
 let sbClient=null;
 function bootSupabase(){if(sbClient)return sbClient;if(!window.supabase?.createClient)throw new Error("Supabase library did not load. Refresh the page.");sbClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);return sbClient;}
 async function getAuthUser(){const {data,error}=await bootSupabase().auth.getUser();if(error)throw new Error("Session error: "+error.message);if(!data.user)throw new Error("Please sign in.");return data.user;}
