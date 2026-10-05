@@ -18,7 +18,7 @@ async function runWithDriver(name, fn) {
   const driver = await new Builder().forBrowser("chrome").setChromeOptions(options).build();
   try { return await fn(driver); }
   catch (error) {
-    try { await fs.writeFile(path.join(artifacts, name + ".png"), await driver.takeScreenshot(), "base64"); } catch {}
+    try { await fs.writeFile(path.join(artifacts, name + ".png"), await driver.takeScreenshot(), "base64"); } catch (screenshotError) { console.warn("Could not capture failure screenshot:", screenshotError.message); }
     throw error;
   }
   finally { await driver.quit(); }
