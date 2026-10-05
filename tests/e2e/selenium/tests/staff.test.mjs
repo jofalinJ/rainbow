@@ -44,14 +44,19 @@ test("login page exposes accessible form controls", async () => {
   });
 });
 
-test("admin can load staff management", { skip: !E2E_ENABLED }, async () => {
+test("admin can load and manage an isolated staff account", { skip: !E2E_ENABLED }, async () => {
   requireAuthenticatedE2EConfig();
-  await runWithDriver("admin-staff-load", async (driver) => {
+  await runWithDriver("admin-staff-management", async (driver) => {
     const login = new LoginPage(driver);
     const staff = new StaffPage(driver);
     await login.open(BASE_URL);
     await login.signIn(ADMIN_USERNAME, ADMIN_PASSWORD);
     await staff.open(BASE_URL);
     assert.equal(await staff.hasUsername(ADMIN_USERNAME), true);
+    const unique="e2e_"+Date.now().toString(36);
+    await staff.createStaff({name:"E2E Test Staff",username:unique,password:"TestPass123!",role:"cashier"});
+    assert.equal(await staff.hasUsername(unique), true);
+    await staff.deleteStaff(unique);
+    assert.equal(await staff.hasUsername(unique), false);
   });
 });
