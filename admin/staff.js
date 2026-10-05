@@ -170,7 +170,7 @@ async function deleteStaff(userId,username){
 
     const text=await r.text();
     let data={};
-    try{data=JSON.parse(text)}catch{}
+    try{data=JSON.parse(text)}catch{data={};}
     if(!r.ok)throw new Error(data.error||text||("Could not delete staff ("+r.status+")."));
 
     const msg=document.querySelector("#formMsg");
