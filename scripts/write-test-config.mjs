@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 
 const url=(process.env.SUPABASE_TEST_URL||"").trim();
 const key=(process.env.SUPABASE_TEST_PUBLISHABLE_KEY||"").trim();
-const productionUrl="https://ajnicsvtymvvkgepjmmk2.supabase.co";
+const productionUrl="https://ajnicsvtymvvkgepjmmk.supabase.co";
 if(!url||!key)throw new Error("SUPABASE_TEST_URL and SUPABASE_TEST_PUBLISHABLE_KEY are required.");
 if(url.replace(/\/$/,"")===productionUrl)throw new Error("Refusing to configure tests against production.");
 
