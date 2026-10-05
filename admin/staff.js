@@ -96,8 +96,6 @@ async function createStaff(e){
     const payload={name:document.querySelector("#name").value.trim(),username:document.querySelector("#username").value.trim().toLowerCase(),password:document.querySelector("#password").value,role:document.querySelector("#role").value};
     const validation=rules.validateStaffCreation(payload);
     if(!validation.ok)throw new Error(validation.error);
-    const username=validation.value.username;
-
     const r=await fetch(STAFF_URL,{
       method:"POST",
       headers:{
@@ -110,7 +108,7 @@ async function createStaff(e){
 
     const text=await r.text();
     let data={};
-    try{data=JSON.parse(text)}catch{}
+    try{data=JSON.parse(text)}catch{data={};}
     if(!r.ok)throw new Error(data.error||text||("Could not create staff ("+r.status+")."));
 
     msg.textContent="Staff created. They can log in with the username and password.";
