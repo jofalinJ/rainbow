@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>JJ Gold Covering — Products</title><link rel="stylesheet" href="style.css">
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>JJ Gold Covering — Products</title><link rel="stylesheet" href="style.css"><script src="config.js"></script>
 <style>
 .entry-grid{display:grid;grid-template-columns:repeat(6,minmax(130px,1fr));gap:12px;align-items:end}
 .entry-grid .wide{grid-column:span 2}.entry-grid .full{grid-column:1/-1}
@@ -30,5 +30,5 @@
 <div class="field"><button type="submit">Save Product</button></div>
 <div class="field wide"><p id="msg"></p></div>
 </div></form></section>
-<section class="panel"><div class="panelhead"><h2>Product Catalog</h2><input id="search" placeholder="Search name, code or type"></div><table><thead><tr><th>Code</th><th>Product</th><th>Category</th><th>Type</th><th>Price</th><th>Stock</th><th>Action</th></tr></thead><tbody id="rows"></tbody></table></section>
+<section class="panel"><div class="panelhead"><h2>Product Catalog</h2><input id="search" data-testid="product-search" placeholder="Search name, code or type"></div><table><thead><tr><th>Code</th><th>Product</th><th>Category</th><th>Type</th><th>Price</th><th>Stock</th><th>Action</th></tr></thead><tbody id="rows"></tbody></table></section>
 </main><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="app.js?v=20261005"></script><script src="products.js?v=20261005"></script></body></html>
