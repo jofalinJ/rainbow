@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run lint
+      - run: npm run test:unit
+      - run: npm run build
+      - run: npm run security
+
+  integration:
+    if: vars.RAINBOW_TEST_ENV_READY == 'true'
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_TEST_URL: ${{ secrets.SUPABASE_TEST_URL }}
+      SUPABASE_TEST_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_TEST_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run test:integration
+
+  e2e:
+    if: vars.RAINBOW_E2E_READY == 'true'
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_TEST_URL: ${{ secrets.SUPABASE_TEST_URL }}
+      SUPABASE_TEST_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_TEST_PUBLISHABLE_KEY }}
+      E2E_ENABLED: "true"
+      E2E_ISOLATED_ENV: "true"
+      E2E_ADMIN_USERNAME: ${{ secrets.E2E_ADMIN_USERNAME }}
+      E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+      E2E_BASE_URL: "http://127.0.0.1:4173"
+      PORT: "4173"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: node scripts/write-test-config.mjs
+      - run: nohup node scripts/static-server.mjs > test-server.log 2>&1 & echo $! > server.pid; sleep 2; curl --fail http://127.0.0.1:4173/admin/login.html
+      - run: npm run test:e2e
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: selenium-failure-artifacts
+          path: |
+            test-results/selenium
+            test-server.log
