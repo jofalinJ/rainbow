@@ -27,8 +27,13 @@ export default [
     rules:{...js.configs.recommended.rules,"no-unused-vars":"off","no-undef":"off"}
   },
   {
-    files:["admin/staff.js","admin/products.js","admin/inventory.js","admin/billing.js"],
+    files:["admin/staff.js","admin/products.js","admin/inventory.js","admin/billing.js","admin/bills.js"],
     languageOptions:{ecmaVersion:"latest",sourceType:"script",globals:crossPageGlobals},
     rules:{...js.configs.recommended.rules,"no-undef":"off","no-unused-vars":"off","no-redeclare":"off","no-global-assign":"off"}
+  },
+  {
+    files:["invoice.js"],
+    languageOptions:{ecmaVersion:"latest",sourceType:"script",globals:{...globals.browser}},
+    rules:{...js.configs.recommended.rules,"no-unused-vars":"off","no-undef":"off"}
   }
 ];
