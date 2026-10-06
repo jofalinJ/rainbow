@@ -131,6 +131,8 @@ async function completeSale(){
   if(cart.size===0)return;
   const payment=document.querySelector("input[name=payment]:checked")?.value||"cash";
   const items=[...cart.values()].map(x=>({variant_id:x.variantId,quantity:x.quantity}));
+  const customerPhone=$b("customerPhone").value.trim();
+  const customerName=$b("customerName").value.trim();
   const customer={
     name:$b("customerName").value.trim(),
     whatsapp_number:$b("customerPhone").value.trim(),
