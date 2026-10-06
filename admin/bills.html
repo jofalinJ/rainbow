@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JJ Gold Covering — Bills</title>
+<link rel="stylesheet" href="style.css">
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+.bill-filters{display:grid;grid-template-columns:minmax(0,2fr) 180px auto;gap:10px;align-items:end;margin-bottom:16px}
+.bill-filters label{font-size:11px;color:#777;display:grid;gap:6px}
+.bill-filters input,.bill-filters select{border:1px solid #ddd;background:#fff;border-radius:8px;padding:10px 11px;font:inherit;font-size:13px}
+.bill-table{width:100%;border-collapse:collapse;font-size:13px}.bill-table th{text-align:left;color:#999;font-weight:500;font-size:10px;text-transform:uppercase;letter-spacing:1px;padding:9px;border-bottom:1px solid #eee}.bill-table td{padding:13px 9px;border-bottom:1px solid #f0f0f0;vertical-align:middle}
+.bill-actions{display:flex;gap:6px;flex-wrap:wrap}.bill-actions button{white-space:nowrap}.wa-btn{color:#217a45;border-color:#bcdcc8}.muted{color:#888;font-size:12px}.empty{color:#888;padding:20px 0;font-size:12px}.bill-status{font-size:11px;border-radius:999px;padding:5px 8px;background:#eef7f0;color:#27764a}
+.summary-row{display:flex;gap:24px;flex-wrap:wrap;margin:4px 0 18px;color:#666;font-size:12px}
+@media(max-width:800px){.bill-filters{grid-template-columns:1fr 1fr}.bill-filters label:first-child{grid-column:1/-1}}
+@media(max-width:560px){.bill-filters{grid-template-columns:1fr}.bill-table{min-width:720px}.table-wrap{overflow:auto}}
+</style>
+</head>
+<body>
+<aside>
+<div class="brand">JJ <span>GOLD COVERING</span></div>
+<nav>
+<a data-admin-only href="index.html">Dashboard</a>
+<a href="products.html">Products</a>
+<a href="inventory.html">Inventory</a>
+<a href="bills.html" class="active">Bills</a>
+<a href="#" onclick="return comingSoon('Orders')">Orders</a>
+<a href="billing.html">Billing</a>
+<a href="#" onclick="return comingSoon('Customers')">Customers</a>
+<a data-admin-only href="#" onclick="return comingSoon('Reports')">Reports</a>
+<a data-admin-only href="#" onclick="return comingSoon('Staff')">Staff</a>
+<a href="#" onclick="return comingSoon('Settings')">Settings</a>
+</nav>
+<div class="user">Staff<br><small>Bill history</small><button onclick="logout()" style="margin-top:12px">Sign out</button></div>
+</aside>
+<main>
+<header><div><p class="eyebrow">SALES HISTORY</p><h1>Bills</h1></div><button class="profile" onclick="location.href='billing.html'">＋ New Bill</button></header>
+<section class="panel">
+<div class="panelhead"><div><h2>Previous Bills</h2><span class="muted">View, print or send an old bill to the customer by WhatsApp.</span></div></div>
+<div class="bill-filters">
+<label>Search<input id="billSearch" data-testid="bill-search" placeholder="Invoice, order, customer or phone"></label>
+<label>Status<select id="billStatus"><option value="all">All statuses</option><option value="confirmed">Confirmed</option><option value="processing">Processing</option><option value="shipped">Shipped</option><option value="delivered">Delivered</option></option><option value="cancelled">Cancelled</option></select></label>
+<button id="refreshBills" type="button">Refresh</button>
+</div>
+<div class="summary-row"><span id="billCount">0 bills</span><span id="billTotal">₹0.00 billed</span></div>
+<div class="table-wrap">
+<table class="bill-table">
+<thead><tr><th>Invoice</th><th>Date</th><th>Customer</th><th>Phone</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead>
+<tbody id="billRows"><tr><td colspan="7">Loading…</td></tr></tbody>
+</table>
+</div>
+<p id="billMsg" class="form-msg"></p>
+</section>
+</main>
+<script src="app.js?v=20261005"></script>
+<script src="bills.js?v=20261006"></script>
+</body></html>
