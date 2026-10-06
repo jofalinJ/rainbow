@@ -41,6 +41,7 @@
 @media(max-width:1000px){.billing-layout{grid-template-columns:1fr}.catalog{max-height:none}}
 @media(max-width:600px){.customer-form{grid-template-columns:1fr}.customer-form .full{grid-column:auto}.product-card{grid-template-columns:46px minmax(0,1fr)}.product-thumb{width:46px;height:46px}.variant-actions{grid-column:1/-1;justify-content:flex-start}}
 @media print{body{display:block;background:#fff}aside,main>header,main>.billing-layout,main>.receipt-screen~*{display:none!important}.receipt-screen{display:block!important;margin:0}.receipt{border:0;padding:0;max-width:360px;margin:0 auto}}
+.wa-btn{color:#217a45;border-color:#bcdcc8}
 </style>
 </head>
 <body>
@@ -50,6 +51,7 @@
 <a data-admin-only href="index.html">Dashboard</a>
 <a href="products.html">Products</a>
 <a href="inventory.html">Inventory</a>
+<a href="bills.html">Bills</a>
 <a href="#" onclick="return comingSoon('Orders')">Orders</a>
 <a class="active" href="billing.html">Billing</a>
 <a href="#" onclick="return comingSoon('Customers')">Customers</a>
@@ -121,7 +123,7 @@
 <div class="total-line"><span>SGST</span><strong id="receiptSgst"></strong></div>
 <div class="total-line grand-total"><span>Total</span><strong id="receiptTotal"></strong></div>
 <div style="margin-top:12px;font-size:12px"><b>Payment:</b> <span id="receiptPayment"></span></div>
-<div style="display:flex;gap:8px;margin-top:14px"><button id="printReceipt" type="button">Print Invoice</button><button id="newSale" type="button">New Sale</button></div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px"><button id="viewReceipt" type="button">View Bill</button><button id="printReceipt" type="button">Print Bill</button><button id="receiptWhatsApp" type="button" class="wa-btn" style="display:none">WhatsApp Bill</button><button id="newSale" type="button">New Sale</button></div>
 </div>
 </section>
 </main>
