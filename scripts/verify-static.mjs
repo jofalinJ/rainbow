@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"..");
-const required=["index.html","admin/index.html","admin/login.html","admin/products.html","admin/inventory.html","admin/staff.html","admin/app.js","admin/config.js"];
+const required=["index.html","admin/index.html","admin/login.html","admin/products.html","admin/inventory.html","admin/staff.html","admin/billing.html","admin/billing.js","admin/app.js","admin/config.js"];
 const forbiddenPatterns=[/SUPABASE_SERVICE_ROLE_KEY\s*[:=]\s*(?!\$\{\{)[A-Za-z0-9._-]{20,}/i,/-----BEGIN [A-Z ]+PRIVATE KEY-----/];
 
 for(const file of required){
@@ -11,7 +11,7 @@ for(const file of required){
   catch{throw new Error("Missing required project file: "+file);}
 }
 
-const htmlFiles=["admin/index.html","admin/login.html","admin/products.html","admin/inventory.html","admin/staff.html","index.html"];
+const htmlFiles=["admin/index.html","admin/login.html","admin/products.html","admin/inventory.html","admin/staff.html","admin/billing.html","index.html"];
 const refRe=/(?:src|href)=["']([^"']+)["']/gi;
 
 for(const file of htmlFiles){
