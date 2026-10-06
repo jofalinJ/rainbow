@@ -3,6 +3,7 @@ let catalog=[];
 const cart=new Map();
 const TAX_RATE=.015;
 const DISCOUNT_RATE=.03;
+let lastReceipt=null;
 
 function escB(x){return String(x??"").replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;" ,'"':"&quot;"}[m]));}
 function moneyB(v){return "₹"+Number(v||0).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2});}
@@ -93,6 +94,32 @@ function changeQty(id,delta){
   else{setMsg("Quantity cannot exceed current stock.","error");}
   renderCart();
 }
+function publicInvoiceUrl(token,print=false){
+  return new URL("../invoice.html?token="+encodeURIComponent(token)+(print?"&print=1":""),location.href).href;
+}
+function whatsappNumberB(phone){
+  const d=String(phone??"").replace(/\D/g,"");
+  if(d.length===10)return "91"+d;
+  if(d.length===12&&d.startsWith("91"))return d;
+  return d;
+}
+function openBill(token,print=false){
+  if(!token)return;
+  window.open(publicInvoiceUrl(token,print),"_blank","noopener,noreferrer");
+}
+function sendBillWhatsApp(token,phone,invoiceNumber,orderNumber,total,customerName){
+  const number=whatsappNumberB(phone);
+  if(!number){setMsg("Add a customer WhatsApp number before sending the bill.","error");return;}
+  const text=[
+    "Hello "+(customerName||"Customer")+",",
+    "Thank you for shopping with JJ GOLD COVERING.",
+    "Invoice: "+invoiceNumber,
+    "Order: "+orderNumber,
+    "Amount: "+moneyB(total),
+    "Bill: "+publicInvoiceUrl(token)
+  ].join("\n");
+  window.open("https://wa.me/"+number+"?text="+encodeURIComponent(text),"_blank","noopener,noreferrer");
+}
 function setMsg(message,tone=""){
   const el=$b("billingMsg");el.textContent=message;el.className="billing-msg "+tone;
 }
@@ -120,7 +147,7 @@ async function completeSale(){
     const {data,error}=await bootSupabase().rpc("create_local_sale",{p_items:items,p_customer:customer,p_payment_method:payment});
     if(error)throw error;
     const savedItems=await sb("order_items?select=product_code,product_name,quantity,unit_price,discount_amount,line_total&order_id=eq."+encodeURIComponent(data.order_id));
-    showReceipt(data,savedItems||snapshot.map(x=>({product_code:x.p.product_code,product_name:x.p.product_name,quantity:x.quantity,unit_price:x.price,discount_amount:0,line_total:x.price*x.quantity})));
+    showReceipt(data,savedItems||snapshot.map(x=>({product_code:x.p.product_code,product_name:x.p.product_name,quantity:x.quantity,unit_price:x.price,discount_amount:0,line_total:x.price*x.quantity})),customerPhone,customerName);
     cart.clear();
     renderCart();
     clearCustomer();
@@ -133,7 +160,8 @@ async function completeSale(){
     $b("completeSale").disabled=cart.size===0;
   }
 }
-function showReceipt(data,items){
+function showReceipt(data,items,customerPhone="",customerName=""){
+  lastReceipt={data,customerPhone,customerName};
   $b("receiptScreen").style.display="block";
   $b("receiptMeta").textContent=data.invoice_number+" • Order "+data.order_number+" • "+new Date().toLocaleString("en-IN");
   $b("receiptItems").innerHTML=(items||[]).map(x=>'<div class="receipt-item"><span>'+escB(x.product_code)+' • '+escB(x.product_name)+' × '+Number(x.quantity)+'</span><strong>'+moneyB(x.line_total)+'</strong></div>').join("");
@@ -143,6 +171,16 @@ function showReceipt(data,items){
   $b("receiptSgst").textContent=moneyB(data.sgst_amount);
   $b("receiptTotal").textContent=moneyB(data.total_amount);
   $b("receiptPayment").textContent=String(data.payment_method||"").replace("_"," ");
+  $b("viewReceipt").onclick=()=>openBill(data.public_token,false);
+  $b("printReceipt").onclick=()=>openBill(data.public_token,true);
+  const wa=$b("receiptWhatsApp");
+  if(whatsappNumberB(customerPhone)){
+    wa.style.display="inline-block";
+    wa.onclick=()=>sendBillWhatsApp(data.public_token,customerPhone,data.invoice_number,data.order_number,data.total_amount,customerName);
+  }else{
+    wa.style.display="none";
+    wa.onclick=null;
+  }
   $b("receiptScreen").scrollIntoView({behavior:"smooth",block:"start"});
 }
 function clearCustomer(){
@@ -153,7 +191,6 @@ $b("productSearch").addEventListener("keydown",e=>{if(e.key==="Enter"){e.prevent
 $b("clearSearch").addEventListener("click",()=>{$b("productSearch").value="";renderCatalog();$b("productSearch").focus();});
 $b("clearCart").addEventListener("click",()=>{cart.clear();renderCart();});
 $b("completeSale").addEventListener("click",completeSale);
-$b("printReceipt").addEventListener("click",()=>window.print());
 $b("newSale").addEventListener("click",()=>{$b("receiptScreen").style.display="none";$b("productSearch").focus();});
 renderCart();
 requireSession().then(loadCatalog).catch(e=>setMsg(e.message||"Could not load billing.","error"));
