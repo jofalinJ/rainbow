@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JJ Gold Covering — Invoice</title>
+<style>
+:root{font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;color:#111;background:#f5f5f3}
+body{margin:0;padding:28px}
+.invoice-wrap{width:min(760px,100%);margin:0 auto}
+.toolbar{display:flex;gap:8px;justify-content:flex-end;margin-bottom:12px}
+button{border:1px solid #d9d9d6;background:#fff;border-radius:8px;padding:10px 13px;cursor:pointer}
+.invoice{background:#fff;border:1px solid #ddd;border-radius:14px;padding:30px}
+.top{display:flex;justify-content:space-between;gap:20px;border-bottom:2px solid #111;padding-bottom:18px}
+.brand{font-size:20px;font-weight:800;letter-spacing:-.6px}.subtitle{font-size:9px;letter-spacing:2px;color:#777;margin-top:5px}
+.meta{text-align:right;font-size:11px;line-height:1.6}.label{color:#888;text-transform:uppercase;letter-spacing:1px;font-size:9px}
+.customer{padding:18px 0;border-bottom:1px solid #eee;font-size:12px}
+.customer b{font-size:13px}
+.items{margin-top:18px}
+.items table{width:100%;border-collapse:collapse}.items th{text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:1px;color:#888;padding:8px;border-bottom:1px solid #ddd}.items td{font-size:11px;padding:10px 8px;border-bottom:1px solid #eee;vertical-align:top}.right{text-align:right}.detail{display:block;color:#777;font-size:9px;margin-top:4px;line-height:1.5}
+.totals{margin:18px 0 0 auto;width:min(360px,100%);display:grid;gap:7px}.line{display:flex;justify-content:space-between;font-size:11px}.grand{font-size:17px;font-weight:800;border-top:2px solid #111;padding-top:10px;margin-top:4px}
+.footer{margin-top:24px;padding-top:14px;border-top:1px solid #eee;color:#777;font-size:9px;text-align:center}
+.error{background:#fff0f0;border:1px solid #efc5c1;color:#9c2f27;padding:16px;border-radius:12px}
+@media print{
+  body{background:#fff;padding:0}
+  .invoice-wrap{width:auto;margin:0}
+  .toolbar{display:none}
+  .invoice{border:0;border-radius:0;padding:0;width:80mm}
+  .top{border-bottom:1px solid #111}
+  .items table{font-size:10px}
+  .items th,.items td{padding:6px 2px}
+  .customer{padding:12px 0}
+  .footer{margin-top:15px}
+  @page{size:80mm auto;margin:4mm}
+}
+@media(max-width:600px){body{padding:12px}.invoice{padding:18px}.top{flex-direction:column}.meta{text-align:left}}
+</style>
+</head>
+<body>
+<main class="invoice-wrap">
+<div id="toolbar" class="toolbar"><button id="printBtn" type="button">Print Bill</button><button id="waBtn" type="button" style="display:none">WhatsApp</button></div>
+<section id="invoice" class="invoice"><div class="error">Loading bill…</div></section>
+</main>
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="invoice.js?v=20261006"></script>
+</body>
+</html>
