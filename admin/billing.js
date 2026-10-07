@@ -158,7 +158,7 @@ async function completeSale(){
   try{
     const {data,error}=await bootSupabase().rpc("create_local_sale",{p_items:items,p_customer:customer,p_payment_method:payment});
     if(error)throw error;
-    const savedItems=await sb("order_items?select=product_code,product_name,quantity,unit_price,discount_amount,line_total&order_id=eq."+encodeURIComponent(data.order_id));
+    const savedItems=await sb("order_items?select=product_code,product_name,product_type,variant_color,variant_size,length_cm,thickness,gold_amount_g,quantity,unit_price,discount_amount,line_total&order_id=eq."+encodeURIComponent(data.order_id));
     showReceipt(data,savedItems||snapshot.map(x=>({product_code:x.p.product_code,product_name:x.p.product_name,quantity:x.quantity,unit_price:x.price,discount_amount:0,line_total:x.price*x.quantity})),customerPhone,customerName);
     cart.clear();
     renderCart();
