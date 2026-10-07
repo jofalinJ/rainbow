@@ -9,6 +9,11 @@
     const images=Array.isArray(product.product_images)?product.product_images:[];
     return (images.find(x=>x.is_primary)||images[0]||{}).public_url||"";
   };
+  const CART_KEY="rainbow_cart_v1";
+  const getCart=()=>{try{return JSON.parse(localStorage.getItem(CART_KEY)||"[]")}catch{return[]}};
+  const saveCart=items=>{localStorage.setItem(CART_KEY,JSON.stringify(items));updateCartCount()};
+  const updateCartCount=()=>{const el=document.getElementById("cartCount");if(el)el.textContent=getCart().reduce((n,x)=>n+Number(x.quantity||0),0)};
+  const addToCart=(product,quantity=1)=>{const v=(product.product_variants||[]).find(x=>x.active!==false&&Number(x.stock_quantity||0)>0);if(!v)return;const cart=getCart();const key=String(v.id);const existing=cart.find(x=>String(x.variant_id)===key);const next=Math.min(Number(v.stock_quantity||0),Number(existing?.quantity||0)+quantity);if(existing)existing.quantity=next;else cart.push({variant_id:v.id,quantity:next,product:{id:product.id,product_code:product.product_code,product_name:product.product_name,type:product.type,selling_price:product.selling_price,description:product.description,image:getImage(product)}});saveCart(cart)};
   const getStock=product=>(Array.isArray(product.product_variants)?product.product_variants:[])
     .reduce((sum,v)=>sum+Number(v.stock_quantity||0),0);
 
@@ -67,7 +72,15 @@
       ["Length",product.length_cm!=null?product.length_cm+" cm":null],
       ["Gold amount",product.gold_amount_g!=null?product.gold_amount_g+" g":null]
     ].filter(x=>x[1]!==null&&x[1]!==undefined&&String(x[1]).trim()!=="");
-    content.innerHTML='<div class="product-detail-grid"><div><div class="product-detail-main">'+(main?'<img src="'+esc(main)+'" alt="'+esc(product.product_name)+'">':'<div class="placeholder">RG</div>')+'</div>'+(images.length>1?'<div class="product-detail-thumbs">'+images.map(i=>'<img src="'+esc(i.public_url||"")+'" alt="" loading="lazy">').join("")+'</div>':"")+'</div><div class="product-detail-info"><span class="section-kicker">PRODUCT DETAILS</span><h2 id="modalProductName">'+esc(product.product_name)+'</h2><div class="modal-price">'+money(product.selling_price)+'</div><span class="product-stock '+(stock===0?"out":"in")+'">'+(stock===0?"Out of stock":"Available")+'</span>'+(product.description?'<p class="modal-description">'+esc(product.description)+'</p>':"")+(details.length?'<div class="detail-list">'+details.map(d=>'<div><span>'+esc(d[0])+'</span><strong>'+esc(d[1])+'</strong></div>').join("")+'</div>':"")+'</div></div>';
+    content.innerHTML='<div class="product-detail-grid"><div><div class="product-detail-main">'+(main?'<img src="'+esc(main)+'" alt="'+esc(product.product_name)+'">':'<div class="placeholder">RG</div>')+'</div>'+(images.length>1?'<div class="product-detail-thumbs">'+images.map(i=>'<img src="'+esc(i.public_url||"")+'" alt="" loading="lazy">').join("")+'</div>':"")+'</div><div class="product-detail-info"><span class="section-kicker">PRODUCT DETAILS</span><h2 id="modalProductName">'+esc(product.product_name)+'</h2><div class="modal-price">'+money(product.selling_price)+'</div><span class="product-stock '+(stock===0?"out":"in")+'">'+(stock===0?"Out of stock":"Available")+'</span>'+(product.description?'<p class="modal-description">'+esc(product.description)+'</p>':"")+(details.length?'<div class="detail-list">'+details.map(d=>'<div><span>'+esc(d[0])+'</span><strong>'+esc(d[1])+'</strong></div>').join("")+'</div>':"")+'<div class="product-buy-actions"><div class="quantity-picker"><button type="button" data-qty-minus>−</button><span data-qty>1</span><button type="button" data-qty-plus>＋</button></div><button class="btn btn-light" type="button" data-add-cart>Add to Cart</button><button class="btn btn-dark" type="button" data-buy-now>Buy Now →</button></div></div></div>';
+    let selectedQty=1;
+    const qtyEl=content.querySelector("[data-qty]");
+    const minus=content.querySelector("[data-qty-minus]"),plus=content.querySelector("[data-qty-plus]");
+    const maxStock=Math.max(1,stock);
+    minus.onclick=()=>{selectedQty=Math.max(1,selectedQty-1);qtyEl.textContent=selectedQty};
+    plus.onclick=()=>{selectedQty=Math.min(maxStock,selectedQty+1);qtyEl.textContent=selectedQty};
+    content.querySelector("[data-add-cart]").onclick=()=>{const v=(product.product_variants||[]).find(x=>x.active!==false&&Number(x.stock_quantity||0)>0);if(!v)return;const cart=getCart();const existing=cart.find(x=>String(x.variant_id)===String(v.id));const next=Math.min(Number(v.stock_quantity||0),Number(existing?.quantity||0)+selectedQty);if(existing)existing.quantity=next;else cart.push({variant_id:v.id,quantity:next,product:{id:product.id,product_code:product.product_code,product_name:product.product_name,type:product.type,selling_price:product.selling_price,description:product.description,image:main}});saveCart(cart);closeProductModal();};
+    content.querySelector("[data-buy-now]").onclick=()=>{const v=(product.product_variants||[]).find(x=>x.active!==false&&Number(x.stock_quantity||0)>0);if(!v)return;const item={variant_id:v.id,quantity:selectedQty,product:{id:product.id,product_code:product.product_code,product_name:product.product_name,type:product.type,selling_price:product.selling_price,description:product.description,image:main}};localStorage.setItem(CART_KEY,JSON.stringify([item]));location.href="order.html";};
     modal.classList.add("open");modal.setAttribute("aria-hidden","false");document.body.classList.add("modal-open");
   }
   function closeProductModal(){
@@ -83,7 +96,7 @@
     const status=document.getElementById("productStatus");
     try{
       const {data,error}=await client.from("products")
-        .select("id,product_code,product_name,type,selling_price,description,length_cm,thickness,gold_amount_g,created_at,product_variants(stock_quantity,low_stock_limit),product_images(public_url,is_primary)")
+        .select("id,product_code,product_name,type,selling_price,description,length_cm,thickness,gold_amount_g,created_at,product_variants(id,stock_quantity,low_stock_limit,color,size,active),product_images(public_url,is_primary)")
         .eq("active",true).order("created_at",{ascending:false});
       if(error)throw error;
       render(data||[]);
@@ -104,6 +117,7 @@
 
   async function init(){
     applyBusinessConfig();
+    updateCartCount();
     bindProductModal();
     document.querySelectorAll("[data-scroll]").forEach(button=>button.addEventListener("click",()=>{
       document.querySelector(button.dataset.scroll)?.scrollIntoView({behavior:"smooth"});
