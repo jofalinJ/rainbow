@@ -27,6 +27,10 @@
   function start(){
     loadBusiness();
     setInterval(loadBusiness,30000);
+    if(window.supabase?.createClient&&cfg.supabaseUrl&&cfg.supabasePublishableKey){
+      const client=window.supabase.createClient(cfg.supabaseUrl,cfg.supabasePublishableKey);
+      client.channel("customer-business-live").on("postgres_changes",{event:"*",schema:"public",table:"business_settings"},loadBusiness).on("postgres_changes",{event:"*",schema:"public",table:"branches"},loadBusiness).subscribe();
+    }
   }
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",start,{once:true});else start();
 })();
