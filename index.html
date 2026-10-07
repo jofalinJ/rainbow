@@ -6,13 +6,13 @@
 <meta name="theme-color" content="#8f1520">
 <meta name="description" content="Rainbow Gold Covering — premium gold-covering jewellery, collections and store information.">
 <title>Rainbow Gold Covering — Jewellery, Made to Shine</title>
-<link rel="stylesheet" href="content.css">
+<link rel="stylesheet" href="content.css">\n<script src="config.js"></script>
 </head>
 <body>
 <header class="topbar">
   <nav class="nav container">
     <a class="logo" href="index.html" aria-label="Rainbow Gold Covering home">
-      <span class="logo-mark">RG</span><span><strong>RAINBOW</strong><small>GOLD COVERING</small></span>
+      <span class="logo-mark">RG</span><span><strong data-config="brandName">RAINBOW</strong><small>GOLD COVERING</small></span>
     </a>
     <div class="navlinks">
       <a href="#story">About</a><a href="#collections">Collections</a><a href="#process">How It Works</a><a href="#contact">Contact</a>
@@ -24,7 +24,7 @@
 <section class="hero">
 <div class="container hero-grid">
 <div>
-<span class="eyebrow">RAINBOW GOLD COVERING · EST. STORE</span>
+<span class="eyebrow" data-config="eyebrow">RAINBOW GOLD COVERING · EST. STORE</span>
 <h1>Jewellery with a <em>golden</em> point of view.</h1>
 <p>Discover thoughtfully selected gold-covering jewellery for everyday elegance, celebrations and the moments worth remembering.</p>
 <div class="hero-actions"><button class="btn btn-dark" data-scroll="#collections">Explore Collections →</button><button class="btn btn-light" data-scroll="#contact">Visit & Enquire</button></div>
@@ -70,7 +70,7 @@
 <div class="container contact-card"><div><span class="section-kicker">05 / CONTACT</span><h2>Looking for a particular design?</h2><p>Tell us what you are looking for and continue the conversation with Rainbow Gold Covering.</p></div><a class="btn btn-light" href="#collections">Browse Collections</a></div>
 </section>
 </main>
-<footer class="container footer"><span>RAINBOW GOLD COVERING</span><span>© <span id="year"></span> · Premium Jewellery Experience</span></footer>
+<footer class="container footer"><span data-config="footerBrand">RAINBOW GOLD COVERING</span><span>© <span id="year"></span> · Premium Jewellery Experience</span></footer>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="content.js"></script>
 </body>
 </html>
