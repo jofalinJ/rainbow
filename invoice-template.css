@@ -1,0 +1,15 @@
+:root{font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;color:#111}
+.invoice{background:#fff;border:1px solid #ddd;border-radius:14px;padding:30px;box-sizing:border-box}
+.invoice .top{display:flex;justify-content:space-between;gap:20px;border-bottom:2px solid #111;padding-bottom:18px}
+.invoice .brand{font-size:20px;font-weight:800;letter-spacing:-.6px}.invoice .subtitle{font-size:9px;letter-spacing:2px;color:#777;margin-top:5px}
+.invoice .meta{text-align:right;font-size:11px;line-height:1.6}.invoice .label{color:#888;text-transform:uppercase;letter-spacing:1px;font-size:9px}
+.invoice .customer{padding:18px 0;border-bottom:1px solid #eee;font-size:12px}.invoice .customer b{font-size:13px}
+.invoice .items{margin-top:18px}.invoice .items table{width:100%;border-collapse:collapse}.invoice .items th{text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:1px;color:#888;padding:8px;border-bottom:1px solid #ddd}.invoice .items td{font-size:11px;padding:10px 8px;border-bottom:1px solid #eee;vertical-align:top}.invoice .right{text-align:right}.invoice .detail{display:block;color:#777;font-size:9px;margin-top:4px;line-height:1.5}
+.invoice .totals{margin:18px 0 0 auto;width:min(360px,100%);display:grid;gap:7px}.invoice .line{display:flex;justify-content:space-between;font-size:11px}.invoice .grand{font-size:17px;font-weight:800;border-top:2px solid #111;padding-top:10px;margin-top:4px}
+.invoice .footer{margin-top:24px;padding-top:14px;border-top:1px solid #eee;color:#777;font-size:9px;text-align:center}
+@media print{
+  body{background:#fff!important;padding:0!important}
+  .invoice{border:0;border-radius:0;padding:0;width:80mm}
+  .invoice .top{border-bottom:1px solid #111}.invoice .items th,.invoice .items td{padding:6px 2px}.invoice .customer{padding:12px 0}.invoice .footer{margin-top:15px}
+  @page{size:80mm auto;margin:4mm}
+}
