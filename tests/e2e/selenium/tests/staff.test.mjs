@@ -85,10 +85,9 @@ test("bill View opens the in-app bill preview when an isolated E2E bill exists",
     await login.open(BASE_URL);
     await login.signIn(ADMIN_USERNAME, ADMIN_PASSWORD);
     await bills.open(BASE_URL);
-    const url = BASE_URL + "/admin/bills.html?e2e_token=" + encodeURIComponent(BILL_E2E_TOKEN);
-    await driver.get(url);
+    await driver.get(BASE_URL + "/admin/bills.html");
     await driver.wait(until.urlContains("bills.html"), 10000);
-    const opened = await bills.openFirstBill();
+    const opened = await bills.openBillByToken(BILL_E2E_TOKEN);
     assert.equal(opened, true);
     const preview = await driver.findElement(By.css("#billModal.open #billPreview"));
     assert.equal(await preview.isDisplayed(), true);
