@@ -35,5 +35,10 @@ export default [
     files:["invoice.js"],
     languageOptions:{ecmaVersion:"latest",sourceType:"script",globals:{...globals.browser}},
     rules:{...js.configs.recommended.rules,"no-unused-vars":"off","no-undef":"off"}
+  },
+  {
+    files:["invoice.js","invoice-template.js","bill-pdf.js"],
+    languageOptions:{ecmaVersion:"latest",sourceType:"script",globals:{...globals.browser}},
+    rules:{...js.configs.recommended.rules,"no-unused-vars":"off","no-undef":"off"}
   }
 ];
