@@ -100,6 +100,8 @@ Deno.serve(async (req) => {
     const accessToken = Deno.env.get("WHATSAPP_ACCESS_TOKEN");
     const phoneNumberId = Deno.env.get("WHATSAPP_PHONE_NUMBER_ID");
     const graphVersion = Deno.env.get("WHATSAPP_GRAPH_VERSION");
+    const templateName = Deno.env.get("WHATSAPP_TEMPLATE_NAME");
+    const templateLanguage = Deno.env.get("WHATSAPP_TEMPLATE_LANGUAGE") || "en_US";
 
     if (!accessToken || !phoneNumberId || !graphVersion) {
       return json({
@@ -107,10 +109,9 @@ Deno.serve(async (req) => {
       }, 503);
     }
 
-    const invoiceUrl =
-      Deno.env.get("APP_PUBLIC_URL")
-        ? Deno.env.get("APP_PUBLIC_URL")!.replace(/\/$/, "") + "/invoice.html?token=" + encodeURIComponent(invoiceToken)
-        : null;
+    const invoiceUrl = Deno.env.get("APP_PUBLIC_URL")
+      ? Deno.env.get("APP_PUBLIC_URL")!.replace(/\/$/, "") + "/invoice.html?token=" + encodeURIComponent(invoiceToken)
+      : null;
 
     const { data: notification, error: notificationError } = await admin
       .from("whatsapp_notifications")
@@ -118,7 +119,7 @@ Deno.serve(async (req) => {
         order_id: invoice.order_id,
         recipient_number: to,
         notification_type: "bill_pdf",
-        message_template: "JJ GOLD COVERING invoice " + invoice.invoice_number,
+        message_template: templateName || "JJ GOLD COVERING invoice " + invoice.invoice_number,
         invoice_url: invoiceUrl,
         status: "pending"
       })
@@ -148,6 +149,26 @@ Deno.serve(async (req) => {
     }
 
     const caption = "JJ GOLD COVERING\nInvoice: " + invoice.invoice_number + "\nOrder: " + invoice.orders.order_number;
+    const messageBody = templateName
+      ? {
+          messaging_product: "whatsapp",
+          to,
+          type: "template",
+          template: {
+            name: templateName,
+            language: { code: templateLanguage },
+            components: [{
+              type: "header",
+              parameters: [{ type: "document", document: { id: mediaBody.id, filename } }]
+            }]
+          }
+        }
+      : {
+          messaging_product: "whatsapp",
+          to,
+          type: "document",
+          document: { id: mediaBody.id, caption, filename }
+        };
 
     const sendResponse = await fetch(graphBase + "/" + encodeURIComponent(phoneNumberId) + "/messages", {
       method: "POST",
@@ -155,16 +176,7 @@ Deno.serve(async (req) => {
         Authorization: "Bearer " + accessToken,
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({
-        messaging_product: "whatsapp",
-        to,
-        type: "document",
-        document: {
-          id: mediaBody.id,
-          caption,
-          filename
-        }
-      })
+      body: JSON.stringify(messageBody)
     });
 
     const sendBody = await sendResponse.json().catch(() => ({}));
@@ -176,25 +188,15 @@ Deno.serve(async (req) => {
       return json({ error: "WhatsApp message could not be sent." }, 502);
     }
 
-    const providerMessageId =
-      sendBody?.messages?.[0]?.id ||
-      sendBody?.message_id ||
-      null;
-
+    const providerMessageId = sendBody?.messages?.[0]?.id || sendBody?.message_id || null;
     await admin.from("whatsapp_notifications").update({
       status: "sent",
       provider_message_id: providerMessageId,
       sent_at: new Date().toISOString()
     }).eq("id", notification.id);
 
-    return json({
-      success: true,
-      invoice_number: invoice.invoice_number,
-      recipient_number: to
-    });
+    return json({ success: true, invoice_number: invoice.invoice_number, recipient_number: to });
   } catch (error) {
-    return json({
-      error: error instanceof Error ? error.message : "Could not send WhatsApp bill."
-    }, 500);
+    return json({ error: error instanceof Error ? error.message : "Could not send WhatsApp bill." }, 500);
   }
 });
