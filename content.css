@@ -94,3 +94,12 @@ button{font:inherit}
 @media(max-width:1000px){.product-grid{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:700px){.product-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:480px){.product-grid{grid-template-columns:1fr 1fr}.product-name{font-size:18px}.product-body{padding:14px}}
+
+
+/* Centrally configured branch cards */
+.branch-list{display:grid;gap:12px;margin-top:22px}
+.branch{display:grid;grid-template-columns:110px 1fr auto;gap:14px;align-items:center;padding:14px 16px;border:1px solid rgba(200,154,60,.28);border-radius:14px;background:rgba(255,255,255,.04)}
+.branch strong{color:var(--gold-soft)}
+.branch span{font-size:.9rem;line-height:1.45;color:rgba(255,255,255,.72)}
+.branch a{color:var(--gold-soft);text-decoration:none;white-space:nowrap}
+@media (max-width:760px){.branch{grid-template-columns:1fr}.branch a{white-space:normal}}
