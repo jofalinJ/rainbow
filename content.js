@@ -12,6 +12,24 @@
   const getStock=product=>(Array.isArray(product.product_variants)?product.product_variants:[])
     .reduce((sum,v)=>sum+Number(v.stock_quantity||0),0);
 
+  function applyBusinessConfig(){
+    const cfg=window.RAINBOW_CONFIG;
+    if(!cfg)return;
+    const brand=document.querySelector('[data-config="brandName"]');
+    const eyebrow=document.querySelector('[data-config="eyebrow"]');
+    const footer=document.querySelector('[data-config="footerBrand"]');
+    if(brand)brand.textContent=(cfg.businessName||"Rainbow").split(" ")[0].toUpperCase();
+    if(eyebrow)eyebrow.textContent=(cfg.businessName||"Rainbow Gold Covering").toUpperCase()+" · "+(cfg.trustLine||"");
+    if(footer)footer.textContent=cfg.businessName||"Rainbow Gold Covering";
+    const branches=document.getElementById("branchList");
+    if(branches&&Array.isArray(cfg.branches)){
+      branches.innerHTML=cfg.branches.map(b=>
+        '<div class="branch"><strong>'+esc(b.name)+'</strong><span>'+esc(b.address)+'</span><a href="'+esc(b.mapUrl)+'" target="_blank" rel="noopener noreferrer">Open in Maps →</a></div>'
+      ).join("");
+    }
+    document.title=(cfg.businessName||"Rainbow Gold Covering")+" — Jewellery, Made to Shine";
+  }
+
   function render(products){
     const grid=document.getElementById("productGrid"),status=document.getElementById("productStatus");
     if(!grid)return;
@@ -53,6 +71,7 @@
   }
 
   async function init(){
+    applyBusinessConfig();
     document.querySelectorAll("[data-scroll]").forEach(button=>button.addEventListener("click",()=>{
       document.querySelector(button.dataset.scroll)?.scrollIntoView({behavior:"smooth"});
     }));
