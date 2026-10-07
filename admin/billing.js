@@ -107,19 +107,29 @@ function openBill(token,print=false){
   if(!token)return;
   window.open(publicInvoiceUrl(token,print),"_blank","noopener,noreferrer");
 }
-function sendBillWhatsApp(token,phone,invoiceNumber,orderNumber,total,customerName){
-  const number=whatsappNumberB(phone);
+async function sendBillWhatsAppPdf(data,items,phone,customerName){
+  const number=String(phone??"").replace(/\D/g,"");
   if(!number){setMsg("Add a customer WhatsApp number before sending the bill.","error");return;}
-  const text=[
-    "Hello "+(customerName||"Customer")+",",
-    "Thank you for shopping with JJ GOLD COVERING.",
-    "Invoice: "+invoiceNumber,
-    "Order: "+orderNumber,
-    "Amount: "+moneyB(total),
-    "Bill: "+publicInvoiceUrl(token)
-  ].join("\n");
-  window.open("https://wa.me/"+number+"?text="+encodeURIComponent(text),"_blank","noopener,noreferrer");
+  try{
+    setMsg("Generating bill PDF…");
+    const payload={...data,customer_name:customerName||data.customer_name,customer_phone:phone,items:items||[]};
+    const pdf=await RainbowBillPdf.fromData(payload,$b("receiptPdfStage"));
+    const pdfBase64=RainbowBillPdf.bufferToBase64(pdf.output("arraybuffer"));
+    const session=await requireSession();
+    const response=await fetch(SUPABASE_URL+"/functions/v1/send-whatsapp-bill",{
+      method:"POST",
+      headers:{apikey:SUPABASE_ANON_KEY,Authorization:"Bearer "+session.access_token,"Content-Type":"application/json"},
+      body:JSON.stringify({invoice_token:data.public_token,pdf_base64:pdfBase64,filename:"JJ-GOLD-COVERING-"+data.invoice_number+".pdf"})
+    });
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(result.error||"WhatsApp bill could not be sent.");
+    setMsg("WhatsApp PDF sent for "+data.invoice_number,"success");
+  }catch(e){
+    console.error(e);
+    setMsg(e.message||"Could not send WhatsApp PDF.","error");
+  }
 }
+
 function setMsg(message,tone=""){
   const el=$b("billingMsg");el.textContent=message;el.className="billing-msg "+tone;
 }
@@ -178,7 +188,7 @@ function showReceipt(data,items,customerPhone="",customerName=""){
   const wa=$b("receiptWhatsApp");
   if(whatsappNumberB(customerPhone)){
     wa.style.display="inline-block";
-    wa.onclick=()=>sendBillWhatsApp(data.public_token,customerPhone,data.invoice_number,data.order_number,data.total_amount,customerName);
+    wa.onclick=()=>sendBillWhatsAppPdf(data,items,customerPhone,customerName);
   }else{
     wa.style.display="none";
     wa.onclick=null;
