@@ -5,9 +5,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Builder, By, until } from "selenium-webdriver";
 import chrome from "selenium-webdriver/chrome.js";
-import { BASE_URL, ADMIN_USERNAME, ADMIN_PASSWORD, E2E_ENABLED, requireAuthenticatedE2EConfig } from "../configuration.mjs";
+import { BASE_URL, ADMIN_USERNAME, ADMIN_PASSWORD, E2E_ENABLED, BILL_E2E_TOKEN, requireAuthenticatedE2EConfig } from "../configuration.mjs";
 import { LoginPage } from "../pages/LoginPage.mjs";
 import { StaffPage } from "../pages/StaffPage.mjs";
+import { BillsPage } from "../pages/BillsPage.mjs";
 
 const artifacts = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../../test-results/selenium");
 await fs.mkdir(artifacts, { recursive: true });
@@ -58,5 +59,38 @@ test("admin can load and manage an isolated staff account", { skip: !E2E_ENABLED
     assert.equal(await staff.hasUsername(unique), true);
     await staff.deleteStaff(unique);
     assert.equal(await staff.hasUsername(unique), false);
+  });
+});
+
+
+test("authenticated admin navigation remains stable across Products, Inventory, Billing and Bills", { skip: !E2E_ENABLED }, async () => {
+  requireAuthenticatedE2EConfig();
+  await runWithDriver("admin-page-navigation", async (driver) => {
+    const login = new LoginPage(driver);
+    await login.open(BASE_URL);
+    await login.signIn(ADMIN_USERNAME, ADMIN_PASSWORD);
+    for (const page of ["products.html", "inventory.html", "billing.html", "bills.html", "products.html"]) {
+      await driver.get(BASE_URL + "/admin/" + page);
+      await driver.wait(until.urlContains(page), 10000);
+      assert.match(await driver.getCurrentUrl(), new RegExp(page.replace(".", "\\.")+"$"));
+    }
+  });
+});
+
+test("bill View opens the in-app bill preview when an isolated E2E bill exists", { skip: !E2E_ENABLED || !BILL_E2E_TOKEN }, async () => {
+  requireAuthenticatedE2EConfig();
+  await runWithDriver("bill-view", async (driver) => {
+    const login = new LoginPage(driver);
+    const bills = new BillsPage(driver);
+    await login.open(BASE_URL);
+    await login.signIn(ADMIN_USERNAME, ADMIN_PASSWORD);
+    await bills.open(BASE_URL);
+    const url = BASE_URL + "/admin/bills.html?e2e_token=" + encodeURIComponent(BILL_E2E_TOKEN);
+    await driver.get(url);
+    await driver.wait(until.urlContains("bills.html"), 10000);
+    const opened = await bills.openFirstBill();
+    assert.equal(opened, true);
+    const preview = await driver.findElement(By.css("#billModal.open #billPreview"));
+    assert.equal(await preview.isDisplayed(), true);
   });
 });
