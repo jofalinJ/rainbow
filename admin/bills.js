@@ -75,6 +75,45 @@ async function printBill(token){
   if(currentBill)setTimeout(()=>window.print(),150);
 }
 
+async function createAndDownloadPdf(token){
+  try{
+    setBillMsg("Creating PDF…");
+    const data=await fetchBill(token);
+    const pdf=await RainbowBillPdf.fromData(data,$bl("pdfStage"));
+    pdf.save("JJ-GOLD-COVERING-"+data.invoice_number+".pdf");
+    setBillMsg("PDF created.","success");
+  }catch(e){
+    console.error(e);
+    setBillMsg("Could not create PDF: "+(e.message||"Unknown error"),"error");
+  }
+}
+async function sendWhatsAppPdf(token){
+  const button=[...document.querySelectorAll("[data-wa]")].find(x=>x.dataset.wa===token);
+  if(button)button.disabled=true;
+  try{
+    setBillMsg("Generating bill PDF…");
+    const data=await fetchBill(token);
+    const pdf=await RainbowBillPdf.fromData(data,$bl("pdfStage"));
+    const pdfBase64=RainbowBillPdf.bufferToBase64(pdf.output("arraybuffer"));
+    const session=await requireSession();
+    const response=await fetch(SUPABASE_URL+"/functions/v1/send-whatsapp-bill",{
+      method:"POST",
+      headers:{apikey:SUPABASE_ANON_KEY,Authorization:"Bearer "+session.access_token,"Content-Type":"application/json"},
+      body:JSON.stringify({invoice_token:token,pdf_base64:pdfBase64,filename:"JJ-GOLD-COVERING-"+data.invoice_number+".pdf"})
+    });
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(result.error||"WhatsApp bill could not be sent.");
+    setBillMsg("WhatsApp PDF sent for "+data.invoice_number,"success");
+    if(currentBill)setToast("WhatsApp PDF sent successfully.","success");
+  }catch(e){
+    console.error(e);
+    setBillMsg(e.message||"Could not send WhatsApp PDF.","error");
+    if(currentBill)setToast(e.message||"Could not send WhatsApp PDF.","error");
+  }finally{
+    if(button)button.disabled=false;
+  }
+}
+
 $bl("closeBillModal").addEventListener("click",closeBillModal);
 $bl("billModal").addEventListener("click",e=>{if(e.target===e.currentTarget)closeBillModal();});
 $bl("modalPrint").addEventListener("click",()=>currentBill&&window.print());
