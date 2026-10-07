@@ -1,9 +1,9 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>JJ Gold Covering — Admin</title><link rel="stylesheet" href="style.css"><script src="config.js"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script defer src="app.js?v=20261005"></script></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Rainbow Gold Covering — Admin</title><link rel="stylesheet" href="style.css"><script src="config.js"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script defer src="app.js?v=20261007"></script></head>
 <body>
-<aside><div class="brand">JJ <span>GOLD COVERING</span></div><nav>
-<a class="active" href="index.html">Dashboard</a><a href="products.html">Products</a><a href="inventory.html">Inventory</a><a href="bills.html">Bills</a><a href="#" onclick="return comingSoon('Orders')">Orders</a><a href="billing.html">Billing</a><a href="#" onclick="return comingSoon('Customers')">Customers</a><a href="#" onclick="return comingSoon('Reports')">Reports</a><a href="staff.html">Staff</a><a href="#" onclick="return comingSoon('Settings')">Settings</a>
+<aside><div class="brand">RAINBOW <span>GOLD COVERING</span></div><nav>
+<a class="active" href="index.html">Dashboard</a><a href="products.html">Products</a><a href="inventory.html">Inventory</a><a href="bills.html">Bills</a><a href="#" onclick="return comingSoon('Orders')">Orders</a><a href="billing.html">Billing</a><a href="#" onclick="return comingSoon('Customers')">Customers</a><a href="#" onclick="return comingSoon('Reports')">Reports</a><a href="staff.html">Staff</a><a href="settings.html">Settings</a>
 </nav><div class="user">Admin<br><small>Full access</small><button onclick="logout()" style="margin-top:12px">Sign out</button></div></aside>
 <main><header><div><p class="eyebrow">OVERVIEW</p><h1>Dashboard</h1></div><button class="profile" onclick="logout()">Sign out</button></header>
 <section class="cards"><div><small>Today’s Sales</small><strong id="sales">₹0</strong><span id="salesMeta">Loading…</span></div><div><small>Orders</small><strong id="orders">0</strong><span>Recent orders</span></div><div><small>Products</small><strong id="products">0</strong><span>Active products</span></div><div class="alert"><small>Low Stock</small><strong id="lowCount">0</strong><span>Needs attention</span></div></section>
