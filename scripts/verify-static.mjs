@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"..");
-const required=["index.html","order.html","admin/index.html","admin/login.html","admin/products.html","admin/inventory.html","admin/staff.html","admin/settings.html","admin/orders.html","admin/billing.html","admin/billing.js","admin/bills.html","admin/bills.js","admin/orders.js","admin/app.js","admin/config.js","business-live.js","content.js","invoice.html","invoice.js","invoice-template.js","invoice-template.css","bill-pdf.js"];
+const required=["index.html","order.html","admin/index.html","admin/login.html","admin/products.html","admin/inventory.html","admin/staff.html","admin/settings.html","admin/orders.html","admin/billing.html","admin/billing.js","admin/bills.html","admin/bills.js","admin/orders.js","admin/app.js","admin/config.js","business-live.js","content.js","invoice.html","invoice.js","invoice-template.js","invoice-template.css","bill-pdf.js","scripts/run-e2e-local.mjs"];
 const forbiddenPatterns=[/SUPABASE_SERVICE_ROLE_KEY\s*[:=]\s*(?!\$\{\{)[A-Za-z0-9._-]{20,}/i,/-----BEGIN [A-Z ]+PRIVATE KEY-----/];
 
 for(const file of required){
