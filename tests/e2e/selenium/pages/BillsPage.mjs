@@ -13,10 +13,14 @@ export class BillsPage {
     return (await this.driver.findElements(By.css("[data-view]"))).length > 0;
   }
 
-  async openFirstBill() {
+  async openBillByToken(token) {
     const buttons = await this.driver.findElements(By.css("[data-view]"));
-    if (!buttons.length) return false;
-    await buttons[0].click();
+    const target = [];
+    for (const button of buttons) {
+      if (await button.getAttribute("data-view") === token) target.push(button);
+    }
+    if (!target.length) return false;
+    await target[0].click();
     await this.driver.wait(until.elementLocated(By.css("#billModal.open #billPreview")), 10000);
     return true;
   }
