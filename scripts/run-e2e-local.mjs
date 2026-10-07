@@ -17,7 +17,7 @@ try{
   await new Promise((resolve,reject)=>{
     const timer=setTimeout(resolve,1000);
     server.once("error",err=>{clearTimeout(timer);reject(err);});
-    server.once("exit",(code,signal)=>{
+    server.once("exit",(code)=>{
       clearTimeout(timer);
       if(code!==null&&code!==0)reject(new Error("Static server exited before E2E tests started."));
     });
