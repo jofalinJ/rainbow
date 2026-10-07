@@ -58,15 +58,14 @@
     const images=Array.isArray(product.product_images)?product.product_images:[];
     const main=getImage(product);
     const stock=getStock(product);
-    const variants=Array.isArray(product.product_variants)?product.product_variants:[];
     const details=[
       ["Product code",product.product_code],
       ["Category",product.type||"Jewellery"],
       ["Material",product.material],
       ["Plating",product.plating],
       ["Thickness",product.thickness],
-      ["Length",product.length],
-      ["Gender",product.gender]
+      ["Length",product.length_cm!=null?product.length_cm+" cm":null],
+      ["Gold amount",product.gold_amount_g!=null?product.gold_amount_g+" g":null]
     ].filter(x=>x[1]!==null&&x[1]!==undefined&&String(x[1]).trim()!=="");
     content.innerHTML='<div class="product-detail-grid"><div><div class="product-detail-main">'+(main?'<img src="'+esc(main)+'" alt="'+esc(product.product_name)+'">':'<div class="placeholder">RG</div>')+'</div>'+(images.length>1?'<div class="product-detail-thumbs">'+images.map(i=>'<img src="'+esc(i.public_url||"")+'" alt="" loading="lazy">').join("")+'</div>':"")+'</div><div class="product-detail-info"><span class="section-kicker">PRODUCT DETAILS</span><h2 id="modalProductName">'+esc(product.product_name)+'</h2><div class="modal-price">'+money(product.selling_price)+'</div><span class="product-stock '+(stock===0?"out":"in")+'">'+(stock===0?"Out of stock":"Available")+'</span>'+(product.description?'<p class="modal-description">'+esc(product.description)+'</p>':"")+(details.length?'<div class="detail-list">'+details.map(d=>'<div><span>'+esc(d[0])+'</span><strong>'+esc(d[1])+'</strong></div>').join("")+'</div>':"")+'<a class="btn btn-dark modal-instagram" href="https://www.instagram.com/rainbow_kollam_gold_covering/" target="_blank" rel="noopener noreferrer">View more on Instagram →</a></div></div>';
     modal.classList.add("open");modal.setAttribute("aria-hidden","false");document.body.classList.add("modal-open");
@@ -84,7 +83,7 @@
     const status=document.getElementById("productStatus");
     try{
       const {data,error}=await client.from("products")
-        .select("id,product_code,product_name,type,selling_price,description,material,plating,thickness,length,gender,created_at,product_variants(stock_quantity,low_stock_limit),product_images(public_url,is_primary)")
+        .select("id,product_code,product_name,type,selling_price,description,length_cm,thickness,gold_amount_g,created_at,product_variants(stock_quantity,low_stock_limit),product_images(public_url,is_primary)")
         .eq("active",true).order("created_at",{ascending:false});
       if(error)throw error;
       render(data||[]);
