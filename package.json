@@ -3,15 +3,15 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "engines": {
-    "node": ">=22"
-  },
+  "engines": { "node": ">=22" },
   "scripts": {
     "test": "npm run test:unit && npm run test:integration",
     "test:all": "npm run test && npm run test:e2e",
     "test:unit": "vitest run tests/unit",
     "test:integration": "vitest run tests/integration",
     "test:e2e": "node --test tests/e2e/selenium/tests",
+    "test:e2e:public": "node --test tests/e2e/selenium/tests/public.test.mjs",
+    "test:e2e:authenticated": "node --test tests/e2e/selenium/tests/staff.test.mjs",
     "test:coverage": "vitest run tests/unit --coverage",
     "test:watch": "vitest",
     "lint": "eslint .",
