@@ -17,7 +17,7 @@
     <div class="navlinks">
       <a href="#story">About</a><a href="#collections">Collections</a><a href="#process">How It Works</a><a href="#contact">Contact</a>
     </div>
-    <div class="nav-actions"><a class="btn btn-light" href="#collections">Explore</a><a class="btn btn-dark" href="admin/">Staff Portal</a></div>
+    <div class="nav-actions"><a class="btn btn-light" href="#products">Explore Products</a></div>
   </nav>
 </header>
 <main>
@@ -40,9 +40,16 @@
 <div><p class="story-copy">Our collection is presented around the way customers actually shop: by design, occasion and personal style. The website will grow with the store as products, stock, orders and customer services are connected.</p><div class="values"><div class="value"><strong>Design</strong><span>Styles selected for everyday wear and special occasions.</span></div><div class="value"><strong>Value</strong><span>Gold-covering jewellery designed to offer an accessible jewellery experience.</span></div><div class="value"><strong>Service</strong><span>A store experience supported by a growing digital ordering system.</span></div></div></div></div>
 </div>
 </section>
+<section class="section live-products" id="products">
+<div class="container">
+<div class="section-head"><div><span class="section-kicker">02 / LIVE COLLECTION</span><h2>Our latest products.</h2></div><p>Products added by Rainbow staff appear here automatically. Prices, photos and stock status stay connected to the store inventory.</p></div>
+<div id="productStatus" class="product-status" aria-live="polite">Loading products…</div>
+<div id="productGrid" class="product-grid"></div>
+</div>
+</section>
 <section class="section collections" id="collections">
 <div class="container">
-<div class="section-head"><div><span class="section-kicker">02 / COLLECTIONS</span><h2>Find your kind of shine.</h2></div><p>Explore the major jewellery categories. Product-level browsing can be connected here as the online catalogue expands.</p></div>
+<div class="section-head"><div><span class="section-kicker">03 / COLLECTIONS</span><h2>Find your kind of shine.</h2></div><p>Explore the major jewellery categories. Product-level browsing can be connected here as the online catalogue expands.</p></div>
 <div class="collection-grid">
 <article class="collection"><div class="icon">✦</div><h3>Chains</h3><p>Everyday and statement chain designs across different lengths and styles.</p><a href="#contact">Enquire →</a></article>
 <article class="collection"><div class="icon">◇</div><h3>Necklaces</h3><p>Elegant pieces for celebrations, occasions and personal styling.</p><a href="#contact">Enquire →</a></article>
@@ -55,15 +62,15 @@
 </section>
 <section class="section process" id="process">
 <div class="container">
-<div class="section-head"><div><span class="section-kicker">03 / THE EXPERIENCE</span><h2>Simple from discovery to purchase.</h2></div><p>The customer journey is designed to become increasingly connected to the store's inventory and ordering system.</p></div>
+<div class="section-head"><div><span class="section-kicker">04 / THE EXPERIENCE</span><h2>Simple from discovery to purchase.</h2></div><p>The customer journey is designed to become increasingly connected to the store's inventory and ordering system.</p></div>
 <div class="process-grid"><div class="step"><span>01</span><h3>Discover</h3><p>Browse collections and find designs that match your style.</p></div><div class="step"><span>02</span><h3>Choose</h3><p>Review the design, details and availability before ordering.</p></div><div class="step"><span>03</span><h3>Order</h3><p>Place an online order or continue the conversation with the store.</p></div><div class="step"><span>04</span><h3>Receive</h3><p>Choose the appropriate delivery or store-pickup journey when available.</p></div></div>
 </div>
 </section>
 <section class="section contact" id="contact">
-<div class="container contact-card"><div><span class="section-kicker">04 / CONTACT</span><h2>Looking for a particular design?</h2><p>Tell us what you are looking for and continue the conversation with Rainbow Gold Covering.</p></div><a class="btn btn-light" href="#collections">Browse Collections</a></div>
+<div class="container contact-card"><div><span class="section-kicker">05 / CONTACT</span><h2>Looking for a particular design?</h2><p>Tell us what you are looking for and continue the conversation with Rainbow Gold Covering.</p></div><a class="btn btn-light" href="#collections">Browse Collections</a></div>
 </section>
 </main>
 <footer class="container footer"><span>RAINBOW GOLD COVERING</span><span>© <span id="year"></span> · Premium Jewellery Experience</span></footer>
-<script src="content.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="content.js"></script>
 </body>
 </html>
