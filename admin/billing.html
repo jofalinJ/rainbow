@@ -5,8 +5,13 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>JJ Gold Covering — Billing</title>
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="../invoice-template.css">
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@4.2.1/dist/jspdf.umd.min.js"></script>
+<script src="../invoice-template.js"></script>
+<script src="../bill-pdf.js"></script>
 <style>
 .billing-layout{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(340px,.75fr);gap:18px}
 .billing-search{display:flex;gap:10px;margin-bottom:14px}
@@ -123,10 +128,11 @@
 <div class="total-line"><span>SGST</span><strong id="receiptSgst"></strong></div>
 <div class="total-line grand-total"><span>Total</span><strong id="receiptTotal"></strong></div>
 <div style="margin-top:12px;font-size:12px"><b>Payment:</b> <span id="receiptPayment"></span></div>
-<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px"><button id="viewReceipt" type="button">View Bill</button><button id="printReceipt" type="button">Print Bill</button><button id="receiptWhatsApp" type="button" class="wa-btn" style="display:none">WhatsApp Bill</button><button id="newSale" type="button">New Sale</button></div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px"><button id="viewReceipt" type="button">View Bill</button><button id="printReceipt" type="button">Print Bill</button><button id="receiptWhatsApp" type="button" class="wa-btn" style="display:none">WhatsApp PDF</button><button id="newSale" type="button">New Sale</button></div>
 </div>
 </section>
 </main>
+<div id="receiptPdfStage" class="invoice" style="position:absolute;left:-100000px;top:0;width:80mm;background:#fff"></div>
 <script src="app.js?v=20261005"></script>
 <script src="billing.js?v=20261006"></script>
 </body>
