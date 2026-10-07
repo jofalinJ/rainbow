@@ -2,6 +2,7 @@ export const BASE_URL = (process.env.E2E_BASE_URL || "http://127.0.0.1:4173").re
 export const ADMIN_USERNAME = process.env.E2E_ADMIN_USERNAME || "";
 export const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD || "";
 export const E2E_ENABLED = process.env.E2E_ENABLED === "true";
+export const BILL_E2E_TOKEN = process.env.BILL_E2E_TOKEN || "";
 export const ISOLATED_ENV = process.env.E2E_ISOLATED_ENV === "true";
 
 export function requireAuthenticatedE2EConfig() {
