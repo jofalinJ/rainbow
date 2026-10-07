@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#8f1520"><title>Order — Rainbow Gold Covering</title><link rel="stylesheet" href="content.css"><link rel="stylesheet" href="order.css"><script src="config.js"></script><script src="admin/config.js"></script></head>
+<body>
+<header class="topbar"><nav class="nav container"><a class="logo" href="index.html"><span class="logo-mark">RG</span><span><strong>RAINBOW</strong><small>GOLD COVERING</small></span></a><div class="nav-actions"><a class="instagram-top" href="https://www.instagram.com/rainbow_kollam_gold_covering/" target="_blank" rel="noopener noreferrer">Instagram ↗</a><a class="cart-top" href="order.html">Cart <span id="cartCount">0</span></a></div></nav></header>
+<main class="order-page"><div class="container">
+<div class="order-head"><div><span class="section-kicker">ONLINE ORDER</span><h1>Your order.</h1><p>Review your jewellery, add your delivery details and place your order with Rainbow Gold Covering.</p></div><a class="btn btn-light" href="index.html#products">Continue Shopping</a></div>
+<div id="orderSuccess" class="order-success" hidden></div>
+<div id="orderLayout" class="order-layout">
+<section class="order-card"><div class="order-card-head"><h2>Your items</h2><button id="clearCart" type="button">Clear</button></div><div id="orderItems"></div></section>
+<section class="order-card"><h2>Delivery details</h2><div class="order-form">
+<label>Full name<input id="name" required autocomplete="name"></label>
+<label>WhatsApp number<input id="phone" required inputmode="tel" autocomplete="tel"></label>
+<label>Email<input id="email" type="email" autocomplete="email"></label>
+<label>PIN code<input id="pin" inputmode="numeric" autocomplete="postal-code"></label>
+<label>City<input id="city" autocomplete="address-level2"></label>
+<label>State<input id="state" value="Tamil Nadu" autocomplete="address-level1"></label>
+<label class="full">Delivery address<textarea id="address" rows="3" required autocomplete="street-address"></textarea></label>
+<label>Estimated distance (km)<input id="distance" type="number" min="0" max="500" step="0.1" placeholder="Optional"></label>
+</div><p class="form-note">Delivery charges are calculated from the store's active distance-based delivery rates. Leave distance empty for store pickup / fee confirmation by the shop.</p>
+<div class="order-summary"><div><span>Subtotal</span><strong id="subtotal">₹0.00</strong></div><div><span>Discount (3%)</span><strong id="discount">₹0.00</strong></div><div><span>CGST (1.5%)</span><strong id="cgst">₹0.00</strong></div><div><span>SGST (1.5%)</span><strong id="sgst">₹0.00</strong></div><div><span>Delivery</span><strong id="delivery">Calculated by store</strong></div><div class="grand"><span>Total</span><strong id="total">₹0.00</strong></div></div>
+<button id="placeOrder" class="btn btn-dark place-order" type="button">Place Order →</button><p id="orderMsg" class="order-msg" aria-live="polite"></p>
+</section></div></div></main>
+<footer class="container footer"><span>RAINBOW GOLD COVERING</span><span><a class="instagram-link" href="https://www.instagram.com/rainbow_kollam_gold_covering/" target="_blank" rel="noopener noreferrer">Instagram · @rainbow_kollam_gold_covering</a></span></footer>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="order.js"></script>
+</body></html>
