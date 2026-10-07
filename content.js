@@ -1,0 +1,1 @@
+document.querySelectorAll('[data-scroll]').forEach(button=>button.addEventListener('click',()=>{document.querySelector(button.dataset.scroll)?.scrollIntoView({behavior:'smooth'})}));document.getElementById('year').textContent=new Date().getFullYear();
