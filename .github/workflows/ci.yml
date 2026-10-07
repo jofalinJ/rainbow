@@ -5,14 +5,19 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   quality:
+    name: Quality / Unit / Static / Security
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
       - run: npm install
       - run: npm run lint
       - run: npm run test:unit
@@ -20,8 +25,10 @@ jobs:
       - run: npm run security
 
   integration:
+    name: Supabase integration (isolated environment)
     if: vars.RAINBOW_TEST_ENV_READY == 'true'
     runs-on: ubuntu-latest
+    environment: test
     env:
       SUPABASE_TEST_URL: ${{ secrets.SUPABASE_TEST_URL }}
       SUPABASE_TEST_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_TEST_SERVICE_ROLE_KEY }}
@@ -30,12 +37,22 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
       - run: npm install
+      - name: Verify isolated test environment
+        run: |
+          test -n "$SUPABASE_TEST_URL"
+          test -n "$SUPABASE_TEST_SERVICE_ROLE_KEY"
+          case "$SUPABASE_TEST_URL" in
+            *ajnicsvtymvvkgepjmmk.supabase.co*) echo "Production Supabase URL is not allowed."; exit 1 ;;
+          esac
       - run: npm run test:integration
 
-  e2e:
+  authenticated-e2e:
+    name: Authenticated Selenium E2E (isolated environment)
     if: vars.RAINBOW_E2E_READY == 'true'
     runs-on: ubuntu-latest
+    environment: test
     env:
       SUPABASE_TEST_URL: ${{ secrets.SUPABASE_TEST_URL }}
       SUPABASE_TEST_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_TEST_PUBLISHABLE_KEY }}
@@ -51,14 +68,24 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
       - run: npm install
+      - name: Verify isolated E2E environment
+        run: |
+          test -n "$SUPABASE_TEST_URL"
+          test -n "$SUPABASE_TEST_PUBLISHABLE_KEY"
+          test -n "$E2E_ADMIN_USERNAME"
+          test -n "$E2E_ADMIN_PASSWORD"
+          case "$SUPABASE_TEST_URL" in
+            *ajnicsvtymvvkgepjmmk.supabase.co*) echo "Production Supabase URL is not allowed."; exit 1 ;;
+          esac
       - run: node scripts/write-test-config.mjs
       - run: nohup node scripts/static-server.mjs > test-server.log 2>&1 & echo $! > server.pid; sleep 2; curl --fail http://127.0.0.1:4173/admin/login.html
-      - run: npm run test:e2e
+      - run: npm run test:e2e:authenticated
       - if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: selenium-failure-artifacts
+          name: selenium-authenticated-failure-artifacts
           path: |
             test-results/selenium
             test-server.log
