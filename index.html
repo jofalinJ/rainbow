@@ -8,7 +8,7 @@
 <meta property="og:image" content="https://jofalinj.github.io/rainbow/assets/brand/rainbow-logo.png">
 <meta name="description" content="Rainbow Gold Covering — premium gold-covering jewellery, collections and store information.">
 <title>Rainbow Gold Covering — Jewellery, Made to Shine</title>
-<link rel="stylesheet" href="content.css?v=20261011-product-detail-v1">
+<link rel="stylesheet" href="content.css?v=20261011-customer-auth-v1">
 <script src="config.js"></script>
 <script src="admin/config.js"></script>
 </head>
@@ -64,8 +64,33 @@
   <button class="utility-backdrop" type="button" data-close-utility aria-label="Close account panel"></button>
   <section class="utility-panel account-panel" role="dialog" aria-modal="true" aria-labelledby="accountTitle">
     <div class="utility-panel-head"><div><span class="section-kicker">YOUR RAINBOW</span><h2 id="accountTitle">Account & orders</h2></div><button class="icon-button utility-close" type="button" data-close-utility aria-label="Close account panel"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
-    <p id="accountIdentity" class="utility-intro">Your saved items stay in this browser. Active orders linked to a signed-in account email appear below.</p>
-    <div id="accountOrders" class="tracking-auto-orders"><p class="muted">Checking your account…</p></div>
+    <p id="accountIdentity" class="utility-intro">Sign in or create an account to keep your details and view your orders.</p>
+    <div id="accountAuthForms" class="account-auth">
+      <div class="account-auth-tabs" role="group" aria-label="Account access">
+        <button type="button" class="account-auth-tab is-active" data-account-mode="signin" aria-pressed="true">Sign in</button>
+        <button type="button" class="account-auth-tab" data-account-mode="signup" aria-pressed="false">Create account</button>
+      </div>
+      <form id="accountSignInForm" class="account-auth-form">
+        <label>Email address<input id="accountSignInEmail" name="email" type="email" autocomplete="email" required maxlength="254" placeholder="you@example.com"></label>
+        <label>Password<input id="accountSignInPassword" name="password" type="password" autocomplete="current-password" required minlength="8" placeholder="Enter your password"></label>
+        <button class="btn btn-dark" type="submit">Sign in</button>
+      </form>
+      <form id="accountSignUpForm" class="account-auth-form" hidden>
+        <label>Full name<input id="accountSignUpName" name="name" type="text" autocomplete="name" required maxlength="120" placeholder="Your name"></label>
+        <label>Email address<input id="accountSignUpEmail" name="email" type="email" autocomplete="email" required maxlength="254" placeholder="you@example.com"></label>
+        <label>Phone / WhatsApp number<input id="accountSignUpPhone" name="phone" type="tel" inputmode="tel" autocomplete="tel" required minlength="10" maxlength="18" placeholder="10–13 digits"></label>
+        <label>Password<input id="accountSignUpPassword" name="password" type="password" autocomplete="new-password" required minlength="8" placeholder="At least 8 characters"></label>
+        <button class="btn btn-dark" type="submit">Create account</button>
+      </form>
+      <p class="account-auth-note">Your name, email, and phone are saved to Rainbow's customer directory to manage your account and orders.</p>
+      <p id="accountAuthMessage" class="account-auth-message" role="status" aria-live="polite"></p>
+    </div>
+    <div id="accountSignedIn" class="account-signed-in" hidden>
+      <strong id="accountSignedInName"></strong>
+      <span id="accountSignedInEmail"></span>
+      <button type="button" id="accountSignOut" class="btn btn-light">Sign out</button>
+    </div>
+    <div id="accountOrders" class="tracking-auto-orders"><p class="muted">Sign in to view orders linked to your account.</p></div>
     <button type="button" id="accountTrackOrder" class="btn btn-light account-track-button">Track an order with product code</button>
   </section>
 </div>
@@ -115,6 +140,6 @@
 </main>
 <footer class="container footer"><span class="footer-brand" data-config="footerBrand"><img class="footer-logo" src="assets/brand/rainbow-logo.png" alt="Rainbow Gold Covering logo" width="28" height="28" loading="lazy"><span data-config="footerBrandText">RAINBOW GOLD COVERING</span></span><span><a class="instagram-link" data-instagram href="https://www.instagram.com/rainbow_kollam_gold_covering/" target="_blank" rel="noopener noreferrer">Instagram · @rainbow_kollam_gold_covering</a></span><span>© <span id="year"></span> Rainbow Gold Covering. All rights reserved.</span></footer>
 <div id="productModal" class="product-modal" aria-hidden="true"><div class="product-modal-backdrop" data-close-product></div><button class="product-modal-nav previous" type="button" data-product-prev aria-label="Previous product" hidden>‹</button><div class="product-modal-panel" role="dialog" aria-modal="true" aria-labelledby="modalProductName"><button class="product-modal-close" type="button" aria-label="Close product details" data-close-product>×</button><div id="productModalContent"></div></div><button class="product-modal-nav next" type="button" data-product-next aria-label="Next product" hidden>›</button></div>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="content.js?v=20261011-product-detail-v1"></script><script src="business-live.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="content.js?v=20261011-customer-auth-v1"></script><script src="business-live.js"></script>
 </body>
 </html>
