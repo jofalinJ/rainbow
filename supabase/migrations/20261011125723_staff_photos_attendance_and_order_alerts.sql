@@ -8,9 +8,19 @@ alter table public.attendance
   add column if not exists photo_reviewed_by uuid references auth.users(id) on delete set null,
   add column if not exists photo_reviewed_at timestamptz;
 
-alter table public.attendance
-  add constraint attendance_photo_review_status_check
-  check (photo_review_status in ('Not submitted', 'Pending', 'Approved', 'Rejected'));
+do $
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conrelid = 'public.attendance'::regclass
+      and conname = 'attendance_photo_review_status_check'
+  ) then
+    alter table public.attendance
+      add constraint attendance_photo_review_status_check
+      check (photo_review_status in ('Not submitted', 'Pending', 'Approved', 'Rejected'));
+  end if;
+end
+$;
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values (
