@@ -119,7 +119,7 @@ Deno.serve(async (req) => {
         order_id: invoice.order_id,
         recipient_number: to,
         notification_type: "bill_pdf",
-        message_template: templateName || "JJ GOLD COVERING invoice " + invoice.invoice_number,
+        message_template: templateName || "Rainbow Gold Covering invoice " + invoice.invoice_number,
         invoice_url: invoiceUrl,
         status: "pending"
       })
@@ -148,7 +148,7 @@ Deno.serve(async (req) => {
       return json({ error: "WhatsApp media upload failed." }, 502);
     }
 
-    const caption = "JJ GOLD COVERING\nInvoice: " + invoice.invoice_number + "\nOrder: " + invoice.orders.order_number;
+    const caption = "Rainbow Gold Covering\nInvoice: " + invoice.invoice_number + "\nOrder: " + invoice.orders.order_number;
     const messageBody = templateName
       ? {
           messaging_product: "whatsapp",
