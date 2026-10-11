@@ -17,6 +17,7 @@ const ADMIN_NAV_ITEMS=[
   {label:"Customers",href:"customers.html",roles:["admin","cashier"]},
   {label:"Reports",href:"reports.html",roles:["admin"]},
   {label:"Staff",href:"staff.html",roles:["admin"]},
+  {label:"My Attendance",href:"my-attendance.html",roles:["admin","cashier","inventory_staff"]},
   {label:"Attendance",href:"attendance.html",roles:["admin"]}
 ];
 function renderSharedSidebar(){
