@@ -177,8 +177,3 @@ $$;
 revoke all on function public.staff_attendance_action(text, text) from public;
 revoke all on function public.staff_attendance_action(text, text) from anon;
 grant execute on function public.staff_attendance_action(text, text) to authenticated;
-
-create unique index if not exists whatsapp_new_order_alert_once_idx
-on public.whatsapp_notifications (order_id)
-where notification_type = 'new_order_alert'
-  and status in ('pending', 'sent');
