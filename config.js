@@ -1,5 +1,5 @@
 window.RAINBOW_BUSINESS_CONFIG=Object.freeze({
-  businessName:"Rainbow Gold Covering",
+  businessName:"Rainbow Kollam Gold Covering",
   legalDisplayName:"Rainbow Kollam Gold Covering Jewelry Wholesaler",
   tagline:"Premium Gold Covering Jewellery",
   trustLine:"30+ Years of Trust & Quality",
