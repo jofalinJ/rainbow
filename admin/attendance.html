@@ -7,7 +7,7 @@
 <link rel="icon" type="image/png" href="../assets/brand/rainbow-logo.png">
 <title>Rainbow Gold Covering — Staff Attendance</title>
 <link rel="stylesheet" href="style.css">
-<link rel="stylesheet" href="attendance.css?v=20261011-attendance">
+<link rel="stylesheet" href="attendance.css?v=20261011-attendance-photo-review">
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -47,8 +47,8 @@
       <p id="dailyMessage" class="attendance-message" role="status" aria-live="polite"></p>
       <div class="table-wrap attendance-table-wrap">
         <table class="attendance-table">
-          <thead><tr><th>Staff member</th><th>Status</th><th>Check-in</th><th>Check-out</th><th>Working hours</th></tr></thead>
-          <tbody id="attendanceRows"><tr><td colspan="5">Loading staff attendance…</td></tr></tbody>
+          <thead><tr><th>Staff member</th><th>Status</th><th>Check-in</th><th>Check-out</th><th>Working hours</th><th>Photo review</th></tr></thead>
+          <tbody id="attendanceRows"><tr><td colspan="6">Loading staff attendance…</td></tr></tbody>
         </table>
       </div>
     </section>
@@ -77,8 +77,26 @@
       </div>
     </section>
   </section>
+  <div id="photoReviewDialog" class="attendance-photo-overlay" hidden>
+    <section class="attendance-photo-dialog" role="dialog" aria-modal="true" aria-labelledby="photoReviewTitle">
+      <button id="closePhotoReview" class="photo-review-close" type="button" aria-label="Close photo review">×</button>
+      <p class="eyebrow">ATTENDANCE REVIEW</p>
+      <h2 id="photoReviewTitle">Compare staff photos</h2>
+      <p id="photoReviewPerson" class="muted"></p>
+      <div class="photo-comparison">
+        <figure><img id="staffReferencePhoto" alt="Staff profile reference photo"><figcaption>Staff profile photo</figcaption></figure>
+        <figure><img id="staffAttendancePhoto" alt="Attendance check-in photo"><figcaption>Check-in photo</figcaption></figure>
+      </div>
+      <p class="photo-review-guidance">Compare the images manually. The system does not use automated face recognition.</p>
+      <p id="photoReviewMessage" class="attendance-message" role="status"></p>
+      <div class="photo-review-actions">
+        <button type="button" data-photo-decision="Rejected">Reject photo</button>
+        <button type="button" class="approve-photo" data-photo-decision="Approved">Approve photo</button>
+      </div>
+    </section>
+  </div>
 </main>
-<script src="app.js?v=20261012-sidebar"></script>
-<script src="attendance.js?v=20261011-attendance"></script>
+<script src="app.js?v=20261011-staff-attendance"></script>
+<script src="attendance.js?v=20261011-photo-review"></script>
 </body>
 </html>
