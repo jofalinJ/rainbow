@@ -2,7 +2,7 @@
   const SUPABASE_CONFIG=window.RAINBOW_SUPABASE_CONFIG||{};
   const SUPABASE_URL=String(SUPABASE_CONFIG.supabaseUrl||"").trim();
   const SUPABASE_PUBLISHABLE_KEY=String(SUPABASE_CONFIG.supabasePublishableKey||"").trim();
-  let client=null, realtimeChannel=null;
+  let client=null, realtimeChannel=null, realtimeRefreshTimer=null, refreshInterval=null, productsLoading=false, productsReloadRequested=false;
 
   const esc=value=>String(value??"").replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
   const money=value=>"₹"+Number(value||0).toLocaleString("en-IN",{maximumFractionDigits:2});
@@ -161,7 +161,17 @@
     document.addEventListener("keydown",e=>{if(e.key==="Escape")closeProductModal();});
   }
 
+  function scheduleCatalogRefresh(){
+    if(realtimeRefreshTimer)window.clearTimeout(realtimeRefreshTimer);
+    realtimeRefreshTimer=window.setTimeout(()=>{
+      realtimeRefreshTimer=null;
+      loadProducts();
+    },250);
+  }
+
   async function loadProducts(){
+    if(productsLoading){productsReloadRequested=true;return;}
+    productsLoading=true;
     const status=document.getElementById("productStatus");
     try{
       const {data,error}=await client.from("products")
@@ -172,15 +182,17 @@
     }catch(error){
       console.error(error);
       if(status)status.textContent="Products are temporarily unavailable.";
+    }finally{
+      productsLoading=false;
+      if(productsReloadRequested){productsReloadRequested=false;scheduleCatalogRefresh();}
     }
   }
-
   function startRealtime(){
     if(!client||realtimeChannel)return;
     realtimeChannel=client.channel("customer-product-catalogue")
-      .on("postgres_changes",{event:"*",schema:"public",table:"products"},loadProducts)
-      .on("postgres_changes",{event:"*",schema:"public",table:"product_variants"},loadProducts)
-      .on("postgres_changes",{event:"*",schema:"public",table:"product_images"},loadProducts)
+      .on("postgres_changes",{event:"*",schema:"public",table:"products"},scheduleCatalogRefresh)
+      .on("postgres_changes",{event:"*",schema:"public",table:"product_variants"},scheduleCatalogRefresh)
+      .on("postgres_changes",{event:"*",schema:"public",table:"product_images"},scheduleCatalogRefresh)
       .subscribe();
   }
 
@@ -197,7 +209,13 @@
     await loadProducts();
     startRealtime();
     // Fallback refresh keeps the catalogue current even if realtime is temporarily unavailable.
-    window.setInterval(loadProducts,30000);
+    refreshInterval=window.setInterval(scheduleCatalogRefresh,30000);
+    window.addEventListener("pagehide",()=>{
+      if(refreshInterval)window.clearInterval(refreshInterval);
+      if(realtimeRefreshTimer)window.clearTimeout(realtimeRefreshTimer);
+      if(client&&realtimeChannel)client.removeChannel(realtimeChannel);
+      realtimeChannel=null;
+    },{once:true});
   }
   init();
 })();
