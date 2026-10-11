@@ -1114,7 +1114,7 @@ body.modal-open{overflow:hidden}
   height:40px!important;
   margin:0!important;
 }
-@media(max-width:760px){
+@media(max-width:900px){
   .storefront-topbar .nav{padding:6px 12px 9px!important}
   .storefront-header-row{
     grid-template-columns:42px minmax(0,1fr) 42px!important;
