@@ -286,6 +286,10 @@
     document.getElementById("drawerTrackAction")?.addEventListener("click",()=>{closeShopDrawer();openTrackingOverlay();});
     document.getElementById("drawerWishlistAction")?.addEventListener("click",()=>{closeShopDrawer();wishlistOnly=true;activeCategory="";activeSearch="";visualSearchSignature=null;visualSearchScores.clear();activeSegment="all";render();document.getElementById("products")?.scrollIntoView({behavior:"smooth",block:"start"});});
     document.getElementById("accountOpen")?.addEventListener("click",openAccountOverlay);
+    document.querySelectorAll("[data-account-mode]").forEach(button=>button.addEventListener("click",()=>setAccountAuthMode(button.dataset.accountMode)));
+    document.getElementById("accountSignInForm")?.addEventListener("submit",submitAccountSignIn);
+    document.getElementById("accountSignUpForm")?.addEventListener("submit",submitAccountSignUp);
+    document.getElementById("accountSignOut")?.addEventListener("click",signOutAccount);
     document.getElementById("orderTrackOpen")?.addEventListener("click",openTrackingOverlay);
     document.getElementById("accountTrackOrder")?.addEventListener("click",()=>{closeUtilityOverlays();openTrackingOverlay();});
     document.querySelectorAll("[data-close-utility]").forEach(button=>button.addEventListener("click",closeUtilityOverlays));
@@ -321,7 +325,143 @@
     document.body.classList.remove("utility-open");
   }
   function openTrackingOverlay(){openUtilityOverlay("trackingOverlay");loadMyOrdersInto(document.getElementById("trackingAutoOrders"),"Tracking");}
-  function openAccountOverlay(){openUtilityOverlay("accountOverlay");loadMyOrdersInto(document.getElementById("accountOrders"),"Account");}
+  function setAccountAuthMessage(message,isError=false){
+    const node=document.getElementById("accountAuthMessage");
+    if(!node)return;
+    node.textContent=message||"";
+    node.classList.toggle("is-error",Boolean(isError));
+  }
+  function setAccountAuthMode(mode){
+    const isSignup=mode==="signup";
+    document.querySelectorAll("[data-account-mode]").forEach(button=>{
+      const active=button.dataset.accountMode===(isSignup?"signup":"signin");
+      button.classList.toggle("is-active",active);
+      button.setAttribute("aria-pressed",String(active));
+    });
+    const signIn=document.getElementById("accountSignInForm");
+    const signUp=document.getElementById("accountSignUpForm");
+    if(signIn)signIn.hidden=isSignup;
+    if(signUp)signUp.hidden=!isSignup;
+    setAccountAuthMessage("");
+  }
+  function renderAccountAuthState(session){
+    const user=session?.user||null;
+    const authForms=document.getElementById("accountAuthForms");
+    const signedIn=document.getElementById("accountSignedIn");
+    const identity=document.getElementById("accountIdentity");
+    const nameNode=document.getElementById("accountSignedInName");
+    const emailNode=document.getElementById("accountSignedInEmail");
+    const accountButton=document.getElementById("accountOpen");
+    if(authForms)authForms.hidden=Boolean(user);
+    if(signedIn)signedIn.hidden=!user;
+    if(user){
+      const name=String(user.user_metadata?.full_name||"").trim();
+      if(identity)identity.textContent="You're signed in to your Rainbow customer account.";
+      if(nameNode)nameNode.textContent=name?("Welcome, "+name):"Welcome to Rainbow";
+      if(emailNode)emailNode.textContent=user.email||"";
+      if(accountButton){accountButton.setAttribute("aria-label","Your account, signed in");accountButton.title="Your account";}
+    }else{
+      if(identity)identity.textContent="Sign in or create an account to keep your details and view your orders.";
+      if(nameNode)nameNode.textContent="";
+      if(emailNode)emailNode.textContent="";
+      if(accountButton){accountButton.setAttribute("aria-label","Your account and orders");accountButton.title="Your account";}
+      setAccountAuthMode("signin");
+    }
+  }
+  async function refreshAccountPanel(){
+    const orders=document.getElementById("accountOrders");
+    if(!client){
+      renderAccountAuthState(null);
+      setAccountAuthMessage("Account sign-in is temporarily unavailable. Please try again shortly.",true);
+      if(orders)orders.innerHTML='<p class="muted">Order history is temporarily unavailable.</p>';
+      return;
+    }
+    try{
+      const {data,error}=await client.auth.getSession();
+      if(error)throw error;
+      const session=data?.session||null;
+      renderAccountAuthState(session);
+      if(session)await loadMyOrdersInto(orders,"Account");
+      else if(orders)orders.innerHTML='<p class="muted">Sign in to see orders linked to your account. Guest orders can be tracked with a product code and phone number.</p>';
+    }catch(error){
+      renderAccountAuthState(null);
+      setAccountAuthMessage(error.message||"Unable to check your account. Please try again.",true);
+      if(orders)orders.innerHTML='<p class="muted">Order history is temporarily unavailable.</p>';
+    }
+  }
+  async function submitAccountSignIn(event){
+    event.preventDefault();
+    const form=event.currentTarget,button=form.querySelector('button[type="submit"]'),label=button?.textContent||"Sign in";
+    const email=String(document.getElementById("accountSignInEmail")?.value||"").trim().toLowerCase();
+    const password=String(document.getElementById("accountSignInPassword")?.value||"");
+    if(!client){setAccountAuthMessage("Account sign-in is temporarily unavailable. Please try again shortly.",true);return;}
+    if(button){button.disabled=true;button.textContent="Signing in…";}
+    setAccountAuthMessage("");
+    try{
+      const {error}=await client.auth.signInWithPassword({email,password});
+      if(error)throw error;
+      form.reset();
+      await refreshAccountPanel();
+    }catch(error){
+      setAccountAuthMessage(error.message||"Unable to sign in. Check your details and try again.",true);
+    }finally{
+      if(button){button.disabled=false;button.textContent=label;}
+    }
+  }
+  async function submitAccountSignUp(event){
+    event.preventDefault();
+    const form=event.currentTarget,button=form.querySelector('button[type="submit"]'),label=button?.textContent||"Create account";
+    const name=String(document.getElementById("accountSignUpName")?.value||"").trim();
+    const email=String(document.getElementById("accountSignUpEmail")?.value||"").trim().toLowerCase();
+    const phoneInput=String(document.getElementById("accountSignUpPhone")?.value||"").trim();
+    const phone=phoneInput.replace(/\D/g,"");
+    const password=String(document.getElementById("accountSignUpPassword")?.value||"");
+    if(name.length>120){setAccountAuthMessage("Please keep your name under 120 characters.",true);return;}
+    if(phone.length<10||phone.length>13){setAccountAuthMessage("Enter a valid phone number with 10 to 13 digits.",true);return;}
+    if(!client){setAccountAuthMessage("Account sign-up is temporarily unavailable. Please try again shortly.",true);return;}
+    if(button){button.disabled=true;button.textContent="Creating account…";}
+    setAccountAuthMessage("");
+    try{
+      const {data,error}=await client.auth.signUp({
+        email,password,
+        options:{data:{full_name:name,phone,account_type:"storefront_customer"}}
+      });
+      if(error)throw error;
+      if(data?.session){
+        form.reset();
+        await refreshAccountPanel();
+        setAccountAuthMessage("");
+      }else{
+        setAccountAuthMessage("Check your inbox for an email confirmation link. If this email already has an account, sign in instead.");
+      }
+    }catch(error){
+      setAccountAuthMessage(error.message||"Unable to create your account. Please try again.",true);
+    }finally{
+      if(button){button.disabled=false;button.textContent=label;}
+    }
+  }
+  async function signOutAccount(){
+    if(!client)return;
+    const button=document.getElementById("accountSignOut");
+    if(button){button.disabled=true;button.textContent="Signing out…";}
+    try{
+      const {error}=await client.auth.signOut();
+      if(error)throw error;
+      renderAccountAuthState(null);
+      setAccountAuthMessage("You are signed out.");
+      const orders=document.getElementById("accountOrders");
+      if(orders)orders.innerHTML='<p class="muted">Sign in to see orders linked to your account. Guest orders can be tracked with a product code and phone number.</p>';
+    }catch(error){
+      setAccountAuthMessage(error.message||"Unable to sign out. Please try again.",true);
+    }finally{
+      if(button){button.disabled=false;button.textContent="Sign out";}
+    }
+  }
+  function openAccountOverlay(){
+    openUtilityOverlay("accountOverlay");
+    setAccountAuthMessage("");
+    refreshAccountPanel();
+  }
   async function loadMyOrdersInto(container,label){
     if(!container)return;
     container.hidden=false;container.innerHTML='<p class="muted">Checking for active orders linked to a signed-in account...</p>';
