@@ -1,4 +1,4 @@
-const sb=bootSupabase();
+const ordersClient=bootSupabase();
 let allOrders=[];
 let ordersLoading=false;
 let ordersReloadQueued=false;
@@ -41,7 +41,7 @@ async function loadOrders({quiet=false}={}){
   const controller=new AbortController();
   let timeoutId;
   try{
-    const request=sb.from("orders")
+    const request=ordersClient.from("orders")
       .select("id,order_number,source,status,payment_status,subtotal,discount_amount,cgst_amount,sgst_amount,delivery_distance_km,delivery_fee,total_amount,shipping_address,created_at,updated_at,customers:customers!orders_customer_id_fkey(name,whatsapp_number,email,address,city,state,pin_code),order_items:order_items!order_items_order_id_fkey(product_code,product_name,quantity,unit_price,line_total,variant_color,variant_size)")
       .order("created_at",{ascending:false})
       .abortSignal(controller.signal);
@@ -129,7 +129,7 @@ async function updateStatus(id){
   const status=select?.value;
   if(!status)return;
   try{
-    const {error}=await sb.from("orders").update({status,updated_at:new Date().toISOString()}).eq("id",id);
+    const {error}=await ordersClient.from("orders").update({status,updated_at:new Date().toISOString()}).eq("id",id);
     if(error)throw error;
     document.querySelector("#modal").classList.remove("open");
     document.querySelector("#modal").setAttribute("aria-hidden","true");
@@ -151,7 +151,7 @@ async function sendAlert(id){
 }
 function startOrdersLiveUpdates(){
   if(ordersPollTimer)return;
-  ordersChannel=sb.channel("rainbow-admin-orders-live")
+  ordersChannel=ordersClient.channel("rainbow-admin-orders-live")
     .on("postgres_changes",{event:"*",schema:"public",table:"orders"},()=>scheduleOrdersRefresh())
     .on("postgres_changes",{event:"*",schema:"public",table:"order_items"},()=>scheduleOrdersRefresh())
     .subscribe();
@@ -186,5 +186,5 @@ bootOrdersPage();
 window.addEventListener("pagehide",()=>{
   if(ordersRefreshTimer)clearTimeout(ordersRefreshTimer);
   if(ordersPollTimer)clearInterval(ordersPollTimer);
-  if(ordersChannel)sb.removeChannel(ordersChannel);
+  if(ordersChannel)ordersClient.removeChannel(ordersChannel);
 });
