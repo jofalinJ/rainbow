@@ -50,37 +50,35 @@
       .trim();
   }
 
-  function categoryMatches(product,category){
+  function categoryFor(product){
     const categoryName=product.categories&&typeof product.categories==="object"
-      ?String(product.categories.name||"")
+      ?String(product.categories.name||"").trim()
       :"";
-    const hasCategoryName=categoryName.trim().length>0;
-    const searchable=normalizeCategory([categoryName,product.type,product.product_name].filter(Boolean).join(" "));
-    const key=String(category||"").toLocaleLowerCase("en");
-    const rules={
-      chains:/\bchain\b/,
-      necklaces:/\bnecklace(s)?\b/,
-      earrings:/\bearring(s)?\b/,
-      bangles:/\bbangle(s)?\b/,
-      rings:/\bring(s)?\b/,
-      "men's jewellery":/\b(men|mens|male)\b/,
-      "men’s jewellery":/\b(men|mens|male)\b/
-    };
-    const matcher=rules[key];
-    if(!matcher)return false;
-    const designFields=normalizeCategory([product.type,product.product_name].filter(Boolean).join(" "));
-    if(key.indexOf("men")===0){
-      if(hasCategoryName)return matcher.test(normalizeCategory(categoryName));
-      return matcher.test(designFields);
-    }
-    return matcher.test(normalizeCategory(categoryName))||matcher.test(designFields);
+    return categoryName||String(product.type||"").trim()||"Jewellery";
+  }
+
+  function renderCategorySidebar(){
+    const sidebar=document.getElementById("categorySidebar");
+    if(!sidebar)return;
+    const distinct=new Map();
+    catalogueProducts.forEach(product=>{
+      const label=categoryFor(product);
+      const key=normalizeCategory(label);
+      if(key&&!distinct.has(key))distinct.set(key,label);
+    });
+    const categories=[...distinct.values()].sort((a,b)=>a.localeCompare(b,"en"));
+    if(activeCategory&&!categories.some(label=>normalizeCategory(label)===normalizeCategory(activeCategory)))activeCategory="";
+    sidebar.innerHTML=
+      '<button class="category-option'+(!activeCategory?' is-active':'')+'" type="button" data-filter-type="" aria-pressed="'+(!activeCategory)+'">All products</button>'+
+      categories.map(label=>'<button class="category-option'+(normalizeCategory(label)===normalizeCategory(activeCategory)?' is-active':'')+'" type="button" data-filter-type="'+esc(label)+'" aria-pressed="'+(normalizeCategory(label)===normalizeCategory(activeCategory))+'">'+esc(label)+'</button>').join("");
   }
 
   function render(){
     const grid=document.getElementById("productGrid"),status=document.getElementById("productStatus");
     const heading=document.getElementById("productHeading"),clearButton=document.getElementById("clearProductFilter");
     if(!grid)return;
-    const products=activeCategory?catalogueProducts.filter(product=>categoryMatches(product,activeCategory)):catalogueProducts;
+    renderCategorySidebar();
+    const products=activeCategory?catalogueProducts.filter(product=>normalizeCategory(categoryFor(product))===normalizeCategory(activeCategory)):catalogueProducts;
     visibleProducts=products;
     if(status)status.textContent=activeCategory
       ?products.length+" "+(products.length===1?"product":"products")+" in "+activeCategory
@@ -94,7 +92,7 @@
       const image=getImage(p);
       return '<article class="product-card" tabindex="0" role="button" aria-label="View details for '+esc(p.product_name)+'" data-product-id="'+esc(p.id)+'">'+
         '<div class="product-image">'+(image?'<img src="'+esc(image)+'" alt="'+esc(p.product_name)+'" loading="lazy">':'<div class="placeholder">RG</div>')+'</div>'+
-        '<div class="product-body"><div class="product-code">'+esc(p.product_code)+'</div>'+
+        '<div class="product-body">'+
         '<h3 class="product-name">'+esc(p.product_name)+'</h3><div class="product-type">'+esc((p.categories&&p.categories.name)||p.type||"Jewellery")+'</div>'+
         '<div class="product-meta"><strong class="product-price">'+money(p.selling_price)+'</strong><span class="product-stock '+stockClass+'">'+stockText+'</span></div></div></article>';
     }).join(""):'<div class="product-empty">'+(activeCategory?'No '+esc(activeCategory.toLocaleLowerCase("en"))+' products are currently in stock.':'No products are currently in stock. Please check again soon.')+'</div>';
@@ -106,12 +104,13 @@
   }
 
   function bindCollectionFilters(){
-    document.querySelectorAll("[data-filter-type]").forEach(link=>link.addEventListener("click",event=>{
-      event.preventDefault();
-      activeCategory=link.dataset.filterType||"";
+    const sidebar=document.getElementById("categorySidebar");
+    if(sidebar)sidebar.addEventListener("click",event=>{
+      const button=event.target.closest("[data-filter-type]");
+      if(!button)return;
+      activeCategory=button.dataset.filterType||"";
       render();
-      document.getElementById("products")?.scrollIntoView({behavior:"smooth",block:"start"});
-    }));
+    });
     const clearButton=document.getElementById("clearProductFilter");
     if(clearButton)clearButton.addEventListener("click",()=>{
       activeCategory="";
@@ -173,7 +172,6 @@
       :"";
     const category=product.categories&&typeof product.categories==="object"?(product.categories.name||""):product.type||"Jewellery";
     const details=[
-      ["Product code",product.product_code],
       ["Category",category],
       ["Thickness",product.thickness],
       ["Gold amount",product.gold_amount_g!=null?product.gold_amount_g+" g":null],
@@ -188,7 +186,7 @@
       ?'<details class="length-guide"><summary>View length guide</summary><img src="assets/brand/length.png" alt="Jewellery length reference guide" loading="lazy"></details>'
       :"";
     content.innerHTML='<div class="product-detail-grid"><div>'+galleryHtml+'</div>'+
-      '<div class="product-detail-info"><span class="section-kicker">PRODUCT DETAILS</span><h2 id="modalProductName">'+esc(product.product_name)+'</h2>'+
+      '<div class="product-detail-info"><span class="section-kicker">PRODUCT DETAILS</span><h2 id="modalProductName">'+esc(product.product_name)+'</h2><div class="product-type modal-product-type">'+esc(category)+'</div>'+
       '<div class="modal-price">'+money(product.selling_price)+'</div>'+
       '<span class="product-stock '+(stockOf(selectedVariant)===0?"out":"in")+'" data-variant-status>'+(stockOf(selectedVariant)===0?"Out of stock":"In stock")+'</span>'+
       (product.description?'<p class="modal-description">'+esc(product.description)+'</p>':"")+
