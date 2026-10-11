@@ -509,6 +509,7 @@ body.modal-open{overflow:hidden}
 
 /* Header layout: full-width bar, centered brand, utilities anchored to the far right. */
 .storefront-topbar .nav{
+  display:flex!important;flex-direction:column!important;align-items:stretch!important;
   width:100vw!important;max-width:none!important;
   margin-left:calc(50% - 50vw)!important;margin-right:calc(50% - 50vw)!important;
 }
