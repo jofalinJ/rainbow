@@ -98,10 +98,16 @@ function clearImagePreviews(){
 function showImages(fileList){
   const files=Array.from(fileList||[]);
   const invalid=files.find(file=>!file.type.startsWith("image/")||file.size>5*1024*1024);
-  if(files.length>5||invalid){
+  if(files.length>5){
     selectedImages=[];clearImagePreviews();$("preview").innerHTML="";
     $("cameraFile").value="";$("fileFile").value="";
-    $("msg").textContent=files.length>5?"Choose up to 5 product photos.":(!invalid.type.startsWith("image/")?"Please choose image files only.":"Each image must be 5 MB or smaller.");
+    $("msg").textContent="Choose up to 5 product photos.";
+    return;
+  }
+  if(invalid){
+    selectedImages=[];clearImagePreviews();$("preview").innerHTML="";
+    $("cameraFile").value="";$("fileFile").value="";
+    $("msg").textContent=!invalid.type.startsWith("image/")?"Please choose image files only.":"Each image must be 5 MB or smaller.";
     return;
   }
   clearImagePreviews();
