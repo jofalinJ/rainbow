@@ -8,7 +8,7 @@
 <meta property="og:image" content="https://jofalinj.github.io/rainbow/assets/brand/rainbow-logo.png">
 <meta name="description" content="Rainbow Gold Covering — premium gold-covering jewellery, collections and store information.">
 <title>Rainbow Gold Covering — Jewellery, Made to Shine</title>
-<link rel="stylesheet" href="content.css?v=20261011-souled-inspired">
+<link rel="stylesheet" href="content.css?v=20261011-sidebar-catalog">
 <script src="config.js"></script>
 <script src="admin/config.js"></script>
 </head>
@@ -19,7 +19,7 @@
       <img class="brand-logo" src="assets/brand/rainbow-logo.png" alt="Rainbow Gold Covering logo" width="42" height="42" fetchpriority="high"><span><strong data-config="brandName">RAINBOW</strong><small>GOLD COVERING</small></span>
     </a>
     <div class="navlinks">
-      <a href="#collections">Collections</a><a href="#process">How It Works</a><a href="#story">Our Story</a><a href="#contact">Contact</a>
+      <a href="#products">Shop by Type</a><a href="#process">How It Works</a><a href="#story">Our Story</a><a href="#contact">Contact</a>
     </div>
     <div class="nav-actions"><a class="instagram-top" data-instagram href="https://www.instagram.com/rainbow_kollam_gold_covering/" target="_blank" rel="noopener noreferrer" aria-label="Rainbow Gold Covering on Instagram">Instagram ↗</a><a class="cart-top" href="order.html" aria-label="Open cart">Cart <span id="cartCount">0</span></a><a class="btn btn-light" href="#products">Explore Products</a></div>
   </nav>
@@ -40,21 +40,18 @@
 
 <section class="section live-products" id="products">
 <div class="container">
-<div class="section-head"><div><span class="section-kicker">LIVE COLLECTION</span><h2 id="productHeading">Our latest products.</h2></div><p>Explore our latest jewellery designs and open any product to view its details.</p></div>
+<div class="section-head"><div><span class="section-kicker">SHOP</span><h2 id="productHeading">Shop jewellery.</h2></div><p>Browse the live Rainbow catalogue. Choose a product type to narrow the selection.</p></div>
+<div class="catalog-layout">
+<aside class="category-sidebar" aria-label="Product category navigation">
+<p class="category-sidebar-title">Shop by type</p>
+<nav id="categorySidebar" class="category-options" aria-label="Product types">
+<button class="category-option is-active" type="button" data-filter-type="" aria-pressed="true">All products</button>
+</nav>
+</aside>
+<div class="catalog-main">
 <div class="product-toolbar"><div id="productStatus" class="product-status" aria-live="polite">Loading products…</div><button id="clearProductFilter" class="clear-filter" type="button" hidden>Show all products</button></div>
 <div id="productGrid" class="product-grid"></div>
 </div>
-</section>
-<section class="section collections" id="collections">
-<div class="container">
-<div class="section-head"><div><span class="section-kicker">COLLECTIONS</span><h2>Find your kind of shine.</h2></div><p>Explore the major jewellery categories. Choose a category to explore matching designs available in our live catalogue.</p></div>
-<div class="collection-grid">
-<a class="collection collection-link" href="#products" data-filter-type="Chains" aria-controls="productGrid" aria-label="Browse Chains products"><div class="icon">✦</div><h3>Chains</h3><p>Everyday and statement chain designs across different lengths and styles.</p><span class="collection-cta">Browse chains →</span></a>
-<a class="collection collection-link" href="#products" data-filter-type="Necklaces" aria-controls="productGrid" aria-label="Browse Necklaces products"><div class="icon">◇</div><h3>Necklaces</h3><p>Elegant pieces for celebrations, occasions and personal styling.</p><span class="collection-cta">Browse necklaces →</span></a>
-<a class="collection collection-link" href="#products" data-filter-type="Earrings" aria-controls="productGrid" aria-label="Browse Earrings products"><div class="icon">◌</div><h3>Earrings</h3><p>From refined daily styles to designs that complete an occasion look.</p><span class="collection-cta">Browse earrings →</span></a>
-<a class="collection collection-link" href="#products" data-filter-type="Bangles" aria-controls="productGrid" aria-label="Browse Bangles products"><div class="icon">○</div><h3>Bangles</h3><p>Classic and contemporary designs made to layer or wear alone.</p><span class="collection-cta">Browse bangles →</span></a>
-<a class="collection collection-link" href="#products" data-filter-type="Rings" aria-controls="productGrid" aria-label="Browse Rings products"><div class="icon">♢</div><h3>Rings</h3><p>Minimal, elegant and occasion-ready designs for different tastes.</p><span class="collection-cta">Browse rings →</span></a>
-<a class="collection collection-link" href="#products" data-filter-type="Men's Jewellery" aria-controls="productGrid" aria-label="Browse Men's Jewellery products"><div class="icon">✧</div><h3>Men's Jewellery</h3><p>Clean, versatile designs selected for a modern men's collection.</p><span class="collection-cta">Browse men’s jewellery →</span></a>
 </div>
 </div>
 </section>
@@ -78,6 +75,6 @@
 </main>
 <footer class="container footer"><span class="footer-brand" data-config="footerBrand"><img class="footer-logo" src="assets/brand/rainbow-logo.png" alt="Rainbow Gold Covering logo" width="28" height="28" loading="lazy"><span data-config="footerBrandText">RAINBOW GOLD COVERING</span></span><span><a class="instagram-link" data-instagram href="https://www.instagram.com/rainbow_kollam_gold_covering/" target="_blank" rel="noopener noreferrer">Instagram · @rainbow_kollam_gold_covering</a></span><span>© <span id="year"></span> Rainbow Gold Covering. All rights reserved.</span></footer>
 <div id="productModal" class="product-modal" aria-hidden="true"><div class="product-modal-backdrop" data-close-product></div><button class="product-modal-nav previous" type="button" data-product-prev aria-label="Previous product" hidden>‹</button><div class="product-modal-panel" role="dialog" aria-modal="true" aria-labelledby="modalProductName"><button class="product-modal-close" type="button" aria-label="Close product details" data-close-product>×</button><div id="productModalContent"></div></div><button class="product-modal-nav next" type="button" data-product-next aria-label="Next product" hidden>›</button></div>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="content.js?v=20261011-product-edit-stock-filter"></script><script src="business-live.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="content.js?v=20261011-sidebar-catalog"></script><script src="business-live.js"></script>
 </body>
 </html>
