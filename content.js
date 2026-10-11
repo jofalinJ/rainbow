@@ -430,7 +430,6 @@
       if(data?.session){
         form.reset();
         await refreshAccountPanel();
-        setAccountAuthMessage("");
       }else{
         setAccountAuthMessage("Check your inbox for an email confirmation link. If this email already has an account, sign in instead.");
       }
