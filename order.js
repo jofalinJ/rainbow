@@ -9,9 +9,6 @@
   const esc=x=>String(x??"").replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
   const money=x=>"₹"+Number(x||0).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2});
   let cart=[];
-  let deliveryFee=null;
-  let deliveryRates=[];
-  let deliveryRatesLoaded=false;
   let cartVerified=false;
   let cartVerificationFailed=false;
   let submitting=false;
@@ -40,60 +37,24 @@
     const digits=String(phone||"").replace(/\D/g,"");
     return digits.length>=10&&digits.length<=13;
   }
-  function distanceValue(){
-    const raw=$("distance").value.trim();
-    if(!raw)return null;
-    const number=Number(raw);
-    if(!Number.isFinite(number)||number<0||number>500)return NaN;
-    return number===0?null:number;
-  }
-  function matchingRate(distance){
-    return deliveryRates
-      .filter(rate=>Number(rate.min_km)<=distance&&(rate.max_km==null||Number(rate.max_km)>=distance))
-      .sort((a,b)=>Number(b.min_km)-Number(a.min_km))[0]||null;
-  }
-  function updateDeliveryPreview(){
-    const distance=distanceValue();
-    const note=$("deliveryNote");
-    if(Number.isNaN(distance)){
-      deliveryFee=null;
-      if(note)note.textContent="Enter a distance from 0 to 500 km, or leave it empty so the shop can confirm delivery.";
-    }else if(distance==null){
-      deliveryFee=null;
-      if(note)note.textContent="No distance rate is applied. The displayed total excludes delivery; the shop will confirm the delivery fee.";
-    }else if(!deliveryRatesLoaded){
-      deliveryFee=null;
-      if(note)note.textContent="Checking the active delivery rates…";
-    }else{
-      const rate=matchingRate(distance);
-      if(rate){
-        deliveryFee=Math.max(0,Number(rate.fee||0));
-        if(note)note.textContent="Delivery fee matched to the store's active rate for "+distance+" km.";
-      }else{
-        deliveryFee=null;
-        if(note)note.textContent="No active delivery rate covers "+distance+" km. Clear the distance field so the shop can confirm the delivery fee.";
-      }
-    }
-    totals();
-    updatePlaceOrderState();
-  }
-  function totals(){
+    function totals(){
     const subtotal=roundMoney(cart.reduce((sum,item)=>sum+Number(item.product.selling_price||0)*Number(item.quantity||0),0));
     const discount=roundMoney(subtotal*.03);
     const taxable=roundMoney(subtotal-discount);
     const cgst=roundMoney(taxable*.015);
     const sgst=roundMoney(taxable*.015);
-    const total=roundMoney(taxable+cgst+sgst+(deliveryFee??0));
+    const total=roundMoney(taxable+cgst+sgst);
     $("subtotal").textContent=money(subtotal);
     $("discount").textContent=money(discount);
     $("cgst").textContent=money(cgst);
     $("sgst").textContent=money(sgst);
-    $("delivery").textContent=deliveryFee==null?"Fee confirmed by store":money(deliveryFee);
+    $("delivery").textContent="To confirm separately";
     $("total").textContent=money(total);
-    $("totalLabel").textContent=deliveryFee==null?"Total before delivery":"Total including delivery";
+    $("totalLabel").textContent="Pay now · delivery to confirm";
+    const payTotal=$("paymentDueTotal");if(payTotal)payTotal.textContent=money(total);
     return {subtotal,discount,cgst,sgst,total};
   }
-  function roundMoney(value){return Math.round((Number(value)+Number.EPSILON)*100)/100;}
+    function roundMoney(value){return Math.round((Number(value)+Number.EPSILON)*100)/100;}
   function cartItemHasStock(item){
     return item.unavailable!==true&&Number.isFinite(Number(item.current_stock))&&
       Number(item.current_stock)>=Number(item.quantity);
@@ -144,14 +105,12 @@
   function updatePlaceOrderState(){
     const button=$("placeOrder");
     if(!button)return;
-    const distance=distanceValue();
-    const distanceInvalid=Number.isNaN(distance);
-    const rateRequired=distance!=null;
-    const noRate=rateRequired&&(!deliveryRatesLoaded||!matchingRate(distance));
-    const invalidStock=cart.some(item=>!cartItemHasStock(item));
-    button.disabled=submitting||cart.length===0||distanceInvalid||noRate||invalidStock||(!cartVerified&&cart.length>0)||cartVerificationFailed;
+    const reference=String($("paymentReference")?.value||"").trim();
+    const paid=Boolean($("paymentConfirmed")?.checked);
+    button.disabled=submitting||cart.length===0||!cartVerified||cartVerificationFailed||
+      cart.some(item=>!cartItemHasStock(item))||!paid||!/^[A-Za-z0-9-]{8,64}$/.test(reference);
   }
-  async function verifyCart(){
+    async function verifyCart(){
     if(!cart.length){cartVerified=true;render();return;}
     if(!sb){
       cartVerificationFailed=true;
@@ -219,22 +178,7 @@
       render();
     }
   }
-  async function loadDeliveryRates(){
-    if(!sb){deliveryRatesLoaded=true;updateDeliveryPreview();return;}
-    try{
-      const {data,error}=await sb.from("delivery_rates")
-        .select("min_km,max_km,fee").eq("active",true).order("min_km",{ascending:true});
-      if(error)throw error;
-      deliveryRates=Array.isArray(data)?data:[];
-      deliveryRatesLoaded=true;
-    }catch(error){
-      console.warn("Delivery rates could not be loaded.",error);
-      deliveryRates=[];
-      deliveryRatesLoaded=false;
-    }
-    updateDeliveryPreview();
-  }
-  async function placeOrder(){
+    async function placeOrder(){
     if(submitting||!cart.length)return;
     if(!sb){msg("Checkout is temporarily unavailable. Please try again later.","error");return;}
     if(!cartVerified||cartVerificationFailed){msg("Current prices and stock have not been verified. Reload checkout and try again.","error");return;}
@@ -244,6 +188,9 @@
     const email=$("email").value.trim();
     const pin=$("pin").value.trim();
     const address=$("address").value.trim();
+    const paymentMethod=$("paymentMethod").value;
+    const paymentReference=$("paymentReference").value.trim();
+    const paymentConfirmed=$("paymentConfirmed").checked;
     const customer={
       name,
       whatsapp_number:phone,
@@ -251,59 +198,52 @@
       pin_code:pin,
       city:$("city").value.trim(),
       state:$("state").value.trim(),
-      address
+      address,
+      payment_method:paymentMethod,
+      payment_reference:paymentReference
     };
     if(!name||!phone||!address){msg("Name, WhatsApp number and delivery address are required.","error");return;}
     if(!phoneLooksValid(phone)){msg("Enter a valid WhatsApp number, including country code if needed.","error");return;}
     if(pin&&!/^\d{6}$/.test(pin)){msg("Enter a valid 6-digit PIN code.","error");return;}
-    const distance=distanceValue();
-    if(Number.isNaN(distance)){msg("Enter a distance from 0 to 500 km, or leave it empty.","error");return;}
-    if(distance!=null&&(!deliveryRatesLoaded||!matchingRate(distance))){
-      msg("No active delivery rate covers this distance. Clear the distance field so the shop can confirm the fee.","error");return;
-    }
+    if(paymentMethod!=="upi"){msg("Choose the available UPI QR payment method.","error");return;}
+    if(!/^[A-Za-z0-9-]{8,64}$/.test(paymentReference)){msg("Pay with the QR code and enter the UPI transaction reference (8–64 letters or digits).","error");return;}
+    if(!paymentConfirmed){msg("Confirm that you have completed the UPI payment before submitting.","error");return;}
     submitting=true;
-    $("placeOrder").textContent="Placing order…";
+    $("placeOrder").textContent="Submitting for verification…";
     updatePlaceOrderState();
-    msg("Placing your order…");
+    msg("Submitting your payment reference for verification…");
     try{
       const {data,error}=await sb.rpc("create_online_order",{
         p_items:cart.map(item=>({variant_id:item.variant_id,quantity:Number(item.quantity)})),
-        p_customer:customer,
-        p_delivery_distance_km:distance
+        p_customer:customer
       });
       if(error)throw error;
       const paymentStep=document.getElementById("paymentStep");
       const addressStep=document.getElementById("addressStep");
       if(paymentStep)paymentStep.classList.add("is-active");
       if(addressStep)addressStep.classList.add("is-complete");
-      const paidTotal=document.getElementById("successPayTotal");
-      if(paidTotal)paidTotal.textContent=money(data?.total_amount);
-      const proofLink=document.getElementById("paymentProofLink");
-      if(proofLink)proofLink.href="https://wa.me/919952436899?text="+encodeURIComponent("Hello Rainbow Gold Covering, I have paid for order "+String(data?.order_number||"")+". My UPI transaction reference is: ");
       cart=[];
       save();
       $("orderLayout").hidden=true;
       $("orderSuccess").hidden=false;
-      $("orderSuccess").innerHTML='<h2>Order received.</h2><p>Your order number is <strong>'+esc(data.order_number)+'</strong>.</p><p>Total before any separately confirmed delivery charge: <strong>'+money(data.total_amount)+'</strong>. Rainbow Gold Covering will contact you on WhatsApp to confirm the order and delivery details.</p><a class="btn btn-dark" href="index.html#products">Continue Shopping</a>';
-      const overlay=$("successOverlay");if(overlay){$("successOrderNumber").textContent="Order number: "+String(data.order_number||"");$("successOrderText").textContent="Order total: "+money(data.total_amount)+". Your order is received and payment remains pending until our team verifies the UPI payment.";overlay.hidden=false;document.body.classList.add("order-success-open");$("successContinue").focus();}
+      $("orderSuccess").innerHTML="<h2>Payment submitted for verification.</h2><p>Your order number is <strong>"+esc(data.order_number)+"</strong>.</p><p>Total paid by UPI: <strong>"+money(data.total_amount)+"</strong>. Delivery charges will be confirmed separately by the store.</p><p class='payment-status-note'>Your order stays pending until an admin confirms the UPI transaction. The full order alert is sent only after that verification.</p><a class='btn btn-dark' href='index.html#products'>Continue shopping</a>";
       msg("");
     }catch(error){
       console.error("Order creation failed.",error);
-      msg(error.message||"We could not place the order. Please try again.","error");
+      msg(error.message||"We could not submit the payment details. Please check the information and try again.","error");
     }finally{
       submitting=false;
-      $("placeOrder").textContent="Place Order →";
+      $("placeOrder").textContent="Submit for payment verification →";
       updatePlaceOrderState();
     }
   }
-  const successContinue=$("successContinue");if(successContinue)successContinue.onclick=()=>{window.location.href="index.html#products";};
-  const successOverlay=$("successOverlay");
-  // Keep the QR payment step visible until the customer chooses Continue Shopping.
+
   $("clearCart").onclick=()=>{cart=[];cartVerified=true;cartVerificationFailed=false;save();render();msg("");};
-  $("distance").oninput=updateDeliveryPreview;
   $("placeOrder").onclick=placeOrder;
+  $("paymentReference").addEventListener("input",updatePlaceOrderState);
+  $("paymentConfirmed").addEventListener("change",updatePlaceOrderState);
+  $("paymentMethod").addEventListener("change",updatePlaceOrderState);
   read();
   render();
-  loadDeliveryRates();
   verifyCart();
 })();
