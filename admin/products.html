@@ -7,6 +7,7 @@
 .optional{display:none}.photo-wrap{display:flex;gap:10px;align-items:center}.photo-preview{width:54px;height:54px;border-radius:10px;overflow:hidden;background:#f3f3f3}.photo-preview img{width:100%;height:100%;object-fit:cover}
 @media(max-width:1100px){.entry-grid{grid-template-columns:repeat(3,minmax(140px,1fr))}}
 @media(max-width:650px){.entry-grid{grid-template-columns:1fr 1fr}.entry-grid .wide{grid-column:span 2}}
+.category-editor{max-width:190px;min-width:140px;padding:7px;border:1px solid #eadfd1;border-radius:8px;background:#fff;color:#17120f;font:inherit}.save-category{white-space:nowrap;padding:7px 10px}.save-category:disabled{opacity:.5;cursor:wait}
 </style></head>
 <body>
 <aside><div class="brand"><img src="../assets/brand/rainbow-logo.png" alt="Rainbow Gold Covering logo" width="36" height="36"><span>RAINBOW<br>GOLD COVERING</span></div><nav><a data-admin-only href="index.html">Dashboard</a><a class="active" href="products.html">Products</a><a href="inventory.html">Inventory</a><a href="bills.html">Bills</a><a href="#" onclick="return comingSoon('Orders')">Orders</a><a href="billing.html">Billing</a><a href="#" onclick="return comingSoon('Customers')">Customers</a><a data-admin-only href="#" onclick="return comingSoon('Reports')">Reports</a><a data-admin-only href="#" onclick="return comingSoon('Staff')">Staff</a><a href="#" onclick="return comingSoon('Settings')">Settings</a></nav><div class="user">Admin<br><small>Product management</small><button onclick="logout()" style="margin-top:12px">Sign out</button></div></aside>
@@ -31,4 +32,4 @@
 <div class="field wide"><p id="msg"></p></div>
 </div></form></section>
 <section class="panel"><div class="panelhead"><h2>Product Catalog</h2><input id="search" data-testid="product-search" placeholder="Search name, code or type"></div><table><thead><tr><th>Code</th><th>Product</th><th>Category</th><th>Type</th><th>Price</th><th>Stock</th><th>Action</th></tr></thead><tbody id="rows"></tbody></table></section>
-</main><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="app.js?v=20261009"></script><script src="products.js?v=20261005"></script></body></html>
+</main><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="app.js?v=20261009"></script><script src="products.js?v=20261011-mens-category"></script></body></html>

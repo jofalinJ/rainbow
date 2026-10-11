@@ -2,8 +2,9 @@ let productRules=null;
 async function getProductRules(){if(!productRules)productRules=await import("../src/domain/productRules.mjs");return productRules;}
 
 const $=id=>document.getElementById(id);let cats=[],items=[];
+const escHtml=value=>String(value??"").replace(/[&<>"]/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[ch])).split(String.fromCharCode(39)).join("&#39;");
 const IMAGE_BUCKET="product-images";
-const TYPE_OPTIONS={ "Roll Chain":["Roll","Designer","Heavy","Light"],"Thrissur Chain":["Roll","Designer","Heavy","Light"],"Coir Chain":["Roll","Designer","Heavy","Light"],"China Chain":["Roll","Designer","Heavy","Light"],"Bracelet":["Chain","Stone","Plain","Designer"],"Bangle":["Plain","Stone","Designer"],"Ring":["Stone","Plain","Designer"],"Dollar":["Stone","Plain","Designer"],"Earring":["Stone","Plain","Designer","Hoop","Jhumka"],"Anklet":["Plain","Stone","Designer"],"Necklace":["Stone","Plain","Designer"]};
+const TYPE_OPTIONS={ "Roll Chain":["Roll","Designer","Heavy","Light"],"Thrissur Chain":["Roll","Designer","Heavy","Light"],"Coir Chain":["Roll","Designer","Heavy","Light"],"China Chain":["Roll","Designer","Heavy","Light"],"Bracelet":["Chain","Stone","Plain","Designer"],"Bangle":["Plain","Stone","Designer"],"Ring":["Stone","Plain","Designer"],"Dollar":["Stone","Plain","Designer"],"Earring":["Stone","Plain","Designer","Hoop","Jhumka"],"Anklet":["Plain","Stone","Designer"],"Necklace":["Stone","Plain","Designer"],"Men's Jewellery":["Chain","Bracelet","Bangle","Ring","Pendant","Necklace","Earring","Anklet","Dollar","Roll","Designer","Heavy","Light","Plain","Stone"]};
 function setField(id,show){const e=$(id);e.classList.toggle("optional",!show);const input=e.querySelector("input");if(input)input.disabled=!show;}
 function updateFields(){const c=cats.find(x=>x.id===$( "category").value);if(!c)return;setField("sizeField",!!c.has_size);setField("colorField",!!c.has_color);setField("lengthField",!!c.has_length);setField("thicknessField",!!c.has_thickness);setField("goldField",!!c.has_gold_amount);$("type").innerHTML=(TYPE_OPTIONS[c.name]||[]).map(x=>'<option value="'+x+'">'+x+"</option>").join("")||'<option value="">Select type</option>';if(!c.has_size)$("size").value="0";if(!c.has_color)$("color").value="0";}
 let variantMode=false;
@@ -13,7 +14,47 @@ function updateExistingVariantFields(){const p=items.find(x=>x.id===$("existingP
 async function saveVariant(){const p=items.find(x=>x.id===$("existingProduct").value);if(!p)return;const c=cats.find(x=>x.id===p.category_id);const color=c.has_color?($("existingColor").value.trim()||"0"):"0";const size=c.has_size?($("existingSize").value.trim()||"0"):"0";try{await sb("product_variants",{method:"POST",headers:{"Prefer":"return=minimal"},body:JSON.stringify({product_id:p.id,color,size,stock_quantity:Number($("existingStock").value)||0,low_stock_limit:Number($("existingLow").value)||3})});$("msg").textContent="Added variant to "+p.product_code+" ("+color+(c.has_size?", size "+size:"")+")";await load();fillExistingProducts();}catch(e){$("msg").textContent="Error: "+e.message;console.error(e);}}
 async function init(){cats=await sb("categories?select=*&active=eq.true&order=name");$("category").innerHTML=cats.map(c=>'<option value="'+c.id+'">'+c.name+"</option>").join("");$("category").onchange=updateFields;updateFields();setupVariantBox();await load();fillExistingProducts();}
 async function load(){items=await sb("products?select=id,product_code,product_name,type,selling_price,category_id,product_variants(stock_quantity)&active=eq.true&order=created_at.desc");render();}
-function render(){let q=$("search").value.toLowerCase();let a=items.filter(p=>[p.product_name,p.product_code,p.type].some(x=>(x||"").toLowerCase().includes(q)));$("rows").innerHTML=a.map(p=>'<tr><td><b>'+p.product_code+'</b></td><td>'+p.product_name+'</td><td>'+((cats.find(c=>c.id===p.category_id)||{}).name||"")+'</td><td>'+p.type+'</td><td>₹'+Number(p.selling_price).toLocaleString("en-IN")+'</td><td>'+((p.product_variants||[]).reduce((s,v)=>s+Number(v.stock_quantity||0),0))+"</td></tr>").join("")||'<tr><td colspan="6">No products found.</td></tr>';}
+function render(){
+  const q=$("search").value.toLowerCase();
+  const a=items.filter(p=>[p.product_name,p.product_code,p.type,((cats.find(c=>c.id===p.category_id)||{}).name)].some(x=>(x||"").toLowerCase().includes(q)));
+  $("rows").innerHTML=a.map(p=>{
+    const selectedCategory=String(p.category_id||"");
+    const categoryOptions=cats.map(c=>'<option value="'+escHtml(c.id)+'"'+(String(c.id)===selectedCategory?' selected':'')+'>'+escHtml(c.name)+'</option>').join("");
+    const stock=(p.product_variants||[]).reduce((s,v)=>s+Number(v.stock_quantity||0),0);
+    return '<tr><td><b>'+escHtml(p.product_code)+'</b></td><td>'+escHtml(p.product_name)+'</td><td><select class="category-editor" id="category-'+escHtml(p.id)+'" aria-label="Category for '+escHtml(p.product_name)+'">'+categoryOptions+'</select></td><td>'+escHtml(p.type)+'</td><td>₹'+Number(p.selling_price).toLocaleString("en-IN")+'</td><td>'+stock+'</td><td><button class="save-category" type="button" data-save-category="'+escHtml(p.id)+'">Save category</button></td></tr>';
+  }).join("")||'<tr><td colspan="7">No products found.</td></tr>';
+  bindCategoryEditorActions();
+}
+function bindCategoryEditorActions(){
+  document.querySelectorAll("[data-save-category]").forEach(button=>{
+    button.onclick=async()=>{
+      const productId=button.dataset.saveCategory;
+      const product=items.find(p=>String(p.id)===String(productId));
+      const select=$("category-"+productId);
+      if(!product||!select)return;
+      const nextCategoryId=String(select.value||"");
+      if(nextCategoryId===String(product.category_id)){
+        $("msg").textContent="No category change for "+product.product_code+".";
+        return;
+      }
+      const nextCategory=cats.find(c=>String(c.id)===nextCategoryId);
+      if(!nextCategory){$("msg").textContent="Choose a valid category.";return;}
+      button.disabled=true;
+      select.disabled=true;
+      $("msg").textContent="Updating category for "+product.product_code+"...";
+      try{
+        await sb("products?id=eq."+encodeURIComponent(product.id),{method:"PATCH",headers:{"Prefer":"return=minimal"},body:JSON.stringify({category_id:nextCategoryId})});
+        product.category_id=nextCategoryId;
+        render();
+        $("msg").textContent="Updated "+product.product_code+" to category "+nextCategory.name+". Product code was kept unchanged.";
+      }catch(error){
+        button.disabled=false;
+        select.disabled=false;
+        $("msg").textContent="Could not update category for "+product.product_code+": "+error.message;
+      }
+    };
+  });
+}
 let selectedImage=null;let previewObjectUrl=null;
 function showImage(file){
   if(previewObjectUrl)URL.revokeObjectURL(previewObjectUrl);
