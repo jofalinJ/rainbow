@@ -11,7 +11,7 @@ function escapeHtml(v){
 
 function showStaffError(message){
   const rows=document.querySelector("#staffRows");
-  if(rows) rows.innerHTML="<tr><td colspan='5' style='color:#b42318'>"+escapeHtml(message)+"</td></tr>";
+  if(rows) rows.innerHTML="<tr><td colspan='6' style='color:#b42318'>"+escapeHtml(message)+"</td></tr>";
   const msg=document.querySelector("#formMsg");
   if(msg){msg.textContent=message;msg.className="form-msg error";}
 }
@@ -44,9 +44,13 @@ function renderStaff(staff){
     const statusClass=s.active?"status-on":"status-off";
     const statusLabel=s.active?"Active":"Inactive";
 
+    const photo=s.photo_url
+      ?"<img src='"+escapeHtml(s.photo_url)+"' alt='' width='40' height='40' style='width:40px;height:40px;object-fit:cover;border-radius:50%;border:1px solid #eee'>"
+      :"<span class='staff-photo-placeholder'>"+escapeHtml((s.full_name||s.username||"S").split(/\s+/).slice(0,2).map(part=>part.charAt(0).toUpperCase()).join(""))+"</span>";
     return "<tr data-testid='staff-row' data-username='"+escapeHtml(s.username||"")+"'>"+
       "<td><b>"+escapeHtml(s.full_name||"—")+"</b></td>"+
       "<td class='muted'>"+escapeHtml(s.username||"—")+"</td>"+
+      "<td><div class='staff-photo-cell'>"+photo+"<label class='staff-photo-upload'>Change photo<input type='file' data-profile-photo='"+escapeHtml(s.user_id)+"' accept='image/jpeg,image/png,image/webp' capture='user'></label></div></td>"+
       "<td><select data-role-user='"+escapeHtml(s.user_id)+"' "+(isAdmin?"disabled":"")+">"+
         "<option value='cashier' "+(s.role==="cashier"?"selected":"")+">Cashier</option>"+
         "<option value='inventory_staff' "+(s.role==="inventory_staff"?"selected":"")+">Inventory Staff</option>"+
@@ -62,24 +66,45 @@ function renderStaff(staff){
         )+
       "</td>"+
     "</tr>";
-  }).join("")||"<tr><td colspan='5'>No staff yet.</td></tr>";
+  }).join("")||"<tr><td colspan='6'>No staff yet.</td></tr>";
 }
 
 async function loadStaff(){
   try{
     const {data,error}=await bootSupabase()
       .from("staff_profiles")
-      .select("user_id,full_name,username,role,active,created_at")
+      .select("user_id,full_name,username,role,active,created_at,photo_path")
       .order("created_at",{ascending:true});
 
     if(error)throw new Error(error.message);
-    renderStaff(data);
+    const client=bootSupabase();
+    const profiles=Array.isArray(data)?data:[];
+    const withPhotos=await Promise.all(profiles.map(async profile=>{
+      if(!profile.photo_path)return {...profile,photo_url:""};
+      const {data:photo,error:photoError}=await client.storage.from("staff-private").createSignedUrl(profile.photo_path,600);
+      if(photoError)console.warn("Could not create staff profile image link:",photoError);
+      return {...profile,photo_url:photo?.signedUrl||""};
+    }));
+    renderStaff(withPhotos);
   }catch(e){
     showStaffError("Could not load staff: "+e.message);
     console.error(e);
   }
 }
 
+async function uploadStaffPhoto(userId,file){
+  if(!file)throw new Error("Choose a photo first.");
+  if(!["image/jpeg","image/png","image/webp"].includes(file.type))throw new Error("Use a JPEG, PNG or WebP image.");
+  if(file.size>5*1024*1024)throw new Error("Choose an image smaller than 5 MB.");
+  const client=bootSupabase();
+  const path="profiles/"+String(userId)+"/reference";
+  const {error:uploadError}=await client.storage.from("staff-private").upload(path,file,{
+    cacheControl:"3600",contentType:file.type,upsert:true
+  });
+  if(uploadError)throw new Error(uploadError.message);
+  const {error:updateError}=await client.from("staff_profiles").update({photo_path:path}).eq("user_id",userId);
+  if(updateError)throw new Error(updateError.message);
+}
 async function createStaff(e){
   e.preventDefault();
   const form=document.querySelector("#staffForm");
@@ -94,6 +119,8 @@ async function createStaff(e){
     const session=await requireSession();
     const rules=await getStaffRules();
     const payload={name:document.querySelector("#name").value.trim(),username:document.querySelector("#username").value.trim().toLowerCase(),password:document.querySelector("#password").value,role:document.querySelector("#role").value};
+    const photoFile=document.querySelector("#photo")?.files?.[0];
+    if(!photoFile)throw new Error("Upload a staff profile photo before creating the account.");
     const validation=rules.validateStaffCreation(payload);
     if(!validation.ok)throw new Error(validation.error);
     const r=await fetch(STAFF_URL,{
@@ -111,8 +138,12 @@ async function createStaff(e){
     try{data=JSON.parse(text)}catch{data={};}
     if(!r.ok)throw new Error(data.error||text||("Could not create staff ("+r.status+")."));
 
-    msg.textContent="Staff created. They can log in with the username and password.";
-    msg.className="form-msg success";
+    let photoError=null;
+    try{await uploadStaffPhoto(data.user_id,photoFile);}catch(error){photoError=error;}
+    msg.textContent=photoError
+      ?"Staff account created, but the profile photo was not saved: "+photoError.message+" Upload it from the staff list."
+      :"Staff created with a private profile photo. They can log in with the username and password.";
+    msg.className=photoError?"form-msg error":"form-msg success";
     form.reset();
     await loadStaff();
   }catch(e){
@@ -195,6 +226,16 @@ function bindStaffTable(){
   rows.dataset.bound="true";
 
   rows.addEventListener("change",e=>{
+    const photoInput=e.target.closest("input[data-profile-photo]");
+    if(photoInput){
+      const file=photoInput.files?.[0],userId=photoInput.dataset.profilePhoto;
+      photoInput.value="";
+      uploadStaffPhoto(userId,file).then(loadStaff).catch(error=>{
+        alert("Could not update staff photo: "+error.message);
+        console.error(error);
+      });
+      return;
+    }
     const select=e.target.closest("select[data-role-user]");
     if(select)changeRole(select.dataset.roleUser,select.value);
   });
