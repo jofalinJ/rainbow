@@ -39,36 +39,32 @@
     return String(value??"")
       .toLocaleLowerCase("en")
       .replace(/&/g," and ")
-      .replace(/['’]/g,"")
+      .replace(/[\'’]/g,"")
       .replace(/jewellery/g,"jewelry")
       .replace(/[^a-z0-9]+/g," ")
-      .trim()
-      .split(/\\s+/)
-      .map(word=>word.length>3&&word.endsWith("s")&&!["mens","womens"].includes(word)?word.slice(0,-1):word)
-      .join(" ");
+      .trim();
   }
 
   function categoryMatches(product,category){
-    const type=normalizeCategory(product.type);
+    const categoryName=product.categories&&typeof product.categories==="object"
+      ?String(product.categories.name||"")
+      :"";
+    const hasCategoryName=categoryName.trim().length>0;
+    const searchable=normalizeCategory([categoryName,product.type,product.product_name].filter(Boolean).join(" "));
     const key=String(category||"").toLocaleLowerCase("en");
-    if(key==="men's jewellery"||key==="men’s jewellery"){
-      const productWords=normalizeCategory((product.type||"")+" "+(product.product_name||"")).split(" ");
-      if(productWords.some(word=>["men","mens","male"].includes(word)))return true;
-    }
-    const aliases={
-      chains:["chain","chain jewelry"],
-      necklaces:["necklace"],
-      earrings:["earring"],
-      bangles:["bangle"],
-      rings:["ring"],
-      "men's jewellery":["mens jewelry","men jewelry","mens jewellery","men jewellery"],
-      "men’s jewellery":["mens jewelry","men jewelry","mens jewellery","men jewellery"]
+    const rules={
+      chains:/\bchain\b/,
+      necklaces:/\bnecklace(s)?\b/,
+      earrings:/\bearring(s)?\b/,
+      bangles:/\bbangle(s)?\b/,
+      rings:/\bring(s)?\b/,
+      "men's jewellery":/\b(men|mens|male)\b/,
+      "men’s jewellery":/\b(men|mens|male)\b/
     };
-    const terms=[category,...(aliases[key]||[])];
-    return terms.some(term=>{
-      const normalized=normalizeCategory(term);
-      return normalized&&(type===normalized||type.includes(normalized));
-    });
+    const matcher=rules[key];
+    if(!matcher)return false;
+    if(hasCategoryName)return matcher.test(normalizeCategory(categoryName));
+    return matcher.test(normalizeCategory([product.type,product.product_name].filter(Boolean).join(" ")));
   }
 
   function render(){
@@ -231,7 +227,7 @@
     const status=document.getElementById("productStatus");
     try{
       const {data,error}=await client.from("products")
-        .select("id,product_code,product_name,type,selling_price,description,length_cm,thickness,gold_amount_g,created_at,product_variants(id,stock_quantity,color,size,active),product_images(public_url,is_primary)")
+        .select("id,product_code,product_name,type,category_id,categories(name),selling_price,description,length_cm,thickness,gold_amount_g,created_at,product_variants(id,stock_quantity,color,size,active),product_images(public_url,is_primary)")
         .eq("active",true).order("created_at",{ascending:false});
       if(error)throw error;
       catalogueProducts=data||[];
