@@ -3,6 +3,10 @@
   const SUPABASE_URL=String(SUPABASE_CONFIG.supabaseUrl||"").trim();
   const SUPABASE_PUBLISHABLE_KEY=String(SUPABASE_CONFIG.supabasePublishableKey||"").trim();
   let client=null, realtimeChannel=null, realtimeRefreshTimer=null, refreshInterval=null, productsLoading=false, productsReloadRequested=false, catalogueProducts=[], visibleProducts=[], activeCategory="", activeProductId="";
+  const WISHLIST_KEY="rainbow_wishlist_v1";
+  let activeSearch="",activeSegment="all",wishlistOnly=false,visualSearchSignature=null,visualSearchScores=new Map(),speechRecognition=null;
+  const wishlistIds=new Set(readWishlist());
+  const visualSignatureCache=new Map();
 
   const esc=value=>String(value??"").replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
   const money=value=>"₹"+Number(value||0).toLocaleString("en-IN",{maximumFractionDigits:2});
@@ -16,6 +20,9 @@
   };
   const getImage=product=>(getProductImages(product)[0]||{}).public_url||"";
   const CART_KEY="rainbow_cart_v1";
+  function readWishlist(){try{const value=JSON.parse(localStorage.getItem(WISHLIST_KEY)||"[]");return Array.isArray(value)?value.map(String):[]}catch{return[];}}
+  function saveWishlist(){try{localStorage.setItem(WISHLIST_KEY,JSON.stringify([...wishlistIds]));}catch{}updateWishlistCount();}
+  function updateWishlistCount(){const badge=document.getElementById("wishlistCount");if(badge){badge.textContent=String(wishlistIds.size);badge.hidden=wishlistIds.size===0;}const button=document.getElementById("wishlistToggle");if(button){button.setAttribute("aria-pressed",String(wishlistOnly));button.classList.toggle("is-selected",wishlistOnly);}}
   const getCart=()=>{try{return JSON.parse(localStorage.getItem(CART_KEY)||"[]")}catch{return[]}};
   const saveCart=items=>{localStorage.setItem(CART_KEY,JSON.stringify(items));updateCartCount()};
   const updateCartCount=()=>{const el=document.getElementById("cartCount");if(el)el.textContent=getCart().reduce((n,x)=>n+Number(x.quantity||0),0)};
@@ -57,20 +64,64 @@
     return categoryName||String(product.type||"").trim()||"Jewellery";
   }
 
-  function renderCategorySidebar(){
-    const sidebar=document.getElementById("categorySidebar");
-    if(!sidebar)return;
-    const distinct=new Map();
+  function categoryBuckets(){
+    const labels=new Map();
     catalogueProducts.forEach(product=>{
-      const label=categoryFor(product);
-      const key=normalizeCategory(label);
-      if(key&&!distinct.has(key))distinct.set(key,label);
+      const label=categoryFor(product),key=normalizeCategory(label);
+      if(key&&!labels.has(key))labels.set(key,{label,products:[]});
+      if(key)labels.get(key).products.push(product);
     });
-    const categories=[...distinct.values()].sort((a,b)=>a.localeCompare(b,"en"));
-    if(activeCategory&&!categories.some(label=>normalizeCategory(label)===normalizeCategory(activeCategory)))activeCategory="";
-    sidebar.innerHTML=
-      '<button class="category-option'+(!activeCategory?' is-active':'')+'" type="button" data-filter-type="" aria-pressed="'+(!activeCategory)+'">All products</button>'+
-      categories.map(label=>'<button class="category-option'+(normalizeCategory(label)===normalizeCategory(activeCategory)?' is-active':'')+'" type="button" data-filter-type="'+esc(label)+'" aria-pressed="'+(normalizeCategory(label)===normalizeCategory(activeCategory))+'">'+esc(label)+'</button>').join("");
+    return [...labels.values()].sort((a,b)=>a.label.localeCompare(b.label,"en"));
+  }
+  function renderCategorySidebar(){
+    const sidebar=document.getElementById("drawerCategories");
+    if(!sidebar)return;
+    const buckets=categoryBuckets();
+    const groups=[
+      {title:"Chains",matches:b=>/chain/.test(normalizeCategory(b.label))},
+      {title:"Everyday jewellery",matches:b=>/(anklet|bracelet|bangle|ring)/.test(normalizeCategory(b.label))},
+      {title:"Occasion & statement",matches:b=>/(earring|necklace|dollar|pendant)/.test(normalizeCategory(b.label))},
+      {title:"Men's collection",matches:b=>/(men|mens|male)/.test(normalizeCategory(b.label))}
+    ];
+    const used=new Set();
+    const makeCard=b=>{
+      const item=b.products.find(product=>getImage(product))||b.products[0];
+      const src=item?getImage(item):"";
+      return '<button type="button" class="drawer-subcategory" data-filter-type="'+esc(b.label)+'" aria-label="Browse '+esc(b.label)+'">'+
+        (src?'<img src="'+esc(src)+'" alt="" loading="lazy">':'<span class="drawer-subcategory-placeholder" aria-hidden="true">RG</span>')+
+        '<span>'+esc(b.label)+'</span></button>';
+    };
+    const groupMarkup=groups.map(group=>{
+      const items=buckets.filter(b=>group.matches(b));
+      if(!items.length)return "";
+      items.forEach(b=>used.add(normalizeCategory(b.label)));
+      return '<details class="drawer-accordion"><summary>'+esc(group.title)+'</summary><div class="drawer-subcategory-grid">'+items.map(makeCard).join("")+'</div></details>';
+    }).join("");
+    const remaining=buckets.filter(b=>!used.has(normalizeCategory(b.label)));
+    const others=remaining.length?'<details class="drawer-accordion" open><summary>More to explore</summary><div class="drawer-subcategory-grid">'+remaining.map(makeCard).join("")+'</div></details>':"";
+    sidebar.innerHTML='<button type="button" class="drawer-all-category" data-filter-type="">All jewellery <span>'+catalogueProducts.length+'</span></button>'+(groupMarkup||"")+others+
+      (buckets.length?"":'<div class="drawer-empty">Your categories will appear here as products are added and stocked.</div>');
+  }
+  function renderFeaturedCollections(){
+    const target=document.getElementById("drawerFeatured");
+    if(!target)return;
+    const picks=categoryBuckets().sort((a,b)=>b.products.length-a.products.length).slice(0,4);
+    target.innerHTML=picks.map(bucket=>{
+      const product=bucket.products.find(p=>getImage(p))||bucket.products[0];
+      const image=product?getImage(product):"";
+      return '<button type="button" class="drawer-featured-card" data-filter-type="'+esc(bucket.label)+'">'+
+        (image?'<img src="'+esc(image)+'" alt="" loading="lazy">':'<span class="drawer-featured-placeholder" aria-hidden="true">RG</span>')+
+        '<strong>'+esc(bucket.label)+'</strong><small>'+bucket.products.length+' design'+(bucket.products.length===1?"":"s")+'</small></button>';
+    }).join("")||'<div class="drawer-empty">Featured picks will appear here when catalogue products are available.</div>';
+  }
+  function isMenProduct(product){
+    return /(men|mens|male)/.test(normalizeCategory([categoryFor(product),product.type,product.product_name].join(" ")));
+  }
+  function matchesTextSearch(product,query){
+    if(!query)return true;
+    const haystack=normalizeCategory([product.product_name,product.type,categoryFor(product),product.description].filter(Boolean).join(" "));
+    const tokens=normalizeCategory(query).split(/\s+/).filter(Boolean);
+    return tokens.every(token=>haystack.includes(token));
   }
 
   function render(){
@@ -78,44 +129,226 @@
     const heading=document.getElementById("productHeading"),clearButton=document.getElementById("clearProductFilter");
     if(!grid)return;
     renderCategorySidebar();
-    const products=activeCategory?catalogueProducts.filter(product=>normalizeCategory(categoryFor(product))===normalizeCategory(activeCategory)):catalogueProducts;
+    renderFeaturedCollections();
+    let products=catalogueProducts.filter(product=>{
+      if(activeCategory&&normalizeCategory(categoryFor(product))!==normalizeCategory(activeCategory))return false;
+      if(activeSegment==="men"&&!isMenProduct(product))return false;
+      if(activeSegment==="women"&&isMenProduct(product))return false;
+      if(!matchesTextSearch(product,activeSearch))return false;
+      if(wishlistOnly&&!wishlistIds.has(String(product.id)))return false;
+      return true;
+    });
+    if(activeSegment==="new")products=products.slice().sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0));
+    if(visualSearchSignature)products=products.slice().sort((a,b)=>(visualSearchScores.get(String(b.id))??-1)-(visualSearchScores.get(String(a.id))??-1));
     visibleProducts=products;
-    if(status)status.textContent=activeCategory
-      ?products.length+" "+(products.length===1?"product":"products")+" in "+activeCategory
-      :products.length+" product"+(products.length===1?"":"s")+" available";
-    if(heading)heading.textContent=activeCategory?"Explore "+activeCategory.toLocaleLowerCase("en")+".":"Our latest products.";
-    if(clearButton)clearButton.hidden=!activeCategory;
+    if(status){
+      if(visualSearchSignature)status.textContent=products.length+" visual matches - ranked by dominant image colours";
+      else if(wishlistOnly)status.textContent=products.length+" saved item"+(products.length===1?"":"s");
+      else if(activeSearch)status.textContent=products.length+" result"+(products.length===1?"":"s")+" for \""+activeSearch+"\"";
+      else if(activeCategory)status.textContent=products.length+" "+(products.length===1?"product":"products")+" in "+activeCategory;
+      else if(activeSegment==="new")status.textContent=products.length+" latest design"+(products.length===1?"":"s");
+      else status.textContent=products.length+" product"+(products.length===1?"":"s")+" available";
+    }
+    if(heading)heading.textContent=wishlistOnly?"Your wishlist":activeSearch?"Search results":visualSearchSignature?"Visual matches":activeCategory?"Explore "+activeCategory.toLowerCase()+".":activeSegment==="men"?"Men's jewellery":activeSegment==="women"?"Women's jewellery":activeSegment==="new"?"New in":"Shop jewellery.";
+    if(clearButton)clearButton.hidden=!(activeCategory||activeSearch||visualSearchSignature||wishlistOnly||activeSegment!=="all");
+    document.querySelectorAll("[data-segment]").forEach(button=>{
+      const active=button.dataset.segment===activeSegment;
+      button.classList.toggle("is-active",active);button.setAttribute("aria-pressed",String(active));
+    });
+    const wishlistButton=document.getElementById("wishlistToggle");
+    if(wishlistButton){wishlistButton.setAttribute("aria-pressed",String(wishlistOnly));wishlistButton.classList.toggle("is-selected",wishlistOnly);}
     grid.innerHTML=products.length?products.map(p=>{
-      const stock=getStock(p);
-      const stockClass=stock===0?"out":"in";
-      const stockText=stock===0?"Out of stock":"In stock";
-      const image=getImage(p);
+      const stock=getStock(p),stockClass=stock===0?"out":"in",stockText=stock===0?"Out of stock":"In stock",image=getImage(p);
+      const saved=wishlistIds.has(String(p.id));
       return '<article class="product-card" tabindex="0" role="button" aria-label="View details for '+esc(p.product_name)+'" data-product-id="'+esc(p.id)+'">'+
-        '<div class="product-image">'+(image?'<img src="'+esc(image)+'" alt="'+esc(p.product_name)+'" loading="lazy">':'<div class="placeholder">RG</div>')+'</div>'+
-        '<div class="product-body">'+
-        '<h3 class="product-name">'+esc(p.product_name)+'</h3><div class="product-type">'+esc((p.categories&&p.categories.name)||p.type||"Jewellery")+'</div>'+
+        '<div class="product-image">'+(image?'<img src="'+esc(image)+'" alt="'+esc(p.product_name)+'" loading="lazy">':'<div class="placeholder">RG</div>')+
+        '<button type="button" class="product-wishlist-button'+(saved?' is-saved':'')+'" data-wishlist-product="'+esc(p.id)+'" aria-label="'+(saved?"Remove ":"Add ")+esc(p.product_name)+(saved?" from":" to")+' wishlist" aria-pressed="'+saved+'">'+(saved?"♥":"♡")+'</button></div>'+
+        '<div class="product-body"><h3 class="product-name">'+esc(p.product_name)+'</h3><div class="product-type">'+esc(categoryFor(p))+'</div>'+
         '<div class="product-meta"><strong class="product-price">'+money(p.selling_price)+'</strong><span class="product-stock '+stockClass+'">'+stockText+'</span></div></div></article>';
-    }).join(""):'<div class="product-empty">'+(activeCategory?'No '+esc(activeCategory.toLocaleLowerCase("en"))+' products are currently in stock.':'No products are currently in stock. Please check again soon.')+'</div>';
+    }).join(""):'<div class="product-empty">'+(wishlistOnly?'No saved items yet. Tap the heart on a product to add it to your wishlist.':activeSearch?'No products matched that search. Try another term or browse the categories.':visualSearchSignature?'No visual matches could be ranked for this image. Try a clearer photo or search by name.':activeCategory?'No '+esc(activeCategory.toLowerCase())+' products are currently in stock.':'No products are currently in stock. Please check again soon.')+'</div>';
     grid.querySelectorAll("[data-product-id]").forEach(card=>{
       const open=()=>openProductModal(catalogueProducts.find(p=>String(p.id)===String(card.dataset.productId)));
-      card.addEventListener("click",open);
-      card.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();open();}});
+      card.addEventListener("click",event=>{if(event.target.closest("[data-wishlist-product]"))return;open();});
+      card.addEventListener("keydown",event=>{if(event.key==="Enter"||event.key===" "){if(event.target.closest("[data-wishlist-product]"))return;event.preventDefault();open();}});
     });
+    grid.querySelectorAll("[data-wishlist-product]").forEach(button=>button.addEventListener("click",event=>{
+      event.preventDefault();event.stopPropagation();const id=String(button.dataset.wishlistProduct);
+      if(wishlistIds.has(id))wishlistIds.delete(id);else wishlistIds.add(id);
+      saveWishlist();render();
+    }));
   }
 
   function bindCollectionFilters(){
-    const sidebar=document.getElementById("categorySidebar");
-    if(sidebar)sidebar.addEventListener("click",event=>{
-      const button=event.target.closest("[data-filter-type]");
-      if(!button)return;
-      activeCategory=button.dataset.filterType||"";
-      render();
+    const drawer=document.getElementById("shopDrawer");
+    if(drawer)drawer.addEventListener("click",event=>{
+      const category=event.target.closest("[data-filter-type]");
+      if(category){
+        event.preventDefault();activeCategory=category.dataset.filterType||"";
+        activeSearch="";visualSearchSignature=null;visualSearchScores.clear();activeSegment="all";wishlistOnly=false;
+        const search=document.getElementById("siteSearch");if(search)search.value="";
+        render();closeShopDrawer();document.getElementById("products")?.scrollIntoView({behavior:"smooth",block:"start"});return;
+      }
+      const segment=event.target.closest("[data-segment]");
+      if(segment){
+        activeSegment=segment.dataset.segment||"all";activeCategory="";activeSearch="";visualSearchSignature=null;visualSearchScores.clear();wishlistOnly=false;
+        const search=document.getElementById("siteSearch");if(search)search.value="";
+        render();closeShopDrawer();document.getElementById("products")?.scrollIntoView({behavior:"smooth",block:"start"});
+      }
+      if(event.target.closest("[data-close-drawer]"))closeShopDrawer();
     });
     const clearButton=document.getElementById("clearProductFilter");
     if(clearButton)clearButton.addEventListener("click",()=>{
-      activeCategory="";
-      render();
+      activeCategory="";activeSearch="";visualSearchSignature=null;visualSearchScores.clear();activeSegment="all";wishlistOnly=false;
+      const search=document.getElementById("siteSearch");if(search)search.value="";
+      render();showSearchFeedback("");
     });
+  }
+  function showSearchFeedback(message,isError=false){
+    const feedback=document.getElementById("searchFeedback");if(!feedback)return;
+    feedback.textContent=message||"";feedback.hidden=!message;feedback.classList.toggle("is-error",Boolean(isError));
+  }
+  function applyTextSearch(){
+    const field=document.getElementById("siteSearch");activeSearch=String(field?.value||"").trim();
+    activeCategory="";activeSegment="all";wishlistOnly=false;visualSearchSignature=null;visualSearchScores.clear();
+    render();showSearchFeedback(activeSearch?"Showing catalogue results for \""+activeSearch+"\".":"");
+    document.getElementById("products")?.scrollIntoView({behavior:"smooth",block:"start"});
+  }
+  function colorSignature(image){
+    const size=36,canvas=document.createElement("canvas");canvas.width=size;canvas.height=size;
+    const context=canvas.getContext("2d",{willReadFrequently:true});if(!context)throw new Error("Canvas is unavailable.");
+    context.fillStyle="#fff";context.fillRect(0,0,size,size);context.drawImage(image,0,0,size,size);
+    const data=context.getImageData(0,0,size,size).data,bins=new Array(54).fill(0);let total=0;
+    for(let i=0;i<data.length;i+=16){
+      const r=data[i]/255,g=data[i+1]/255,b=data[i+2]/255,max=Math.max(r,g,b),min=Math.min(r,g,b),delta=max-min,l=(max+min)/2;
+      let h=0,s=0;
+      if(delta){s=delta/(1-Math.abs(2*l-1));if(max===r)h=((g-b)/delta)%6;else if(max===g)h=(b-r)/delta+2;else h=(r-g)/delta+4;h=(h*60+360)%360;}
+      const hi=Math.min(5,Math.floor(h/60)),si=Math.min(2,Math.floor(s*3)),li=Math.min(2,Math.floor(l*3));
+      bins[(hi*3+si)*3+li]++;total++;
+    }
+    return bins.map(value=>value/(total||1));
+  }
+  function imageSignatureFromSource(src,isUserImage=false){
+    if(!isUserImage&&visualSignatureCache.has(src))return visualSignatureCache.get(src);
+    const promise=new Promise((resolve,reject)=>{
+      const image=new Image();if(!isUserImage)image.crossOrigin="anonymous";
+      image.onload=()=>{try{resolve(colorSignature(image));}catch(error){reject(error);}};
+      image.onerror=()=>reject(new Error("A product photo could not be analysed by the browser."));
+      image.src=src;
+    });
+    if(!isUserImage)visualSignatureCache.set(src,promise);return promise;
+  }
+  function cosineSimilarity(a,b){
+    let dot=0,aa=0,bb=0;for(let i=0;i<Math.min(a.length,b.length);i++){dot+=a[i]*b[i];aa+=a[i]*a[i];bb+=b[i]*b[i];}
+    return dot/(Math.sqrt(aa*bb)||1);
+  }
+  async function runVisualSearch(file){
+    if(!file)return;
+    if(!file.type||!file.type.startsWith("image/")){showSearchFeedback("Choose an image file or take a photo.",true);return;}
+    if(file.size>12*1024*1024){showSearchFeedback("Please use an image smaller than 12 MB.",true);return;}
+    showSearchFeedback("Analysing the photo and comparing catalogue images...");
+    try{
+      const objectUrl=URL.createObjectURL(file);let reference;
+      try{reference=await imageSignatureFromSource(objectUrl,true);}finally{URL.revokeObjectURL(objectUrl);}
+      const scored=await Promise.all(catalogueProducts.map(async product=>{
+        const image=getImage(product);if(!image)return null;
+        try{return {id:String(product.id),score:cosineSimilarity(reference,await imageSignatureFromSource(image,false))};}catch{return null;}
+      }));
+      visualSearchScores=new Map(scored.filter(Boolean).map(item=>[item.id,item.score]));
+      if(!visualSearchScores.size)throw new Error("Product photos could not be analysed. Try text search instead.");
+      visualSearchSignature=reference;activeSearch="";activeCategory="";activeSegment="all";wishlistOnly=false;
+      const field=document.getElementById("siteSearch");if(field)field.value="";
+      render();showSearchFeedback("Visual matches are ranked by dominant image colours and tones. Different lighting or backgrounds can affect results.");
+      document.getElementById("products")?.scrollIntoView({behavior:"smooth",block:"start"});
+    }catch(error){console.warn("Visual search failed",error);showSearchFeedback(error.message||"Visual search is unavailable for this photo.",true);}
+  }
+  function bindHeaderActions(){
+    document.getElementById("siteSearchForm")?.addEventListener("submit",event=>{event.preventDefault();applyTextSearch();});
+    document.getElementById("voiceSearch")?.addEventListener("click",()=>{
+      const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
+      if(!SpeechRecognition){showSearchFeedback("Voice search is not supported in this browser. Type your search instead.",true);return;}
+      if(speechRecognition){speechRecognition.stop();speechRecognition=null;}
+      speechRecognition=new SpeechRecognition();speechRecognition.lang="en-IN";speechRecognition.interimResults=false;speechRecognition.maxAlternatives=1;
+      showSearchFeedback("Listening... speak the product or category you are looking for.");
+      speechRecognition.onresult=event=>{const transcript=event.results?.[0]?.[0]?.transcript||"";const field=document.getElementById("siteSearch");if(field)field.value=transcript;applyTextSearch();};
+      speechRecognition.onerror=()=>showSearchFeedback("Voice input wasn't available. Check microphone permission or type your search.",true);
+      speechRecognition.onend=()=>{speechRecognition=null;};
+      try{speechRecognition.start();}catch{showSearchFeedback("Voice input couldn't start. Try again or type your search.",true);}
+    });
+    const fileInput=document.getElementById("visualSearchFile");
+    document.getElementById("visualSearchButton")?.addEventListener("click",()=>fileInput?.click());
+    fileInput?.addEventListener("change",()=>{const file=fileInput.files?.[0];if(file)runVisualSearch(file);fileInput.value="";});
+    document.getElementById("wishlistToggle")?.addEventListener("click",()=>{
+      wishlistOnly=!wishlistOnly;activeCategory="";activeSearch="";visualSearchSignature=null;visualSearchScores.clear();activeSegment="all";
+      const field=document.getElementById("siteSearch");if(field)field.value="";
+      render();showSearchFeedback(wishlistOnly?"Showing your saved items.":"");
+      document.getElementById("products")?.scrollIntoView({behavior:"smooth",block:"start"});
+    });
+    document.getElementById("drawerTrackAction")?.addEventListener("click",()=>{closeShopDrawer();openTrackingOverlay();});
+    document.getElementById("drawerWishlistAction")?.addEventListener("click",()=>{closeShopDrawer();wishlistOnly=true;activeCategory="";activeSearch="";visualSearchSignature=null;visualSearchScores.clear();activeSegment="all";render();document.getElementById("products")?.scrollIntoView({behavior:"smooth",block:"start"});});
+    document.getElementById("accountOpen")?.addEventListener("click",openAccountOverlay);
+    document.getElementById("orderTrackOpen")?.addEventListener("click",openTrackingOverlay);
+    document.getElementById("accountTrackOrder")?.addEventListener("click",()=>{closeUtilityOverlays();openTrackingOverlay();});
+    document.querySelectorAll("[data-close-utility]").forEach(button=>button.addEventListener("click",closeUtilityOverlays));
+    document.getElementById("trackingForm")?.addEventListener("submit",submitOrderTracking);
+    document.getElementById("menuToggle")?.addEventListener("click",openShopDrawer);
+    document.getElementById("drawerClose")?.addEventListener("click",closeShopDrawer);
+    document.getElementById("drawerScrim")?.addEventListener("click",closeShopDrawer);
+    document.addEventListener("keydown",event=>{if(event.key==="Escape"){closeShopDrawer();closeUtilityOverlays();}});
+    updateWishlistCount();
+  }
+  function openShopDrawer(){
+    const drawer=document.getElementById("shopDrawer"),scrim=document.getElementById("drawerScrim"),toggle=document.getElementById("menuToggle");
+    if(!drawer||!scrim)return;
+    drawer.classList.add("is-open");drawer.setAttribute("aria-hidden","false");drawer.removeAttribute("inert");
+    scrim.hidden=false;requestAnimationFrame(()=>scrim.classList.add("is-visible"));
+    document.body.classList.add("drawer-open");if(toggle)toggle.setAttribute("aria-expanded","true");
+    document.getElementById("drawerClose")?.focus();
+  }
+  function closeShopDrawer(){
+    const drawer=document.getElementById("shopDrawer"),scrim=document.getElementById("drawerScrim"),toggle=document.getElementById("menuToggle");
+    if(!drawer||!scrim)return;
+    drawer.classList.remove("is-open");drawer.setAttribute("aria-hidden","true");drawer.setAttribute("inert","");
+    scrim.classList.remove("is-visible");window.setTimeout(()=>{if(!scrim.classList.contains("is-visible"))scrim.hidden=true;},260);
+    document.body.classList.remove("drawer-open");if(toggle){toggle.setAttribute("aria-expanded","false");toggle.focus({preventScroll:true});}
+  }
+  function openUtilityOverlay(id){
+    closeUtilityOverlays();const overlay=document.getElementById(id);if(!overlay)return;
+    overlay.hidden=false;overlay.setAttribute("aria-hidden","false");document.body.classList.add("utility-open");
+    overlay.querySelector("input,button")?.focus();
+  }
+  function closeUtilityOverlays(){
+    document.querySelectorAll(".utility-overlay").forEach(overlay=>{overlay.hidden=true;overlay.setAttribute("aria-hidden","true");});
+    document.body.classList.remove("utility-open");
+  }
+  function openTrackingOverlay(){openUtilityOverlay("trackingOverlay");loadMyOrdersInto(document.getElementById("trackingAutoOrders"),"Tracking");}
+  function openAccountOverlay(){openUtilityOverlay("accountOverlay");loadMyOrdersInto(document.getElementById("accountOrders"),"Account");}
+  async function loadMyOrdersInto(container,label){
+    if(!container)return;
+    container.hidden=false;container.innerHTML='<p class="muted">Checking for active orders linked to a signed-in account...</p>';
+    try{
+      if(!client){container.innerHTML='<p class="muted">Guest checkout orders can be found using the product code and phone number below.</p>';return;}
+      const sessionResult=await client.auth.getSession();if(sessionResult.error)throw sessionResult.error;
+      if(!sessionResult.data?.session){container.innerHTML='<p class="muted">No customer account is signed in. Use the product code and phone lookup below to track a guest order.</p>';return;}
+      const {data,error}=await client.rpc("track_my_online_orders");if(error)throw error;
+      const orders=Array.isArray(data)?data:[];
+      if(!orders.length){container.innerHTML='<p class="muted">No active online orders are linked to this account email. Guest orders can still be checked with the lookup form.</p>';return;}
+      container.innerHTML='<p class="tracking-panel-label">ACTIVE ORDERS</p>'+orders.map(order=>'<article class="active-order-card"><div class="tracking-result-top"><div><strong>'+esc(order.order_number)+'</strong><small>'+esc(order.product_names||"Online order")+' - '+new Date(order.created_at).toLocaleDateString("en-IN")+'</small></div><span class="tracking-status '+esc(String(order.status||"pending").toLowerCase())+'">'+esc(order.status||"pending")+'</span></div><small>Payment: '+esc(order.payment_status||"pending")+' - Total Rs '+Number(order.total_amount||0).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2})+'</small></article>').join("");
+    }catch(error){console.warn("Account order tracking unavailable",error);container.innerHTML='<p class="muted">Automatic order lookup is unavailable for this session. Use the product code and phone lookup instead.</p>';}
+  }
+  async function submitOrderTracking(event){
+    event.preventDefault();
+    const code=String(document.getElementById("trackingProductCode")?.value||"").trim(),phone=String(document.getElementById("trackingPhone")?.value||"").trim();
+    const message=document.getElementById("trackingMessage"),results=document.getElementById("trackingResults");
+    if(message){message.textContent="Checking your order...";message.classList.remove("error");}if(results)results.innerHTML="";
+    if(!code||phone.replace(/[^0-9]/g,"").length<10){if(message){message.textContent="Enter the ordered product code and a valid phone number.";message.classList.add("error");}return;}
+    try{
+      if(!client)throw new Error("Order tracking is temporarily unavailable. Please try again later.");
+      const {data,error}=await client.rpc("track_online_order",{p_product_code:code,p_phone:phone});if(error)throw error;
+      const orders=Array.isArray(data)?data:[];
+      if(!orders.length){if(message)message.textContent="No matching online order was found. Check both details and try again.";return;}
+      if(message)message.textContent=orders.length+" matching order"+(orders.length===1?"":"s")+" found.";
+      if(results)results.innerHTML=orders.map(order=>'<article class="tracking-result-card"><div class="tracking-result-top"><div><strong>'+esc(order.order_number)+'</strong><small>'+esc(order.product_name||"Ordered item")+' - '+new Date(order.created_at).toLocaleDateString("en-IN")+'</small></div><span class="tracking-status '+esc(String(order.status||"pending").toLowerCase())+'">'+esc(order.status||"pending")+'</span></div><small>Payment: '+esc(order.payment_status||"pending")+'</small></article>').join("");
+    }catch(error){console.error("Order tracking failed.",error);if(message){message.textContent="We couldn't check the order right now. Please try again.";message.classList.add("error");}}
   }
 
   function openProductModal(product){
@@ -366,8 +599,10 @@
   async function init(){
     applyBusinessConfig();
     updateCartCount();
+    updateWishlistCount();
     bindProductModal();
     bindCollectionFilters();
+    bindHeaderActions();
     document.querySelectorAll("[data-scroll]").forEach(button=>button.addEventListener("click",()=>{
       document.querySelector(button.dataset.scroll)?.scrollIntoView({behavior:"smooth"});
     }));
