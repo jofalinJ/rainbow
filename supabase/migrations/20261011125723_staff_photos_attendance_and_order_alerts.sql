@@ -8,6 +8,9 @@ alter table public.attendance
   add column if not exists photo_reviewed_by uuid references auth.users(id) on delete set null,
   add column if not exists photo_reviewed_at timestamptz;
 
+create index if not exists attendance_photo_reviewed_by_idx
+  on public.attendance (photo_reviewed_by);
+
 do $
 begin
   if not exists (
