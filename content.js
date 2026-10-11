@@ -2,7 +2,7 @@
   const SUPABASE_CONFIG=window.RAINBOW_SUPABASE_CONFIG||{};
   const SUPABASE_URL=String(SUPABASE_CONFIG.supabaseUrl||"").trim();
   const SUPABASE_PUBLISHABLE_KEY=String(SUPABASE_CONFIG.supabasePublishableKey||"").trim();
-  let client=null, realtimeChannel=null, realtimeRefreshTimer=null, refreshInterval=null, productsLoading=false, productsReloadRequested=false, catalogueProducts=[], visibleProducts=[], activeCategory="", activeProductId="";
+  let client=null, realtimeChannel=null, realtimeRefreshTimer=null, refreshInterval=null, productsLoading=false, productsReloadRequested=false, catalogueProducts=[], catalogueCategories=[], visibleProducts=[], activeCategory="", activeProductId="";
   const WISHLIST_KEY="rainbow_wishlist_v1";
   let activeSearch="",activeSegment="all",wishlistOnly=false,visualSearchSignature=null,visualSearchScores=new Map(),speechRecognition=null;
   const wishlistIds=new Set(readWishlist());
@@ -66,10 +66,16 @@
 
   function categoryBuckets(){
     const labels=new Map();
+    const ensure=label=>{
+      const name=String(label||"").trim(),key=normalizeCategory(name);
+      if(!key)return null;
+      if(!labels.has(key))labels.set(key,{label:name,products:[]});
+      return labels.get(key);
+    };
+    catalogueCategories.forEach(category=>ensure(category.name));
     catalogueProducts.forEach(product=>{
-      const label=categoryFor(product),key=normalizeCategory(label);
-      if(key&&!labels.has(key))labels.set(key,{label,products:[]});
-      if(key)labels.get(key).products.push(product);
+      const bucket=ensure(categoryFor(product));
+      if(bucket)bucket.products.push(product);
     });
     return [...labels.values()].sort((a,b)=>a.label.localeCompare(b.label,"en"));
   }
@@ -77,30 +83,14 @@
     const sidebar=document.getElementById("drawerCategories");
     if(!sidebar)return;
     const buckets=categoryBuckets();
-    const groups=[
-      {title:"Chains",matches:b=>/chain/.test(normalizeCategory(b.label))},
-      {title:"Everyday jewellery",matches:b=>/(anklet|bracelet|bangle|ring)/.test(normalizeCategory(b.label))},
-      {title:"Occasion & statement",matches:b=>/(earring|necklace|dollar|pendant)/.test(normalizeCategory(b.label))},
-      {title:"Men's collection",matches:b=>/(men|mens|male)/.test(normalizeCategory(b.label))}
-    ];
-    const used=new Set();
-    const makeCard=b=>{
-      const item=b.products.find(product=>getImage(product))||b.products[0];
-      const src=item?getImage(item):"";
-      return '<button type="button" class="drawer-subcategory" data-filter-type="'+esc(b.label)+'" aria-label="Browse '+esc(b.label)+'">'+
-        (src?'<img src="'+esc(src)+'" alt="" loading="lazy">':'<span class="drawer-subcategory-placeholder" aria-hidden="true">RG</span>')+
-        '<span>'+esc(b.label)+'</span></button>';
-    };
-    const groupMarkup=groups.map(group=>{
-      const items=buckets.filter(b=>group.matches(b));
-      if(!items.length)return "";
-      items.forEach(b=>used.add(normalizeCategory(b.label)));
-      return '<details class="drawer-accordion"><summary>'+esc(group.title)+'</summary><div class="drawer-subcategory-grid">'+items.map(makeCard).join("")+'</div></details>';
-    }).join("");
-    const remaining=buckets.filter(b=>!used.has(normalizeCategory(b.label)));
-    const others=remaining.length?'<details class="drawer-accordion" open><summary>More to explore</summary><div class="drawer-subcategory-grid">'+remaining.map(makeCard).join("")+'</div></details>':"";
-    sidebar.innerHTML='<button type="button" class="drawer-all-category" data-filter-type="">All jewellery <span>'+catalogueProducts.length+'</span></button>'+(groupMarkup||"")+others+
-      (buckets.length?"":'<div class="drawer-empty">Your categories will appear here as products are added and stocked.</div>');
+    const typeButtons=buckets.map(bucket=>
+      '<button type="button" class="drawer-type-link" data-filter-type="'+esc(bucket.label)+'" aria-label="Browse '+esc(bucket.label)+'">'+
+        '<span>'+esc(bucket.label)+'</span><small>'+bucket.products.length+'</small></button>'
+    ).join("");
+    sidebar.innerHTML=
+      '<button type="button" class="drawer-all-category" data-filter-type="">All products <span>'+catalogueProducts.length+'</span></button>'+
+      (typeButtons?'<div class="drawer-type-grid" aria-label="All product types">'+typeButtons+'</div>':
+        '<div class="drawer-empty">Product types will appear here as the catalogue is added.</div>');
   }
   function renderFeaturedCollections(){
     const target=document.getElementById("drawerFeatured");
@@ -747,11 +737,18 @@
     productsLoading=true;
     const status=document.getElementById("productStatus");
     try{
-      const {data,error}=await client.from("products")
-        .select("id,product_code,product_name,type,category_id,categories(name),selling_price,description,length_cm,thickness,gold_amount_g,created_at,product_variants(id,stock_quantity,color,size,length_cm,active),product_images(id,public_url,is_primary,sort_order)")
-        .eq("active",true).order("created_at",{ascending:false});
-      if(error)throw error;
-      const stockedProducts=(data||[]).filter(product=>getStock(product)>0);
+      const [productsResult,categoriesResult]=await Promise.all([
+        client.from("products")
+          .select("id,product_code,product_name,type,category_id,categories(name),selling_price,description,length_cm,thickness,gold_amount_g,created_at,product_variants(id,stock_quantity,color,size,length_cm,active),product_images(id,public_url,is_primary,sort_order)")
+          .eq("active",true).order("created_at",{ascending:false}),
+        client.from("categories").select("name").eq("active",true).order("name",{ascending:true})
+      ]);
+      if(productsResult.error)throw productsResult.error;
+      if(categoriesResult.error){
+        console.warn("Product types could not be loaded.",categoriesResult.error);
+        catalogueCategories=[];
+      }else catalogueCategories=Array.isArray(categoriesResult.data)?categoriesResult.data:[];
+      const stockedProducts=(productsResult.data||[]).filter(product=>getStock(product)>0);
       catalogueProducts=stockedProducts;
       if(activeProductId&&!stockedProducts.some(product=>String(product.id)===String(activeProductId)))closeProductModal();
       render();
@@ -769,6 +766,7 @@
       .on("postgres_changes",{event:"*",schema:"public",table:"products"},scheduleCatalogRefresh)
       .on("postgres_changes",{event:"*",schema:"public",table:"product_variants"},scheduleCatalogRefresh)
       .on("postgres_changes",{event:"*",schema:"public",table:"product_images"},scheduleCatalogRefresh)
+      .on("postgres_changes",{event:"*",schema:"public",table:"categories"},scheduleCatalogRefresh)
       .subscribe();
   }
 
