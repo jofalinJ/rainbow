@@ -8,22 +8,63 @@
 <meta property="og:image" content="https://jofalinj.github.io/rainbow/assets/brand/rainbow-logo.png">
 <meta name="description" content="Rainbow Gold Covering — premium gold-covering jewellery, collections and store information.">
 <title>Rainbow Gold Covering — Jewellery, Made to Shine</title>
-<link rel="stylesheet" href="content.css?v=20261011-sidebar-catalog">
+<link rel="stylesheet" href="content.css?v=20261011-header-drawer">
 <script src="config.js"></script>
 <script src="admin/config.js"></script>
 </head>
 <body>
-<header class="topbar">
-  <nav class="nav container">
-    <a class="logo" href="index.html" aria-label="Rainbow Gold Covering home">
-      <img class="brand-logo" src="assets/brand/rainbow-logo.png" alt="Rainbow Gold Covering logo" width="42" height="42" fetchpriority="high"><span><strong data-config="brandName">RAINBOW</strong><small>GOLD COVERING</small></span>
-    </a>
-    <div class="navlinks">
-      <a href="#products">Shop by Type</a><a href="#process">How It Works</a><a href="#story">Our Story</a><a href="#contact">Contact</a>
+<header class="topbar storefront-topbar">
+  <nav class="nav container" aria-label="Main navigation">
+    <div class="storefront-header-row">
+      <button id="menuToggle" class="icon-button menu-toggle" type="button" aria-label="Open shop navigation" aria-controls="shopDrawer" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+      <a class="logo" href="index.html" aria-label="Rainbow Gold Covering home"><img class="brand-logo" src="assets/brand/rainbow-logo.png" alt="Rainbow Gold Covering logo" width="42" height="42" fetchpriority="high"><span><strong data-config="brandName">RAINBOW</strong><small>GOLD COVERING</small></span></a>
+      <div class="storefront-header-actions" aria-label="Account and shopping actions">
+        <button id="orderTrackOpen" class="icon-button" type="button" aria-label="Track an order" title="Track an order"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h11v10H3zM14 10h4l3 3v4h-7z"/><circle cx="7.5" cy="18" r="1.8"/><circle cx="18" cy="18" r="1.8"/></svg></button>
+        <button id="accountOpen" class="icon-button" type="button" aria-label="Your account and orders" title="Your account"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c.6-3.4 3.2-5.2 7-5.2s6.4 1.8 7 5.2"/></svg></button>
+        <button id="wishlistToggle" class="icon-button icon-button-count" type="button" aria-label="Show your wishlist" title="Wishlist" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 8.8c0 4.2-8.5 10-8.5 10s-8.5-5.8-8.5-10a4.5 4.5 0 0 1 8.5-2.2 4.5 4.5 0 0 1 8.5 2.2Z"/></svg><span id="wishlistCount" class="icon-count" hidden>0</span></button>
+        <a class="icon-button icon-button-count cart-icon-link" href="order.html" aria-label="Shopping cart" title="Shopping cart"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2.2 11.2a2 2 0 0 0 2 1.6h8.2a2 2 0 0 0 1.9-1.4L21 8H6"/><circle cx="10" cy="20" r="1.3"/><circle cx="18" cy="20" r="1.3"/></svg><span id="cartCount" class="icon-count">0</span></a>
+      </div>
     </div>
-    <div class="nav-actions"><a class="instagram-top" data-instagram href="https://www.instagram.com/rainbow_kollam_gold_covering/" target="_blank" rel="noopener noreferrer" aria-label="Rainbow Gold Covering on Instagram">Instagram ↗</a><a class="cart-top" href="order.html" aria-label="Open cart">Cart <span id="cartCount">0</span></a><a class="btn btn-light" href="#products">Explore Products</a></div>
+    <form id="siteSearchForm" class="storefront-search-form" role="search">
+      <label class="visually-hidden" for="siteSearch">Search jewellery</label>
+      <input id="siteSearch" type="search" autocomplete="off" placeholder="What are you looking for?" aria-label="What are you looking for?">
+      <button id="voiceSearch" class="search-tool-button" type="button" aria-label="Search by voice" title="Voice search"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M9 21h6"/></svg></button>
+      <button id="visualSearchButton" class="search-tool-button" type="button" aria-label="Search using a photo" title="Visual search"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h3l1.5-2h7L17 7h3v12H4z"/><circle cx="12" cy="13" r="4"/></svg></button>
+      <button class="search-submit" type="submit" aria-label="Submit search" title="Search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 4 4"/></svg></button>
+      <input id="visualSearchFile" type="file" accept="image/*" capture="environment" hidden>
+    </form>
+    <p id="searchFeedback" class="search-feedback" role="status" aria-live="polite" hidden></p>
   </nav>
 </header>
+
+<div id="drawerScrim" class="drawer-scrim" hidden></div>
+<aside id="shopDrawer" class="shop-drawer" role="dialog" aria-modal="true" aria-labelledby="drawerTitle" aria-hidden="true" inert>
+  <div class="drawer-topline"><span id="drawerTitle" class="drawer-eyebrow">DISCOVER RAINBOW</span><button id="drawerClose" class="icon-button drawer-close" type="button" aria-label="Close navigation"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
+  <a class="drawer-promo" href="#products" data-close-drawer><span>NEW DESIGNS, TIMELESS SHINE</span><strong>Find your next favourite.</strong><small>Explore the latest Rainbow collection ↗</small></a>
+  <div class="drawer-section"><p class="drawer-section-label">SHOP BY</p><div class="drawer-tabs" role="group" aria-label="Shop sections"><button type="button" class="drawer-tab is-active" data-segment="all" aria-pressed="true">All</button><button type="button" class="drawer-tab" data-segment="women" aria-pressed="false">Women</button><button type="button" class="drawer-tab" data-segment="men" aria-pressed="false">Men</button><button type="button" class="drawer-tab" data-segment="new" aria-pressed="false">New in</button></div></div>
+  <div class="drawer-section drawer-featured-section"><div class="drawer-section-heading"><p class="drawer-section-label">FEATURED PICKS</p><span>From our live catalogue</span></div><div id="drawerFeatured" class="drawer-featured" aria-label="Featured collections"></div></div>
+  <div class="drawer-section drawer-categories-section"><div class="drawer-section-heading"><p class="drawer-section-label">EXPLORE CATEGORIES</p><button type="button" class="drawer-text-button" data-filter-type="">View all</button></div><div id="drawerCategories" class="drawer-categories"></div></div>
+  <div class="drawer-quicklinks"><button type="button" id="drawerTrackAction"><span>Track your order</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button><button type="button" id="drawerWishlistAction"><span>Your wishlist</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button><a href="#contact" data-close-drawer><span>Contact Rainbow</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></a><a data-instagram href="https://www.instagram.com/rainbow_kollam_gold_covering/" target="_blank" rel="noopener noreferrer"><span>Instagram ↗</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg></a></div>
+</aside>
+<div id="trackingOverlay" class="utility-overlay" aria-hidden="true" hidden>
+  <button class="utility-backdrop" type="button" data-close-utility aria-label="Close order tracking"></button>
+  <section class="utility-panel tracking-panel" role="dialog" aria-modal="true" aria-labelledby="trackingTitle">
+    <div class="utility-panel-head"><div><span class="section-kicker">ORDER SUPPORT</span><h2 id="trackingTitle">Track your order</h2></div><button class="icon-button utility-close" type="button" data-close-utility aria-label="Close order tracking"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
+    <p class="utility-intro">Check the latest order status with the product code and the phone number used for your order notification.</p>
+    <div id="trackingAutoOrders" class="tracking-auto-orders" hidden></div>
+    <form id="trackingForm" class="tracking-form"><label>Ordered product code<input id="trackingProductCode" name="product_code" autocomplete="off" required maxlength="64" placeholder="e.g. RG-001"></label><label>Phone number used for order notifications<input id="trackingPhone" name="phone" type="tel" inputmode="tel" autocomplete="tel" required minlength="10" maxlength="18" placeholder="Enter the same phone number"></label><button class="btn btn-dark" type="submit">Find my order →</button></form>
+    <p id="trackingMessage" class="tracking-message" role="status" aria-live="polite"></p><div id="trackingResults" class="tracking-results"></div><p class="tracking-privacy">For privacy, the lookup only returns orders that match both details.</p>
+  </section>
+</div>
+<div id="accountOverlay" class="utility-overlay" aria-hidden="true" hidden>
+  <button class="utility-backdrop" type="button" data-close-utility aria-label="Close account panel"></button>
+  <section class="utility-panel account-panel" role="dialog" aria-modal="true" aria-labelledby="accountTitle">
+    <div class="utility-panel-head"><div><span class="section-kicker">YOUR RAINBOW</span><h2 id="accountTitle">Account & orders</h2></div><button class="icon-button utility-close" type="button" data-close-utility aria-label="Close account panel"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
+    <p id="accountIdentity" class="utility-intro">Your saved items stay in this browser. Active orders linked to a signed-in account email appear below.</p>
+    <div id="accountOrders" class="tracking-auto-orders"><p class="muted">Checking your account…</p></div>
+    <button type="button" id="accountTrackOrder" class="btn btn-light account-track-button">Track an order with product code</button>
+  </section>
+</div>
 <main>
 <section class="hero">
 <div class="container hero-grid">
@@ -42,13 +83,8 @@
 <div class="container">
 <div class="section-head"><div><span class="section-kicker">SHOP</span><h2 id="productHeading">Shop jewellery.</h2></div><p>Browse the live Rainbow catalogue. Choose a product type to narrow the selection.</p></div>
 <div class="catalog-layout">
-<aside class="category-sidebar" id="collections" aria-label="Product category navigation">
-<p class="category-sidebar-title">Shop by type</p>
-<nav id="categorySidebar" class="category-options" aria-label="Product types">
-<button class="category-option is-active" type="button" data-filter-type="" aria-pressed="true">All products</button>
-</nav>
-</aside>
-<div class="catalog-main">
+
+<div class="catalog-main" id="collections">
 <div class="product-toolbar"><div id="productStatus" class="product-status" aria-live="polite">Loading products…</div><button id="clearProductFilter" class="clear-filter" type="button" hidden>Show all products</button></div>
 <div id="productGrid" class="product-grid"></div>
 </div>
@@ -75,6 +111,6 @@
 </main>
 <footer class="container footer"><span class="footer-brand" data-config="footerBrand"><img class="footer-logo" src="assets/brand/rainbow-logo.png" alt="Rainbow Gold Covering logo" width="28" height="28" loading="lazy"><span data-config="footerBrandText">RAINBOW GOLD COVERING</span></span><span><a class="instagram-link" data-instagram href="https://www.instagram.com/rainbow_kollam_gold_covering/" target="_blank" rel="noopener noreferrer">Instagram · @rainbow_kollam_gold_covering</a></span><span>© <span id="year"></span> Rainbow Gold Covering. All rights reserved.</span></footer>
 <div id="productModal" class="product-modal" aria-hidden="true"><div class="product-modal-backdrop" data-close-product></div><button class="product-modal-nav previous" type="button" data-product-prev aria-label="Previous product" hidden>‹</button><div class="product-modal-panel" role="dialog" aria-modal="true" aria-labelledby="modalProductName"><button class="product-modal-close" type="button" aria-label="Close product details" data-close-product>×</button><div id="productModalContent"></div></div><button class="product-modal-nav next" type="button" data-product-next aria-label="Next product" hidden>›</button></div>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="content.js?v=20261011-sidebar-catalog"></script><script src="business-live.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="content.js?v=20261011-header-drawer-search"></script><script src="business-live.js"></script>
 </body>
 </html>
