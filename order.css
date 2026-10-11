@@ -6,3 +6,26 @@
 
 .checkout-progress{display:flex;align-items:center;gap:10px;margin:-12px 0 28px;padding:14px 17px;border:1px solid var(--line);border-radius:14px;background:#fff;max-width:560px}.checkout-step{display:flex;align-items:center;gap:8px;color:#9a9189;font-size:11px;font-weight:650}.checkout-step b,.payment-step-label span{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:#f2eee8;color:#877d73;font-size:11px}.checkout-step.is-complete,.checkout-step.is-active{color:#8f1520}.checkout-step.is-complete b,.checkout-step.is-active b,.payment-step-label span{background:#8f1520;color:#fff}.success-dialog.payment-dialog{width:min(500px,100%);max-height:min(92svh,860px);overflow:auto;padding:26px 24px}.payment-dialog h2{margin:7px 0 3px!important}.payment-step-label{display:flex;align-items:center;justify-content:center;gap:9px;margin:17px 0 13px;color:#8f1520;font-size:13px}.payment-step-label span{width:24px;height:24px}.payment-qr-card{display:flex;align-items:center;justify-content:center;gap:18px;border:1px solid #eee4d6;border-radius:16px;background:#fff;padding:14px;text-align:left}.payment-qr-card img{display:block;width:min(42vw,190px);height:min(42vw,190px);object-fit:contain;border-radius:9px;background:#fff}.payment-qr-card strong{font-size:15px;color:#291d18}.payment-qr-card p{margin:8px 0;color:#766b62!important;font-size:12px!important;line-height:1.55!important}.payment-qr-card .payment-total{font-size:13px!important}.payment-total b{display:block;margin-top:3px;font-size:19px;color:#8f1520}.payment-dialog .payment-note{margin:13px 0;color:#756b63;font-size:12px!important}.payment-proof-link{display:block;text-decoration:none;margin-top:12px;border-radius:7px}.payment-dialog .btn{width:100%;padding:12px}
 @media(max-width:560px){.checkout-progress{gap:7px;justify-content:space-between;margin:-10px 0 20px;padding:11px 9px}.checkout-step{gap:5px;font-size:10px}.checkout-step b{width:21px;height:21px;font-size:10px}.success-overlay{padding:12px}.success-dialog.payment-dialog{padding:21px 15px;border-radius:16px}.payment-qr-card{gap:10px;padding:10px}.payment-qr-card img{width:40vw;height:40vw;max-width:155px;max-height:155px}.payment-qr-card p{font-size:11px!important}.payment-total b{font-size:17px}}
+
+
+/* UPI payment step is shown in checkout before the order is submitted. */
+.checkout-payment{margin-top:22px;padding:17px;border:1px solid #eadfd1;border-radius:16px;background:#fffdf9}
+.checkout-payment h3{margin:0 0 13px;color:#281c17;font-size:16px}
+.payment-method-label,.payment-reference-label{display:grid;gap:7px;margin:12px 0;color:#6f655d;font-size:11px}
+.payment-method-label select,.payment-reference-label input{width:100%;min-height:42px;padding:11px 12px;border:1px solid #e7ddd1;border-radius:10px;background:#fff;color:#241b17;font:inherit;font-size:13px}
+.checkout-qr{justify-content:flex-start;margin-top:12px}
+.checkout-qr img{width:clamp(120px,28vw,176px);height:clamp(120px,28vw,176px);flex:0 0 auto}
+.checkout-qr .payment-total b{display:block;margin-top:4px;color:#8f1520;font-size:19px}
+.checkout-qr .payment-total small{display:block;margin-top:4px;color:#766b62;font-size:10px;line-height:1.5}
+.payment-confirmation{display:flex;align-items:flex-start;gap:9px;margin:14px 0;color:#3c3028;font-size:12px;line-height:1.5}
+.payment-confirmation input{width:16px;height:16px;flex:0 0 auto;margin:0}
+.place-order:disabled{opacity:.5;cursor:not-allowed}
+.order-success{border-color:#d9c08e}
+.order-success .payment-status-note{font-weight:700;color:#8f1520}
+@media(max-width:560px){
+  .checkout-payment{padding:13px}
+  .checkout-qr{align-items:flex-start;flex-direction:column}
+  .checkout-qr img{width:150px;height:150px;max-width:60vw}
+  .checkout-qr>div{width:100%}
+  .order-summary .grand{font-size:16px}
+}
