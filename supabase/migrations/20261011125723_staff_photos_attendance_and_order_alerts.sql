@@ -53,6 +53,7 @@ with check (
     or (
       (storage.foldername(name))[1] = 'attendance'
       and (storage.foldername(name))[2] = (select auth.uid())::text
+      and (storage.foldername(name))[3] = to_char((now() at time zone 'Asia/Kolkata')::date, 'YYYY-MM-DD')
       and exists (
         select 1
         from public.staff_profiles as sp
