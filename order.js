@@ -277,6 +277,7 @@
       $("orderLayout").hidden=true;
       $("orderSuccess").hidden=false;
       $("orderSuccess").innerHTML='<h2>Order received.</h2><p>Your order number is <strong>'+esc(data.order_number)+'</strong>.</p><p>Total before any separately confirmed delivery charge: <strong>'+money(data.total_amount)+'</strong>. Rainbow Gold Covering will contact you on WhatsApp to confirm the order and delivery details.</p><a class="btn btn-dark" href="index.html#products">Continue Shopping</a>';
+      const overlay=$("successOverlay");if(overlay){$("successOrderNumber").textContent="Order number: "+String(data.order_number||"");$("successOrderText").textContent="Order total: "+money(data.total_amount)+". Thank you for choosing Rainbow Gold Covering — we’ll contact you to confirm delivery details.";overlay.hidden=false;document.body.classList.add("order-success-open");$("successContinue").focus();}
       msg("");
     }catch(error){
       console.error("Order creation failed.",error);
@@ -287,6 +288,9 @@
       updatePlaceOrderState();
     }
   }
+  const successContinue=$("successContinue");if(successContinue)successContinue.onclick=()=>{window.location.href="index.html#products";};
+  const successOverlay=$("successOverlay");if(successOverlay)successOverlay.addEventListener("click",event=>{if(event.target===successOverlay){successOverlay.hidden=true;document.body.classList.remove("order-success-open");}});
+  document.addEventListener("keydown",event=>{if(event.key==="Escape"&&successOverlay&&!successOverlay.hidden){successOverlay.hidden=true;document.body.classList.remove("order-success-open");}});
   $("clearCart").onclick=()=>{cart=[];cartVerified=true;cartVerificationFailed=false;save();render();msg("");};
   $("distance").oninput=updateDeliveryPreview;
   $("placeOrder").onclick=placeOrder;
