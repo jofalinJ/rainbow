@@ -586,3 +586,29 @@ body.modal-open{overflow:hidden}
   .storefront-header-actions .icon-button{width:28px;flex-basis:28px}
   .storefront-header-actions .icon-button svg{width:16px;height:16px}
 }
+
+
+/* Keep the brand centered while docking the complete utility group at the right edge. */
+@media(min-width:981px){
+  .storefront-header-row{
+    display:grid!important;
+    grid-template-columns:minmax(48px,1fr) auto minmax(0,1fr);
+    align-items:center;
+  }
+  .storefront-header-left{grid-column:1;grid-row:1;width:100%}
+  .storefront-header-row .logo{
+    position:relative;grid-column:2;grid-row:1;
+    left:auto;top:auto;transform:none;justify-self:center;
+    z-index:3;
+  }
+  .storefront-header-right{
+    grid-column:3;grid-row:1;
+    justify-self:end;width:max-content;max-width:100%;
+    flex:0 1 auto;margin:0;gap:12px;
+  }
+  .storefront-search-form,
+  .storefront-header-right .storefront-search-form{
+    width:clamp(160px,18vw,280px);
+    max-width:280px;flex:0 1 280px;
+  }
+}
