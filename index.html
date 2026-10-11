@@ -8,7 +8,7 @@
 <meta property="og:image" content="https://jofalinj.github.io/rainbow/assets/brand/rainbow-logo.png">
 <meta name="description" content="Rainbow Gold Covering — premium gold-covering jewellery, collections and store information.">
 <title>Rainbow Gold Covering — Jewellery, Made to Shine</title>
-<link rel="stylesheet" href="content.css?v=20261011-storefront-content-v4">
+<link rel="stylesheet" href="content.css?v=20261011-storefront-categories-v5">
 <script src="config.js"></script>
 <script src="admin/config.js"></script>
 </head>
@@ -16,13 +16,10 @@
 <header class="topbar storefront-topbar">
   <nav class="nav container" aria-label="Main navigation">
     <div class="storefront-header-row">
-    <div class="storefront-header-left">
-      <button id="menuToggle" class="icon-button menu-toggle" type="button" aria-label="Open shop navigation" aria-controls="shopDrawer" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
-    </div>
-    <a class="logo" href="index.html" aria-label="Rainbow Gold Covering home"><img class="brand-logo" src="assets/brand/rainbow-logo.png" alt="Rainbow Gold Covering logo" width="42" height="42" fetchpriority="high"><span><strong data-config="brandName">RAINBOW</strong><small>GOLD COVERING</small></span></a>
+    <a class="logo" href="index.html" aria-label="Rainbow Kollam Gold Covering home"><img class="brand-logo" src="assets/brand/rainbow-logo.png" alt="Rainbow Kollam Gold Covering logo" width="46" height="46" fetchpriority="high"><span><strong data-config="brandName">RAINBOW KOLLAM</strong><small>GOLD COVERING</small></span></a>
     <div class="storefront-header-right">
     <div class="storefront-header-actions" aria-label="Account and shopping actions">
-      <button id="orderTrackOpen" class="icon-button" type="button" aria-label="Track an order" title="Track an order"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h11v10H3zM14 10h4l3 3v4h-7z"/><circle cx="7.5" cy="18" r="1.8"/><circle cx="18" cy="18" r="1.8"/></svg></button>
+      <a id="orderTrackOpen" class="icon-button" href="https://www.tpcindia.com/" target="_blank" rel="noopener noreferrer" aria-label="Track an order with TPC India" title="Track an order"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h11v10H3zM14 10h4l3 3v4h-7z"/><circle cx="7.5" cy="18" r="1.8"/><circle cx="18" cy="18" r="1.8"/></svg></a>
       <button id="accountOpen" class="icon-button" type="button" aria-label="Your account and orders" title="Your account"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c.6-3.4 3.2-5.2 7-5.2s6.4 1.8 7 5.2"/></svg></button>
       <button id="wishlistToggle" class="icon-button icon-button-count" type="button" aria-label="Show your wishlist" title="Wishlist" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 8.8c0 4.2-8.5 10-8.5 10s-8.5-5.8-8.5-10a4.5 4.5 0 0 1 8.5-2.2 4.5 4.5 0 0 1 8.5 2.2Z"/></svg><span id="wishlistCount" class="icon-count" hidden>0</span></button>
       <a class="icon-button icon-button-count cart-icon-link" href="order.html" aria-label="Shopping cart" title="Shopping cart"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2.2 11.2a2 2 0 0 0 2 1.6h8.2a2 2 0 0 0 1.9-1.4L21 8H6"/><circle cx="10" cy="20" r="1.3"/><circle cx="18" cy="20" r="1.3"/></svg><span id="cartCount" class="icon-count">0</span></a>
@@ -37,18 +34,19 @@
     </form>
     </div>
   </div>
+  <div class="storefront-menu-row">
+    <button id="menuToggle" class="icon-button menu-toggle" type="button" aria-label="Open shop navigation" aria-controls="shopDrawer" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+  </div>
     <p id="searchFeedback" class="search-feedback" role="status" aria-live="polite" hidden></p>
   </nav>
 </header>
 
 <div id="drawerScrim" class="drawer-scrim" hidden></div>
 <aside id="shopDrawer" class="shop-drawer" role="dialog" aria-modal="true" aria-labelledby="drawerTitle" aria-hidden="true" inert>
-  <div class="drawer-topline"><span id="drawerTitle" class="drawer-eyebrow">DISCOVER RAINBOW</span><button id="drawerClose" class="icon-button drawer-close" type="button" aria-label="Close navigation"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
-  <a class="drawer-promo" href="#products" data-close-drawer><span>NEW DESIGNS, TIMELESS SHINE</span><strong>Find your next favourite.</strong><small>Explore the latest Rainbow collection ↗</small></a>
-  <div class="drawer-section"><p class="drawer-section-label">SHOP BY</p><div class="drawer-tabs" role="group" aria-label="Shop sections"><button type="button" class="drawer-tab is-active" data-segment="all" aria-pressed="true">All</button><button type="button" class="drawer-tab" data-segment="women" aria-pressed="false">Women</button><button type="button" class="drawer-tab" data-segment="men" aria-pressed="false">Men</button><button type="button" class="drawer-tab" data-segment="new" aria-pressed="false">New in</button></div></div>
+  <div class="drawer-topline"><span id="drawerTitle" class="visually-hidden">Shop navigation</span><button id="drawerClose" class="icon-button drawer-close" type="button" aria-label="Close navigation"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
+  <div class="drawer-section"><p class="drawer-section-label">SHOP BY</p><div class="drawer-tabs" role="group" aria-label="Shop sections"><button type="button" class="drawer-tab is-active" data-segment="all" aria-pressed="true">All</button><button type="button" class="drawer-tab" data-segment="women" aria-pressed="false">Women</button><button type="button" class="drawer-tab" data-segment="men" aria-pressed="false">Men</button></div></div>
   <div class="drawer-section drawer-categories-section"><div class="drawer-section-heading"><p class="drawer-section-label">ALL PRODUCT TYPES</p><span>Choose a type to browse</span></div><div id="drawerCategories" class="drawer-categories"></div></div>
-    <div class="drawer-section drawer-featured-section"><div class="drawer-section-heading"><p class="drawer-section-label">FEATURED PICKS</p><span>From our live catalogue</span></div><div id="drawerFeatured" class="drawer-featured" aria-label="Featured collections"></div></div>
-  <div class="drawer-quicklinks"><button type="button" id="drawerTrackAction"><span>Track your order</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button><button type="button" id="drawerWishlistAction"><span>Your wishlist</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button><a href="#contact" data-close-drawer><span>Contact Rainbow</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></a><a href="https://www.instagram.com/rainbow_kollam_gold_covering/" target="_blank" rel="noopener noreferrer"><span>Instagram ↗</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg></a></div>
+  <div class="drawer-quicklinks"><a id="drawerTrackAction" href="https://www.tpcindia.com/" target="_blank" rel="noopener noreferrer"><span>Track your order</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></a><button type="button" id="drawerWishlistAction"><span>Your wishlist</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button><a href="#contact" data-close-drawer><span>Contact Rainbow</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></a><a href="https://www.instagram.com/rainbow_kollam_gold_covering/" target="_blank" rel="noopener noreferrer"><span>Instagram ↗</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg></a></div>
 </aside>
 <div id="trackingOverlay" class="utility-overlay" aria-hidden="true" hidden>
   <button class="utility-backdrop" type="button" data-close-utility aria-label="Close order tracking"></button>
@@ -91,7 +89,7 @@
       <button type="button" id="accountSignOut" class="btn btn-light">Sign out</button>
     </div>
     <div id="accountOrders" class="tracking-auto-orders"><p class="muted">Sign in to view orders linked to your account.</p></div>
-    <button type="button" id="accountTrackOrder" class="btn btn-light account-track-button">Track an order with product code</button>
+    <a id="accountTrackOrder" class="btn btn-light account-track-button" href="https://www.tpcindia.com/" target="_blank" rel="noopener noreferrer">Track an order with TPC India ↗</a>
   </section>
 </div>
 <main>
@@ -110,11 +108,11 @@
 
 <section class="section live-products" id="products">
 <div class="container">
-<div class="section-head"><div><span class="section-kicker">SHOP</span><h2 id="productHeading">Shop jewellery.</h2></div></div>
+<div class="section-head"><div><span class="section-kicker">SHOP</span><h2 id="productHeading">Shop by category.</h2></div></div>
 <div class="catalog-layout">
 
 <div class="catalog-main" id="collections">
-<div class="product-toolbar"><div id="productStatus" class="product-status" aria-live="polite">Loading products…</div><button id="clearProductFilter" class="clear-filter" type="button" hidden>Show all products</button></div>
+<div class="product-toolbar"><div id="productStatus" class="product-status" aria-live="polite">Loading products…</div><button id="clearProductFilter" class="clear-filter" type="button" hidden>Back to product types</button></div>
 <div id="productGrid" class="product-grid"></div>
 </div>
 </div>
@@ -138,8 +136,8 @@
 <div class="container contact-card"><div><span class="section-kicker">CONTACT</span><h2>Looking for a particular design?</h2><p>Tell us what you are looking for and continue the conversation with Rainbow Gold Covering.</p><div class="contact-phone" aria-label="Contact Rainbow Gold Covering"><p class="contact-phone-label">Call or WhatsApp Rainbow Gold Covering</p><a href="tel:+919952436899">9952436899</a><a href="https://wa.me/919952436899" target="_blank" rel="noopener noreferrer">Chat on WhatsApp</a></div><div id="branchList" class="branch-list" aria-label="Our stores"></div></div><a class="btn btn-light" href="#collections">Browse Collections</a></div>
 </section>
 </main>
-<footer class="container footer"><span class="footer-brand" data-config="footerBrand"><img class="footer-logo" src="assets/brand/rainbow-logo.png" alt="Rainbow Gold Covering logo" width="28" height="28" loading="lazy"><span data-config="footerBrandText">RAINBOW GOLD COVERING</span></span><span><a class="instagram-link" data-instagram href="https://www.instagram.com/rainbow_kollam_gold_covering/" target="_blank" rel="noopener noreferrer">Instagram · @rainbow_kollam_gold_covering</a></span><span class="footer-legal-link"><a href="privacy-policy.html">Privacy Policy</a></span><span class="footer-legal-link"><a href="terms-and-conditions.html">Terms &amp; Conditions</a></span><span class="footer-legal-link"><a href="sitemap.html">Sitemap</a></span><span>© <span id="year"></span> Rainbow Gold Covering. All rights reserved.</span></footer>
+<footer class="container footer"><span class="footer-brand" data-config="footerBrand"><img class="footer-logo" src="assets/brand/rainbow-logo.png" alt="Rainbow Kollam Gold Covering logo" width="28" height="28" loading="lazy"><span data-config="footerBrandText">RAINBOW KOLLAM GOLD COVERING</span></span><span><a class="instagram-link" data-instagram href="https://www.instagram.com/rainbow_kollam_gold_covering/" target="_blank" rel="noopener noreferrer">Instagram · @rainbow_kollam_gold_covering</a></span><span class="footer-legal-link"><a href="privacy-policy.html">Privacy Policy</a></span><span class="footer-legal-link"><a href="terms-and-conditions.html">Terms &amp; Conditions</a></span><span class="footer-legal-link"><a href="sitemap.html">Sitemap</a></span><span>© <span id="year"></span> Rainbow Gold Covering. All rights reserved.</span></footer>
 <div id="productModal" class="product-modal" aria-hidden="true"><div class="product-modal-backdrop" data-close-product></div><button class="product-modal-nav previous" type="button" data-product-prev aria-label="Previous product" hidden>‹</button><div class="product-modal-panel" role="dialog" aria-modal="true" aria-labelledby="modalProductName"><button class="product-modal-close" type="button" aria-label="Close product details" data-close-product>×</button><div id="productModalContent"></div></div><button class="product-modal-nav next" type="button" data-product-next aria-label="Next product" hidden>›</button></div>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="content.js?v=20261011-storefront-content-v3"></script><script src="business-live.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="content.js?v=20261011-categories-gender-v5"></script><script src="business-live.js?v=20261011-brand-name"></script>
 </body>
 </html>
