@@ -1,7 +1,84 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#8f1520"><link rel="icon" type="image/png" href="../assets/brand/rainbow-logo.png"><title>Rainbow Gold Covering — Attendance</title><link rel="stylesheet" href="style.css"><script src="config.js"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script></head>
-<body><aside></aside><main>
-<header><div><p class="eyebrow">TEAM MANAGEMENT</p><h1>Attendance</h1></div></header>
-<section class="panel"><div class="panelhead"><div><h2>Staff attendance</h2><span class="muted">Attendance tracking for the Rainbow team.</span></div></div>
-<div style="padding:20px 0;max-width:680px"><p style="margin:0 0 8px;font-weight:650">Attendance records are not connected yet.</p><p class="muted" style="line-height:1.75">The current database contains staff profiles but no attendance records table. This page is now available in navigation; check-in, check-out and attendance history should be connected after the attendance data model and staff access rules are defined. No attendance records are being simulated or stored only in this browser.</p></div></section>
-</main><script src="app.js?v=20261012-sidebar"></script></body></html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#8f1520">
+<link rel="icon" type="image/png" href="../assets/brand/rainbow-logo.png">
+<title>Rainbow Gold Covering — Staff Attendance</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="attendance.css?v=20261011-attendance">
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<aside aria-label="Admin sidebar"></aside>
+<main class="attendance-page">
+  <header class="attendance-page-header">
+    <div>
+      <p class="eyebrow">TEAM MANAGEMENT</p>
+      <h1>Staff Attendance</h1>
+      <p class="muted attendance-subtitle">Attendance tracking for the Rainbow team.</p>
+    </div>
+    <button class="profile" id="attendanceRefresh" type="button">Refresh</button>
+  </header>
+
+  <section class="panel attendance-panel" aria-label="Staff attendance management">
+    <div class="attendance-tabs" role="tablist" aria-label="Attendance views">
+      <button id="dailyTab" class="attendance-tab is-active" type="button" role="tab" aria-selected="true" aria-controls="dailyPanel" data-tab="daily">Daily Attendance</button>
+      <button id="historyTab" class="attendance-tab" type="button" role="tab" aria-selected="false" aria-controls="historyPanel" data-tab="history">Attendance Summary / History</button>
+    </div>
+
+    <section id="dailyPanel" class="attendance-view" role="tabpanel" aria-labelledby="dailyTab">
+      <div class="attendance-toolbar">
+        <div class="date-navigation" aria-label="Choose attendance date">
+          <button id="previousDay" type="button" aria-label="Previous day">‹</button>
+          <label class="visually-hidden" for="attendanceDate">Attendance date</label>
+          <input id="attendanceDate" type="date">
+          <button id="nextDay" type="button" aria-label="Next day">›</button>
+        </div>
+        <label class="attendance-search">
+          <span class="visually-hidden">Search staff by name</span>
+          <input id="staffSearch" type="search" placeholder="Search staff by name">
+        </label>
+      </div>
+
+      <div id="dailySummary" class="attendance-summary" aria-live="polite"></div>
+      <p id="dailyMessage" class="attendance-message" role="status" aria-live="polite"></p>
+      <div class="table-wrap attendance-table-wrap">
+        <table class="attendance-table">
+          <thead><tr><th>Staff member</th><th>Status</th><th>Check-in</th><th>Check-out</th><th>Working hours</th></tr></thead>
+          <tbody id="attendanceRows"><tr><td colspan="5">Loading staff attendance…</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="historyPanel" class="attendance-view" role="tabpanel" aria-labelledby="historyTab" hidden>
+      <div class="attendance-toolbar history-toolbar">
+        <div class="history-range">
+          <label for="historyPeriod">Show by</label>
+          <select id="historyPeriod"><option value="week">Week</option><option value="month">Month</option></select>
+          <label class="visually-hidden" for="historyDate">History date range</label>
+          <input id="historyDate" type="week">
+          <button id="refreshHistory" type="button">Refresh history</button>
+        </div>
+        <label class="attendance-search">
+          <span class="visually-hidden">Search attendance history by staff name</span>
+          <input id="historySearch" type="search" placeholder="Search history by staff name">
+        </label>
+      </div>
+      <div id="historySummary" class="attendance-summary" aria-live="polite"></div>
+      <p id="historyMessage" class="attendance-message" role="status" aria-live="polite"></p>
+      <div class="table-wrap attendance-table-wrap">
+        <table class="attendance-table history-table">
+          <thead><tr><th>Date</th><th>Staff member</th><th>Status</th><th>Check-in</th><th>Check-out</th><th>Working hours</th></tr></thead>
+          <tbody id="historyRows"><tr><td colspan="6">Choose a week or month to view attendance.</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+  </section>
+</main>
+<script src="app.js?v=20261012-sidebar"></script>
+<script src="attendance.js?v=20261011-attendance"></script>
+</body>
+</html>

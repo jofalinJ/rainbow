@@ -505,3 +505,84 @@ body.modal-open{overflow:hidden}
   .storefront-header-actions .icon-button{width:28px;flex-basis:28px}
   .storefront-header-actions .icon-button svg{width:16px;height:16px}
 }
+
+
+/* Three-column storefront header: menu, centered brand, and right-side utilities. */
+.storefront-topbar .nav{
+  width:min(1320px,calc(100% - 40px));
+  min-height:0;display:flex;flex-direction:column;align-items:stretch;
+  justify-content:flex-start;gap:8px;padding:8px 0 10px;
+}
+.storefront-header-row{
+  position:relative;display:flex!important;align-items:center;justify-content:space-between;
+  width:100%;min-height:64px;gap:0;overflow:visible;
+}
+.storefront-header-left{
+  flex:1 1 0;min-width:48px;display:flex;align-items:center;justify-content:flex-start;
+}
+.storefront-header-row .menu-toggle{
+  position:relative;left:auto;top:auto;transform:none;z-index:3;
+}
+.storefront-header-row .logo{
+  position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  display:flex;flex-direction:row;align-items:center;justify-content:center;
+  gap:9px;text-align:left;white-space:nowrap;z-index:2;
+}
+.storefront-header-row .logo .brand-logo{width:40px;height:40px;object-fit:contain}
+.storefront-header-row .logo strong{
+  display:block;color:var(--red);font-size:17px;font-weight:850;line-height:1.05;letter-spacing:.09em
+}
+.storefront-header-row .logo small{
+  display:block;color:var(--red);font-size:8px;letter-spacing:.23em;margin-top:4px
+}
+.storefront-header-right{
+  position:relative;z-index:1;flex:1 1 0;min-width:0;
+  display:flex;align-items:center;justify-content:flex-end;gap:12px;
+}
+.storefront-header-actions{
+  display:flex;align-items:center;justify-content:flex-end;
+  gap:2px;flex:0 0 auto;margin:0;
+}
+.storefront-header-actions .icon-button{width:36px;height:38px;flex-basis:36px;border-radius:10px}
+.storefront-search-form{
+  width:clamp(160px,20vw,280px);max-width:300px;min-width:0;
+  flex:0 1 280px;margin:0;
+}
+.storefront-header-right .storefront-search-form{height:42px}
+.storefront-search-form input[type="search"]{font-size:12px}
+@media(max-width:980px){
+  .storefront-header-row{flex-wrap:wrap;align-items:stretch;min-height:0;padding-bottom:8px}
+  .storefront-header-left{flex:1 1 50%;min-height:52px}
+  .storefront-header-row .logo{top:26px}
+  .storefront-header-right{
+    flex:1 1 100%;width:100%;min-height:42px;justify-content:flex-end;gap:8px
+  }
+  .storefront-search-form,.storefront-header-right .storefront-search-form{
+    width:clamp(160px,35vw,300px);max-width:300px;flex:0 1 300px;height:42px;margin:0
+  }
+}
+@media(max-width:620px){
+  .storefront-topbar .nav{width:calc(100% - 24px);padding-top:6px;padding-bottom:8px}
+  .storefront-header-left{min-height:48px}
+  .storefront-header-row .menu-toggle{width:33px;height:34px;flex-basis:33px}
+  .storefront-header-row .logo{top:24px;gap:5px}
+  .storefront-header-row .logo .brand-logo{width:30px;height:30px}
+  .storefront-header-row .logo strong{font-size:12px;letter-spacing:.07em}
+  .storefront-header-row .logo small{font-size:7px;letter-spacing:.12em;margin-top:3px}
+  .storefront-header-right{gap:6px}
+  .storefront-header-actions{gap:0}
+  .storefront-header-actions .icon-button{width:31px;height:34px;flex-basis:31px;border-radius:8px}
+  .storefront-header-actions .icon-button svg{width:18px;height:18px}
+  .storefront-search-form,.storefront-header-right .storefront-search-form{
+    width:min(300px,calc(100vw - 170px));max-width:300px;flex:0 1 300px;height:40px;padding-left:11px
+  }
+  .search-tool-button,.search-submit{width:30px;height:30px;flex-basis:30px}
+  .search-tool-button svg{width:19px;height:19px}
+}
+@media(max-width:390px){
+  .storefront-header-row .logo .brand-logo{width:25px;height:25px}
+  .storefront-header-row .logo strong{font-size:10px}
+  .storefront-header-row .logo small{font-size:6px}
+  .storefront-header-actions .icon-button{width:28px;flex-basis:28px}
+  .storefront-header-actions .icon-button svg{width:16px;height:16px}
+}

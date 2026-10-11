@@ -52,14 +52,15 @@ async function loadOrders({quiet=false}={}){
       },15000);
     });
     const {data,error}=await Promise.race([request,timeout]);
-    if(error)throw error;
+    if(error){console.error("Orders fetch error:",error);throw error;}
+    console.log("Orders data:",{count:Array.isArray(data)?data.length:0});
     allOrders=Array.isArray(data)?data:[];
     render();
     setOrdersMessage(allOrders.length
       ?allOrders.length+" order"+(allOrders.length===1?"":"s")+" loaded · refreshed "+new Date().toLocaleTimeString("en-IN")
-      :"No customer orders are visible to this staff account yet.");
+      :"No customer orders found.");
   }catch(e){
-    console.error("Orders could not be loaded.",e);
+    console.error("Orders fetch error:",e);
     const message=e?.name==="AbortError"
       ?"The orders request was cancelled or timed out. Check the connection and select Refresh to retry."
       :(e?.message||"Check the connection and staff permissions.");
@@ -80,7 +81,9 @@ function filtered(){
 }
 function render(){
   const rows=document.querySelector("#rows");if(!rows)return;
-  rows.innerHTML=filtered().map(o=>{
+  const visibleOrders=filtered();
+  const emptyMessage=allOrders.length?"No orders match these filters.":"No customer orders found.";
+  rows.innerHTML=visibleOrders.map(o=>{
     const c=relationOne(o.customers);
     const address=[o.shipping_address,c.address,c.city,c.state,c.pin_code].filter(Boolean).join(", ");
     const orderLabel=o.order_number||("Order "+String(o.id||"").slice(0,8).toUpperCase());
@@ -92,7 +95,7 @@ function render(){
       "<td><span class='order-status'>"+esc(o.status||"pending")+"</span></td>"+
       "<td><div class='action-row'><button type='button' data-view='"+esc(o.id)+"'>View"+(itemCount?" ("+itemCount+")":"")+"</button>"+
       "<button type='button' class='wa' data-wa='"+esc(o.id)+"'>WhatsApp Alert</button></div></td></tr>";
-  }).join("")||"<tr><td colspan='6'>No orders match these filters.</td></tr>";
+  }).join("")||"<tr><td colspan='6'>"+esc(emptyMessage)+"</td></tr>";
   document.querySelectorAll("[data-view]").forEach(b=>b.onclick=()=>openOrder(b.dataset.view));
   document.querySelectorAll("[data-wa]").forEach(b=>b.onclick=()=>sendAlert(b.dataset.wa));
 }
