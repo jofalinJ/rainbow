@@ -115,7 +115,7 @@
       const variant=item.variant_label?" • "+esc(item.variant_label):"";
       return '<div class="order-item">'+
         (item.product.image?'<img src="'+esc(item.product.image)+'" alt="" loading="lazy" width="72" height="72">':'<div class="order-item-placeholder"></div>')+
-        '<div><h3>'+esc(item.product.product_name)+'</h3><small>'+esc(item.product.product_code)+variant+' • '+money(item.product.selling_price)+'</small>'+
+        '<div><h3>'+esc(item.product.product_name)+'</h3><small>'+variant.replace(/^ • /,"")+(variant?" • ":"")+money(item.product.selling_price)+'</small>'+
         '<div class="order-qty"><button type="button" data-dec="'+index+'" aria-label="Decrease quantity" '+(Number(item.quantity)<=1?'disabled':'')+'>−</button><span>'+Number(item.quantity)+'</span><button type="button" data-inc="'+index+'" aria-label="Increase quantity" '+(!stockKnown||Number(item.quantity)>=Number(item.current_stock)?'disabled':'')+'>＋</button><button type="button" data-remove="'+index+'" aria-label="Remove '+esc(item.product.product_name)+'">Remove</button></div>'+
         (stockMessage?'<small class="cart-warning">'+esc(stockMessage)+'</small>':'')+
         '</div><div class="order-price">'+money(Number(item.product.selling_price)*Number(item.quantity))+'</div></div>';
