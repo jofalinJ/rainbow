@@ -47,6 +47,50 @@
 @media(max-width:600px){.customer-form{grid-template-columns:1fr}.customer-form .full{grid-column:auto}.product-card{grid-template-columns:46px minmax(0,1fr)}.product-thumb{width:46px;height:46px}.variant-actions{grid-column:1/-1;justify-content:flex-start}}
 @media print{body{display:block;background:#fff}aside,main>header,main>.billing-layout,main>.receipt-screen~*{display:none!important}.receipt-screen{display:block!important;margin:0}.receipt{border:0;padding:0;max-width:360px;margin:0 auto}}
 .wa-btn{color:#217a45;border-color:#bcdcc8}
+
+/* Rainbow POS visual refresh — inspired by the supplied Fusion POS reference */
+:root{--rainbow-red:#b51f24;--rainbow-red-dark:#8f171b;--rainbow-gold:#c6a15b;--rainbow-cream:#fffaf2;--pos-border:#e8e1d8;--pos-muted:#77716c}
+body{background:#f8f7f4;color:#252321}
+aside{background:#fff;border-right:1px solid var(--pos-border)}
+.brand{color:var(--rainbow-red);font-weight:800;letter-spacing:-.4px}
+.brand span{color:#84705a;letter-spacing:1.7px}
+nav a.active{background:var(--rainbow-red);color:#fff}
+nav a:hover{background:#fff2ed;color:var(--rainbow-red)}
+main{padding-top:30px}
+main>header{align-items:center;margin-bottom:22px}
+main>header h1{font-size:30px;letter-spacing:-.8px}
+.eyebrow{color:var(--rainbow-red);font-weight:700;letter-spacing:1.7px}
+.profile{border-color:#d8b9b6;color:var(--rainbow-red);background:#fff}
+.panel{border-color:var(--pos-border);border-radius:15px;box-shadow:0 3px 12px rgba(50,30,15,.035)}
+.panelhead{align-items:flex-start}
+.panelhead h2{font-size:17px;color:#292523}
+.muted{color:var(--pos-muted)}
+.billing-search input{min-width:0;border:1px solid #ddd2c7;border-radius:9px;padding:11px 13px;font:inherit;font-size:13px;background:#fff}
+.billing-search button{border-color:#e4c5c2;color:var(--rainbow-red)}
+.product-card{border-color:#eee5db;background:#fff;border-radius:12px;transition:border-color .15s,box-shadow .15s}
+.product-card:hover{border-color:#d8b86e;box-shadow:0 4px 14px rgba(89,58,20,.07)}
+.product-thumb{background:var(--rainbow-cream);border:1px solid #f0e5d4}
+.variant-chip{border-color:#e4d6c0;background:#fffaf3;color:#78603a}
+.variant-actions button{border-color:#d8b9b6;color:var(--rainbow-red)}
+.variant-actions button:hover{background:var(--rainbow-red);color:#fff}
+.cart-row{border-bottom-color:#f0e7dd}
+.qty-control button{border-color:#e1c9c4;color:var(--rainbow-red)}
+.totals{border-top-color:#eadfd4}
+.grand-total{color:var(--rainbow-red);font-size:22px}
+.pay-option{border-color:#e3d9cf}
+.pay-option:has(input:checked){border-color:var(--rainbow-red);background:#fff4f2;color:var(--rainbow-red)}
+.pay-option input{accent-color:var(--rainbow-red)}
+.complete{background:var(--rainbow-red);border-color:var(--rainbow-red);border-radius:10px;font-weight:700;letter-spacing:.1px}
+.complete:hover:not(:disabled){background:var(--rainbow-red-dark)}
+.billing-msg{line-height:1.5}
+.receipt{border-color:#d9c6a5;border-radius:14px}
+.receipt h3{color:var(--rainbow-red);letter-spacing:.4px}
+.wa-btn{color:#217a45;border-color:#bcdcc8;background:#f6fff8}
+#receiptScreen .receipt button{border-radius:8px}
+#receiptScreen .receipt button:last-child{background:var(--rainbow-red);color:#fff;border-color:var(--rainbow-red)}
+@media(max-width:1000px){main{padding:24px}.billing-layout{grid-template-columns:1fr}.catalog{max-height:none}}
+@media(max-width:600px){main{padding:15px}.billing-search{flex-wrap:wrap}.billing-search input{flex-basis:100%}.billing-search button{flex:1}.panel{padding:15px}.product-card{padding:11px}.grand-total{font-size:20px}}
+
 </style>
 </head>
 <body>
