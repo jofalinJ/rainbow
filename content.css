@@ -507,11 +507,13 @@ body.modal-open{overflow:hidden}
 }
 
 
-/* Header layout: menu left, brand centered, utilities pinned to the far right. */
+/* Header layout: full-width bar, centered brand, utilities anchored to the far right. */
+.storefront-topbar .nav{
+  width:100vw!important;max-width:none!important;
+  margin-left:calc(50% - 50vw)!important;margin-right:calc(50% - 50vw)!important;
+}
 @media(min-width:1201px){
-  .storefront-topbar .nav{
-    width:100%;max-width:none;padding:8px clamp(20px,3vw,48px) 10px;
-  }
+  .storefront-topbar .nav{padding:8px clamp(20px,3vw,48px) 10px}
   .storefront-header-row{
     position:relative;display:flex!important;align-items:center;justify-content:space-between;
     width:100%;min-height:64px;gap:0;overflow:visible;
@@ -535,9 +537,9 @@ body.modal-open{overflow:hidden}
     display:block;color:var(--red);font-size:8px;letter-spacing:.23em;margin-top:4px
   }
   .storefront-header-right{
-    position:relative;z-index:4;flex:0 1 50%;min-width:0;
-    max-width:calc(50% - 96px);margin-left:auto;
+    position:absolute;top:50%;right:0;transform:translateY(-50%);z-index:4;
     display:flex;align-items:center;justify-content:flex-end;gap:12px;
+    width:max-content;max-width:calc(50% - 100px);min-width:0;margin:0;
   }
   .storefront-header-actions{
     display:flex;align-items:center;justify-content:flex-end;
@@ -551,9 +553,7 @@ body.modal-open{overflow:hidden}
   .storefront-header-right .storefront-search-form{height:42px}
 }
 @media(max-width:1200px){
-  .storefront-topbar .nav{
-    width:100%;max-width:none;gap:0;padding:6px 12px 8px;
-  }
+  .storefront-topbar .nav{padding:6px 12px 8px}
   .storefront-header-row{
     position:relative;display:flex!important;flex-wrap:wrap;align-items:stretch;
     justify-content:space-between;width:100%;min-height:0;padding-bottom:8px;overflow:visible;
@@ -571,7 +571,8 @@ body.modal-open{overflow:hidden}
     gap:9px;text-align:left;white-space:nowrap;z-index:3;
   }
   .storefront-header-right{
-    position:relative;z-index:4;flex:1 1 100%;width:100%;min-width:0;
+    position:relative;top:auto;right:auto;transform:none;z-index:4;
+    flex:1 1 100%;width:100%;min-width:0;margin:0;
     display:flex;align-items:center;justify-content:flex-end;gap:8px;
   }
   .storefront-header-actions{gap:2px;flex:0 0 auto;margin:0}
