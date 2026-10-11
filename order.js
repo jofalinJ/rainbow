@@ -272,12 +272,20 @@
         p_delivery_distance_km:distance
       });
       if(error)throw error;
+      const paymentStep=document.getElementById("paymentStep");
+      const addressStep=document.getElementById("addressStep");
+      if(paymentStep)paymentStep.classList.add("is-active");
+      if(addressStep)addressStep.classList.add("is-complete");
+      const paidTotal=document.getElementById("successPayTotal");
+      if(paidTotal)paidTotal.textContent=money(data?.total_amount);
+      const proofLink=document.getElementById("paymentProofLink");
+      if(proofLink)proofLink.href="https://wa.me/919952436899?text="+encodeURIComponent("Hello Rainbow Gold Covering, I have paid for order "+String(data?.order_number||"")+". My UPI transaction reference is: ");
       cart=[];
       save();
       $("orderLayout").hidden=true;
       $("orderSuccess").hidden=false;
       $("orderSuccess").innerHTML='<h2>Order received.</h2><p>Your order number is <strong>'+esc(data.order_number)+'</strong>.</p><p>Total before any separately confirmed delivery charge: <strong>'+money(data.total_amount)+'</strong>. Rainbow Gold Covering will contact you on WhatsApp to confirm the order and delivery details.</p><a class="btn btn-dark" href="index.html#products">Continue Shopping</a>';
-      const overlay=$("successOverlay");if(overlay){$("successOrderNumber").textContent="Order number: "+String(data.order_number||"");$("successOrderText").textContent="Order total: "+money(data.total_amount)+". Thank you for choosing Rainbow Gold Covering — we’ll contact you to confirm delivery details.";overlay.hidden=false;document.body.classList.add("order-success-open");$("successContinue").focus();}
+      const overlay=$("successOverlay");if(overlay){$("successOrderNumber").textContent="Order number: "+String(data.order_number||"");$("successOrderText").textContent="Order total: "+money(data.total_amount)+". Your order is received and payment remains pending until our team verifies the UPI payment.";overlay.hidden=false;document.body.classList.add("order-success-open");$("successContinue").focus();}
       msg("");
     }catch(error){
       console.error("Order creation failed.",error);
@@ -289,8 +297,8 @@
     }
   }
   const successContinue=$("successContinue");if(successContinue)successContinue.onclick=()=>{window.location.href="index.html#products";};
-  const successOverlay=$("successOverlay");if(successOverlay)successOverlay.addEventListener("click",event=>{if(event.target===successOverlay){successOverlay.hidden=true;document.body.classList.remove("order-success-open");}});
-  document.addEventListener("keydown",event=>{if(event.key==="Escape"&&successOverlay&&!successOverlay.hidden){successOverlay.hidden=true;document.body.classList.remove("order-success-open");}});
+  const successOverlay=$("successOverlay");
+  // Keep the QR payment step visible until the customer chooses Continue Shopping.
   $("clearCart").onclick=()=>{cart=[];cartVerified=true;cartVerificationFailed=false;save();render();msg("");};
   $("distance").oninput=updateDeliveryPreview;
   $("placeOrder").onclick=placeOrder;
