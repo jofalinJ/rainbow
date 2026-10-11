@@ -63,6 +63,7 @@
     };
     const matcher=rules[key];
     if(!matcher)return false;
+    if(key.indexOf("men")===0)return matcher.test(searchable);
     if(hasCategoryName)return matcher.test(normalizeCategory(categoryName));
     return matcher.test(normalizeCategory([product.type,product.product_name].filter(Boolean).join(" ")));
   }
@@ -85,7 +86,7 @@
       return '<article class="product-card" tabindex="0" role="button" aria-label="View details for '+esc(p.product_name)+'" data-product-id="'+esc(p.id)+'">'+
         '<div class="product-image">'+(image?'<img src="'+esc(image)+'" alt="'+esc(p.product_name)+'" loading="lazy">':'<div class="placeholder">RG</div>')+'</div>'+
         '<div class="product-body"><div class="product-code">'+esc(p.product_code)+'</div>'+
-        '<h3 class="product-name">'+esc(p.product_name)+'</h3><div class="product-type">'+esc(p.type||"Jewellery")+'</div>'+
+        '<h3 class="product-name">'+esc(p.product_name)+'</h3><div class="product-type">'+esc((p.categories&&p.categories.name)||p.type||"Jewellery")+'</div>'+
         '<div class="product-meta"><strong class="product-price">'+money(p.selling_price)+'</strong><span class="product-stock '+stockClass+'">'+stockText+'</span></div></div></article>';
     }).join(""):'<div class="product-empty">'+(activeCategory?'No '+esc(activeCategory.toLocaleLowerCase("en"))+' products are available yet.':'No products are available yet.')+'</div>';
     grid.querySelectorAll("[data-product-id]").forEach(card=>{
@@ -129,7 +130,7 @@
     const stockOf=v=>Math.max(0,Number(v?.stock_quantity||0));
     const details=[
       ["Product code",product.product_code],
-      ["Category",product.type||"Jewellery"],
+      ["Category",(product.categories&&product.categories.name)||product.type||"Jewellery"],
       ["Description",product.description],
       ["Thickness",product.thickness],
       ["Length",product.length_cm!=null?product.length_cm+" cm":null],
