@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#8f1520">
+<link rel="icon" type="image/png" href="../assets/brand/rainbow-logo.png">
+<title>Rainbow Gold Covering — My Attendance</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="my-attendance.css?v=20261011-private-capture">
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<aside aria-label="Staff navigation"></aside>
+<main class="my-attendance-page">
+  <header class="my-attendance-header">
+    <div><p class="eyebrow">TEAM</p><h1>My Attendance</h1><p id="staffGreeting" class="muted">Record your attendance for today.</p></div>
+    <button class="profile" type="button" onclick="logout()">Sign out</button>
+  </header>
+  <section class="panel self-attendance-card">
+    <div class="self-attendance-top"><div><p class="eyebrow">TODAY</p><h2 id="indiaDateLabel">Loading date…</h2></div><span id="todayAttendanceStatus" class="self-attendance-status">Loading…</span></div>
+    <p class="self-attendance-instruction">Take a current photo to record your check-in. Your photo is stored privately and reviewed by an administrator.</p>
+    <label class="camera-upload" for="checkInPhoto"><span class="camera-upload-icon" aria-hidden="true">◎</span><span><strong>Take check-in photo</strong><small>Use your camera or choose a JPEG, PNG or WebP image (up to 5 MB).</small></span></label>
+    <input id="checkInPhoto" class="visually-hidden-file" type="file" accept="image/jpeg,image/png,image/webp" capture="user">
+    <div id="photoPreviewWrap" class="photo-preview-wrap" hidden><img id="photoPreview" alt="Selected attendance photo preview"><button id="removePhoto" type="button">Remove photo</button></div>
+    <label class="photo-consent"><input id="photoConsent" type="checkbox"><span>I agree to submit this photo for attendance review by Rainbow Gold Covering administrators.</span></label>
+    <div class="self-attendance-actions"><button id="checkInButton" class="primary" type="button">Check in with photo</button><button id="checkOutButton" type="button">Check out</button></div>
+    <p id="selfAttendanceMessage" class="self-attendance-message" role="status" aria-live="polite">Loading your attendance…</p>
+    <div class="self-attendance-times"><div><span>Check-in</span><strong id="checkInTime">—</strong></div><div><span>Check-out</span><strong id="checkOutTime">—</strong></div><div><span>Hours worked</span><strong id="workingHours">—</strong></div></div>
+    <p id="photoReviewStatus" class="photo-review-status"></p>
+  </section>
+  <p class="self-attendance-privacy">Only you and active administrators can access your check-in record. Your profile and attendance photos are not public.</p>
+</main>
+<script src="app.js?v=20261011-staff-attendance"></script>
+<script src="my-attendance.js?v=20261011-private-capture"></script>
+</body>
+</html>
