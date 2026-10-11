@@ -559,14 +559,14 @@ body.modal-open{overflow:hidden}
     justify-content:space-between;width:100%;min-height:0;padding-bottom:8px;overflow:visible;
   }
   .storefront-header-left{
-    flex:1 1 50%;min-width:48px;min-height:52px;
+    flex:1 1 50%;min-width:48px;min-height:80px;
     display:flex;align-items:center;justify-content:flex-start;
   }
   .storefront-header-row .menu-toggle{
     position:relative;left:auto;top:auto;transform:none;z-index:4;
   }
   .storefront-header-row .logo{
-    position:absolute;left:50%;top:26px;transform:translate(-50%,-50%);
+    position:absolute;left:50%;top:40px;transform:translate(-50%,-50%);
     display:flex;flex-direction:row;align-items:center;justify-content:center;
     gap:9px;text-align:left;white-space:nowrap;z-index:3;
   }
