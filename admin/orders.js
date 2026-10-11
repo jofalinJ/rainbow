@@ -5,6 +5,7 @@ let ordersReloadQueued=false;
 let ordersRefreshTimer=null;
 let ordersPollTimer=null;
 let ordersChannel=null;
+let currentRole="";
 
 const esc=x=>String(x??"").replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
 const money=x=>{
@@ -42,7 +43,7 @@ async function loadOrders({quiet=false}={}){
   let timeoutId;
   try{
     const request=ordersClient.from("orders")
-      .select("id,order_number,source,status,payment_status,subtotal,discount_amount,cgst_amount,sgst_amount,delivery_distance_km,delivery_fee,total_amount,shipping_address,created_at,updated_at,customers:customers!orders_customer_id_fkey(name,whatsapp_number,email,address,city,state,pin_code),order_items:order_items!order_items_order_id_fkey(product_code,product_name,quantity,unit_price,line_total,variant_color,variant_size)")
+      .select("id,order_number,source,status,payment_status,subtotal,discount_amount,cgst_amount,sgst_amount,delivery_fee,total_amount,shipping_address,created_at,updated_at,customers:customers!orders_customer_id_fkey(name,whatsapp_number,email,address,city,state,pin_code),order_items:order_items!order_items_order_id_fkey(product_code,product_name,quantity,unit_price,line_total,variant_color,variant_size),payments:payments!payments_order_id_fkey(id,method,status,transaction_reference,paid_at,verified_at)")
       .order("created_at",{ascending:false})
       .abortSignal(controller.signal);
     const timeout=new Promise((resolve,reject)=>{
@@ -88,41 +89,64 @@ function render(){
     const address=[o.shipping_address,c.address,c.city,c.state,c.pin_code].filter(Boolean).join(", ");
     const orderLabel=o.order_number||("Order "+String(o.id||"").slice(0,8).toUpperCase());
     const itemCount=Array.isArray(o.order_items)?o.order_items.length:0;
+    const verificationDisabled=currentRole!=="admin"||!relationOne(o.payments).transaction_reference||["cancelled","refunded"].includes(o.status);
+    const action=o.payment_status==="paid"
+      ?"<button type='button' class='wa' data-wa='"+esc(o.id)+"'>Send full WhatsApp alert</button>"
+      :"<button type='button' data-verify='"+esc(o.id)+"' "+(verificationDisabled?"disabled":"")+">Verify payment</button>";
     return "<tr><td><b>"+esc(orderLabel)+"</b><small>"+esc(dateLabel(o.created_at))+"</small></td>"+
       "<td><b>"+esc(c.name||"—")+"</b><small>"+esc(c.whatsapp_number||c.email||"—")+"</small></td>"+
-      "<td>"+esc(address||"—")+(o.delivery_distance_km!=null?"<small>"+esc(o.delivery_distance_km)+" km</small>":"")+"</td>"+
+      "<td>"+esc(address||"—")+"</td>"+
       "<td><b>"+money(o.total_amount)+"</b><small>"+esc(o.payment_status||"—")+"</small></td>"+
       "<td><span class='order-status'>"+esc(o.status||"pending")+"</span></td>"+
-      "<td><div class='action-row'><button type='button' data-view='"+esc(o.id)+"'>View"+(itemCount?" ("+itemCount+")":"")+"</button>"+
-      "<button type='button' class='wa' data-wa='"+esc(o.id)+"'>WhatsApp Alert</button></div></td></tr>";
+      "<td><div class='action-row'><button type='button' data-view='"+esc(o.id)+"'>View"+(itemCount?" ("+itemCount+")":"")+"</button>"+action+"</div></td></tr>";
   }).join("")||"<tr><td colspan='6'>"+esc(emptyMessage)+"</td></tr>";
   document.querySelectorAll("[data-view]").forEach(b=>b.onclick=()=>openOrder(b.dataset.view));
   document.querySelectorAll("[data-wa]").forEach(b=>b.onclick=()=>sendAlert(b.dataset.wa));
+  document.querySelectorAll("[data-verify]").forEach(b=>b.onclick=()=>verifyPayment(b.dataset.verify));
 }
 function openOrder(id){
   const o=allOrders.find(x=>String(x.id)===String(id));if(!o)return;
-  const c=relationOne(o.customers);
+  const c=relationOne(o.customers),payment=relationOne(o.payments);
   const address=[o.shipping_address,c.address,c.city,c.state,c.pin_code].filter(Boolean).join(", ");
   const map="https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(address);
   document.querySelector("#mTitle").textContent=o.order_number||"Order";
   const itemRows=(Array.isArray(o.order_items)?o.order_items:[]).map(i=>
     "<div><span>"+esc([i.product_code,i.product_name].filter(Boolean).join(" — "))+" × "+esc(i.quantity??0)+"</span><b>"+money(i.line_total)+"</b></div>"
   ).join("")||"<p>No item details were returned for this order.</p>";
+  const paymentAction=o.payment_status==="paid"
+    ?"<button class='wa' data-modal-wa='"+esc(o.id)+"'>Send full WhatsApp alert</button>"
+    :"<button type='button' data-modal-verify='"+esc(o.id)+"' "+(currentRole!=="admin"||!payment.transaction_reference?"disabled":"")+">Verify payment</button>";
   document.querySelector("#mBody").innerHTML="<div class='detail-grid'>"+
     "<div class='detail-box'><span>Customer</span><strong>"+esc(c.name||"—")+"</strong></div>"+
     "<div class='detail-box'><span>WhatsApp</span><strong>"+esc(c.whatsapp_number||"—")+"</strong></div>"+
     "<div class='detail-box'><span>Delivery address</span><strong>"+esc(address||"—")+"</strong></div>"+
-    "<div class='detail-box'><span>Payment</span><strong>"+esc(o.payment_status||"—")+"</strong></div>"+
+    "<div class='detail-box'><span>Payment status</span><strong>"+esc(o.payment_status||"—")+"</strong></div>"+
+    "<div class='detail-box'><span>Method</span><strong>"+esc(payment.method||"—")+"</strong></div>"+
+    "<div class='detail-box'><span>UPI transaction reference</span><strong>"+esc(payment.transaction_reference||"Not provided")+"</strong></div>"+
     "<div class='detail-box'><span>Order total</span><strong>"+money(o.total_amount)+"</strong></div>"+
-    "<div class='detail-box'><span>Delivery</span><strong>"+(o.delivery_distance_km==null?"Not provided":esc(o.delivery_distance_km)+" km")+" · "+(Number(o.delivery_fee||0)>0?money(o.delivery_fee):"To confirm")+"</strong></div></div>"+
-    "<div class='modal-actions'><a class='button' href='"+esc(map)+"' target='_blank' rel='noopener noreferrer'>Open delivery location ↗</a><button class='wa' data-modal-wa='"+esc(o.id)+"'>Send WhatsApp Alert</button></div>"+
+    "<div class='detail-box'><span>Delivery fee</span><strong>"+(Number(o.delivery_fee||0)>0?money(o.delivery_fee):"To confirm separately")+"</strong></div></div>"+
+    "<div class='modal-actions'><a class='button' href='"+esc(map)+"' target='_blank' rel='noopener noreferrer'>Open delivery location ↗</a>"+paymentAction+"</div>"+
     "<div class='items'>"+itemRows+"</div>"+
     "<div class='modal-actions'><label>Status <select id='mStatus'><option value='pending'>pending</option><option value='confirmed'>confirmed</option><option value='processing'>processing</option><option value='shipped'>shipped</option><option value='delivered'>delivered</option><option value='cancelled'>cancelled</option><option value='refunded'>refunded</option></select></label><button type='button' data-save-status>Save status</button></div>";
   document.querySelector("#mStatus").value=o.status||"pending";
-  document.querySelector("[data-modal-wa]").onclick=()=>sendAlert(o.id);
+  document.querySelector("[data-modal-wa]")?.addEventListener("click",()=>sendAlert(o.id));
+  document.querySelector("[data-modal-verify]")?.addEventListener("click",()=>verifyPayment(o.id));
   document.querySelector("[data-save-status]").onclick=()=>updateStatus(o.id);
   document.querySelector("#modal").classList.add("open");
   document.querySelector("#modal").setAttribute("aria-hidden","false");
+}
+async function verifyPayment(id){
+  if(currentRole!=="admin"){alert("Only an admin can verify UPI payments.");return;}
+  if(!confirm("Verify the UPI reference against the store's payment receipt before marking this order paid."))return;
+  try{
+    const {data,error}=await ordersClient.rpc("verify_online_order_payment",{p_order_id:id});
+    if(error)throw error;
+    document.querySelector("#modal").classList.remove("open");
+    document.querySelector("#modal").setAttribute("aria-hidden","true");
+    await loadOrders();
+    if(data?.already_paid)alert("This payment was already verified.");
+    await sendAlert(id);
+  }catch(e){alert("Could not verify payment: "+(e?.message||"Unknown error"));}
 }
 async function updateStatus(id){
   const select=document.querySelector("#mStatus");
@@ -137,6 +161,8 @@ async function updateStatus(id){
   }catch(e){alert("Could not update order status: "+(e?.message||"Unknown error"));}
 }
 async function sendAlert(id){
+  const order=allOrders.find(item=>String(item.id)===String(id));
+  if(!order||order.payment_status!=="paid"){alert("Verify payment before sending full order details.");return;}
   try{
     const session=await requireSession();
     const r=await fetch(SUPABASE_URL+"/functions/v1/send-order-alert",{
@@ -146,7 +172,7 @@ async function sendAlert(id){
     });
     const d=await r.json().catch(()=>({}));
     if(!r.ok)throw new Error(d.error||"WhatsApp alert failed");
-    alert("WhatsApp order alert sent to "+(d.recipient_number||"the customer"));
+    alert(d.already_sent?"The WhatsApp order alert was already sent to "+(d.recipient_number||"the store"):"Full order details sent to "+(d.recipient_number||"the store")+".");
   }catch(e){alert(e.message||"WhatsApp alert failed");}
 }
 function startOrdersLiveUpdates(){
@@ -175,6 +201,7 @@ async function bootOrdersPage(){
       new Promise((resolve,reject)=>{sessionTimeout=setTimeout(()=>reject(new Error("Session check timed out. Refresh the page and sign in again if needed.")),12000);})
     ]).finally(()=>clearTimeout(sessionTimeout));
     if(!session)return;
+    const profile=await getMyProfile();currentRole=profile.role;
     await loadOrders();
     startOrdersLiveUpdates();
   }catch(e){
