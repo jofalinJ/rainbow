@@ -97,7 +97,7 @@
         '<div class="product-body"><div class="product-code">'+esc(p.product_code)+'</div>'+
         '<h3 class="product-name">'+esc(p.product_name)+'</h3><div class="product-type">'+esc((p.categories&&p.categories.name)||p.type||"Jewellery")+'</div>'+
         '<div class="product-meta"><strong class="product-price">'+money(p.selling_price)+'</strong><span class="product-stock '+stockClass+'">'+stockText+'</span></div></div></article>';
-    }).join(""):'<div class="product-empty">'+(activeCategory?'No '+esc(activeCategory.toLocaleLowerCase("en"))+' products are available yet.':'No products are available yet.')+'</div>';
+    }).join(""):'<div class="product-empty">'+(activeCategory?'No '+esc(activeCategory.toLocaleLowerCase("en"))+' products are currently in stock.':'No products are currently in stock. Please check again soon.')+'</div>';
     grid.querySelectorAll("[data-product-id]").forEach(card=>{
       const open=()=>openProductModal(catalogueProducts.find(p=>String(p.id)===String(card.dataset.productId)));
       card.addEventListener("click",open);
@@ -344,7 +344,9 @@
         .select("id,product_code,product_name,type,category_id,categories(name),selling_price,description,length_cm,thickness,gold_amount_g,created_at,product_variants(id,stock_quantity,color,size,length_cm,active),product_images(id,public_url,is_primary,sort_order)")
         .eq("active",true).order("created_at",{ascending:false});
       if(error)throw error;
-      catalogueProducts=data||[];
+      const stockedProducts=(data||[]).filter(product=>getStock(product)>0);
+      catalogueProducts=stockedProducts;
+      if(activeProductId&&!stockedProducts.some(product=>String(product.id)===String(activeProductId)))closeProductModal();
       render();
     }catch(error){
       console.error(error);
