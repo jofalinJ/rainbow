@@ -16,8 +16,8 @@
 <label>State<input id="state" value="Tamil Nadu" autocomplete="address-level1"></label>
 <label class="full">Delivery address<textarea id="address" rows="3" required autocomplete="street-address"></textarea></label>
 <label>Estimated distance (km)<input id="distance" type="number" min="0" max="500" step="0.1" placeholder="Optional"></label>
-</div><p class="form-note">Delivery charges are calculated from the store's active distance-based delivery rates. Leave distance empty for store pickup / fee confirmation by the shop.</p>
-<div class="order-summary"><div><span>Subtotal</span><strong id="subtotal">₹0.00</strong></div><div><span>Discount (3%)</span><strong id="discount">₹0.00</strong></div><div><span>CGST (1.5%)</span><strong id="cgst">₹0.00</strong></div><div><span>SGST (1.5%)</span><strong id="sgst">₹0.00</strong></div><div><span>Delivery</span><strong id="delivery">Calculated by store</strong></div><div class="grand"><span>Total</span><strong id="total">₹0.00</strong></div></div>
+</div><p class="form-note" id="deliveryNote" role="status">Leave distance empty if the shop needs to confirm the delivery fee. The total will be shown before delivery until a matching rate is available.</p>
+<div class="order-summary"><div><span>Subtotal</span><strong id="subtotal">₹0.00</strong></div><div><span>Discount (3%)</span><strong id="discount">₹0.00</strong></div><div><span>CGST (1.5%)</span><strong id="cgst">₹0.00</strong></div><div><span>SGST (1.5%)</span><strong id="sgst">₹0.00</strong></div><div><span>Delivery</span><strong id="delivery">Calculated by store</strong></div><div class="grand"><span id="totalLabel">Total before delivery</span><strong id="total">₹0.00</strong></div></div>
 <button id="placeOrder" class="btn btn-dark place-order" type="button">Place Order →</button><p id="orderMsg" class="order-msg" aria-live="polite"></p>
 </section></div></div></main>
 <footer class="container footer"><span>RAINBOW GOLD COVERING</span><span><a class="instagram-link" href="https://www.instagram.com/rainbow_kollam_gold_covering/" target="_blank" rel="noopener noreferrer">Instagram · @rainbow_kollam_gold_covering</a></span></footer>
