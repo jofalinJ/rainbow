@@ -24,6 +24,7 @@ alter table public.payments
 
 create index if not exists payments_order_id_created_at_idx
   on public.payments(order_id,created_at desc);
+create index if not exists payments_verified_by_idx on public.payments(verified_by);
 
 insert into public.categories
   (name,code_prefix,has_color,has_size,has_length,has_thickness,has_gold_amount,active,storefront_order,show_in_storefront)
