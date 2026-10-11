@@ -25,16 +25,20 @@ Deno.serve(async(req)=>{
     const orderId=String(body.order_id||"").trim();
     if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(orderId))return json({error:"Invalid order id."},400);
 
-    const {data:order,error:oe}=await admin.from("orders").select("id,order_number,status,payment_status,subtotal,discount_amount,cgst_amount,sgst_amount,delivery_distance_km,delivery_fee,total_amount,shipping_address,created_at,customers(name,whatsapp_number,email,city,state,pin_code)").eq("id",orderId).maybeSingle();
+    const {data:order,error:oe}=await admin.from("orders").select("id,order_number,status,payment_status,subtotal,discount_amount,cgst_amount,sgst_amount,delivery_fee,total_amount,shipping_address,created_at,customers(name,whatsapp_number,email,city,state,pin_code)").eq("id",orderId).maybeSingle();
     if(oe)return json({error:"Could not load order."},500);
     if(!order)return json({error:"Order not found."},404);
+    if(order.payment_status!=="paid")return json({error:"Payment has not been verified. Verify it in admin before sending order details."},409);
+
+    const {data:previousAlerts,error:alertError}=await admin.from("whatsapp_notifications").select("id").eq("order_id",orderId).eq("status","sent").limit(1);
+    if(alertError)return json({error:"Could not check previous order alerts."},500);
+    const shop=normalize("9952436899");
+    if(previousAlerts?.length)return json({success:true,already_sent:true,recipient_number:shop,order_number:order.order_number});
 
     const {data:items,error:ie}=await admin.from("order_items").select("product_code,product_name,quantity,unit_price,line_total,variant_color,variant_size").eq("order_id",orderId).order("created_at");
     if(ie)return json({error:"Could not load order items."},500);
 
     const customer=Array.isArray(order.customers)?order.customers[0]:order.customers;
-    const shop=normalize(Deno.env.get("SHOP_WHATSAPP_NUMBER")||"");
-    if(!shop)return json({error:"Shop WhatsApp number is not configured. Set SHOP_WHATSAPP_NUMBER in Supabase Edge Function secrets."},503);
     const access=Deno.env.get("WHATSAPP_ACCESS_TOKEN");
     const phoneId=Deno.env.get("WHATSAPP_PHONE_NUMBER_ID");
     const version=Deno.env.get("WHATSAPP_GRAPH_VERSION")||"v23.0";
@@ -43,20 +47,20 @@ Deno.serve(async(req)=>{
     const address=[order.shipping_address,customer?.city,customer?.state,customer?.pin_code].filter(Boolean).join(", ");
     const map="https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(address);
     const itemText=(items||[]).map((x:any)=>`• ${x.product_code} — ${x.product_name} × ${x.quantity} = ₹${Number(x.line_total||0).toLocaleString("en-IN")}`).join("\n");
-    const message=`🛍️ NEW ONLINE ORDER — RAINBOW GOLD COVERING
+    const message=`🛍️ NEW ONLINE ORDER — RAINBOW KOLLAM GOLD COVERING
 
 Order: ${order.order_number}
 Customer: ${customer?.name||"—"}
 WhatsApp: ${customer?.whatsapp_number||"—"}
-Total: ₹${Number(order.total_amount||0).toLocaleString("en-IN")}
-Payment: ${order.payment_status}
+Order amount (delivery fee to confirm): ₹${Number(order.total_amount||0).toLocaleString("en-IN")}
+Delivery fee: To confirm separately
+Payment: Verified
 
 ITEMS
 ${itemText||"—"}
 
 DELIVERY
 ${address||"—"}
-Distance: ${order.delivery_distance_km??"Not provided"} km
 Map: ${map}`;
 
     const graph="https://graph.facebook.com/"+version;
