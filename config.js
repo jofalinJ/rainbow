@@ -1,4 +1,4 @@
-window.RAINBOW_CONFIG=Object.freeze({
+window.RAINBOW_BUSINESS_CONFIG=Object.freeze({
   businessName:"Rainbow Gold Covering",
   legalDisplayName:"Rainbow Kollam Gold Covering Jewelry Wholesaler",
   tagline:"Premium Gold Covering Jewellery",

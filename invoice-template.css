@@ -13,3 +13,8 @@
   .invoice .top{border-bottom:1px solid #111}.invoice .items th,.invoice .items td{padding:6px 2px}.invoice .customer{padding:12px 0}.invoice .footer{margin-top:15px}
   @page{size:80mm auto;margin:4mm}
 }
+
+.invoice .invoice-brand-lockup{display:flex;align-items:center;gap:10px;min-width:0}
+.invoice .invoice-brand-logo{display:block;width:48px;height:48px;object-fit:contain;flex:0 0 auto}
+.invoice .invoice-brand-name{font-size:20px;font-weight:800;letter-spacing:-.6px}
+@media print{.invoice .invoice-brand-logo{width:34px;height:34px}.invoice .invoice-brand-name{font-size:12px}}

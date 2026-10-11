@@ -142,3 +142,9 @@ body.modal-open{overflow:hidden}
 .quantity-picker button{border:0;background:#fff;width:36px;height:100%;cursor:pointer;color:var(--red);font-size:18px}
 .quantity-picker span{min-width:28px;text-align:center;font-weight:800;font-size:12px}
 @media(max-width:560px){.product-buy-actions{grid-template-columns:1fr 1fr}.quantity-picker{grid-column:1/-1;width:max-content}}
+
+/* Official brand asset and variant picker */
+.brand-logo{display:block;width:42px;height:42px;object-fit:contain;flex:0 0 auto}
+.variant-picker-label{display:grid;gap:7px;margin:14px 0;font-size:11px;color:var(--muted)}
+.variant-picker-label select{width:100%;max-width:100%;padding:12px;border:1px solid var(--line);border-radius:11px;background:#fff;color:var(--ink);font:inherit}
+.product-buy-actions button:disabled,.quantity-picker button:disabled{opacity:.45;cursor:not-allowed}

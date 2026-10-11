@@ -1,6 +1,7 @@
 (() => {
-  const SUPABASE_URL="https://ajnicsvtymvvkgepjmmk.supabase.co";
-  const SUPABASE_PUBLISHABLE_KEY="sb_publishable_8DVJ4VEsYhfq2RwbbElrGw_h-RsKoWj";
+  const SUPABASE_CONFIG=window.RAINBOW_SUPABASE_CONFIG||{};
+  const SUPABASE_URL=String(SUPABASE_CONFIG.supabaseUrl||"").trim();
+  const SUPABASE_PUBLISHABLE_KEY=String(SUPABASE_CONFIG.supabasePublishableKey||"").trim();
   let client=null, realtimeChannel=null;
 
   const esc=value=>String(value??"").replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
@@ -13,12 +14,11 @@
   const getCart=()=>{try{return JSON.parse(localStorage.getItem(CART_KEY)||"[]")}catch{return[]}};
   const saveCart=items=>{localStorage.setItem(CART_KEY,JSON.stringify(items));updateCartCount()};
   const updateCartCount=()=>{const el=document.getElementById("cartCount");if(el)el.textContent=getCart().reduce((n,x)=>n+Number(x.quantity||0),0)};
-  const addToCart=(product,quantity=1)=>{const v=(product.product_variants||[]).find(x=>x.active!==false&&Number(x.stock_quantity||0)>0);if(!v)return;const cart=getCart();const key=String(v.id);const existing=cart.find(x=>String(x.variant_id)===key);const next=Math.min(Number(v.stock_quantity||0),Number(existing?.quantity||0)+quantity);if(existing)existing.quantity=next;else cart.push({variant_id:v.id,quantity:next,product:{id:product.id,product_code:product.product_code,product_name:product.product_name,type:product.type,selling_price:product.selling_price,description:product.description,image:getImage(product)}});saveCart(cart)};
   const getStock=product=>(Array.isArray(product.product_variants)?product.product_variants:[])
-    .reduce((sum,v)=>sum+Number(v.stock_quantity||0),0);
+    .filter(v=>v.active!==false).reduce((sum,v)=>sum+Number(v.stock_quantity||0),0);
 
   function applyBusinessConfig(){
-    const cfg=window.RAINBOW_CONFIG;
+    const cfg=window.RAINBOW_BUSINESS_CONFIG;
     if(!cfg)return;
     const brand=document.querySelector('[data-config="brandName"]');
     const eyebrow=document.querySelector('[data-config="eyebrow"]');
@@ -40,9 +40,9 @@
     if(!grid)return;
     status.textContent=products.length+" product"+(products.length===1?"":"s")+" available";
     grid.innerHTML=products.length?products.map(p=>{
-      const stock=getStock(p), low=(p.product_variants||[]).some(v=>stock>0&&stock<=Number(v.low_stock_limit||0));
-      const stockClass=stock===0?"out":low?"low":"in";
-      const stockText=stock===0?"Out of stock":low?"Low stock":"In stock";
+      const stock=getStock(p);
+      const stockClass=stock===0?"out":"in";
+      const stockText=stock===0?"Out of stock":"In stock";
       const image=getImage(p);
       return '<article class="product-card" tabindex="0" role="button" aria-label="View details for '+esc(p.product_name)+'" data-product-id="'+esc(p.id)+'">'+
         '<div class="product-image">'+(image?'<img src="'+esc(image)+'" alt="'+esc(p.product_name)+'" loading="lazy">':'<div class="placeholder">RG</div>')+'</div>'+
@@ -60,27 +60,96 @@
   function openProductModal(product){
     if(!product)return;
     const modal=document.getElementById("productModal"),content=document.getElementById("productModalContent");
+    if(!modal||!content)return;
     const images=Array.isArray(product.product_images)?product.product_images:[];
     const main=getImage(product);
-    const stock=getStock(product);
+    const activeVariants=(product.product_variants||[]).filter(v=>v.active!==false);
+    const labelForVariant=(v,index)=>{
+      const details=[];
+      if(v.color!=null&&String(v.color)!=="0"&&String(v.color).trim()!=="")details.push("Color: "+String(v.color));
+      if(v.size!=null&&String(v.size)!=="0"&&String(v.size).trim()!=="")details.push("Size: "+String(v.size));
+      let label=details.join(" · ")||"Standard option";
+      const sameLabel=activeVariants.filter(x=>String(x.color??"0")===String(v.color??"0")&&String(x.size??"0")===String(v.size??"0"));
+      if(sameLabel.length>1)label+=" (Option "+(index+1)+")";
+      return label;
+    };
+    let selectedVariant=activeVariants.find(v=>Number(v.stock_quantity||0)>0)||activeVariants[0]||null;
+    const stockOf=v=>Math.max(0,Number(v?.stock_quantity||0));
     const details=[
       ["Product code",product.product_code],
       ["Category",product.type||"Jewellery"],
-      ["Material",product.material],
-      ["Plating",product.plating],
+      ["Description",product.description],
       ["Thickness",product.thickness],
       ["Length",product.length_cm!=null?product.length_cm+" cm":null],
       ["Gold amount",product.gold_amount_g!=null?product.gold_amount_g+" g":null]
     ].filter(x=>x[1]!==null&&x[1]!==undefined&&String(x[1]).trim()!=="");
-    content.innerHTML='<div class="product-detail-grid"><div><div class="product-detail-main">'+(main?'<img src="'+esc(main)+'" alt="'+esc(product.product_name)+'">':'<div class="placeholder">RG</div>')+'</div>'+(images.length>1?'<div class="product-detail-thumbs">'+images.map(i=>'<img src="'+esc(i.public_url||"")+'" alt="" loading="lazy">').join("")+'</div>':"")+'</div><div class="product-detail-info"><span class="section-kicker">PRODUCT DETAILS</span><h2 id="modalProductName">'+esc(product.product_name)+'</h2><div class="modal-price">'+money(product.selling_price)+'</div><span class="product-stock '+(stock===0?"out":"in")+'">'+(stock===0?"Out of stock":"Available")+'</span>'+(product.description?'<p class="modal-description">'+esc(product.description)+'</p>':"")+(details.length?'<div class="detail-list">'+details.map(d=>'<div><span>'+esc(d[0])+'</span><strong>'+esc(d[1])+'</strong></div>').join("")+'</div>':"")+'<div class="product-buy-actions"><div class="quantity-picker"><button type="button" data-qty-minus>−</button><span data-qty>1</span><button type="button" data-qty-plus>＋</button></div><button class="btn btn-light" type="button" data-add-cart>Add to Cart</button><button class="btn btn-dark" type="button" data-buy-now>Buy Now →</button></div></div></div>';
+    const variantPicker=activeVariants.length>1
+      ? '<label class="variant-picker-label"><span>Choose options</span><select data-variant-select aria-label="Choose size or color">'+activeVariants.map((v,i)=>'<option value="'+esc(v.id)+'"'+(selectedVariant&&String(v.id)===String(selectedVariant.id)?' selected':'')+(stockOf(v)<=0?' disabled':'')+'>'+esc(labelForVariant(v,i))+(stockOf(v)<=0?' — Out of stock':'')+'</option>').join("")+'</select></label>'
+      : "";
+    content.innerHTML='<div class="product-detail-grid"><div><div class="product-detail-main">'+(main?'<img src="'+esc(main)+'" alt="'+esc(product.product_name)+'">':'<div class="placeholder">RG</div>')+'</div>'+(images.length>1?'<div class="product-detail-thumbs">'+images.map(i=>'<img src="'+esc(i.public_url||"")+'" alt="" loading="lazy">').join("")+'</div>':"")+'</div><div class="product-detail-info"><span class="section-kicker">PRODUCT DETAILS</span><h2 id="modalProductName">'+esc(product.product_name)+'</h2><div class="modal-price">'+money(product.selling_price)+'</div><span class="product-stock '+(stockOf(selectedVariant)===0?"out":"in")+'" data-variant-status>'+(stockOf(selectedVariant)===0?"Out of stock":"In stock")+'</span>'+(product.description?'<p class="modal-description">'+esc(product.description)+'</p>':"")+(details.length?'<div class="detail-list">'+details.map(d=>'<div><span>'+esc(d[0])+'</span><strong>'+esc(d[1])+'</strong></div>').join("")+'</div>':"")+variantPicker+'<div class="product-buy-actions"><div class="quantity-picker"><button type="button" data-qty-minus aria-label="Decrease quantity">−</button><span data-qty>1</span><button type="button" data-qty-plus aria-label="Increase quantity">＋</button></div><button class="btn btn-light" type="button" data-add-cart>Add to Cart</button><button class="btn btn-dark" type="button" data-buy-now>Buy Now →</button></div></div></div>';
     let selectedQty=1;
     const qtyEl=content.querySelector("[data-qty]");
     const minus=content.querySelector("[data-qty-minus]"),plus=content.querySelector("[data-qty-plus]");
-    const maxStock=Math.max(1,stock);
-    minus.onclick=()=>{selectedQty=Math.max(1,selectedQty-1);qtyEl.textContent=selectedQty};
-    plus.onclick=()=>{selectedQty=Math.min(maxStock,selectedQty+1);qtyEl.textContent=selectedQty};
-    content.querySelector("[data-add-cart]").onclick=()=>{const v=(product.product_variants||[]).find(x=>x.active!==false&&Number(x.stock_quantity||0)>0);if(!v)return;const cart=getCart();const existing=cart.find(x=>String(x.variant_id)===String(v.id));const next=Math.min(Number(v.stock_quantity||0),Number(existing?.quantity||0)+selectedQty);if(existing)existing.quantity=next;else cart.push({variant_id:v.id,quantity:next,product:{id:product.id,product_code:product.product_code,product_name:product.product_name,type:product.type,selling_price:product.selling_price,description:product.description,image:main}});saveCart(cart);closeProductModal();};
-    content.querySelector("[data-buy-now]").onclick=()=>{const v=(product.product_variants||[]).find(x=>x.active!==false&&Number(x.stock_quantity||0)>0);if(!v)return;const item={variant_id:v.id,quantity:selectedQty,product:{id:product.id,product_code:product.product_code,product_name:product.product_name,type:product.type,selling_price:product.selling_price,description:product.description,image:main}};localStorage.setItem(CART_KEY,JSON.stringify([item]));location.href="order.html";};
+    const addButton=content.querySelector("[data-add-cart]"),buyButton=content.querySelector("[data-buy-now]");
+    const status=content.querySelector("[data-variant-status]");
+    const updateVariantState=()=>{
+      const stock=stockOf(selectedVariant);
+      if(status){status.textContent=stock===0?"Out of stock":"In stock";status.className="product-stock "+(stock===0?"out":"in");}
+      if(qtyEl)qtyEl.textContent=String(selectedQty);
+      if(minus)minus.disabled=stock===0||selectedQty<=1;
+      if(plus)plus.disabled=stock===0||selectedQty>=stock;
+      if(addButton)addButton.disabled=stock===0;
+      if(buyButton)buyButton.disabled=stock===0;
+    };
+    minus.onclick=()=>{selectedQty=Math.max(1,selectedQty-1);updateVariantState()};
+    plus.onclick=()=>{selectedQty=Math.min(Math.max(1,stockOf(selectedVariant)),selectedQty+1);updateVariantState()};
+    const select=content.querySelector("[data-variant-select]");
+    if(select)select.addEventListener("change",()=>{
+      selectedVariant=activeVariants.find(v=>String(v.id)===String(select.value))||null;
+      selectedQty=1;
+      updateVariantState();
+    });
+    const makeCartItem=quantity=>({
+      variant_id:selectedVariant.id,
+      quantity,
+      variant_label:labelForVariant(selectedVariant,activeVariants.indexOf(selectedVariant)),
+      product:{
+        id:product.id,
+        product_code:product.product_code,
+        product_name:product.product_name,
+        type:product.type,
+        selling_price:product.selling_price,
+        description:product.description,
+        image:main,
+        variant_color:selectedVariant.color&&String(selectedVariant.color)!=="0"?selectedVariant.color:null,
+        variant_size:selectedVariant.size&&String(selectedVariant.size)!=="0"?selectedVariant.size:null
+      }
+    });
+    const addSelectedToCart=(replace)=>{
+      const stock=stockOf(selectedVariant);
+      if(!selectedVariant||stock<=0){if(status)status.textContent="This option is out of stock.";return;}
+      const cart=getCart();
+      if(replace){
+        saveCart([makeCartItem(Math.min(selectedQty,stock))]);
+        location.href="order.html";
+        return;
+      }
+      const existing=cart.find(x=>String(x.variant_id)===String(selectedVariant.id));
+      const oldQty=Number(existing?.quantity||0);
+      if(oldQty>=stock){if(status)status.textContent="The cart already contains all available stock for this option.";return;}
+      const next=Math.min(stock,oldQty+selectedQty);
+      if(existing){
+        existing.quantity=next;
+        existing.variant_label=labelForVariant(selectedVariant,activeVariants.indexOf(selectedVariant));
+        existing.product=makeCartItem(next).product;
+      }else cart.push(makeCartItem(next));
+      saveCart(cart);
+      if(status)status.textContent="Added to cart.";
+      closeProductModal();
+    };
+    addButton.onclick=()=>addSelectedToCart(false);
+    buyButton.onclick=()=>addSelectedToCart(true);
+    updateVariantState();
     modal.classList.add("open");modal.setAttribute("aria-hidden","false");document.body.classList.add("modal-open");
   }
   function closeProductModal(){
@@ -96,7 +165,7 @@
     const status=document.getElementById("productStatus");
     try{
       const {data,error}=await client.from("products")
-        .select("id,product_code,product_name,type,selling_price,description,length_cm,thickness,gold_amount_g,created_at,product_variants(id,stock_quantity,low_stock_limit,color,size,active),product_images(public_url,is_primary)")
+        .select("id,product_code,product_name,type,selling_price,description,length_cm,thickness,gold_amount_g,created_at,product_variants(id,stock_quantity,color,size,active),product_images(public_url,is_primary)")
         .eq("active",true).order("created_at",{ascending:false});
       if(error)throw error;
       render(data||[]);
@@ -123,7 +192,7 @@
       document.querySelector(button.dataset.scroll)?.scrollIntoView({behavior:"smooth"});
     }));
     const year=document.getElementById("year");if(year)year.textContent=new Date().getFullYear();
-    if(!window.supabase?.createClient)return;
+    if(!window.supabase?.createClient||!SUPABASE_URL||!SUPABASE_PUBLISHABLE_KEY){const status=document.getElementById("productStatus");if(status)status.textContent="The product catalogue is temporarily unavailable.";return;}
     client=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
     await loadProducts();
     startRealtime();

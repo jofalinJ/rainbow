@@ -1,5 +1,5 @@
 (() => {
-  const cfg=window.RAINBOW_CONFIG||{};
+  const cfg=window.RAINBOW_SUPABASE_CONFIG||{};
   const esc=v=>String(v??"").replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
   async function loadBusiness(){
     if(!window.supabase?.createClient)return;

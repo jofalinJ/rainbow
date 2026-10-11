@@ -1,6 +1,7 @@
 window.RainbowInvoice=(()=>{
   const esc=x=>String(x??"").replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
   const money=v=>"₹"+Number(v||0).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2});
+  const brandLogo=location.pathname.includes("/admin/")?"../assets/brand/rainbow-logo.png":"assets/brand/rainbow-logo.png";
   const itemDetails=x=>{
     const d=[];
     if(x.product_type)d.push(x.product_type);
@@ -18,7 +19,7 @@ window.RainbowInvoice=(()=>{
       return "<tr><td><b>"+esc(x.product_code)+"</b><div>"+esc(x.product_name)+"</div>"+(details?"<span class='detail'>"+esc(details)+"</span>":"")+"</td><td class='right'>"+Number(x.quantity)+"</td><td class='right'>"+money(x.unit_price)+"</td><td class='right'>"+money(x.line_total)+"</td></tr>";
     }).join("");
     target.innerHTML=
-      "<div class='top'><div><div class='brand'>JJ GOLD COVERING</div><div class='subtitle'>GOLD COVERING JEWELLERY</div></div>"+
+      "<div class='top'><div class='invoice-brand-lockup'><img class='invoice-brand-logo' src='"+esc(brandLogo)+"' alt='Rainbow Gold Covering' width='48' height='48'><div><div class='invoice-brand-name'>RAINBOW GOLD COVERING</div><div class='subtitle'>GOLD COVERING JEWELLERY</div></div></div>"+
       "<div class='meta'><div><span class='label'>Invoice</span><br><b>"+esc(data.invoice_number)+"</b></div><div><span class='label'>Order</span><br>"+esc(data.order_number)+"</div><div>"+new Date(data.issued_at).toLocaleString("en-IN")+"</div></div></div>"+
       "<div class='customer'><span class='label'>Customer</span><br><b>"+esc(data.customer_name||"Walk-in Customer")+"</b>"+(data.customer_phone?"<div>"+esc(data.customer_phone)+"</div>":"")+"</div>"+
       "<div class='items'><table><thead><tr><th>Product</th><th class='right'>Qty</th><th class='right'>Rate</th><th class='right'>Amount</th></tr></thead><tbody>"+rows+"</tbody></table></div>"+
@@ -30,7 +31,7 @@ window.RainbowInvoice=(()=>{
       (Number(data.delivery_fee||0)>0?"<div class='line'><span>Delivery</span><b>"+money(data.delivery_fee)+"</b></div>":"")+
       "<div class='line grand'><span>Total</span><b>"+money(data.total_amount)+"</b></div></div>"+
       "<div style='margin-top:12px;font-size:11px'><b>Payment:</b> "+esc(String(data.payment_method||"").replaceAll("_"," "))+"</div>"+
-      "<div class='footer'>Thank you for shopping with JJ GOLD COVERING.</div>";
+      "<div class='footer'>Thank you for shopping with Rainbow Gold Covering.</div>";
     return target;
   };
   return {render,esc,money,itemDetails};
