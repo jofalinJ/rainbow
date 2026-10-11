@@ -50,12 +50,12 @@ button{font:inherit}
 .value span{display:block;margin-top:7px;color:var(--muted);font-size:12px;line-height:1.6}
 .collections{background:var(--cream)}
 .collection-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:15px}
-.collection{min-height:245px;background:var(--paper);border:1px solid var(--line);border-radius:22px;padding:25px;position:relative;overflow:hidden;transition:.25s}
+.collection{display:block;min-height:245px;background:var(--paper);border:1px solid var(--line);border-radius:22px;padding:25px;position:relative;overflow:hidden;transition:.25s;color:inherit;text-decoration:none;cursor:pointer}
 .collection:hover{transform:translateY(-5px);box-shadow:var(--shadow);border-color:#d8bc82}
 .collection .icon{width:52px;height:52px;border-radius:50%;display:grid;place-items:center;background:#fff4df;color:var(--gold);font-size:22px;margin-bottom:38px}
 .collection h3{font:500 27px Georgia,serif;margin:0 0 7px}
 .collection p{font-size:12px;line-height:1.6;color:var(--muted);max-width:260px}
-.collection a{position:absolute;right:23px;bottom:22px;color:var(--red);font-size:11px;font-weight:800}
+.collection-cta{position:absolute;right:23px;bottom:22px;color:var(--red);font-size:11px;font-weight:800}.collection-link:focus-visible{outline:3px solid var(--gold);outline-offset:4px}.collection-link:hover .collection-cta{text-decoration:underline}
 .process{background:#fff}
 .process-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line)}
 .step{background:#fff;padding:28px;min-height:190px}
@@ -154,5 +154,4 @@ body.modal-open{overflow:hidden}
 
 /* The original Rainbow logo sits upright within the existing gold diamond frame. */
 .hero-brand-mark{position:absolute;left:50%;top:50%;z-index:1;display:block;width:clamp(112px,14vw,154px);height:clamp(112px,14vw,154px);padding:8px;object-fit:contain;transform:translate(-50%,-50%);border:1px solid rgba(255,231,156,.6);border-radius:18px;background:rgba(255,253,249,.96);box-shadow:0 14px 38px rgba(35,8,8,.22)}
-.collection a:hover{text-decoration:underline}
 @media(max-width:560px){.product-toolbar{align-items:flex-start;flex-wrap:wrap}}
