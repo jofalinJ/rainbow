@@ -410,23 +410,35 @@
       ["Gold amount",product.gold_amount_g!=null?product.gold_amount_g+" g":null],
       ["Length",lengthOptions.length?null:(product.length_cm!=null?product.length_cm+" cm":null)]
     ].filter(item=>item[1]!==null&&item[1]!==undefined&&String(item[1]).trim()!=="");
+    let activeImageIndex=0;
     const galleryHtml='<div class="product-gallery">'+
       '<div class="product-detail-main">'+(main?'<img data-gallery-main src="'+esc(main)+'" alt="'+esc(product.product_name)+'">':'<div class="placeholder">RG</div>')+
-        '<span class="gallery-count" data-gallery-count>'+images.length+' / 5 photos</span></div>'+
-      (images.length>1?'<div class="product-detail-thumbs">'+images.map((image,i)=>'<button type="button" class="product-detail-thumb'+(i===0?' active':'')+'" data-gallery-src="'+esc(image.public_url)+'" data-gallery-alt="'+esc(product.product_name+' — image '+(i+1))+'" aria-label="View product image '+(i+1)+'"><img src="'+esc(image.public_url)+'" alt="" loading="lazy"></button>').join("")+'</div>':"")+
+        '<span class="gallery-count" data-gallery-count>1 / '+images.length+' photo'+(images.length===1?'':'s')+'</span></div>'+
+      (images.length>1?'<div class="product-detail-thumbs">'+images.map((image,i)=>'<button type="button" class="product-detail-thumb'+(i===0?' active':'')+'" data-gallery-src="'+esc(image.public_url)+'" data-gallery-index="'+i+'" data-gallery-alt="'+esc(product.product_name+' — image '+(i+1))+'" aria-label="View product image '+(i+1)+'" aria-current="'+(i===0?'true':'false')+'"><img src="'+esc(image.public_url)+'" alt="" loading="lazy"></button>').join("")+'</div>':"")+
       '</div>';
     const lengthGuide=lengthOptions.length
       ?'<details class="length-guide"><summary>View length guide</summary><img src="assets/brand/length.png" alt="Jewellery length reference guide" loading="lazy"></details>'
       :"";
+    const detailsPanel=(details.length||product.description)
+      ?'<details class="product-details-accordion" open><summary><span>Product details</span><span class="details-indicator" aria-hidden="true"></span></summary>'+
+        (product.description?'<p class="modal-description">'+esc(product.description)+'</p>':"")+
+        (details.length?'<div class="detail-list">'+details.map(d=>'<div><span>'+esc(d[0])+'</span><strong>'+esc(d[1])+'</strong></div>').join("")+'</div>':"")+
+        '</details>'
+      :"";
+    const savedInWishlist=wishlistIds.has(String(product.id));
     content.innerHTML='<div class="product-detail-grid"><div>'+galleryHtml+'</div>'+
-      '<div class="product-detail-info"><span class="section-kicker">PRODUCT DETAILS</span><h2 id="modalProductName">'+esc(product.product_name)+'</h2><div class="product-type modal-product-type">'+esc(category)+'</div>'+
-      '<div class="modal-price">'+money(product.selling_price)+'</div>'+
-      '<span class="product-stock '+(stockOf(selectedVariant)===0?"out":"in")+'" data-variant-status>'+(stockOf(selectedVariant)===0?"Out of stock":"In stock")+'</span>'+
-      (product.description?'<p class="modal-description">'+esc(product.description)+'</p>':"")+
-      (details.length?'<div class="detail-list">'+details.map(d=>'<div><span>'+esc(d[0])+'</span><strong>'+esc(d[1])+'</strong></div>').join("")+'</div>':"")+
-      choiceControls+genericVariantPicker+lengthGuide+
-      '<div class="product-buy-actions"><div class="quantity-picker"><button type="button" data-qty-minus aria-label="Decrease quantity">−</button><span data-qty>1</span><button type="button" data-qty-plus aria-label="Increase quantity">＋</button></div><button class="btn btn-light" type="button" data-add-cart>Add to Cart</button><button class="btn btn-dark" type="button" data-buy-now>Buy Now →</button></div></div></div>';
-
+      '<div class="product-detail-info">'+
+        '<div class="product-breadcrumb"><span>Rainbow Gold Covering</span><span aria-hidden="true">›</span><span>'+esc(category)+'</span></div>'+
+        '<h2 id="modalProductName">'+esc(product.product_name)+'</h2>'+
+        '<div class="product-type modal-product-type">'+esc(category)+'</div>'+
+        '<div class="modal-price-row"><div class="modal-price">'+money(product.selling_price)+'</div><span class="product-stock '+(stockOf(selectedVariant)===0?"out":"in")+'" data-variant-status>'+(stockOf(selectedVariant)===0?"Out of stock":"In stock")+'</span></div>'+
+        choiceControls+genericVariantPicker+
+        '<div class="product-quantity-row"><span>Quantity</span><div class="quantity-picker"><button type="button" data-qty-minus aria-label="Decrease quantity">−</button><span data-qty>1</span><button type="button" data-qty-plus aria-label="Increase quantity">＋</button></div></div>'+
+        '<div class="product-buy-actions"><button class="btn btn-dark" type="button" data-add-cart>Add to Cart</button><button class="btn btn-light" type="button" data-buy-now>Buy Now →</button></div>'+
+        '<button class="modal-wishlist-button'+(savedInWishlist?' is-saved':'')+'" type="button" data-modal-wishlist aria-pressed="'+savedInWishlist+'"><span aria-hidden="true">'+(savedInWishlist?'♥':'♡')+'</span><span>'+(savedInWishlist?'Saved to wishlist':'Save to wishlist')+'</span></button>'+
+        '<div class="product-support-card"><span>Need help?</span><p>Ask us about this design, sizing, or delivery options.</p><button type="button" data-contact-store>Contact Rainbow <span aria-hidden="true">→</span></button></div>'+
+        detailsPanel+lengthGuide+
+      '</div></div>';
     const qtyEl=content.querySelector("[data-qty]");
     const minus=content.querySelector("[data-qty-minus]"),plus=content.querySelector("[data-qty-plus]");
     const addButton=content.querySelector("[data-add-cart]"),buyButton=content.querySelector("[data-buy-now]");
@@ -473,8 +485,15 @@
     });
     content.querySelectorAll("[data-gallery-src]").forEach(button=>button.addEventListener("click",()=>{
       const image=content.querySelector("[data-gallery-main]");
+      activeImageIndex=Number(button.dataset.galleryIndex||0);
       if(image){image.src=button.dataset.gallerySrc;image.alt=button.dataset.galleryAlt||product.product_name;}
-      content.querySelectorAll("[data-gallery-src]").forEach(item=>item.classList.toggle("active",item===button));
+      const count=content.querySelector("[data-gallery-count]");
+      if(count)count.textContent=(activeImageIndex+1)+" / "+images.length+" photo"+(images.length===1?"":"s");
+      content.querySelectorAll("[data-gallery-src]").forEach(item=>{
+        const active=item===button;
+        item.classList.toggle("active",active);
+        item.setAttribute("aria-current",String(active));
+      });
     }));
     minus.onclick=()=>{selectedQty=Math.max(1,selectedQty-1);updateVariantState();};
     plus.onclick=()=>{selectedQty=Math.min(Math.max(1,stockOf(selectedVariant)),selectedQty+1);updateVariantState();};
@@ -507,6 +526,24 @@
     };
     addButton.onclick=()=>addSelectedToCart(false);
     buyButton.onclick=()=>addSelectedToCart(true);
+    const modalWishlistButton=content.querySelector("[data-modal-wishlist]");
+    if(modalWishlistButton)modalWishlistButton.addEventListener("click",()=>{
+      const id=String(product.id);
+      if(wishlistIds.has(id))wishlistIds.delete(id);else wishlistIds.add(id);
+      saveWishlist();
+      const saved=wishlistIds.has(id);
+      modalWishlistButton.classList.toggle("is-saved",saved);
+      modalWishlistButton.setAttribute("aria-pressed",String(saved));
+      const icon=modalWishlistButton.querySelector("span[aria-hidden]");
+      const label=modalWishlistButton.querySelector("span:not([aria-hidden])");
+      if(icon)icon.textContent=saved?"♥":"♡";
+      if(label)label.textContent=saved?"Saved to wishlist":"Save to wishlist";
+      render();
+    });
+    content.querySelector("[data-contact-store]")?.addEventListener("click",()=>{
+      closeProductModal();
+      document.getElementById("contact")?.scrollIntoView({behavior:"smooth",block:"start"});
+    });
     updateVariantState();
     if(panel)panel.scrollTop=0;
     modal.classList.add("open");
