@@ -155,3 +155,42 @@ body.modal-open{overflow:hidden}
 /* The original Rainbow logo sits upright within the existing gold diamond frame. */
 .hero-brand-mark{position:absolute;left:50%;top:50%;z-index:1;display:block;width:clamp(112px,14vw,154px);height:clamp(112px,14vw,154px);padding:8px;object-fit:contain;transform:translate(-50%,-50%);border:1px solid rgba(255,231,156,.6);border-radius:18px;background:rgba(255,253,249,.96);box-shadow:0 14px 38px rgba(35,8,8,.22)}
 @media(max-width:560px){.product-toolbar{align-items:flex-start;flex-wrap:wrap}}
+
+
+/* Larger product detail modal, 5-image gallery and product-to-product navigation. */
+.product-modal-panel{width:min(1180px,calc(100% - 64px));max-height:calc(100vh - 36px);margin:18px auto;padding:28px 30px}
+.product-detail-grid{grid-template-columns:minmax(0,1.12fr) minmax(360px,.88fr);gap:34px;padding:8px}
+.product-detail-main{position:relative;aspect-ratio:1/1.02;min-height:420px;border-radius:22px;display:grid;place-items:center}
+.product-detail-main img{width:100%;height:100%;object-fit:contain;background:#faf5ee}
+.gallery-count{position:absolute;right:12px;bottom:12px;padding:7px 10px;border-radius:999px;background:rgba(23,18,15,.76);color:#fff;font-size:10px;letter-spacing:.06em}
+.product-detail-thumbs{display:flex;gap:10px;margin-top:12px;overflow:auto;padding:2px 0 8px}
+.product-detail-thumb{flex:0 0 76px;width:76px;height:76px;padding:0;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#faf5ee;cursor:pointer;opacity:.72}
+.product-detail-thumb.active{border:2px solid var(--gold);opacity:1}
+.product-detail-thumb img{display:block;width:100%;height:100%;object-fit:cover}
+.product-detail-info{padding:30px 20px 24px 4px}
+.product-detail-info h2{font-size:clamp(34px,3.4vw,48px)}
+.product-modal-nav{position:fixed;top:50%;transform:translateY(-50%);z-index:1002;width:48px;height:58px;border:1px solid rgba(255,255,255,.7);border-radius:18px;background:rgba(255,253,249,.96);color:var(--red-dark);font:400 42px/1 Georgia,serif;box-shadow:0 10px 30px rgba(0,0,0,.18);cursor:pointer;display:grid;place-items:center}
+.product-modal-nav.previous{left:max(12px,calc((100vw - 1240px)/2 - 48px))}
+.product-modal-nav.next{right:max(12px,calc((100vw - 1240px)/2 - 48px))}
+.product-modal-nav[hidden]{display:none}
+.product-modal-nav:hover{background:#fff1d4;border-color:var(--gold)}
+.length-guide{margin-top:12px;border:1px solid var(--line);border-radius:14px;padding:12px 14px;background:#fffdf9}
+.length-guide summary{color:var(--red);font-size:12px;font-weight:700;cursor:pointer}
+.length-guide img{display:block;width:100%;max-width:380px;max-height:300px;object-fit:contain;margin:12px auto 2px;border-radius:8px}
+@media(max-width:850px){
+ .product-modal-panel{width:calc(100% - 28px);padding:20px}
+ .product-detail-grid{grid-template-columns:minmax(0,1fr) minmax(280px,.9fr);gap:20px}
+ .product-detail-main{min-height:300px}
+ .product-modal-nav{width:40px;height:48px;border-radius:14px;font-size:34px}
+}
+@media(max-width:700px){
+ .product-modal-panel{width:calc(100% - 16px);max-height:calc(100vh - 18px);margin:9px auto;padding:12px;border-radius:20px}
+ .product-detail-grid{grid-template-columns:1fr;gap:8px;padding:6px}
+ .product-detail-main{min-height:0;aspect-ratio:1/.88}
+ .product-detail-info{padding:12px 4px 16px}
+ .product-detail-info h2{font-size:32px}
+ .product-modal-nav{position:fixed;top:auto;bottom:18px;transform:none;width:42px;height:42px;border-radius:50%;font-size:30px;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+ .product-modal-nav.previous{left:14px}
+ .product-modal-nav.next{right:14px}
+ .product-buy-actions{padding-bottom:54px}
+}
