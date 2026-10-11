@@ -35,7 +35,7 @@
     const brand=document.querySelector('[data-config="brandName"]');
     const eyebrow=document.querySelector('[data-config="eyebrow"]');
     const footer=document.querySelector('[data-config="footerBrandText"]');
-    if(brand)brand.textContent=(cfg.businessName||"Rainbow").split(" ")[0].toUpperCase();
+    if(brand){const words=String(cfg.businessName||"Rainbow Kollam Gold Covering").trim().split(/\s+/);brand.textContent=words.slice(0,2).join(" ").toUpperCase();const sub=brand.parentElement?.querySelector("small");if(sub)sub.textContent=words.slice(2).join(" ").toUpperCase();}
     if(eyebrow)eyebrow.textContent=(cfg.businessName||"Rainbow Gold Covering").toUpperCase()+" · "+(cfg.trustLine||"");
     if(footer)footer.textContent=cfg.businessName||"Rainbow Gold Covering";
     const branches=document.getElementById("branchList");
@@ -64,49 +64,56 @@
     return categoryName||String(product.type||"").trim()||"Jewellery";
   }
 
-  function categoryBuckets(){
+  function productInSegment(product,segment=activeSegment){
+    const gender=["male","unisex"].includes(String(product.gender||"women").toLowerCase())
+      ?String(product.gender||"").toLowerCase()
+      :"women";
+    if(segment==="men")return gender==="male"||gender==="unisex";
+    if(segment==="women")return gender==="women"||gender==="unisex";
+    return true;
+  }
+  function categoryBuckets(products=catalogueProducts){
     const labels=new Map();
-    const ensure=label=>{
+    const ensure=(label,metadata={})=>{
       const name=String(label||"").trim(),key=normalizeCategory(name);
       if(!key)return null;
-      if(!labels.has(key))labels.set(key,{label:name,products:[]});
+      if(!labels.has(key))labels.set(key,{
+        label:name,products:[],
+        storefrontOrder:Number(metadata.storefront_order??999),
+        storefrontVisible:metadata.show_in_storefront!==false
+      });
       return labels.get(key);
     };
-    catalogueCategories.forEach(category=>ensure(category.name));
-    catalogueProducts.forEach(product=>{
-      const bucket=ensure(categoryFor(product));
+    catalogueCategories.forEach(category=>ensure(category.name,category));
+    products.forEach(product=>{
+      if(!productInSegment(product))return;
+      const categoryName=categoryFor(product);
+      const metadata=catalogueCategories.find(category=>normalizeCategory(category.name)===normalizeCategory(categoryName))
+        ||product.categories||{};
+      const bucket=ensure(categoryName,metadata);
       if(bucket)bucket.products.push(product);
     });
-    return [...labels.values()].sort((a,b)=>a.label.localeCompare(b.label,"en"));
+    return [...labels.values()]
+      .filter(bucket=>bucket.storefrontVisible&&bucket.products.length>0)
+      .sort((a,b)=>a.storefrontOrder-b.storefrontOrder||a.label.localeCompare(b.label,"en"));
   }
   function renderCategorySidebar(){
     const sidebar=document.getElementById("drawerCategories");
     if(!sidebar)return;
     const buckets=categoryBuckets();
     const typeButtons=buckets.map(bucket=>
-      '<button type="button" class="drawer-type-link" data-filter-type="'+esc(bucket.label)+'" aria-label="Browse '+esc(bucket.label)+'">'+
-        '<span>'+esc(bucket.label)+'</span><small>'+bucket.products.length+'</small></button>'
+      "<button type='button' class='drawer-type-link' data-filter-type='"+esc(bucket.label)+"' aria-label='Browse "+esc(bucket.label)+"'>"+
+        "<span>"+esc(bucket.label)+"</span></button>"
     ).join("");
     sidebar.innerHTML=
-      '<button type="button" class="drawer-all-category" data-filter-type="">All products <span>'+catalogueProducts.length+'</span></button>'+
-      (typeButtons?'<div class="drawer-type-grid" aria-label="All product types">'+typeButtons+'</div>':
-        '<div class="drawer-empty">Product types will appear here as the catalogue is added.</div>');
-  }
-  function renderFeaturedCollections(){
-    const target=document.getElementById("drawerFeatured");
-    if(!target)return;
-    const picks=categoryBuckets().sort((a,b)=>b.products.length-a.products.length).slice(0,4);
-    target.innerHTML=picks.map(bucket=>{
-      const product=bucket.products.find(p=>getImage(p))||bucket.products[0];
-      const image=product?getImage(product):"";
-      return '<button type="button" class="drawer-featured-card" data-filter-type="'+esc(bucket.label)+'">'+
-        (image?'<img src="'+esc(image)+'" alt="" loading="lazy">':'<span class="drawer-featured-placeholder" aria-hidden="true">RG</span>')+
-        '<strong>'+esc(bucket.label)+'</strong><small>'+bucket.products.length+' design'+(bucket.products.length===1?"":"s")+'</small></button>';
-    }).join("")||'<div class="drawer-empty">Featured picks will appear here when catalogue products are available.</div>';
+      "<button type='button' class='drawer-all-category' data-filter-type=''>All product types</button>"+
+      (typeButtons?"<div class='drawer-type-grid' aria-label='Available product types'>"+typeButtons+"</div>":
+        "<div class='drawer-empty'>Product types will appear as in-stock designs are added.</div>");
   }
   function isMenProduct(product){
-    return /(men|mens|male)/.test(normalizeCategory([categoryFor(product),product.type,product.product_name].join(" ")));
+    return String(product.gender||"women").toLowerCase()==="male";
   }
+
   function matchesTextSearch(product,query){
     if(!query)return true;
     const haystack=normalizeCategory([product.product_name,product.type,categoryFor(product),product.description].filter(Boolean).join(" "));
@@ -119,43 +126,65 @@
     const heading=document.getElementById("productHeading"),clearButton=document.getElementById("clearProductFilter");
     if(!grid)return;
     renderCategorySidebar();
-    renderFeaturedCollections();
     let products=catalogueProducts.filter(product=>{
       if(activeCategory&&normalizeCategory(categoryFor(product))!==normalizeCategory(activeCategory))return false;
-      if(activeSegment==="men"&&!isMenProduct(product))return false;
-      if(activeSegment==="women"&&isMenProduct(product))return false;
+      if(!productInSegment(product))return false;
       if(!matchesTextSearch(product,activeSearch))return false;
       if(wishlistOnly&&!wishlistIds.has(String(product.id)))return false;
       return true;
     });
-    if(activeSegment==="new")products=products.slice().sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0));
     if(visualSearchSignature)products=products.slice().sort((a,b)=>(visualSearchScores.get(String(b.id))??-1)-(visualSearchScores.get(String(a.id))??-1));
     visibleProducts=products;
-    if(status){
-      if(visualSearchSignature)status.textContent=products.length+" visual matches - ranked by dominant image colours";
-      else if(wishlistOnly)status.textContent=products.length+" saved item"+(products.length===1?"":"s");
-      else if(activeSearch)status.textContent=products.length+" result"+(products.length===1?"":"s")+" for \""+activeSearch+"\"";
-      else if(activeCategory)status.textContent=products.length+" "+(products.length===1?"product":"products")+" in "+activeCategory;
-      else if(activeSegment==="new")status.textContent=products.length+" latest design"+(products.length===1?"":"s");
-      else status.textContent=products.length+" product"+(products.length===1?"":"s")+" available";
+
+    const categoryLanding=!activeCategory&&!activeSearch&&!visualSearchSignature&&!wishlistOnly;
+    if(heading){
+      heading.textContent=wishlistOnly?"Your wishlist":activeSearch?"Search results":visualSearchSignature?"Visual matches":activeCategory?"Explore "+activeCategory.toLowerCase()+".":categoryLanding?(activeSegment==="women"?"Shop women by category.":activeSegment==="men"?"Shop men by category.":"Shop by category."):"Shop jewellery.";
     }
-    if(heading)heading.textContent=wishlistOnly?"Your wishlist":activeSearch?"Search results":visualSearchSignature?"Visual matches":activeCategory?"Explore "+activeCategory.toLowerCase()+".":activeSegment==="men"?"Men's jewellery":activeSegment==="women"?"Women's jewellery":activeSegment==="new"?"New in":"Shop jewellery.";
-    if(clearButton)clearButton.hidden=!(activeCategory||activeSearch||visualSearchSignature||wishlistOnly||activeSegment!=="all");
+    if(clearButton){
+      clearButton.textContent=activeCategory?"Back to product types":"Show all products";
+      clearButton.hidden=!(activeCategory||activeSearch||visualSearchSignature||wishlistOnly||activeSegment!=="all");
+    }
     document.querySelectorAll("[data-segment]").forEach(button=>{
       const active=button.dataset.segment===activeSegment;
       button.classList.toggle("is-active",active);button.setAttribute("aria-pressed",String(active));
     });
     const wishlistButton=document.getElementById("wishlistToggle");
     if(wishlistButton){wishlistButton.setAttribute("aria-pressed",String(wishlistOnly));wishlistButton.classList.toggle("is-selected",wishlistOnly);}
+
+    if(categoryLanding){
+      const buckets=categoryBuckets();
+      if(status)status.textContent=buckets.length?"Choose a product type to explore.":"No product types have in-stock products yet.";
+      grid.innerHTML=buckets.length?buckets.map(bucket=>{
+        const product=bucket.products.find(item=>getImage(item))||bucket.products[0];
+        const image=product?getImage(product):"";
+        return "<button type='button' class='category-tile' data-category-tile='"+esc(bucket.label)+"' aria-label='Browse "+esc(bucket.label)+"'>"+
+          "<span class='category-tile-image'>"+(image?"<img src='"+esc(image)+"' alt='' loading='lazy'>":"<span class='placeholder'>RG</span>")+"</span>"+
+          "<span class='category-tile-copy'><strong>"+esc(bucket.label)+"</strong><small>View collection</small></span></button>";
+      }).join(""):"<div class='product-empty'>Product categories will appear here when in-stock designs are added.</div>";
+      grid.querySelectorAll("[data-category-tile]").forEach(tile=>tile.addEventListener("click",()=>{
+        activeCategory=tile.dataset.categoryTile||"";
+        render();
+        document.getElementById("products")?.scrollIntoView({behavior:"smooth",block:"start"});
+      }));
+      return;
+    }
+
+    if(status){
+      if(visualSearchSignature)status.textContent=products.length+" visual matches - ranked by dominant image colours";
+      else if(wishlistOnly)status.textContent=products.length+" saved item"+(products.length===1?"":"s");
+      else if(activeSearch)status.textContent=products.length+" result"+(products.length===1?"":"s")+" for \""+activeSearch+"\"";
+      else if(activeCategory)status.textContent=products.length+" "+(products.length===1?"product":"products")+" in "+activeCategory;
+      else status.textContent=products.length+" product"+(products.length===1?"":"s")+" available";
+    }
     grid.innerHTML=products.length?products.map(p=>{
       const stock=getStock(p),stockClass=stock===0?"out":"in",stockText=stock===0?"Out of stock":"In stock",image=getImage(p);
       const saved=wishlistIds.has(String(p.id));
-      return '<article class="product-card" tabindex="0" role="button" aria-label="View details for '+esc(p.product_name)+'" data-product-id="'+esc(p.id)+'">'+
-        '<div class="product-image">'+(image?'<img src="'+esc(image)+'" alt="'+esc(p.product_name)+'" loading="lazy">':'<div class="placeholder">RG</div>')+
-        '<button type="button" class="product-wishlist-button'+(saved?' is-saved':'')+'" data-wishlist-product="'+esc(p.id)+'" aria-label="'+(saved?"Remove ":"Add ")+esc(p.product_name)+(saved?" from":" to")+' wishlist" aria-pressed="'+saved+'">'+(saved?"♥":"♡")+'</button></div>'+
-        '<div class="product-body"><h3 class="product-name">'+esc(p.product_name)+'</h3><div class="product-type">'+esc(categoryFor(p))+'</div>'+
-        '<div class="product-meta"><strong class="product-price">'+money(p.selling_price)+'</strong><span class="product-stock '+stockClass+'">'+stockText+'</span></div></div></article>';
-    }).join(""):'<div class="product-empty">'+(wishlistOnly?'No saved items yet. Tap the heart on a product to add it to your wishlist.':activeSearch?'No products matched that search. Try another term or browse the categories.':visualSearchSignature?'No visual matches could be ranked for this image. Try a clearer photo or search by name.':activeCategory?'No '+esc(activeCategory.toLowerCase())+' products are currently in stock.':'No products are currently in stock. Please check again soon.')+'</div>';
+      return "<article class='product-card' tabindex='0' role='button' aria-label='View details for "+esc(p.product_name)+"' data-product-id='"+esc(p.id)+"'>"+
+        "<div class='product-image'>"+(image?"<img src='"+esc(image)+"' alt='"+esc(p.product_name)+"' loading='lazy'>":"<div class='placeholder'>RG</div>")+
+        "<button type='button' class='product-wishlist-button"+(saved?" is-saved":"")+"' data-wishlist-product='"+esc(p.id)+"' aria-label='"+(saved?"Remove ":"Add ")+esc(p.product_name)+(saved?" from":" to")+" wishlist' aria-pressed='"+saved+"'>"+(saved?"♥":"♡")+"</button></div>"+
+        "<div class='product-body'><h3 class='product-name'>"+esc(p.product_name)+"</h3><div class='product-type'>"+esc(categoryFor(p))+"</div>"+
+        "<div class='product-meta'><strong class='product-price'>"+money(p.selling_price)+"</strong><span class='product-stock "+stockClass+"'>"+stockText+"</span></div></div></article>";
+    }).join(""):"<div class='product-empty'>"+(wishlistOnly?"No saved items yet. Tap the heart on a product to add it to your wishlist.":activeSearch?"No products matched that search. Try another term or browse the categories.":visualSearchSignature?"No visual matches could be ranked for this image. Try a clearer photo or search by name.":activeCategory?"No "+esc(activeCategory.toLowerCase())+" products are currently in stock.":"No products are currently in stock. Please check again soon.")+"</div>";
     grid.querySelectorAll("[data-product-id]").forEach(card=>{
       const open=()=>openProductModal(catalogueProducts.find(p=>String(p.id)===String(card.dataset.productId)));
       card.addEventListener("click",event=>{if(event.target.closest("[data-wishlist-product]"))return;open();});
@@ -174,7 +203,7 @@
       const category=event.target.closest("[data-filter-type]");
       if(category){
         event.preventDefault();activeCategory=category.dataset.filterType||"";
-        activeSearch="";visualSearchSignature=null;visualSearchScores.clear();activeSegment="all";wishlistOnly=false;
+        activeSearch="";visualSearchSignature=null;visualSearchScores.clear();wishlistOnly=false;
         const search=document.getElementById("siteSearch");if(search)search.value="";
         render();closeShopDrawer();document.getElementById("products")?.scrollIntoView({behavior:"smooth",block:"start"});return;
       }
@@ -188,11 +217,16 @@
     });
     const clearButton=document.getElementById("clearProductFilter");
     if(clearButton)clearButton.addEventListener("click",()=>{
-      activeCategory="";activeSearch="";visualSearchSignature=null;visualSearchScores.clear();activeSegment="all";wishlistOnly=false;
-      const search=document.getElementById("siteSearch");if(search)search.value="";
+      if(activeCategory){
+        activeCategory="";
+      }else{
+        activeSearch="";visualSearchSignature=null;visualSearchScores.clear();activeSegment="all";wishlistOnly=false;
+        const search=document.getElementById("siteSearch");if(search)search.value="";
+      }
       render();showSearchFeedback("");
     });
   }
+
   function showSearchFeedback(message,isError=false){
     const feedback=document.getElementById("searchFeedback");if(!feedback)return;
     feedback.textContent=message||"";feedback.hidden=!message;feedback.classList.toggle("is-error",Boolean(isError));
@@ -273,15 +307,12 @@
       render();showSearchFeedback(wishlistOnly?"Showing your saved items.":"");
       document.getElementById("products")?.scrollIntoView({behavior:"smooth",block:"start"});
     });
-    document.getElementById("drawerTrackAction")?.addEventListener("click",()=>{closeShopDrawer();openTrackingOverlay();});
     document.getElementById("drawerWishlistAction")?.addEventListener("click",()=>{closeShopDrawer();wishlistOnly=true;activeCategory="";activeSearch="";visualSearchSignature=null;visualSearchScores.clear();activeSegment="all";render();document.getElementById("products")?.scrollIntoView({behavior:"smooth",block:"start"});});
     document.getElementById("accountOpen")?.addEventListener("click",openAccountOverlay);
     document.querySelectorAll("[data-account-mode]").forEach(button=>button.addEventListener("click",()=>setAccountAuthMode(button.dataset.accountMode)));
     document.getElementById("accountSignInForm")?.addEventListener("submit",submitAccountSignIn);
     document.getElementById("accountSignUpForm")?.addEventListener("submit",submitAccountSignUp);
     document.getElementById("accountSignOut")?.addEventListener("click",signOutAccount);
-    document.getElementById("orderTrackOpen")?.addEventListener("click",openTrackingOverlay);
-    document.getElementById("accountTrackOrder")?.addEventListener("click",()=>{closeUtilityOverlays();openTrackingOverlay();});
     document.querySelectorAll("[data-close-utility]").forEach(button=>button.addEventListener("click",closeUtilityOverlays));
     document.getElementById("trackingForm")?.addEventListener("submit",submitOrderTracking);
     document.getElementById("menuToggle")?.addEventListener("click",openShopDrawer);
@@ -739,9 +770,9 @@
     try{
       const [productsResult,categoriesResult]=await Promise.all([
         client.from("products")
-          .select("id,product_code,product_name,type,category_id,categories(name),selling_price,description,length_cm,thickness,gold_amount_g,created_at,product_variants(id,stock_quantity,color,size,length_cm,active),product_images(id,public_url,is_primary,sort_order)")
-          .eq("active",true).order("created_at",{ascending:false}),
-        client.from("categories").select("name").eq("active",true).order("name",{ascending:true})
+          .select("id,product_code,product_name,type,gender,display_priority,category_id,categories(name,storefront_order,show_in_storefront),selling_price,description,length_cm,thickness,gold_amount_g,created_at,product_variants(id,stock_quantity,color,size,length_cm,active),product_images(id,public_url,is_primary,sort_order)")
+          .eq("active",true).order("display_priority",{ascending:false}).order("created_at",{ascending:false}),
+        client.from("categories").select("name,storefront_order,show_in_storefront").eq("active",true).order("storefront_order",{ascending:true}).order("name",{ascending:true})
       ]);
       if(productsResult.error)throw productsResult.error;
       if(categoriesResult.error){
