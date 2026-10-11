@@ -74,7 +74,7 @@ button{font:inherit}
 
 /* Live customer catalogue — keep the Rainbow red/white/gold palette unchanged */
 .live-products{background:#fff}
-.product-status{min-height:20px;margin:-18px 0 22px;color:var(--muted);font-size:12px}
+.product-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:-18px 0 22px}.product-status{min-height:20px;margin:0;color:var(--muted);font-size:12px}.clear-filter{border:1px solid var(--line);border-radius:999px;background:#fff;padding:9px 13px;color:var(--red);font-size:11px;font-weight:800;cursor:pointer;white-space:nowrap}.clear-filter:hover{border-color:var(--gold)}.clear-filter[hidden]{display:none}
 .product-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
 .product-card{background:var(--paper);border:1px solid var(--line);border-radius:22px;overflow:hidden;transition:.25s ease}
 .product-card:hover{transform:translateY(-5px);box-shadow:var(--shadow);border-color:#d8bc82}
@@ -150,3 +150,9 @@ body.modal-open{overflow:hidden}
 
 /* Use the supplied brand asset in both customer-page footers. */
 .footer-brand{display:inline-flex;align-items:center;gap:9px;min-height:28px}.footer-logo{display:block;width:28px;height:28px;object-fit:contain;flex:0 0 28px}
+
+
+/* The original Rainbow logo sits upright within the existing gold diamond frame. */
+.hero-brand-mark{position:absolute;left:50%;top:50%;z-index:1;display:block;width:clamp(112px,14vw,154px);height:clamp(112px,14vw,154px);padding:8px;object-fit:contain;transform:translate(-50%,-50%);border:1px solid rgba(255,231,156,.6);border-radius:18px;background:rgba(255,253,249,.96);box-shadow:0 14px 38px rgba(35,8,8,.22)}
+.collection a:hover{text-decoration:underline}
+@media(max-width:560px){.product-toolbar{align-items:flex-start;flex-wrap:wrap}}

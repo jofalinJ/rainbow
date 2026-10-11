@@ -19,7 +19,7 @@
       <img class="brand-logo" src="assets/brand/rainbow-logo.png" alt="Rainbow Gold Covering logo" width="42" height="42" fetchpriority="high"><span><strong data-config="brandName">RAINBOW</strong><small>GOLD COVERING</small></span>
     </a>
     <div class="navlinks">
-      <a href="#story">About</a><a href="#collections">Collections</a><a href="#process">How It Works</a><a href="#contact">Contact</a>
+      <a href="#collections">Collections</a><a href="#process">How It Works</a><a href="#story">Our Story</a><a href="#contact">Contact</a>
     </div>
     <div class="nav-actions"><a class="instagram-top" data-instagram href="https://www.instagram.com/rainbow_kollam_gold_covering/" target="_blank" rel="noopener noreferrer" aria-label="Rainbow Gold Covering on Instagram">Instagram ↗</a><a class="cart-top" href="order.html" aria-label="Open cart">Cart <span id="cartCount">0</span></a><a class="btn btn-light" href="#products">Explore Products</a></div>
   </nav>
@@ -34,33 +34,27 @@
 <div class="hero-actions"><button class="btn btn-dark" data-scroll="#collections">Explore Collections →</button><button class="btn btn-light" data-scroll="#contact">Visit & Enquire</button></div>
 <div class="hero-note"><span>Premium finishing</span><span>Curated designs</span><span>Store + online journey</span></div>
 </div>
-<div class="hero-art" aria-label="Abstract gold jewellery artwork"><div class="jewel"></div><div class="hero-art-label"><small>THE RAINBOW EDIT</small><strong>Gold, reimagined.</strong></div></div>
+<div class="hero-art" aria-label="Rainbow Gold Covering logo inside a gold diamond frame"><div class="jewel"></div><img class="hero-brand-mark" src="assets/brand/rainbow-logo.png" alt="Rainbow Gold Covering logo" width="150" height="150" fetchpriority="high"><div class="hero-art-label"><strong>Gold, reimagined.</strong></div></div>
 </div>
 </section>
-<section class="section story" id="story">
-<div class="container">
-<div class="section-head"><div><span class="section-kicker">01 / OUR STORY</span><h2>Made for people who love jewellery.</h2></div><p>Rainbow Gold Covering brings the experience of a jewellery store into a clean, modern digital space.</p></div>
-<div class="story-grid"><div class="story-card"><span class="number">RG</span><h3>A modern jewellery experience.</h3><p class="story-copy">From discovering a design to choosing it in-store or online, every part of the experience is designed to feel simple, personal and premium.</p></div>
-<div><p class="story-copy">Our collection is presented around the way customers actually shop: by design, occasion and personal style. The website will grow with the store as products, stock, orders and customer services are connected.</p><div class="values"><div class="value"><strong>Design</strong><span>Styles selected for everyday wear and special occasions.</span></div><div class="value"><strong>Value</strong><span>Gold-covering jewellery designed to offer an accessible jewellery experience.</span></div><div class="value"><strong>Service</strong><span>A store experience supported by a growing digital ordering system.</span></div></div></div></div>
-</div>
-</section>
+
 <section class="section live-products" id="products">
 <div class="container">
-<div class="section-head"><div><span class="section-kicker">02 / LIVE COLLECTION</span><h2>Our latest products.</h2></div><p>Explore our latest jewellery designs and open any product to view its details.</p></div>
-<div id="productStatus" class="product-status" aria-live="polite">Loading products…</div>
+<div class="section-head"><div><span class="section-kicker">02 / LIVE COLLECTION</span><h2 id="productHeading">Our latest products.</h2></div><p>Explore our latest jewellery designs and open any product to view its details.</p></div>
+<div class="product-toolbar"><div id="productStatus" class="product-status" aria-live="polite">Loading products…</div><button id="clearProductFilter" class="clear-filter" type="button" hidden>Show all products</button></div>
 <div id="productGrid" class="product-grid"></div>
 </div>
 </section>
 <section class="section collections" id="collections">
 <div class="container">
-<div class="section-head"><div><span class="section-kicker">03 / COLLECTIONS</span><h2>Find your kind of shine.</h2></div><p>Explore the major jewellery categories. Product-level browsing can be connected here as the online catalogue expands.</p></div>
+<div class="section-head"><div><span class="section-kicker">03 / COLLECTIONS</span><h2>Find your kind of shine.</h2></div><p>Explore the major jewellery categories. Choose a category to explore matching designs available in our live catalogue.</p></div>
 <div class="collection-grid">
-<article class="collection"><div class="icon">✦</div><h3>Chains</h3><p>Everyday and statement chain designs across different lengths and styles.</p><a href="#contact">Enquire →</a></article>
-<article class="collection"><div class="icon">◇</div><h3>Necklaces</h3><p>Elegant pieces for celebrations, occasions and personal styling.</p><a href="#contact">Enquire →</a></article>
-<article class="collection"><div class="icon">◌</div><h3>Earrings</h3><p>From refined daily styles to designs that complete an occasion look.</p><a href="#contact">Enquire →</a></article>
-<article class="collection"><div class="icon">○</div><h3>Bangles</h3><p>Classic and contemporary designs made to layer or wear alone.</p><a href="#contact">Enquire →</a></article>
-<article class="collection"><div class="icon">♢</div><h3>Rings</h3><p>Minimal, elegant and occasion-ready designs for different tastes.</p><a href="#contact">Enquire →</a></article>
-<article class="collection"><div class="icon">✧</div><h3>Men's Jewellery</h3><p>Clean, versatile designs selected for a modern men's collection.</p><a href="#contact">Enquire →</a></article>
+<article class="collection"><div class="icon">✦</div><h3>Chains</h3><p>Everyday and statement chain designs across different lengths and styles.</p><a href="#products" data-filter-type="Chains" aria-controls="productGrid">Browse chains →</a></article>
+<article class="collection"><div class="icon">◇</div><h3>Necklaces</h3><p>Elegant pieces for celebrations, occasions and personal styling.</p><a href="#products" data-filter-type="Necklaces" aria-controls="productGrid">Browse necklaces →</a></article>
+<article class="collection"><div class="icon">◌</div><h3>Earrings</h3><p>From refined daily styles to designs that complete an occasion look.</p><a href="#products" data-filter-type="Earrings" aria-controls="productGrid">Browse earrings →</a></article>
+<article class="collection"><div class="icon">○</div><h3>Bangles</h3><p>Classic and contemporary designs made to layer or wear alone.</p><a href="#products" data-filter-type="Bangles" aria-controls="productGrid">Browse bangles →</a></article>
+<article class="collection"><div class="icon">♢</div><h3>Rings</h3><p>Minimal, elegant and occasion-ready designs for different tastes.</p><a href="#products" data-filter-type="Rings" aria-controls="productGrid">Browse rings →</a></article>
+<article class="collection"><div class="icon">✧</div><h3>Men's Jewellery</h3><p>Clean, versatile designs selected for a modern men's collection.</p><a href="#products" data-filter-type="Men's Jewellery" aria-controls="productGrid">Browse men’s jewellery →</a></article>
 </div>
 </div>
 </section>
@@ -70,11 +64,19 @@
 <div class="process-grid"><div class="step"><span>01</span><h3>Discover</h3><p>Browse collections and find designs that match your style.</p></div><div class="step"><span>02</span><h3>Choose</h3><p>Review the design, details and availability before ordering.</p></div><div class="step"><span>03</span><h3>Order</h3><p>Place an online order or continue the conversation with the store.</p></div><div class="step"><span>04</span><h3>Receive</h3><p>Choose the appropriate delivery or store-pickup journey when available.</p></div></div>
 </div>
 </section>
+<section class="section story" id="story">
+<div class="container">
+<div class="section-head"><div><span class="section-kicker">01 / OUR STORY</span><h2>Made for people who love jewellery.</h2></div><p>Rainbow Gold Covering brings the experience of a jewellery store into a clean, modern digital space.</p></div>
+<div class="story-grid"><div class="story-card"><span class="number">RG</span><h3>A modern jewellery experience.</h3><p class="story-copy">From discovering a design to choosing it in-store or online, every part of the experience is designed to feel simple, personal and premium.</p></div>
+<div><p class="story-copy">Our collection is presented around the way customers actually shop: by design, occasion and personal style. The website will grow with the store as products, stock, orders and customer services are connected.</p><div class="values"><div class="value"><strong>Design</strong><span>Styles selected for everyday wear and special occasions.</span></div><div class="value"><strong>Value</strong><span>Gold-covering jewellery designed to offer an accessible jewellery experience.</span></div><div class="value"><strong>Service</strong><span>A store experience supported by a growing digital ordering system.</span></div></div></div></div>
+</div>
+</section>
+
 <section class="section contact" id="contact">
 <div class="container contact-card"><div><span class="section-kicker">05 / CONTACT</span><h2>Looking for a particular design?</h2><p>Tell us what you are looking for and continue the conversation with Rainbow Gold Covering.</p><div id="branchList" class="branch-list" aria-label="Our stores"></div></div><a class="btn btn-light" href="#collections">Browse Collections</a></div>
 </section>
 </main>
-<footer class="container footer"><span class="footer-brand" data-config="footerBrand"><img class="footer-logo" src="assets/brand/rainbow-logo.png" alt="Rainbow Gold Covering logo" width="28" height="28" loading="lazy"><span data-config="footerBrandText">RAINBOW GOLD COVERING</span></span><span><a class="instagram-link" data-instagram href="https://www.instagram.com/rainbow_kollam_gold_covering/" target="_blank" rel="noopener noreferrer">Instagram · @rainbow_kollam_gold_covering</a></span><span>© <span id="year"></span> · Premium Jewellery Experience</span></footer>
+<footer class="container footer"><span class="footer-brand" data-config="footerBrand"><img class="footer-logo" src="assets/brand/rainbow-logo.png" alt="Rainbow Gold Covering logo" width="28" height="28" loading="lazy"><span data-config="footerBrandText">RAINBOW GOLD COVERING</span></span><span><a class="instagram-link" data-instagram href="https://www.instagram.com/rainbow_kollam_gold_covering/" target="_blank" rel="noopener noreferrer">Instagram · @rainbow_kollam_gold_covering</a></span><span>© <span id="year"></span> Rainbow Gold Covering. All rights reserved.</span></footer>
 <div id="productModal" class="product-modal" aria-hidden="true"><div class="product-modal-backdrop" data-close-product></div><div class="product-modal-panel" role="dialog" aria-modal="true" aria-labelledby="modalProductName"><button class="product-modal-close" type="button" aria-label="Close product details" data-close-product>×</button><div id="productModalContent"></div></div></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="content.js"></script><script src="business-live.js"></script>
 </body>

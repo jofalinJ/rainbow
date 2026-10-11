@@ -2,7 +2,7 @@
   const SUPABASE_CONFIG=window.RAINBOW_SUPABASE_CONFIG||{};
   const SUPABASE_URL=String(SUPABASE_CONFIG.supabaseUrl||"").trim();
   const SUPABASE_PUBLISHABLE_KEY=String(SUPABASE_CONFIG.supabasePublishableKey||"").trim();
-  let client=null, realtimeChannel=null, realtimeRefreshTimer=null, refreshInterval=null, productsLoading=false, productsReloadRequested=false;
+  let client=null, realtimeChannel=null, realtimeRefreshTimer=null, refreshInterval=null, productsLoading=false, productsReloadRequested=false, catalogueProducts=[], activeCategory="";
 
   const esc=value=>String(value??"").replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
   const money=value=>"₹"+Number(value||0).toLocaleString("en-IN",{maximumFractionDigits:2});
@@ -35,10 +35,52 @@
     document.title=(cfg.businessName||"Rainbow Gold Covering")+" — Jewellery, Made to Shine";
   }
 
-  function render(products){
+  function normalizeCategory(value){
+    return String(value??"")
+      .toLocaleLowerCase("en")
+      .replace(/&/g," and ")
+      .replace(/['’]/g,"")
+      .replace(/jewellery/g,"jewelry")
+      .replace(/[^a-z0-9]+/g," ")
+      .trim()
+      .split(/\\s+/)
+      .map(word=>word.length>3&&word.endsWith("s")&&!["mens","womens"].includes(word)?word.slice(0,-1):word)
+      .join(" ");
+  }
+
+  function categoryMatches(product,category){
+    const type=normalizeCategory(product.type);
+    const key=String(category||"").toLocaleLowerCase("en");
+    if(key==="men's jewellery"||key==="men’s jewellery"){
+      const productWords=normalizeCategory((product.type||"")+" "+(product.product_name||"")).split(" ");
+      if(productWords.some(word=>["men","mens","male"].includes(word)))return true;
+    }
+    const aliases={
+      chains:["chain","chain jewelry"],
+      necklaces:["necklace"],
+      earrings:["earring"],
+      bangles:["bangle"],
+      rings:["ring"],
+      "men's jewellery":["mens jewelry","men jewelry","mens jewellery","men jewellery"],
+      "men’s jewellery":["mens jewelry","men jewelry","mens jewellery","men jewellery"]
+    };
+    const terms=[category,...(aliases[key]||[])];
+    return terms.some(term=>{
+      const normalized=normalizeCategory(term);
+      return normalized&&(type===normalized||type.includes(normalized));
+    });
+  }
+
+  function render(){
     const grid=document.getElementById("productGrid"),status=document.getElementById("productStatus");
+    const heading=document.getElementById("productHeading"),clearButton=document.getElementById("clearProductFilter");
     if(!grid)return;
-    status.textContent=products.length+" product"+(products.length===1?"":"s")+" available";
+    const products=activeCategory?catalogueProducts.filter(product=>categoryMatches(product,activeCategory)):catalogueProducts;
+    if(status)status.textContent=activeCategory
+      ?products.length+" "+(products.length===1?"product":"products")+" in "+activeCategory
+      :products.length+" product"+(products.length===1?"":"s")+" available";
+    if(heading)heading.textContent=activeCategory?"Explore "+activeCategory.toLocaleLowerCase("en")+".":"Our latest products.";
+    if(clearButton)clearButton.hidden=!activeCategory;
     grid.innerHTML=products.length?products.map(p=>{
       const stock=getStock(p);
       const stockClass=stock===0?"out":"in";
@@ -49,11 +91,25 @@
         '<div class="product-body"><div class="product-code">'+esc(p.product_code)+'</div>'+
         '<h3 class="product-name">'+esc(p.product_name)+'</h3><div class="product-type">'+esc(p.type||"Jewellery")+'</div>'+
         '<div class="product-meta"><strong class="product-price">'+money(p.selling_price)+'</strong><span class="product-stock '+stockClass+'">'+stockText+'</span></div></div></article>';
-    }).join(""):'<div class="product-empty">No products are available yet.</div>';
+    }).join(""):'<div class="product-empty">'+(activeCategory?'No '+esc(activeCategory.toLocaleLowerCase("en"))+' products are available yet.':'No products are available yet.')+'</div>';
     grid.querySelectorAll("[data-product-id]").forEach(card=>{
-      const open=()=>openProductModal(products.find(p=>String(p.id)===String(card.dataset.productId)));
+      const open=()=>openProductModal(catalogueProducts.find(p=>String(p.id)===String(card.dataset.productId)));
       card.addEventListener("click",open);
       card.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();open();}});
+    });
+  }
+
+  function bindCollectionFilters(){
+    document.querySelectorAll("[data-filter-type]").forEach(link=>link.addEventListener("click",event=>{
+      event.preventDefault();
+      activeCategory=link.dataset.filterType||"";
+      render();
+      document.getElementById("products")?.scrollIntoView({behavior:"smooth",block:"start"});
+    }));
+    const clearButton=document.getElementById("clearProductFilter");
+    if(clearButton)clearButton.addEventListener("click",()=>{
+      activeCategory="";
+      render();
     });
   }
 
@@ -178,7 +234,8 @@
         .select("id,product_code,product_name,type,selling_price,description,length_cm,thickness,gold_amount_g,created_at,product_variants(id,stock_quantity,color,size,active),product_images(public_url,is_primary)")
         .eq("active",true).order("created_at",{ascending:false});
       if(error)throw error;
-      render(data||[]);
+      catalogueProducts=data||[];
+      render();
     }catch(error){
       console.error(error);
       if(status)status.textContent="Products are temporarily unavailable.";
@@ -200,6 +257,7 @@
     applyBusinessConfig();
     updateCartCount();
     bindProductModal();
+    bindCollectionFilters();
     document.querySelectorAll("[data-scroll]").forEach(button=>button.addEventListener("click",()=>{
       document.querySelector(button.dataset.scroll)?.scrollIntoView({behavior:"smooth"});
     }));
