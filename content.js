@@ -63,9 +63,12 @@
     };
     const matcher=rules[key];
     if(!matcher)return false;
-    if(key.indexOf("men")===0)return matcher.test(searchable);
-    if(hasCategoryName)return matcher.test(normalizeCategory(categoryName));
-    return matcher.test(normalizeCategory([product.type,product.product_name].filter(Boolean).join(" ")));
+    const designFields=normalizeCategory([product.type,product.product_name].filter(Boolean).join(" "));
+    if(key.indexOf("men")===0){
+      if(hasCategoryName)return matcher.test(normalizeCategory(categoryName));
+      return matcher.test(designFields);
+    }
+    return matcher.test(normalizeCategory(categoryName))||matcher.test(designFields);
   }
 
   function render(){
