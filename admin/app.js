@@ -7,7 +7,80 @@ async function getAuthUser(){const {data,error}=await bootSupabase().auth.getUse
 async function requireSession(){const client=bootSupabase();const {data:userData,error:userError}=await client.auth.getUser();if(userError||!userData.user){location.href="login.html";throw new Error("Please sign in.");}const {data:sessionData,error:sessionError}=await client.auth.getSession();if(sessionError||!sessionData.session){location.href="login.html";throw new Error("Session expired. Please sign in again.");}return sessionData.session;}
 async function getMyProfile(){const user=await getAuthUser();const {data,error}=await bootSupabase().from("staff_profiles").select("role,active,full_name,username").eq("user_id",user.id).maybeSingle();if(error)throw new Error("Could not load staff profile: "+error.message);if(!data)throw new Error("No staff profile exists for this login.");return data;}
 async function sb(path,options={}){const session=await requireSession();const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),15000);try{const r=await fetch(SUPABASE_URL+"/rest/v1/"+path,{...options,headers:{apikey:SUPABASE_ANON_KEY,Authorization:"Bearer "+session.access_token,"Content-Type":"application/json",...(options.headers||{})},signal:controller.signal});const body=await r.text();if(!r.ok)throw new Error(body||("Request failed: "+r.status));if(!body.trim())return null;return JSON.parse(body);}catch(e){if(e.name==="AbortError")throw new Error("Supabase request timed out. Check your connection.");throw e;}finally{clearTimeout(timer);}}
-async function applyRoleNavigation(){try{const p=await getMyProfile();if(!p.active){await bootSupabase().auth.signOut();location.href="login.html";return null;}const allowed={admin:["index.html","products.html","inventory.html","bills.html","orders.html","billing.html","staff.html","settings.html"],inventory_staff:["products.html","inventory.html"],cashier:["billing.html","bills.html","orders.html"]};if(!allowed[p.role])throw new Error("Invalid staff role: "+p.role);const page=(location.pathname.split("/").pop()||"index.html").toLowerCase();if(!allowed[p.role].includes(page)){location.href=p.role==="admin"?"index.html":p.role==="inventory_staff"?"products.html":"billing.html";return null;}document.querySelectorAll("aside nav a").forEach(a=>{const href=(a.getAttribute("href")||"").split("/").pop().split("?")[0].toLowerCase();if(href&&href.endsWith(".html")&&!allowed[p.role].includes(href))a.remove();});enableStableNavigation();const user=document.querySelector("aside .user");if(user){const label=p.role==="admin"?"Admin":p.role==="cashier"?"Cashier":"Inventory Staff";user.innerHTML=(p.full_name||p.username||"Staff")+"<br><small>"+label+"</small><button onclick=\"logout()\" style='margin-top:12px'>Sign out</button>";}return p;}catch(e){console.error(e);const msg=document.querySelector("#pageError");if(msg)msg.textContent=e.message;else{const box=document.createElement("div");box.style="position:fixed;left:20px;right:20px;bottom:20px;padding:14px 16px;background:#fff0f0;color:#a00;border:1px solid #f5b5b5;border-radius:12px;z-index:99999;font:14px Arial";box.textContent="Admin loading error: "+e.message;document.body.appendChild(box);}return null;}}
+const ADMIN_NAV_ITEMS=[
+  {label:"Dashboard",href:"index.html",roles:["admin"]},
+  {label:"Products",href:"products.html",roles:["admin","inventory_staff"]},
+  {label:"Inventory",href:"inventory.html",roles:["admin","inventory_staff"]},
+  {label:"Bills",href:"bills.html",roles:["admin","cashier"]},
+  {label:"Orders",href:"orders.html",roles:["admin","cashier"]},
+  {label:"Billing",href:"billing.html",roles:["admin","cashier"]},
+  {label:"Customers",href:"customers.html",roles:["admin","cashier"]},
+  {label:"Reports",href:"reports.html",roles:["admin"]},
+  {label:"Staff",href:"staff.html",roles:["admin"]},
+  {label:"Attendance",href:"attendance.html",roles:["admin"]}
+];
+function renderSharedSidebar(){
+  const aside=document.querySelector("body > aside");
+  if(!aside)return;
+  const current=(location.pathname.split("/").pop()||"index.html").toLowerCase();
+  aside.replaceChildren();
+  const brand=document.createElement("div");brand.className="brand";
+  const logo=document.createElement("img");logo.src="../assets/brand/rainbow-logo.png";logo.alt="Rainbow Gold Covering logo";logo.width=36;logo.height=36;
+  const name=document.createElement("span");name.innerHTML="RAINBOW<br>GOLD COVERING";
+  brand.append(logo,name);aside.append(brand);
+  const nav=document.createElement("nav");nav.setAttribute("aria-label","Admin navigation");
+  ADMIN_NAV_ITEMS.forEach(item=>{
+    const link=document.createElement("a");link.href=item.href;link.textContent=item.label;
+    if(item.href===current){link.classList.add("active");link.setAttribute("aria-current","page");}
+    nav.append(link);
+  });
+  aside.append(nav);
+  const user=document.createElement("div");user.className="user";
+  const label=document.createElement("span");label.textContent="Staff";
+  const role=document.createElement("small");role.textContent="Checking access…";
+  const signOut=document.createElement("button");signOut.type="button";signOut.textContent="Sign out";signOut.style.marginTop="12px";signOut.addEventListener("click",()=>logout());
+  user.append(label,document.createElement("br"),role,signOut);aside.append(user);
+}
+async function applyRoleNavigation(){
+  try{
+    const p=await getMyProfile();
+    if(!p.active){await bootSupabase().auth.signOut();location.href="login.html";return null;}
+    const allowed={
+      admin:ADMIN_NAV_ITEMS.filter(x=>x.roles.includes("admin")).map(x=>x.href),
+      inventory_staff:ADMIN_NAV_ITEMS.filter(x=>x.roles.includes("inventory_staff")).map(x=>x.href),
+      cashier:ADMIN_NAV_ITEMS.filter(x=>x.roles.includes("cashier")).map(x=>x.href)
+    };
+    if(!allowed[p.role])throw new Error("Invalid staff role: "+p.role);
+    const page=(location.pathname.split("/").pop()||"index.html").toLowerCase();
+    if(!allowed[p.role].includes(page)){
+      location.href=p.role==="admin"?"index.html":p.role==="inventory_staff"?"products.html":"billing.html";
+      return null;
+    }
+    document.querySelectorAll("aside nav a").forEach(a=>{
+      const href=(a.getAttribute("href")||"").toLowerCase();
+      if(!allowed[p.role].includes(href)){a.remove();return;}
+      const active=href===page;
+      a.classList.toggle("active",active);
+      if(active)a.setAttribute("aria-current","page");else a.removeAttribute("aria-current");
+    });
+    const user=document.querySelector("aside .user");
+    if(user){
+      const roleLabel=p.role==="admin"?"Admin":p.role==="cashier"?"Cashier":"Inventory Staff";
+      const label=user.querySelector("span");if(label)label.textContent=p.full_name||p.username||"Staff";
+      const small=user.querySelector("small");if(small)small.textContent=roleLabel;
+    }
+    return p;
+  }catch(e){
+    console.error(e);
+    const msg=document.querySelector("#pageError");
+    if(msg){msg.textContent=e.message;msg.hidden=false;}
+    else{
+      const box=document.createElement("div");box.style="position:fixed;left:20px;right:20px;bottom:20px;padding:14px 16px;background:#fff0f0;color:#a00;border:1px solid #f5b5b5;border-radius:12px;z-index:99999;font:14px Arial";
+      box.textContent="Admin loading error: "+e.message;document.body.appendChild(box);
+    }
+    return null;
+  }
+}
 async function logout(){await bootSupabase().auth.signOut();location.href="login.html";}
 function comingSoon(name){alert(name+" is not enabled yet.");return false;}
 function enableStableNavigation(){document.querySelectorAll("aside nav a[href]").forEach(a=>{if(a.dataset.stableNav==="true")return;const href=a.getAttribute("href")||"";if(!href.endsWith(".html"))return;a.dataset.stableNav="true";a.addEventListener("click",event=>{if(event.defaultPrevented)return;event.preventDefault();window.location.assign(href);},{once:true});});}
@@ -26,5 +99,6 @@ function startDashboardLiveUpdates(){
   document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")loadDashboard();});
   window.addEventListener("pagehide",()=>{if(dashboardRefreshTimer)clearTimeout(dashboardRefreshTimer);if(dashboardPollTimer)clearInterval(dashboardPollTimer);if(dashboardLiveChannel)client.removeChannel(dashboardLiveChannel);},{once:true});
 }
+renderSharedSidebar();
 async function bootAdminPage(){const profile=await applyRoleNavigation();if(profile?.role==="admin"&&document.querySelector("#sales")){await loadDashboard();startDashboardLiveUpdates();}}
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",bootAdminPage,{once:true});else bootAdminPage();
