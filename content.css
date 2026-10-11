@@ -8,7 +8,6 @@ button{font:inherit}
 .topbar{position:sticky;top:0;z-index:20;background:rgba(255,253,249,.9);backdrop-filter:blur(18px);border-bottom:1px solid rgba(234,223,209,.8)}
 .nav{min-height:76px;display:flex;align-items:center;justify-content:space-between;gap:28px}
 .logo{display:flex;align-items:center;gap:12px}
-.logo-mark{width:42px;height:42px;border:1px solid var(--gold);border-radius:50%;display:grid;place-items:center;color:var(--gold);font-size:13px;font-weight:800;letter-spacing:-.08em}
 .logo strong{display:block;font-size:13px;letter-spacing:.08em}
 .logo small{display:block;margin-top:3px;color:#8a8178;font-size:8px;letter-spacing:.2em}
 .navlinks{display:flex;gap:28px;color:#625b54;font-size:12px}
@@ -148,3 +147,6 @@ body.modal-open{overflow:hidden}
 .variant-picker-label{display:grid;gap:7px;margin:14px 0;font-size:11px;color:var(--muted)}
 .variant-picker-label select{width:100%;max-width:100%;padding:12px;border:1px solid var(--line);border-radius:11px;background:#fff;color:var(--ink);font:inherit}
 .product-buy-actions button:disabled,.quantity-picker button:disabled{opacity:.45;cursor:not-allowed}
+
+/* Use the supplied brand asset in both customer-page footers. */
+.footer-brand{display:inline-flex;align-items:center;gap:9px;min-height:28px}.footer-logo{display:block;width:28px;height:28px;object-fit:contain;flex:0 0 28px}

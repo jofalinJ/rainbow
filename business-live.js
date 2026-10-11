@@ -14,7 +14,7 @@
       if(settings){
         const brand=document.querySelector('[data-config="brandName"]');
         const eyebrow=document.querySelector('[data-config="eyebrow"]');
-        const footer=document.querySelector('[data-config="footerBrand"]');
+        const footer=document.querySelector('[data-config="footerBrandText"]');
         if(brand)brand.textContent=(settings.business_name||"Rainbow").split(" ")[0].toUpperCase();
         if(eyebrow)eyebrow.textContent=(settings.business_name||"Rainbow Gold Covering").toUpperCase()+" · "+(settings.trust_line||"");
         if(footer)footer.textContent=settings.business_name||"Rainbow Gold Covering";

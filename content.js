@@ -22,7 +22,7 @@
     if(!cfg)return;
     const brand=document.querySelector('[data-config="brandName"]');
     const eyebrow=document.querySelector('[data-config="eyebrow"]');
-    const footer=document.querySelector('[data-config="footerBrand"]');
+    const footer=document.querySelector('[data-config="footerBrandText"]');
     if(brand)brand.textContent=(cfg.businessName||"Rainbow").split(" ")[0].toUpperCase();
     if(eyebrow)eyebrow.textContent=(cfg.businessName||"Rainbow Gold Covering").toUpperCase()+" · "+(cfg.trustLine||"");
     if(footer)footer.textContent=cfg.businessName||"Rainbow Gold Covering";
