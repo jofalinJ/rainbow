@@ -8,7 +8,7 @@
 <meta property="og:image" content="https://jofalinj.github.io/rainbow/assets/brand/rainbow-logo.png">
 <meta name="description" content="Rainbow Kollam Gold Covering — premium gold-covering jewellery, collections and store information.">
 <title>Rainbow Kollam Gold Covering — Jewellery, Made to Shine</title>
-<link rel="stylesheet" href="content.css?v=20261015-storefront-polish-v1">
+<link rel="stylesheet" href="content.css?v=20261015-promotion-v1">
 <script src="config.js"></script>
 <script src="admin/config.js"></script>
 </head>
@@ -105,6 +105,24 @@
 </div>
 </section>
 
+<section id="featuredPromotion" class="featured-promotion" aria-label="Featured product promotion" hidden>
+  <div class="container">
+    <div class="featured-promotion-card">
+      <div class="featured-promotion-content">
+        <span class="featured-promotion-eyebrow">FEATURED AT RAINBOW · LIMITED SPOTLIGHT</span>
+        <h2 id="promotionName"></h2>
+        <p id="promotionDescription"></p>
+        <div class="featured-promotion-offer"><span id="promotionPrice"></span><span>Selected design</span></div>
+        <button id="promotionView" class="btn btn-dark featured-promotion-cta" type="button">View featured jewellery <span aria-hidden="true">→</span></button>
+      </div>
+      <div class="featured-promotion-media">
+        <img id="promotionImage" src="" alt="" width="600" height="600" loading="lazy" decoding="async">
+        <span class="featured-promotion-stamp">RAINBOW PICK</span>
+      </div>
+    </div>
+  </div>
+</section>
+
 <section class="section live-products" id="products">
 <div class="container">
 <div class="section-head"><div><span class="section-kicker">SHOP</span><h2 id="productHeading">Shop by category.</h2></div></div>
@@ -137,6 +155,6 @@
 </main>
 <footer class="container footer"><span class="footer-brand" data-config="footerBrand"><img class="footer-logo" src="assets/brand/rainbow-logo.png" alt="Rainbow Kollam Gold Covering logo" width="28" height="28" loading="lazy"><span data-config="footerBrandText">RAINBOW KOLLAM GOLD COVERING</span></span><span><a class="instagram-link" data-instagram href="https://www.instagram.com/rainbow_kollam_gold_covering/" target="_blank" rel="noopener noreferrer">Instagram · @rainbow_kollam_gold_covering</a></span><span class="footer-legal-link"><a href="privacy-policy.html">Privacy Policy</a></span><span class="footer-legal-link"><a href="terms-and-conditions.html">Terms &amp; Conditions</a></span><span class="footer-legal-link"><a href="sitemap.html">Sitemap</a></span><span>© <span id="year"></span> Rainbow Kollam Gold Covering. All rights reserved.</span></footer>
 <div id="productModal" class="product-modal" aria-hidden="true"><div class="product-modal-backdrop" data-close-product></div><button class="product-modal-nav previous" type="button" data-product-prev aria-label="Previous product" hidden>‹</button><div class="product-modal-panel" role="dialog" aria-modal="true" aria-labelledby="modalProductName"><button class="product-modal-close" type="button" aria-label="Close product details" data-close-product>×</button><div id="productModalContent"></div></div><button class="product-modal-nav next" type="button" data-product-next aria-label="Next product" hidden>›</button></div>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="content.js?v=20261015-storefront-polish-v1"></script><script src="business-live.js?v=20261011-brand-name"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="content.js?v=20261015-promotion-v1"></script><script src="business-live.js?v=20261011-brand-name"></script>
 </body>
 </html>
