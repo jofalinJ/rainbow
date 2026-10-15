@@ -162,7 +162,5 @@ begin
     'total_amount',v_total
   );
 end;
-$function$
+$function$;
 
-
--- Preserve current function access used by public manual-QR checkout.
