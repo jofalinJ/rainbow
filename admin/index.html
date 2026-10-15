@@ -1,31 +1,26 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#8f1520"><link rel="icon" type="image/png" href="../assets/brand/rainbow-logo.png"><title>Rainbow Gold Covering — Admin</title><link rel="stylesheet" href="style.css"><script src="config.js"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script defer src="app.js?v=20261015-sidebar-role-guard-v1"></script><script defer src="promotion.js?v=20261015-promo-v1"></script></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#8f1520"><link rel="icon" type="image/png" href="../assets/brand/rainbow-logo.png"><title>Rainbow Gold Covering — Admin</title><link rel="stylesheet" href="style.css"><script src="config.js"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script defer src="app.js?v=20261015-sidebar-role-guard-v1"></script><script defer src="promotion.js?v=20261015-rotating-gallery-v1"></script></head>
 <body>
 <aside aria-label="Admin sidebar"></aside>
 <main><header><div><p class="eyebrow">OVERVIEW</p><h1>Dashboard</h1></div><button class="profile" onclick="logout()">Sign out</button></header>
 <section class="cards"><div><small>Today’s Sales</small><strong id="sales">₹0</strong><span id="salesMeta">Loading…</span></div><div><small>Orders</small><strong id="orders">0</strong><span>Recent orders</span></div><div><small>Products</small><strong id="products">0</strong><span>Active products</span></div><div class="alert"><small>Low Stock</small><strong id="lowCount">0</strong><span>Needs attention</span></div></section>
 <section class="panel promotion-management" aria-labelledby="promotionTitle">
   <div class="panelhead promotion-head">
-    <div><p class="eyebrow">HOMEPAGE FEATURE</p><h2 id="promotionTitle">Promotional banner</h2></div>
+    <div><p class="eyebrow">HOMEPAGE GALLERY</p><h2 id="promotionTitle">Rotating promotional images</h2></div>
     <span class="promotion-pill">Storefront</span>
   </div>
-  <p class="promotion-explainer">Choose one in-stock product with a photo. Its image, name and price will appear in a featured banner on the customer homepage.</p>
+  <p class="promotion-explainer">Choose up to 8 in-stock products with photos. Only their real product images will rotate in your shop's banner. Arrange the order below.</p>
   <form id="promotionForm" class="promotion-form">
     <div class="promotion-controls">
-      <label for="promotionProduct">Featured product
+      <label for="promotionProduct">Add a product image
         <select id="promotionProduct" disabled><option value="">Loading products…</option></select>
       </label>
-      <div class="promotion-actions">
-        <button class="primary" id="promotionSave" type="submit" disabled>Publish banner</button>
-        <button id="promotionClear" type="button" disabled>Remove banner</button>
-      </div>
+      <button id="promotionAdd" type="button" disabled>＋ Add image</button>
+      <div class="promotion-actions"><button class="primary" id="promotionSave" type="submit" disabled>Save rotating banner</button><button id="promotionClear" type="button" disabled>Clear all</button></div>
     </div>
-    <div class="promotion-preview" id="promotionPreview" hidden>
-      <img id="promotionPreviewImage" alt="" loading="lazy" width="160" height="160" hidden>
-      <div><small>PREVIEW · FEATURED PRODUCT</small><strong id="promotionPreviewName"></strong><span id="promotionPreviewDetail"></span></div>
-    </div>
-    <p id="promotionCurrent" class="promotion-current">Checking current promotion…</p>
+    <div class="promotion-multi-list" id="promotionItems" aria-label="Selected promotional product images"></div>
+    <p id="promotionCurrent" class="promotion-current">Loading saved promotion images…</p>
     <p id="promotionFeedback" class="promotion-feedback" role="status" aria-live="polite"></p>
   </form>
 </section>
