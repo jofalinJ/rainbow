@@ -172,7 +172,7 @@ function setupFacePilot(){
       const client=window.bootSupabase();
       referenceEmbedding=await loadReference(engine,client);
       if(token!==runToken)return;
-      let samples=0,score=0,lastReason="Face checks have not passed yet.";
+      let consecutiveMatches=0,lastReason="Face checks have not passed yet.";
       updateStatus("Look toward the camera. Please stay still while the test checks your face…");
       for(let i=0;i<18&&token===runToken;i++){
         const result=await engine.detect(video);
@@ -182,13 +182,17 @@ function setupFacePilot(){
           const match=engine.match.find(result.face[0].embedding,[referenceEmbedding],{
             order:2,multiplier:25,min:0.2,max:0.8
           });
-          if(Number.isFinite(match.similarity)){score=Math.max(score,match.similarity);samples++;}
-        }else lastReason=verdict.reason;
-        if(assessPilotSimilarity(score,samples))break;
+          const similar=Number.isFinite(match?.similarity)&&match.similarity>=MIN_SIMILARITY;
+          consecutiveMatches=similar?consecutiveMatches+1:0;
+          if(!similar)lastReason="Your face did not match consistently in this frame.";
+        }else{
+          consecutiveMatches=0;lastReason=verdict.reason;
+        }
+        if(consecutiveMatches>=REQUIRED_FRAMES)break;
         await new Promise(resolve=>setTimeout(resolve,150));
       }
       if(token!==runToken)return;
-      if(assessPilotSimilarity(score,samples)){
+      if(consecutiveMatches>=REQUIRED_FRAMES){
         message="Face preview matched your reference. Check in or Check out using the normal attendance button; this preview is not official identity verification.";
         kind="success";
       }else{
