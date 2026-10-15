@@ -93,3 +93,18 @@ test("bill View opens the in-app bill preview when an isolated E2E bill exists",
     assert.equal(await preview.isDisplayed(), true);
   });
 });
+
+test("admin dashboard provides the promotional product selector", { skip: !E2E_ENABLED }, async () => {
+  requireAuthenticatedE2EConfig();
+  await runWithDriver("admin-promotion-editor", async (driver) => {
+    const login = new LoginPage(driver);
+    await login.open(BASE_URL);
+    await login.signIn(ADMIN_USERNAME, ADMIN_PASSWORD);
+    await driver.get(BASE_URL + "/admin/index.html");
+    await driver.wait(until.elementLocated(By.css("#promotionForm")), 10000);
+    assert.equal(await driver.findElement(By.css("#promotionTitle")).isDisplayed(), true);
+    assert.equal(await driver.findElement(By.css("#promotionProduct")).getTagName(), "select");
+    assert.equal(await driver.findElement(By.css("#promotionSave")).getAttribute("type"), "submit");
+    assert.equal(await driver.findElement(By.css("#promotionClear")).getAttribute("type"), "button");
+  });
+});
