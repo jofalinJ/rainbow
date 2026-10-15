@@ -92,6 +92,13 @@ test("homepage editorial content and contact links match storefront feedback", a
     assert.equal(await logo.isDisplayed(), true);
     assert.match(await logo.getAttribute("src"), /assets\/brand\/logo2\.png/);
     assert.ok((await logo.getAttribute("alt")).includes("Rainbow"));
+    const logoStyle = await driver.executeScript((element) => {
+      const style = getComputedStyle(element);
+      return { blend: style.mixBlendMode, background: style.backgroundColor, border: style.borderTopStyle };
+    }, logo);
+    assert.equal(logoStyle.blend, "multiply");
+    assert.equal(logoStyle.background, "rgba(0, 0, 0, 0)");
+    assert.equal(logoStyle.border, "none");
 
     const links = await driver.findElements(By.css("#contact .contact-phone a"));
     assert.equal(links.length, 3);
