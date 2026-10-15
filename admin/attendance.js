@@ -110,7 +110,7 @@ function renderDailyRows(){
     const reviewStatus=record?.photo_review_status||"Not submitted";
     const photoReview=record?.photo_path
       ?"<button type='button' data-photo-review='"+attendanceEscape(id)+"'>"+(reviewStatus==="Pending"?"Review photo":"View photos")+"</button><small>"+attendanceEscape(reviewStatus)+"</small>"
-      :"<small>No check-in photo</small>";
+      :"<small>—</small>";
     return "<tr><td><div class='attendance-person'>"+avatar+"<span><b>"+attendanceEscape(name)+"</b><small>"+attendanceEscape(attendanceRole(profile.role))+"</small></span></div></td>"+
       "<td><select data-attendance-status data-staff-id='"+attendanceEscape(id)+"' aria-label='Attendance status for "+attendanceEscape(name)+"' "+(busy?"disabled":"")+">"+statusOptions+"</select></td>"+
       "<td><div class='time-action'><span>"+attendanceEscape(attendanceTimeLabel(record?.check_in))+"</span><button type='button' data-attendance-action='check_in' data-staff-id='"+attendanceEscape(id)+"' title='"+attendanceEscape(timeHint)+"' "+(checkInDisabled?"disabled":"")+">Check in</button></div></td>"+
