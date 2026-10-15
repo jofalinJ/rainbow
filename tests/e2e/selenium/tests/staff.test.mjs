@@ -141,3 +141,44 @@ test("admin orders provides shipment management with customer data and mobile co
     assert.equal(await editor.isDisplayed(), false);
   });
 });
+
+test("admin hides personal attendance and can edit the ordered promotion gallery", { skip: !E2E_ENABLED }, async () => {
+  requireAuthenticatedE2EConfig();
+  await runWithDriver("admin-promotion-gallery", async driver => {
+    const login=new LoginPage(driver);
+    await login.open(BASE_URL);
+    await login.signIn(ADMIN_USERNAME, ADMIN_PASSWORD);
+    await driver.get(BASE_URL + "/admin/index.html");
+    await driver.wait(until.elementLocated(By.css("#promotionItems")), 10000);
+    const nav=await driver.findElement(By.css("aside nav")).getText();
+    assert.ok(nav.includes("Attendance"),"Admins retain staff attendance oversight");
+    assert.ok(!nav.includes("My Attendance"),"Admin personal attendance should be hidden");
+    assert.equal((await driver.findElements(By.css("#promotionProduct"))).length, 1);
+    assert.equal((await driver.findElements(By.css("#promotionAdd"))).length, 1);
+    await driver.get(BASE_URL + "/admin/my-attendance.html");
+    await driver.wait(until.urlContains("index.html"), 10000);
+  });
+});
+
+test("customers have a detail dialog and orders page is usable at mobile width", { skip: !E2E_ENABLED }, async () => {
+  requireAuthenticatedE2EConfig();
+  await runWithDriver("mobile-customer-and-orders", async driver => {
+    const login=new LoginPage(driver);
+    await login.open(BASE_URL);
+    await login.signIn(ADMIN_USERNAME, ADMIN_PASSWORD);
+    await driver.manage().window().setRect({width:430,height:960});
+    await driver.get(BASE_URL + "/admin/customers.html");
+    await driver.wait(until.elementLocated(By.css("#customerDetails")), 10000);
+    const buttons=await driver.findElements(By.css("[data-customer-id]"));
+    if(buttons.length){
+      await driver.executeScript("arguments[0].click()",buttons[0]);
+      const dialog=await driver.findElement(By.css("#customerDetails"));
+      assert.equal(await dialog.isDisplayed(),true);
+      assert.ok((await driver.findElement(By.css("#customerDetailsBody")).getText()).includes("Order and billing history"));
+      await driver.findElement(By.css("#customerDetailsClose")).click();
+    }
+    await driver.get(BASE_URL + "/admin/orders.html");
+    await driver.wait(until.elementLocated(By.css("#rows")), 10000);
+    assert.equal((await driver.findElements(By.css("#rows"))).length,1);
+  });
+});
