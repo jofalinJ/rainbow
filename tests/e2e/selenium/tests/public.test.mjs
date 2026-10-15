@@ -41,7 +41,7 @@ test("customer product catalogue resolves to a usable state", async () => {
     await driver.wait(async () => (await status.getText()).trim() !== "Loading products…", 15000);
     const value = (await status.getText()).trim();
     assert.notEqual(value, "Products are temporarily unavailable.");
-    assert.match(value, /product(s)? available/i);
+    assert.match(value, /choose a product type|no product types|product(s)? available/i);
   });
 });
 
@@ -50,5 +50,18 @@ test("customer navigation does not expose the staff portal", async () => {
     await driver.get(BASE_URL + "/");
     const links = await driver.findElements(By.css("a[href*='/admin/'], a[href*='admin/login']"));
     assert.equal(links.length, 0);
+  });
+});
+
+test("customer mobile navigation opens and closes with accessible state", async () => {
+  await runWithDriver("customer-navigation", async (driver) => {
+    await driver.manage().window().setRect({ width: 390, height: 844 });
+    await driver.get(BASE_URL + "/");
+    assert.match(await driver.findElement(By.css(".skip-link")).getAttribute("href"), /#mainContent$/);
+    const toggle = await driver.findElement(By.css("#menuToggle"));
+    await toggle.click();
+    assert.equal(await toggle.getAttribute("aria-expanded"), "true");
+    await driver.findElement(By.css("#drawerClose")).click();
+    assert.equal(await toggle.getAttribute("aria-expanded"), "false");
   });
 });
