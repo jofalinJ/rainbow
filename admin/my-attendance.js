@@ -99,6 +99,7 @@ async function bootMyAttendance(){
     const session=await requireSession();
     const profile=await getMyProfile();
     if(!profile.active)throw new Error("This staff account is inactive.");
+    if(profile.role==="admin"){location.replace("index.html");return;}
     myAttendanceUserId=session.user.id;
     const greeting=document.getElementById("staffGreeting");
     if(greeting)greeting.textContent="Welcome, "+(profile.full_name||profile.username||"staff member")+". Record your attendance for today.";
