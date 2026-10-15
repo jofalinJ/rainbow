@@ -70,3 +70,19 @@ body>aside nav a[aria-current="page"]{outline:none}
  .promotion-preview img{width:75px;height:75px;flex-basis:75px}
  .promotion-preview strong{font-size:19px}
 }
+
+/* Ordered product-image gallery in admin dashboard. */
+.promotion-multi-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-top:18px}
+.promotion-item{display:flex;align-items:center;gap:10px;min-width:0;border:1px solid #e8d9c8;border-radius:14px;background:#fff;padding:10px}
+.promotion-index{font-size:11px;font-weight:800;color:#ad863e}
+.promotion-item img{width:60px;height:72px;object-fit:contain;border-radius:9px;background:#f9f5ef;flex:0 0 60px}
+.promotion-item-name{display:grid;gap:5px;min-width:0;flex:1}
+.promotion-item-name strong{font-size:12px;overflow-wrap:anywhere}
+.promotion-item-name small{font-size:10px;color:#8a827a}
+.promotion-item-actions{display:flex;gap:4px;flex-wrap:wrap}
+.promotion-item-actions button{min-width:33px;min-height:38px;cursor:pointer}
+.promotion-item-actions button:disabled{opacity:.4;cursor:default}
+.promotion-empty{border:1px dashed #d8c8b6;border-radius:12px;padding:20px;color:#81756c;font-size:12px}
+#promotionAdd{min-height:44px;font-weight:700;color:#8f1520;border-color:#cfae7f;cursor:pointer}
+.promotion-form button:focus-visible{outline:3px solid #c89a3c;outline-offset:2px}
+@media(max-width:680px){.promotion-multi-list{grid-template-columns:1fr}.promotion-item{flex-wrap:wrap}.promotion-item-actions{justify-content:flex-end}}
