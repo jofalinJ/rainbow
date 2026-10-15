@@ -209,3 +209,31 @@ test("product variant editor reveals selectable existing products and aligned fi
     assert.equal(await driver.findElement(By.css("#form")).isDisplayed(), true);
   });
 });
+
+test("inventory stock editor displays current stock and prevents invalid changes on mobile", { skip: !E2E_ENABLED }, async () => {
+  requireAuthenticatedE2EConfig();
+  await runWithDriver("inventory-stock-history", async driver => {
+    const login=new LoginPage(driver);
+    await login.open(BASE_URL);
+    await login.signIn(ADMIN_USERNAME, ADMIN_PASSWORD);
+    await driver.manage().window().setRect({width:430,height:930});
+    await driver.get(BASE_URL + "/admin/inventory.html");
+    const actions=await driver.wait(until.elementsLocated(By.css("[data-manage-stock]")),15000);
+    if(!actions.length)return;
+    await driver.executeScript("arguments[0].click()",actions[0]);
+    const dialog=await driver.findElement(By.css("#stockDialog"));
+    await driver.wait(async()=>await dialog.isDisplayed(),5000);
+    const current=await driver.findElement(By.css("#stockCurrent"));
+    await driver.wait(async()=>/^\d[\d,]*$/.test((await current.getText()).trim()),10000);
+    assert.equal((await driver.findElement(By.css("#stockSave")).isEnabled()),false);
+    assert.equal((await driver.findElement(By.css("#stockHistory")).isDisplayed()),true);
+    const qty=await driver.findElement(By.css("#stockQuantity"));
+    const reason=await driver.findElement(By.css("#stockReason"));
+    await qty.sendKeys("1");
+    await reason.sendKeys("Inventory recount adjustment");
+    assert.equal((await driver.findElement(By.css("#stockSave")).isEnabled()),true);
+    // No save is performed by this test; it never changes production or test stock.
+    await driver.findElement(By.css("#stockClose")).click();
+    assert.equal(await dialog.isDisplayed(),false);
+  });
+});
