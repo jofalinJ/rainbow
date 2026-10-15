@@ -1,3 +1,4 @@
+import {INDIAN_STATES,deliveryFeeForState} from "./order-pricing.mjs";
 (() => {
   const CONFIG=window.RAINBOW_SUPABASE_CONFIG||{};
   const SUPABASE_URL=String(CONFIG.supabaseUrl||"").trim();
@@ -43,16 +44,17 @@
     const taxable=roundMoney(subtotal-discount);
     const cgst=roundMoney(taxable*.015);
     const sgst=roundMoney(taxable*.015);
-    const total=roundMoney(taxable+cgst+sgst);
+    const shipping=cart.length?deliveryFeeForState($("state").value):null;
+    const total=shipping===null?null:roundMoney(taxable+cgst+sgst+shipping);
     $("subtotal").textContent=money(subtotal);
     $("discount").textContent=money(discount);
     $("cgst").textContent=money(cgst);
     $("sgst").textContent=money(sgst);
-    $("delivery").textContent="To confirm separately";
-    $("total").textContent=money(total);
-    $("totalLabel").textContent="Pay now · delivery to confirm";
-    const payTotal=$("paymentDueTotal");if(payTotal)payTotal.textContent=money(total);
-    return {subtotal,discount,cgst,sgst,total};
+    $("delivery").textContent=shipping===null?"Choose state":money(shipping);
+    $("total").textContent=total===null?"—":money(total);
+    $("totalLabel").textContent="Total including delivery";
+    const payTotal=$("paymentDueTotal");if(payTotal)payTotal.textContent=total===null?"—":money(total);
+    return {subtotal,discount,cgst,sgst,shipping,total};
   }
     function roundMoney(value){return Math.round((Number(value)+Number.EPSILON)*100)/100;}
   function cartItemHasStock(item){
@@ -106,9 +108,20 @@
     const button=$("placeOrder");
     if(!button)return;
     const reference=String($("paymentReference")?.value||"").trim();
-    const paid=Boolean($("paymentConfirmed")?.checked);
-    button.disabled=submitting||cart.length===0||!cartVerified||cartVerificationFailed||
-      cart.some(item=>!cartItemHasStock(item))||!paid||!/^[A-Za-z0-9-]{8,64}$/.test(reference);
+    const shipping=deliveryFeeForState($("state").value);
+    const payReady=cart.length>0&&cartVerified&&!cartVerificationFailed&&
+      cart.every(cartItemHasStock)&&shipping!==null;
+    const qr=$("checkoutQR");
+    const qrMessage=$("qrUnavailable");
+    if(qr)qr.hidden=!payReady;
+    if(qrMessage){
+      qrMessage.hidden=payReady;
+      qrMessage.textContent=!cart.length?"Add jewellery to your bag before making a payment."
+        :shipping===null?"Choose your delivery state to calculate the complete amount."
+        :"Verifying current prices and stock before showing the UPI QR…";
+    }
+    button.disabled=submitting||!payReady||$("paymentMethod").value!=="upi"||
+      !/^[A-Za-z0-9-]{8,64}$/.test(reference);
   }
     async function verifyCart(){
     if(!cart.length){cartVerified=true;render();return;}
@@ -190,7 +203,7 @@
     const address=$("address").value.trim();
     const paymentMethod=$("paymentMethod").value;
     const paymentReference=$("paymentReference").value.trim();
-    const paymentConfirmed=$("paymentConfirmed").checked;
+    const shipping=deliveryFeeForState($("state").value);
     const customer={
       name,
       whatsapp_number:phone,
@@ -205,9 +218,9 @@
     if(!name||!phone||!address){msg("Name, WhatsApp number and delivery address are required.","error");return;}
     if(!phoneLooksValid(phone)){msg("Enter a valid WhatsApp number, including country code if needed.","error");return;}
     if(pin&&!/^\d{6}$/.test(pin)){msg("Enter a valid 6-digit PIN code.","error");return;}
-    if(paymentMethod!=="upi"){msg("Choose the available UPI QR payment method.","error");return;}
+    if(shipping===null){msg("Choose a valid Indian state or union territory for delivery.","error");return;}
+    if(paymentMethod!=="upi"){msg("Razorpay payment methods are not active yet. Please use manual UPI QR.","error");return;}
     if(!/^[A-Za-z0-9-]{8,64}$/.test(paymentReference)){msg("Pay with the QR code and enter the UPI transaction reference (8–64 letters or digits).","error");return;}
-    if(!paymentConfirmed){msg("Confirm that you have completed the UPI payment before submitting.","error");return;}
     submitting=true;
     $("placeOrder").textContent="Submitting for verification…";
     updatePlaceOrderState();
@@ -226,7 +239,7 @@
       save();
       $("orderLayout").hidden=true;
       $("orderSuccess").hidden=false;
-      $("orderSuccess").innerHTML="<h2>Payment submitted for verification.</h2><p>Your order number is <strong>"+esc(data.order_number)+"</strong>.</p><p>Total paid by UPI: <strong>"+money(data.total_amount)+"</strong>. Delivery charges will be confirmed separately by the store.</p><p class='payment-status-note'>Your order stays pending until an admin confirms the UPI transaction. The full order alert is sent only after that verification.</p><a class='btn btn-dark' href='index.html#products'>Continue shopping</a>";
+      $("orderSuccess").innerHTML="<h2>UPI reference submitted.</h2><p>Your order number is <strong>"+esc(data.order_number)+"</strong>.</p><p>Order total including delivery: <strong>"+money(data.total_amount)+"</strong>.</p><p>Keep your UPI transaction receipt until the shop confirms payment.</p><a class='btn btn-dark' href='index.html#products'>Continue shopping</a>";
       msg("");
     }catch(error){
       console.error("Order creation failed.",error);
@@ -241,8 +254,10 @@
   $("clearCart").onclick=()=>{cart=[];cartVerified=true;cartVerificationFailed=false;save();render();msg("");};
   $("placeOrder").onclick=placeOrder;
   $("paymentReference").addEventListener("input",updatePlaceOrderState);
-  $("paymentConfirmed").addEventListener("change",updatePlaceOrderState);
   $("paymentMethod").addEventListener("change",updatePlaceOrderState);
+  const stateField=$("state");
+  for(const state of INDIAN_STATES)stateField.add(new Option(state,state));
+  stateField.addEventListener("change",()=>{totals();updatePlaceOrderState();});
   read();
   render();
   verifyCart();
