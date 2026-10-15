@@ -1,1 +1,33 @@
 .filters{display:grid;grid-template-columns:1fr 180px;gap:10px;margin-bottom:16px}.filters input,.filters select{border:1px solid #ddd;border-radius:9px;padding:11px;background:#fff}.orders-table{width:100%;border-collapse:collapse;font-size:12px}.orders-table th{text-align:left;font-size:10px;color:#999;text-transform:uppercase;letter-spacing:1px;padding:10px;border-bottom:1px solid #eee}.orders-table td{padding:14px 10px;border-bottom:1px solid #f0f0f0;vertical-align:top}.orders-table small{display:block;color:#888;margin-top:4px}.order-status{border-radius:999px;padding:5px 8px;font-size:10px;text-transform:capitalize;background:#f5f0e8}.action-row{display:flex;gap:6px;flex-wrap:wrap}.action-row button{white-space:nowrap}.wa{color:#247745;border-color:#b9d9c5}.map{color:#7a5c20;border-color:#ddcda8}.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:1000;padding:24px;overflow:auto}.modal.open{display:block}.modal-card{width:min(820px,100%);margin:0 auto;background:#fff;border-radius:18px;padding:24px}.modal-head{display:flex;justify-content:space-between;align-items:start}.modal-head h2{font:500 34px Georgia,serif;margin:5px 0 20px}.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.detail-box{border:1px solid #eee;border-radius:12px;padding:13px}.detail-box span{display:block;color:#999;font-size:10px;text-transform:uppercase;margin-bottom:5px}.detail-box strong{font-size:13px;white-space:pre-line}.items{margin-top:18px;border-top:1px solid #eee}.items div{display:flex;justify-content:space-between;gap:15px;padding:11px 0;border-bottom:1px solid #eee;font-size:12px}.modal-actions{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}.msg-success{color:#27764a}.msg-error{color:#a12d25}@media(max-width:700px){.filters,.detail-grid{grid-template-columns:1fr}.table-wrap{overflow:auto}.orders-table{min-width:850px}.modal{padding:10px}}
+/* Rainbow Gold Covering · shipment management */
+.shipment-action{border:1px solid #d9b985;color:#8f1520;font-weight:700;background:#fffaf3}
+.shipment-action:hover{border-color:#a47b40;background:#fff4e6}
+.shipment-modal-card{width:min(850px,100%);border:1px solid #e6d9cb;box-shadow:0 24px 80px #28120e25}
+.shipment-modal-card .modal-head{border-bottom:1px solid #ebded1;padding-bottom:12px}
+.shipment-order-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:14px 0 20px}
+.shipment-order-summary>div{display:grid;gap:5px;border:1px solid #ede3da;border-radius:12px;background:#fffcf9;padding:12px;min-width:0}
+.shipment-order-summary small{font-size:10px;font-weight:750;letter-spacing:.08em;color:#95735a;text-transform:uppercase}
+.shipment-order-summary strong{font-size:13px;font-weight:650;color:#302320;overflow-wrap:anywhere;white-space:pre-line;line-height:1.5}
+.shipment-form{border:1px solid #ebd9c4;border-radius:16px;background:#fffaf4;padding:18px}
+.shipment-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.shipment-fields label{display:grid;gap:7px;font-size:12px;font-weight:750;color:#48372f}
+.shipment-fields input,.shipment-fields select{min-width:0;width:100%;min-height:45px;padding:11px 12px;background:white;border:1px solid #d9cabd;border-radius:10px;font-size:14px;color:#29201e}
+.shipment-fields input[readonly]{background:#f7f1eb;color:#68574d}
+.shipment-fields :is(input,select):focus-visible,.shipment-actions button:focus-visible,.shipment-save:focus-visible{outline:3px solid #bc8c36;outline-offset:2px}
+.shipment-hint{font-size:12px;line-height:1.65;color:#75655b}
+.shipment-save{background:#8f1520;color:white;font-size:13px;font-weight:750;padding:12px 20px;border-radius:10px;min-height:44px;border-color:#8f1520;cursor:pointer}
+.shipment-save:disabled,.shipment-actions button:disabled{opacity:.48;cursor:not-allowed}
+.shipment-feedback{min-height:21px;font-size:12px;margin:11px 0 0;line-height:1.5;color:#675244}
+.shipment-feedback.is-error{color:#a72129}.shipment-feedback.is-success{color:#267246}
+.shipment-notification{margin-top:20px;padding:18px;border:1px solid #ebded0;background:#fff;border-radius:16px}
+.shipment-section-head{display:flex;justify-content:space-between;gap:10px;align-items:center}
+.shipment-section-head h3{margin:2px 0 0;font-size:21px;letter-spacing:-.5px}
+.shipment-state{border-radius:999px;border:1px solid #ead8bd;background:#fff5e7;padding:7px 10px;color:#8a642e;white-space:nowrap;font-size:11px}
+.shipment-state.is-confirmed{background:#eef9f1;border-color:#b5d5c0;color:#267246}
+.shipment-preview-label{display:block;font-size:12px;font-weight:750;margin:13px 0 7px}
+#shipmentMessagePreview{width:100%;min-height:240px;border:1px solid #e2d6c9;border-radius:12px;background:#fcfaf7;padding:15px;resize:vertical;font:13px/1.75 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.shipment-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+.shipment-actions button{min-height:44px;font-weight:650;cursor:pointer}
+#shipmentWhatsapp{background:#226b43;border:1px solid #226b43;color:white}
+#shipmentConfirm{border-color:#bc934c;color:#78521d}
+@media(max-width:680px){.shipment-modal-card{padding:18px 14px}.shipment-order-summary,.shipment-fields{grid-template-columns:1fr}.shipment-section-head{align-items:start;flex-wrap:wrap}.shipment-actions button{flex:1 1 170px}}
