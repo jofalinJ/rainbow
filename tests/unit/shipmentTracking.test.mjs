@@ -66,7 +66,7 @@ describe("shipment status UI and secured storage",()=>{
     expect(sql).toContain("order_id uuid not null unique references public.orders(id)");
     expect(sql).toContain("unique(shipment_id,awb_snapshot)");
     expect(sql).toContain("create trigger trg_audit_order_shipment");
-    expect(sql).toContain("p_status in ('packed','shipped','in_transit','out_for_delivery','delivered','exception')");
+    expect(sql).toContain("p_status not in ('packed','shipped','in_transit','out_for_delivery','delivered','exception')");
     expect(sql).toContain("p_dispatch_date");
     expect(sql).toContain("confirmed_by uuid not null references auth.users(id)");
     expect(sql).toContain("confirmed_at timestamptz not null default now()");
