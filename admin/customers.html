@@ -1,8 +1,13 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#8f1520"><link rel="icon" type="image/png" href="../assets/brand/rainbow-logo.png"><title>Rainbow Gold Covering — Customers</title><link rel="stylesheet" href="style.css"><script src="config.js"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script></head>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#8f1520"><link rel="icon" type="image/png" href="../assets/brand/rainbow-logo.png"><title>Rainbow Gold Covering — Customers</title><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="customers.css?v=20261015-bill-history-v1"><script src="config.js"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script></head>
 <body><aside></aside><main>
 <header><div><p class="eyebrow">CUSTOMER RELATIONSHIPS</p><h1>Customers</h1></div><button id="refreshCustomers" class="profile" type="button">Refresh</button></header>
-<section class="panel"><div class="panelhead"><div><h2>Customer directory</h2><span class="muted">Customer details saved from orders and store billing.</span></div></div>
+<section class="panel"><div class="panelhead"><div><h2>Customer directory</h2><span class="muted">Select a customer to review their saved details, orders and bills.</span></div></div>
 <div class="filters" style="display:grid;grid-template-columns:minmax(0,1fr);margin-bottom:16px"><input id="customerSearch" type="search" placeholder="Search name, phone, email or city" aria-label="Search customers"></div>
 <div class="table-wrap"><table class="staff-table"><thead><tr><th>Customer</th><th>WhatsApp</th><th>Email</th><th>Location</th><th>Added</th></tr></thead><tbody id="customerRows"><tr><td colspan="5">Loading customers…</td></tr></tbody></table></div><p id="customerMessage" class="form-msg" role="status" aria-live="polite"></p></section>
-</main><script src="app.js?v=20261015-sidebar-role-guard-v1"></script><script src="customers.js?v=20261012-customers"></script></body></html>
+</main>
+<dialog id="customerDetails" class="customer-dialog" aria-labelledby="customerDetailsHeading">
+  <header class="customer-dialog-header"><div><p class="eyebrow">CUSTOMER RELATIONSHIP</p><h2 id="customerDetailsHeading">Customer details</h2></div><button id="customerDetailsClose" type="button">Close ✕</button></header>
+  <div id="customerDetailsBody" aria-live="polite"></div>
+</dialog>
+<script src="app.js?v=20261015-sidebar-role-guard-v1"></script><script src="customers.js?v=20261015-bill-history-v1"></script></body></html>
