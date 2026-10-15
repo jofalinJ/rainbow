@@ -47,8 +47,8 @@ describe("gateway readiness and manual UPI",()=>{
   it("requires a verified cart, a shipping state, and a UPI transaction reference",()=>{
     expect(js).toContain("shipping!==null");
     expect(js).toContain("cart.every(cartItemHasStock)");
-    expect(js).toContain('$(\"paymentMethod\").value!==\"upi\"');
-    expect(js).toContain('rpc(\"create_online_order\"');
+    expect(js).toContain('$("paymentMethod").value!=="upi"');
+    expect(js).toContain('rpc("create_online_order"');
     expect(js).not.toContain("paymentConfirmed");
     expect(html).toContain('id="checkoutQR"');
     expect(html).toContain("hidden");
