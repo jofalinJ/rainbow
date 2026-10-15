@@ -25,8 +25,8 @@ async function runWithDriver(name, fn) {
 test("customer home page loads and exposes the main shopping sections", async () => {
   await runWithDriver("customer-home", async (driver) => {
     await driver.get(BASE_URL + "/");
-    await driver.wait(until.titleContains("Rainbow Gold Covering"), 10000);
-    assert.match(await driver.getTitle(), /Rainbow Gold Covering/i);
+    await driver.wait(async () => /Rainbow(?: Kollam)? Gold Covering/i.test(await driver.getTitle()), 10000);
+    assert.match(await driver.getTitle(), /Rainbow(?: Kollam)? Gold Covering/i);
     assert.equal(await driver.findElement(By.css("#products")).isDisplayed(), true);
     assert.equal(await driver.findElement(By.css("#collections")).isDisplayed(), true);
     assert.equal(await driver.findElement(By.css("#contact")).isDisplayed(), true);
