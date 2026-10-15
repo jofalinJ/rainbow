@@ -150,6 +150,7 @@ test("admin hides personal attendance and can edit the ordered promotion gallery
     await login.signIn(ADMIN_USERNAME, ADMIN_PASSWORD);
     await driver.get(BASE_URL + "/admin/index.html");
     await driver.wait(until.elementLocated(By.css("#promotionItems")), 10000);
+    await driver.wait(async () => (await driver.findElement(By.css("aside nav")).getText()).includes("Dashboard"),15000);
     const nav=await driver.findElement(By.css("aside nav")).getText();
     assert.ok(nav.includes("Attendance"),"Admins retain staff attendance oversight");
     assert.ok(!nav.includes("My Attendance"),"Admin personal attendance should be hidden");
