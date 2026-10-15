@@ -47,6 +47,7 @@ function setupFacePilot(){
     video.srcObject=null;
     video.hidden=true;
     referenceEmbedding=null;
+    human=null;
     updateButtons();
   }
   consent.addEventListener("change",()=>{
@@ -85,7 +86,7 @@ function setupFacePilot(){
 
   async function getHuman(){
     if(!human){
-      // Models are loaded from a pinned version; reference and camera images are not uploaded to the model host.
+      // Models load from a pinned third-party CDN; this code does not transmit captured images to that host.
       const module=await import(HUMAN_URL);
       human=new module.Human({
         backend:"webgl",modelBasePath:HUMAN_MODELS,
@@ -128,7 +129,7 @@ function setupFacePilot(){
       if(!navigator.mediaDevices?.getUserMedia||!window.isSecureContext)throw new Error("A secure browser connection with camera support is required.");
       // Camera permission is requested only after the staff member explicitly opts in.
       stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:"user",width:{ideal:640},height:{ideal:480}}});
-      if(token!==runToken)return;
+      if(token!==runToken){stream.getTracks().forEach(track=>track.stop());stream=null;return;}
       video.srcObject=stream;video.hidden=false;
       await video.play();
       updateStatus("Loading the free face models. The first test may take a minute…");
