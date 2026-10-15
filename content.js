@@ -539,33 +539,78 @@
     setAccountAuthMessage("");
     refreshAccountPanel();
   }
+  function shipmentCardMarkup(order,helpers){
+    const {shipmentTimeline,trackingStatus,TRACKING_URL}=helpers;
+    const shipped=Boolean(order.consignment_number);
+    const status=String(order.order_status||order.status||"pending").toLowerCase();
+    const {steps,notice}=shipmentTimeline(status,order.shipment_status);
+    const date=order.created_at?new Date(order.created_at).toLocaleDateString("en-IN"):"";
+    const dispatched=order.dispatch_date?new Date(order.dispatch_date+"T12:00:00").toLocaleDateString("en-IN"):"";
+    const updated=order.shipment_updated_at?new Date(order.shipment_updated_at).toLocaleString("en-IN"):"";
+    const tracking=shipped?'<div class="customer-shipment"><div class="customer-shipment-head"><span>Courier</span><strong>'+esc(order.courier_provider||"The Professional Couriers")+'</strong></div>'+
+      '<div class="customer-shipment-head"><span>Consignment</span><strong>'+esc(order.consignment_number)+'</strong></div>'+
+      '<div class="customer-shipment-head"><span>Shipped on</span><strong>'+esc(dispatched||"Awaiting dispatch")+'</strong></div>'+
+      '<div class="customer-shipment-head"><span>Latest store-verified status</span><strong>'+esc(trackingStatus(order.shipment_status))+'</strong></div>'+
+      '<p class="tracking-manual-note">Updated by Rainbow staff'+(updated?" · "+esc(updated):"")+'. Not a live courier update.</p>'+
+      '<a class="tracking-courier-link" href="'+TRACKING_URL+'" target="_blank" rel="noopener noreferrer">Track on Professional Couriers ↗</a></div>'
+      :'<p class="tracking-manual-note">Tracking details will appear here when the store dispatches your order.</p>';
+    const timeline='<ol class="shipment-timeline" aria-label="Delivery progress">'+steps.map(step=>
+      '<li class="shipment-step is-'+step.state+'"><span class="shipment-dot" aria-hidden="true"></span><span>'+esc(step.label)+'</span></li>').join("")+'</ol>';
+    return '<article class="active-order-card"><div class="tracking-result-top"><div><strong>'+esc(order.order_number)+'</strong>'+
+      '<small>'+esc(order.product_names||order.product_name||"Online order")+(date?" · "+esc(date):"")+'</small></div>'+
+      '<span class="tracking-status '+esc(status)+'">'+esc(status)+'</span></div>'+
+      '<small>Payment: '+esc(order.payment_status||"pending")+(order.total_amount!=null?' · Total ₹'+Number(order.total_amount).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2}):"")+'</small>'+
+      (notice?'<p class="tracking-manual-note">'+esc(notice)+'</p>':"")+timeline+tracking+'</article>';
+  }
   async function loadMyOrdersInto(container,label){
     if(!container)return;
-    container.hidden=false;container.innerHTML='<p class="muted">Checking for active orders linked to a signed-in account...</p>';
+    container.hidden=false;
+    container.innerHTML='<p class="muted">Looking up your orders securely…</p>';
     try{
-      if(!client){container.innerHTML='<p class="muted">Guest checkout orders can be found using the product code and phone number below.</p>';return;}
-      const sessionResult=await client.auth.getSession();if(sessionResult.error)throw sessionResult.error;
-      if(!sessionResult.data?.session){container.innerHTML='<p class="muted">No customer account is signed in. Use the product code and phone lookup below to track a guest order.</p>';return;}
-      const {data,error}=await client.rpc("track_my_online_orders");if(error)throw error;
+      if(!client){container.innerHTML='<p class="muted">Sign-in is currently unavailable. Use the guest order lookup below.</p>';return;}
+      const sessionResult=await client.auth.getSession();
+      if(sessionResult.error)throw sessionResult.error;
+      if(!sessionResult.data?.session){container.innerHTML='<p class="muted">Sign in or use the product-code and phone lookup below.</p>';return;}
+      const [{data,error},helpers]=await Promise.all([
+        client.rpc("track_my_order_shipments"),
+        import("./admin/shipment-utils.mjs")
+      ]);
+      if(error)throw error;
       const orders=Array.isArray(data)?data:[];
-      if(!orders.length){container.innerHTML='<p class="muted">No active online orders are linked to this account email. Guest orders can still be checked with the lookup form.</p>';return;}
-      container.innerHTML='<p class="tracking-panel-label">ACTIVE ORDERS</p>'+orders.map(order=>'<article class="active-order-card"><div class="tracking-result-top"><div><strong>'+esc(order.order_number)+'</strong><small>'+esc(order.product_names||"Online order")+' - '+new Date(order.created_at).toLocaleDateString("en-IN")+'</small></div><span class="tracking-status '+esc(String(order.status||"pending").toLowerCase())+'">'+esc(order.status||"pending")+'</span></div><small>Payment: '+esc(order.payment_status||"pending")+' - Total Rs '+Number(order.total_amount||0).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2})+'</small></article>').join("");
-    }catch(error){console.warn("Account order tracking unavailable",error);container.innerHTML='<p class="muted">Automatic order lookup is unavailable for this session. Use the product code and phone lookup instead.</p>';}
+      container.innerHTML=orders.length
+        ?'<p class="tracking-panel-label">MY ORDERS · STORE-UPDATED TRACKING</p>'+orders.map(order=>shipmentCardMarkup(order,helpers)).join("")
+        :'<p class="muted">No online orders are linked to this account email. You can also use the guest lookup form.</p>';
+    }catch(error){
+      console.warn("Account order tracking unavailable",error?.code||"");
+      container.innerHTML='<p class="muted">Order history is temporarily unavailable. Try the guest lookup below.</p>';
+    }
   }
   async function submitOrderTracking(event){
     event.preventDefault();
-    const code=String(document.getElementById("trackingProductCode")?.value||"").trim(),phone=String(document.getElementById("trackingPhone")?.value||"").trim();
+    const code=String(document.getElementById("trackingProductCode")?.value||"").trim();
+    const phone=String(document.getElementById("trackingPhone")?.value||"").trim();
     const message=document.getElementById("trackingMessage"),results=document.getElementById("trackingResults");
-    if(message){message.textContent="Checking your order...";message.classList.remove("error");}if(results)results.innerHTML="";
-    if(!code||phone.replace(/[^0-9]/g,"").length<10){if(message){message.textContent="Enter the ordered product code and a valid phone number.";message.classList.add("error");}return;}
+    if(message){message.textContent="Checking your order…";message.classList.remove("error");}
+    if(results)results.innerHTML="";
+    if(!code||phone.replace(/[^0-9]/g,"").length<10){
+      if(message){message.textContent="Enter the product code and a valid phone number.";message.classList.add("error");}
+      return;
+    }
     try{
-      if(!client)throw new Error("Order tracking is temporarily unavailable. Please try again later.");
-      const {data,error}=await client.rpc("track_online_order",{p_product_code:code,p_phone:phone});if(error)throw error;
+      if(!client)throw new Error("Tracking is temporarily unavailable.");
+      const [{data,error},helpers]=await Promise.all([
+        client.rpc("track_guest_order_shipments",{p_product_code:code,p_phone:phone}),
+        import("./admin/shipment-utils.mjs")
+      ]);
+      if(error)throw error;
       const orders=Array.isArray(data)?data:[];
-      if(!orders.length){if(message)message.textContent="No matching online order was found. Check both details and try again.";return;}
+      if(!orders.length){if(message)message.textContent="No matching online order was found.";return;}
       if(message)message.textContent=orders.length+" matching order"+(orders.length===1?"":"s")+" found.";
-      if(results)results.innerHTML=orders.map(order=>'<article class="tracking-result-card"><div class="tracking-result-top"><div><strong>'+esc(order.order_number)+'</strong><small>'+esc(order.product_name||"Ordered item")+' - '+new Date(order.created_at).toLocaleDateString("en-IN")+'</small></div><span class="tracking-status '+esc(String(order.status||"pending").toLowerCase())+'">'+esc(order.status||"pending")+'</span></div><small>Payment: '+esc(order.payment_status||"pending")+'</small></article>').join("");
-    }catch(error){console.error("Order tracking failed.",error);if(message){message.textContent="We couldn't check the order right now. Please try again.";message.classList.add("error");}}
+      if(results)results.innerHTML=orders.map(order=>shipmentCardMarkup(order,helpers)).join("");
+    }catch(error){
+      console.warn("Guest order tracking failed",error?.code||"");
+      if(message){message.textContent="We couldn't check the order right now. Please try again.";message.classList.add("error");}
+    }
   }
 
   function openProductModal(product){
