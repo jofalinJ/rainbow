@@ -79,6 +79,8 @@ describe("optional biometric preview safeguards",()=>{
    expect(js).toContain("staff_face_preview_consent");
    expect(js).toContain('withdrawn_at:new Date().toISOString()');
    expect(js).toContain("not official identity verification");
+   expect(js).toContain("consecutiveMatches=similar?consecutiveMatches+1:0");
+   expect(js).toContain("if(consecutiveMatches>=REQUIRED_FRAMES)");
    expect(js).not.toContain('rpc("staff_attendance_action"');
  });
 });
