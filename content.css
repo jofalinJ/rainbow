@@ -42,7 +42,8 @@ button{font:inherit}
 .story{background:#fff}
 .story-grid{display:grid;grid-template-columns:.8fr 1.2fr;gap:70px}
 .story-card{background:var(--cream);border:1px solid var(--line);border-radius:26px;padding:34px;box-shadow:var(--shadow)}
-.story-card .story-brand-logo{display:block;width:82px;height:82px;object-fit:contain;padding:9px;margin:0 0 19px;border:1px solid var(--line);border-radius:18px;background:#fff;box-shadow:0 8px 24px rgba(65,31,17,.06)}
+/* Blend the built-in light logo2 background into the Story card instead of framing it with a white tile. */
+.story-card .story-brand-logo{display:block;width:82px;height:82px;object-fit:contain;margin:0 0 19px;background:transparent;border:0;border-radius:0;box-shadow:none;mix-blend-mode:multiply}
 .story-copy{color:var(--muted);font-size:14px;line-height:1.9}
 .values{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:24px}
 .value{border-top:1px solid var(--gold);padding-top:17px}
