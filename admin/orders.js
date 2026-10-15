@@ -1,3 +1,4 @@
+import {setupShipmentManagement} from "./shipment-management.mjs";
 const ordersClient=bootSupabase();
 let allOrders=[];
 let ordersLoading=false;
@@ -6,6 +7,7 @@ let ordersRefreshTimer=null;
 let ordersPollTimer=null;
 let ordersChannel=null;
 let currentRole="";
+let shipmentManager=null;
 
 const esc=x=>String(x??"").replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
 const money=x=>{
@@ -93,16 +95,18 @@ function render(){
     const action=o.payment_status==="paid"
       ?"<button type='button' class='wa' data-wa='"+esc(o.id)+"'>Send full WhatsApp alert</button>"
       :"<button type='button' data-verify='"+esc(o.id)+"' "+(verificationDisabled?"disabled":"")+">Verify payment</button>";
+    const shipmentAction=currentRole==="admin"?"<button type='button' class='shipment-action' data-shipment='"+esc(o.id)+"'>Manage Shipment</button>":"";
     return "<tr><td><b>"+esc(orderLabel)+"</b><small>"+esc(dateLabel(o.created_at))+"</small></td>"+
       "<td><b>"+esc(c.name||"—")+"</b><small>"+esc(c.whatsapp_number||c.email||"—")+"</small></td>"+
       "<td>"+esc(address||"—")+"</td>"+
       "<td><b>"+money(o.total_amount)+"</b><small>"+esc(o.payment_status||"—")+"</small></td>"+
       "<td><span class='order-status'>"+esc(o.status||"pending")+"</span></td>"+
-      "<td><div class='action-row'><button type='button' data-view='"+esc(o.id)+"'>View"+(itemCount?" ("+itemCount+")":"")+"</button>"+action+"</div></td></tr>";
+      "<td><div class='action-row'><button type='button' data-view='"+esc(o.id)+"'>View"+(itemCount?" ("+itemCount+")":"")+"</button>"+action+shipmentAction+"</div></td></tr>";
   }).join("")||"<tr><td colspan='6'>"+esc(emptyMessage)+"</td></tr>";
   document.querySelectorAll("[data-view]").forEach(b=>b.onclick=()=>openOrder(b.dataset.view));
   document.querySelectorAll("[data-wa]").forEach(b=>b.onclick=()=>sendAlert(b.dataset.wa));
   document.querySelectorAll("[data-verify]").forEach(b=>b.onclick=()=>verifyPayment(b.dataset.verify));
+  document.querySelectorAll("[data-shipment]").forEach(b=>b.onclick=()=>shipmentManager?.open(b.dataset.shipment,b));
 }
 function openOrder(id){
   const o=allOrders.find(x=>String(x.id)===String(id));if(!o)return;
@@ -125,13 +129,14 @@ function openOrder(id){
     "<div class='detail-box'><span>UPI transaction reference</span><strong>"+esc(payment.transaction_reference||"Not provided")+"</strong></div>"+
     "<div class='detail-box'><span>Order total</span><strong>"+money(o.total_amount)+"</strong></div>"+
     "<div class='detail-box'><span>Delivery fee</span><strong>"+(Number(o.delivery_fee||0)>0?money(o.delivery_fee):"To confirm separately")+"</strong></div></div>"+
-    "<div class='modal-actions'><a class='button' href='"+esc(map)+"' target='_blank' rel='noopener noreferrer'>Open delivery location ↗</a>"+paymentAction+"</div>"+
+    "<div class='modal-actions'><a class='button' href='"+esc(map)+"' target='_blank' rel='noopener noreferrer'>Open delivery location ↗</a>"+paymentAction+(currentRole==="admin"?"<button type='button' id='manageOrderShipment'>Manage Shipment</button>":"")+"</div>"+
     "<div class='items'>"+itemRows+"</div>"+
     "<div class='modal-actions'><label>Status <select id='mStatus'><option value='pending'>pending</option><option value='confirmed'>confirmed</option><option value='processing'>processing</option><option value='shipped'>shipped</option><option value='delivered'>delivered</option><option value='cancelled'>cancelled</option><option value='refunded'>refunded</option></select></label><button type='button' data-save-status>Save status</button></div>";
   document.querySelector("#mStatus").value=o.status||"pending";
   document.querySelector("[data-modal-wa]")?.addEventListener("click",()=>sendAlert(o.id));
   document.querySelector("[data-modal-verify]")?.addEventListener("click",()=>verifyPayment(o.id));
   document.querySelector("[data-save-status]").onclick=()=>updateStatus(o.id);
+  document.querySelector("#manageOrderShipment")?.addEventListener("click",event=>shipmentManager?.open(o.id,event.currentTarget));
   document.querySelector("#modal").classList.add("open");
   document.querySelector("#modal").setAttribute("aria-hidden","false");
 }
@@ -202,6 +207,14 @@ async function bootOrdersPage(){
     ]).finally(()=>clearTimeout(sessionTimeout));
     if(!session)return;
     const profile=await getMyProfile();currentRole=profile.role;
+    if(currentRole==="admin"){
+      shipmentManager=setupShipmentManagement({
+        client:ordersClient,
+        getOrder:id=>allOrders.find(item=>String(item.id)===String(id)),
+        role:()=>currentRole,
+        afterSave:()=>loadOrders({quiet:true})
+      });
+    }
     await loadOrders();
     startOrdersLiveUpdates();
   }catch(e){
