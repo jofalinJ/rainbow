@@ -46,6 +46,7 @@ async function loadOrders({quiet=false}={}){
   try{
     const request=ordersClient.from("orders")
       .select("id,order_number,source,status,payment_status,subtotal,discount_amount,cgst_amount,sgst_amount,delivery_fee,total_amount,shipping_address,created_at,updated_at,customers:customers!orders_customer_id_fkey(name,whatsapp_number,email,address,city,state,pin_code),order_items:order_items!order_items_order_id_fkey(product_code,product_name,quantity,unit_price,line_total,variant_color,variant_size),payments:payments!payments_order_id_fkey(id,method,status,transaction_reference,paid_at,verified_at)")
+      .eq("source","online")
       .order("created_at",{ascending:false})
       .abortSignal(controller.signal);
     const timeout=new Promise((resolve,reject)=>{
@@ -57,7 +58,7 @@ async function loadOrders({quiet=false}={}){
     const {data,error}=await Promise.race([request,timeout]);
     if(error){console.error("Orders fetch error:",error);throw error;}
     console.log("Orders data:",{count:Array.isArray(data)?data.length:0});
-    allOrders=Array.isArray(data)?data:[];
+    allOrders=Array.isArray(data)?data.filter(row=>row.source==="online"):[];
     render();
     setOrdersMessage(allOrders.length
       ?allOrders.length+" order"+(allOrders.length===1?"":"s")+" loaded · refreshed "+new Date().toLocaleTimeString("en-IN")
