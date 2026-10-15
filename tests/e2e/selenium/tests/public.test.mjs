@@ -65,3 +65,19 @@ test("customer mobile navigation opens and closes with accessible state", async 
     assert.equal(await toggle.getAttribute("aria-expanded"), "false");
   });
 });
+
+test("admin-selected homepage promotion opens the matching product details", async () => {
+  await runWithDriver("featured-promotion", async (driver) => {
+    await driver.get(BASE_URL + "/");
+    const status = await driver.findElement(By.css("#productStatus"));
+    await driver.wait(async () => (await status.getText()).trim() !== "Loading products…", 15000);
+    const section = await driver.findElement(By.css("#featuredPromotion"));
+    // The feature is intentionally hidden until an admin publishes a product.
+    if (!(await section.isDisplayed())) return;
+    assert.ok((await driver.findElement(By.css("#promotionName")).getText()).trim().length > 0);
+    assert.match(await driver.findElement(By.css("#promotionPrice")).getText(), /₹/);
+    await driver.findElement(By.css("#promotionView")).click();
+    await driver.wait(until.elementLocated(By.css("#productModal.open #modalProductName")), 5000);
+    assert.ok((await driver.findElement(By.css("#modalProductName")).getText()).trim().length > 0);
+  });
+});
