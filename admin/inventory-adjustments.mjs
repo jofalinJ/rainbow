@@ -119,11 +119,13 @@ export function setupInventoryAdjustmentUI({getVariant,onUpdated}){
     catch(error){feedback(error.message,true);refreshPreview();return;}
     busy=true;refreshPreview();feedback("Saving stock change…");
     const id=currentId,token=++serial;
+    let saved=false;
     try{
       const {data,error}=await client.rpc("adjust_variant_stock",{
         p_variant_id:id,p_quantity_change:validated.change,p_reason:validated.reason
       });
       if(error)throw error;
+      saved=true;
       if(token!==serial)return;
       currentStock=Number(data.new_stock);
       stockCurrent.textContent=currentStock.toLocaleString("en-IN");
@@ -134,7 +136,9 @@ export function setupInventoryAdjustmentUI({getVariant,onUpdated}){
     }catch(error){
       if(token!==serial)return;
       console.warn("Stock adjustment rejected",error?.code||"");
-      feedback(error.message||"Stock adjustment failed. No stock was changed.",true);
+      feedback(saved
+        ?"Stock saved, but the history refresh failed. Refresh Inventory to see the latest records."
+        :(error.message||"Stock adjustment failed. No stock was changed."),true);
       // Refresh authoritative stock if another session modified it.
       try{
         const {data}=await client.from("product_variants").select("stock_quantity").eq("id",id).single();
