@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#8f1520"><link rel="icon" type="image/png" href="../assets/brand/rainbow-logo.png"><title>Rainbow Gold Covering — Products</title><link rel="stylesheet" href="style.css"><script src="config.js"></script>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#8f1520"><link rel="icon" type="image/png" href="../assets/brand/rainbow-logo.png"><title>Rainbow Gold Covering — Products</title><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="products-editor.css?v=20261015-variant-v1"><script src="config.js"></script>
 <style>
 .entry-grid{display:grid;grid-template-columns:repeat(6,minmax(130px,1fr));gap:12px;align-items:end}
 .entry-grid .wide{grid-column:span 2}.category-editor{max-width:190px;min-width:140px;padding:7px;border:1px solid #eadfd1;border-radius:8px;background:#fff;color:#17120f;font:inherit}.save-category{white-space:nowrap;padding:7px 10px}.save-category:disabled{opacity:.5;cursor:wait}.entry-grid .full{grid-column:1/-1}
@@ -13,28 +13,64 @@
 <body>
 <aside aria-label="Admin sidebar"></aside>
 <main><header><div><p class="eyebrow">CATALOG</p><h1>Products</h1></div><button onclick="location.href='index.html'">Dashboard</button></header>
-<section class="panel"><div class="panelhead"><h2 id="editorHeading">Add Product</h2><span>Edit product details, add photos, or create another variant of an existing product</span><a href="#categoryDisplay">Storefront category order</a></div><div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px"><button type="button" id="newProductBtn">+ New Product</button><button type="button" id="existingBtn">+ Add Variant to Existing Product</button><button type="button" id="cancelEditBtn" hidden>Cancel Edit</button></div>
-<div id="existingBox" class="panel" style="display:none;margin:0 0 14px"><div class="field"><label>Existing Product Code<select id="existingProduct"></select></label></div><div id="variantFields" class="entry-grid"><div class="field optional" id="existingColorField"><label>New Color<input id="existingColor" placeholder="Example: Black"></label></div><div class="field optional" id="existingSizeField"><label>Size<input id="existingSize" value="0" placeholder="0 = No Size"></label></div><div class="field optional" id="existingLengthField"><label>Length cm<input id="existingLength" type="number" min="0.1" step=".1" placeholder="e.g. 132"></label></div><div class="field"><label>Stock<input id="existingStock" type="number" min="0" value="0"></label></div><div class="field"><label>Low Stock Limit<input id="existingLow" type="number" min="0" value="3"></label></div><div class="field"><button type="button" id="saveVariantBtn">Save Variant</button></div></div></div><form id="form"><div class="entry-grid">
-<div class="field"><label>Category<select id="category" required></select></label></div>
-<div class="field wide"><label>Product Name<input id="name" required></label></div>
-<div class="field"><label>Type<select id="type" required></select></label></div>
-<div class="field"><label>Selling Price ₹<input id="price" type="number" min="0" step=".01" required></label></div>
-<div class="field"><label>Audience<select id="gender" required><option value="women">Women</option><option value="unisex">Unisex — women and men</option><option value="male">Men only</option></select></label></div>
-<div class="field publish-toggle"><label><input id="active" type="checkbox" checked> Publish to storefront</label></div>
-<div class="field optional" id="sizeField"><label>Size<input id="size" value="0" placeholder="0 = No Size"></label></div>
-<div class="field optional" id="colorField"><label>Color<input id="color" value="0" placeholder="0 = No Color"></label></div>
-<div class="field" id="stockField"><label>Stock<input id="stock" type="number" min="0" value="0"></label></div>
-<div class="field" id="lowField"><label>Low Stock Limit<input id="low" type="number" min="0" value="3"></label></div>
-<div class="field wide" id="createPhotosField"><label>Product Photos (up to 5)</label><div class="photo-wrap"><button type="button" id="cameraBtn">📷 Use Camera</button><button type="button" id="fileBtn">📁 Select up to 5 files</button><input id="cameraFile" type="file" accept="image/*" capture="environment" multiple hidden><input id="fileFile" type="file" accept="image/*" multiple hidden></div><small>Up to 5 images per product; each image may be up to 5 MB. Select File supports multiple photos.</small></div>
-<div class="field optional" id="lengthField"><label>Length cm<input id="length" type="number" min="0" step=".1"></label></div>
-<div class="field optional" id="thicknessField"><label>Thickness<input id="thickness"></label></div>
-<div class="field optional" id="goldField"><label>Gold Amount g<input id="gold" type="number" min="0" step=".01"></label></div>
-<div class="field wide"><label>Description<input id="description"></label></div>
-<div class="field wide optional" id="editPhotosField"><label>Photos for this existing product</label><div class="photo-preview photo-preview-gallery edit-current-photos" id="editCurrentPhotos"></div><div class="photo-wrap"><button type="button" id="editPhotoBtn">Choose additional photos</button><input id="editPhotoFiles" type="file" accept="image/*" multiple hidden></div><small id="editPhotoHelp">Choose additional photos. New photos upload when you press Update Product. Maximum five photos in total.</small><div class="photo-preview photo-preview-gallery edit-photo-preview" id="editPhotoPreview"></div></div>
-<div class="photo-preview photo-preview-gallery" id="preview"></div>
-<div class="field"><button id="saveProductBtn" type="submit">Save Product</button></div>
-<div class="field wide"><p id="msg"></p></div>
-</div></form></section>
+<section class="panel products-editor" aria-labelledby="editorHeading">
+ <div class="product-editor-heading"><div><p class="eyebrow">PRODUCT MANAGEMENT</p><h2 id="editorHeading">Add Product</h2><p>Manage product information, stock, variants and real jewellery photographs.</p></div><a href="#categoryDisplay" class="product-editor-shortcut">Storefront categories ↗</a></div>
+ <div class="product-mode-tabs" role="group" aria-label="Product editor mode">
+   <button type="button" id="newProductBtn" aria-pressed="true">＋ New Product</button>
+   <button type="button" id="existingBtn" aria-pressed="false">＋ Add Variant to Existing Product</button>
+   <button type="button" id="cancelEditBtn" hidden>Cancel Edit</button>
+ </div>
+ <section id="existingBox" class="variant-editor-panel" style="display:none" aria-labelledby="variantEditorTitle">
+   <div class="product-form-section-head"><div><h3 id="variantEditorTitle">New product variant</h3><p>Keep the existing product name, price and photos. Add only the unique color, size or length and its stock.</p></div></div>
+   <div class="field"><label for="existingProduct">Choose existing product</label><select id="existingProduct" aria-describedby="existingVariantHelp"></select></div>
+   <p id="existingVariantHelp" class="field-help">Select a product to see its existing variants.</p>
+   <div id="existingVariants" class="existing-variants" aria-live="polite"></div>
+   <div id="variantFields" class="entry-grid variant-grid">
+    <div class="field optional" id="existingColorField"><label for="existingColor">New Color</label><input id="existingColor" placeholder="e.g. Red or Black"></div>
+    <div class="field optional" id="existingSizeField"><label for="existingSize">Size</label><input id="existingSize" value="0" placeholder="e.g. 08"></div>
+    <div class="field optional" id="existingLengthField"><label for="existingLength">Length (cm)</label><input id="existingLength" type="number" min="0.01" step=".01" placeholder="e.g. 45.00"></div>
+    <div class="field"><label for="existingStock">Starting stock</label><input id="existingStock" type="number" min="0" step="1" value="0"></div>
+    <div class="field"><label for="existingLow">Low-stock alert at</label><input id="existingLow" type="number" min="0" step="1" value="3"></div>
+   </div>
+   <div class="product-form-footer"><button type="button" id="saveVariantBtn" class="product-save-button">Save Variant</button><small>A barcode will be created automatically. Existing stock and variants stay unchanged.</small></div>
+ </section>
+ <form id="form" class="product-entry-form">
+  <section class="product-form-section" aria-labelledby="detailsTitle">
+   <div class="product-form-section-head"><div><span class="product-form-step">01</span><h3 id="detailsTitle">Product details</h3><p>Begin with its category, name, type and selling details.</p></div></div>
+   <div class="entry-grid product-details-grid">
+    <div class="field"><label for="category">Category</label><select id="category" required></select></div>
+    <div class="field product-name-field wide"><label for="name">Product name</label><input id="name" required placeholder="Enter product name"></div>
+    <div class="field"><label for="type">Type</label><select id="type" required></select></div>
+    <div class="field"><label for="price">Selling price (₹)</label><input id="price" type="number" min="0" step=".01" required placeholder="0.00"></div>
+    <div class="field"><label for="gender">Audience</label><select id="gender" required><option value="women">Women</option><option value="unisex">Unisex — women and men</option><option value="male">Men only</option></select></div>
+    <div class="field publish-toggle"><label><input id="active" type="checkbox" checked> Publish to storefront</label></div>
+   </div>
+  </section>
+  <section class="product-form-section" aria-labelledby="inventoryTitle">
+   <div class="product-form-section-head"><div><span class="product-form-step">02</span><h3 id="inventoryTitle">Stock & specifications</h3><p>Additional options appear according to the product category.</p></div></div>
+   <div class="entry-grid product-specs-grid">
+    <div class="field" id="stockField"><label for="stock">Initial stock</label><input id="stock" type="number" min="0" step="1" value="0"></div>
+    <div class="field" id="lowField"><label for="low">Low-stock alert at</label><input id="low" type="number" min="0" step="1" value="3"></div>
+    <div class="field optional" id="sizeField"><label for="size">Size</label><input id="size" value="0" placeholder="e.g. 08"></div>
+    <div class="field optional" id="colorField"><label for="color">Color</label><input id="color" value="0" placeholder="e.g. Pink"></div>
+    <div class="field optional" id="lengthField"><label for="length">Length (cm)</label><input id="length" type="number" min="0.01" step=".01" placeholder="e.g. 45.00"></div>
+    <div class="field optional" id="thicknessField"><label for="thickness">Thickness</label><input id="thickness" placeholder="e.g. Medium"></div>
+    <div class="field optional" id="goldField"><label for="gold">Gold amount (g)</label><input id="gold" type="number" min="0" step=".01"></div>
+   </div>
+  </section>
+  <section class="product-form-section" aria-labelledby="photosTitle">
+   <div class="product-form-section-head"><div><span class="product-form-step">03</span><h3 id="photosTitle">Photos & description</h3><p>Use genuine jewellery photos—up to five per product.</p></div></div>
+   <div class="entry-grid product-photos-grid">
+    <div class="field full" id="createPhotosField"><label>Product photographs</label><div class="photo-wrap product-upload-tools"><button type="button" id="cameraBtn">📷 Use Camera</button><button type="button" id="fileBtn">📁 Choose Photos</button><input id="cameraFile" type="file" accept="image/*" capture="environment" multiple hidden><input id="fileFile" type="file" accept="image/*" multiple hidden></div><small class="field-help">JPEG, PNG or WebP · 5 images maximum · 5 MB per image</small></div>
+    <div class="field full optional" id="editPhotosField"><label>Current product photos</label><div class="photo-preview photo-preview-gallery edit-current-photos" id="editCurrentPhotos"></div><div class="photo-wrap product-upload-tools"><button type="button" id="editPhotoBtn">Choose additional photos</button><input id="editPhotoFiles" type="file" accept="image/*" multiple hidden></div><small id="editPhotoHelp" class="field-help">You can add up to five images in total.</small><div class="photo-preview photo-preview-gallery edit-photo-preview" id="editPhotoPreview"></div></div>
+    <div class="photo-preview photo-preview-gallery full" id="preview"></div>
+    <div class="field full"><label for="description">Description</label><textarea id="description" rows="3" placeholder="Materials, finish, design and other product details"></textarea></div>
+   </div>
+  </section>
+  <div class="product-form-footer"><button id="saveProductBtn" type="submit" class="product-save-button">Save Product</button><small>Review all details before saving. Inventory and images will be linked to the product code.</small></div>
+ </form>
+ <p id="msg" class="product-form-message" role="status" aria-live="polite"></p>
+</section>
 <section class="panel" id="categoryDisplay"><div class="panelhead"><h2>Storefront category display</h2><span>Set the category order and choose which in-stock types can appear in the shop.</span></div><div id="storefrontCategoryRows" class="storefront-category-rows">Loading categories…</div><div class="category-display-save"><button type="button" id="saveStorefrontCategories">Save storefront display</button><span id="storefrontCategoryMessage" role="status"></span></div></section>
 <section class="panel"><div class="panelhead"><h2>Product Catalog</h2><input id="search" data-testid="product-search" placeholder="Search name, code or type"></div><div class="table-wrap"><table><thead><tr><th>Code</th><th>Product</th><th>Category</th><th>Type</th><th>Audience</th><th>Visibility</th><th>Price</th><th>Stock</th><th>Photos</th><th>Action</th></tr></thead><tbody id="rows"></tbody></table></div></section>
-</main><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="app.js?v=20261015-admin-attendance-nav-v2"></script><script src="products.js?v=20261011-gender-storefront-order"></script></body></html>
+</main><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="app.js?v=20261015-admin-attendance-nav-v2"></script><script src="products.js?v=20261015-variant-v1"></script></body></html>
