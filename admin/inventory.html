@@ -1,8 +1,37 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#8f1520"><link rel="icon" type="image/png" href="../assets/brand/rainbow-logo.png"><title>Rainbow Gold Covering — Inventory</title><link rel="stylesheet" href="style.css"><script src="config.js"></script><style>.category-tabs{display:flex;gap:8px;overflow-x:auto;padding:4px 2px 14px}.category-tabs button{white-space:nowrap;border-radius:20px;padding:9px 15px}.category-tabs button.active{background:#171717;color:#fff;border-color:#171717}.inventory-title{display:flex;justify-content:space-between;align-items:center;gap:15px;margin-bottom:14px}.inventory-title small{color:#888}.table-wrap{overflow:auto}</style><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script defer src="app.js?v=20261015-admin-attendance-nav-v2"></script><script defer src="inventory.js?v=20261005"></script></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#8f1520"><link rel="icon" type="image/png" href="../assets/brand/rainbow-logo.png"><title>Rainbow Gold Covering — Inventory</title><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="inventory-stock.css?v=20261015-stock-v1"><script src="config.js"></script><style>.category-tabs{display:flex;gap:8px;overflow-x:auto;padding:4px 2px 14px}.category-tabs button{white-space:nowrap;border-radius:20px;padding:9px 15px}.category-tabs button.active{background:#171717;color:#fff;border-color:#171717}.inventory-title{display:flex;justify-content:space-between;align-items:center;gap:15px;margin-bottom:14px}.inventory-title small{color:#888}.table-wrap{overflow:auto}</style><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script defer src="app.js?v=20261015-admin-attendance-nav-v2"></script><script defer src="inventory.js?v=20261015-stock-v1"></script></head>
 <body><aside aria-label="Admin sidebar"></aside>
 <main><header><div><p class="eyebrow">STOCK CONTROL</p><h1>Inventory</h1></div><button onclick="location.href='products.html'">＋ Add Product</button></header>
 <section class="cards"><div><small>Products</small><strong id="variantCount">0</strong><span>In selected category</span></div><div><small>Total Stock</small><strong id="stockCount">0</strong><span>Units available</span></div><div><small>Low Stock</small><strong id="lowCount">0</strong><span>Needs attention</span></div><div class="alert"><small>Out of Stock</small><strong id="outCount">0</strong><span>Unavailable items</span></div></section>
 <section class="panel"><div class="panelhead"><h2>Categories</h2></div><div id="categoryTabs" class="category-tabs"></div></section>
-<section class="panel" style="margin-top:18px"><div class="inventory-title"><div><h2 id="selectedCategory">Inventory</h2><small id="categoryMeta"></small></div><input id="search" data-testid="inventory-search" placeholder="Search product, code, type, color, barcode" style="width:min(380px,100%);padding:10px 12px;border:1px solid #ddd;border-radius:8px"></div><div class="table-wrap"><table><thead id="head"></thead><tbody id="rows"><tr><td>Loading…</td></tr></tbody></table></div></section></main></body></html>
+<section class="panel" style="margin-top:18px"><div class="inventory-title"><div><h2 id="selectedCategory">Inventory</h2><small id="categoryMeta"></small></div><input id="search" data-testid="inventory-search" placeholder="Search product, code, type, color, barcode" style="width:min(380px,100%);padding:10px 12px;border:1px solid #ddd;border-radius:8px"></div><div class="table-wrap"><table><thead id="head"></thead><tbody id="rows"><tr><td>Loading…</td></tr></tbody></table></div></section></main>
+<dialog id="stockDialog" class="stock-dialog" aria-labelledby="stockDialogTitle">
+  <header class="stock-dialog-head">
+    <div><p class="eyebrow">INVENTORY · CONTROLLED ADJUSTMENTS</p><h2 id="stockDialogTitle">Manage stock</h2></div>
+    <button id="stockClose" type="button" aria-label="Close stock editor">Close ✕</button>
+  </header>
+  <div class="stock-dialog-content">
+    <p id="stockVariantLabel" class="stock-variant-label"></p>
+    <div class="stock-balances">
+      <div><small>Current quantity</small><strong id="stockCurrent">—</strong></div>
+      <div><small>After adjustment</small><strong id="stockAfter">—</strong></div>
+    </div>
+    <form id="stockAdjustmentForm" class="stock-adjust-form">
+      <h3>Record stock change</h3>
+      <div class="stock-form-grid">
+        <label>Action<select id="stockDirection"><option value="add">Add stock</option><option value="remove">Remove stock</option></select></label>
+        <label>Quantity<input id="stockQuantity" type="number" step="1" min="1" max="100000" required placeholder="Units"></label>
+      </div>
+      <label>Reason for change<textarea id="stockReason" rows="3" minlength="8" maxlength="240" required placeholder="e.g. 10 pieces received from supplier, counted in store"></textarea></label>
+      <p class="stock-help">The change is saved atomically in Supabase with your staff ID and timestamp. Existing billing and stock are preserved.</p>
+      <button id="stockSave" class="stock-submit" type="submit" disabled>Save adjustment</button>
+      <p id="stockMessage" class="stock-message" role="status" aria-live="polite"></p>
+    </form>
+    <section class="stock-history-section" aria-labelledby="stockHistoryTitle">
+      <h3 id="stockHistoryTitle">Recent stock transactions</h3>
+      <p class="stock-help">Showing up to 30 logged transactions. Older activity may predate this log.</p>
+      <div id="stockHistory" class="stock-history" aria-live="polite"></div>
+    </section>
+  </div>
+</dialog></body></html>
