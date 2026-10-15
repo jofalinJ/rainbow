@@ -1,0 +1,21 @@
+.customer-open{border:0;background:none;color:#861421;font-size:13px;font-weight:750;padding:8px 4px;cursor:pointer;text-align:left}
+.customer-open:hover{text-decoration:underline}.customer-open:focus-visible{outline:3px solid #bfa065;border-radius:6px}
+.customer-dialog{width:min(800px,calc(100% - 24px));max-height:90dvh;border:1px solid #ead7c7;border-radius:20px;padding:0;color:#201a17;background:#fff;box-shadow:0 30px 100px #30110f38;overflow:auto}
+.customer-dialog::backdrop{background:rgba(23,9,7,.55)}
+.customer-dialog-header{position:sticky;top:0;z-index:1;margin:0;padding:20px 25px;background:#fffdfb;border-bottom:1px solid #eee0d6;display:flex;justify-content:space-between;gap:15px;align-items:center}
+.customer-dialog-header h2{font:500 clamp(23px,4vw,32px) Georgia,serif;color:#45141a;overflow-wrap:anywhere}
+.customer-dialog-header button{min-height:42px}
+#customerDetailsBody{padding:22px 25px 27px}
+.customer-detail-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:25px}
+.customer-detail-summary>div{border:1px solid #eadbca;background:#fffcf8;border-radius:12px;padding:13px;min-width:0}
+.customer-detail-summary small{display:block;text-transform:uppercase;letter-spacing:.08em;font-size:10px;color:#96724e;font-weight:750;margin-bottom:8px}
+.customer-detail-summary strong{font-size:13px;line-height:1.6;overflow-wrap:anywhere}
+#customerDetailsBody h3{font-size:18px;letter-spacing:-.4px}
+.customer-history-status{font-size:12px;color:#75675c;line-height:1.6}
+.customer-order-history{display:grid;gap:11px;margin-top:17px}
+.customer-order-entry{padding:17px;border:1px solid #e9dac8;border-radius:14px;background:#fffefc}
+.customer-order-top{display:flex;justify-content:space-between;gap:15px;color:#3e2321;font-size:14px;overflow-wrap:anywhere}
+.customer-order-meta{font-size:12px;line-height:1.6;color:#776e67}
+.customer-bill-link{margin-top:10px;padding-top:11px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;border-top:1px solid #f1e6d9;font-size:12px}
+.customer-bill-link a{color:#8f1520;font-weight:750;text-decoration:underline}
+@media(max-width:650px){.customer-dialog-header{padding:17px}#customerDetailsBody{padding:17px}.customer-detail-summary{grid-template-columns:1fr}.customer-order-top{font-size:12px}}
