@@ -12,6 +12,9 @@
   const visualSignatureCache=new Map();
   const scrollBehavior=window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches?"auto":"smooth";
   let drawerReturnFocus=null,utilityReturnFocus=null,modalReturnFocus=null;
+  let galleryTimer=null;
+  const galleryReducedMotion=window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches===true;
+  function stopGalleryRotation(){if(galleryTimer){clearInterval(galleryTimer);galleryTimer=null;}}
   function trapDialogFocus(event,container){
     if(event.key!=="Tab"||!container)return;
     const controls=[...container.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])')]
@@ -174,10 +177,14 @@
     const sidebar=document.getElementById("drawerCategories");
     if(!sidebar)return;
     const buckets=categoryBuckets();
-    const typeButtons=buckets.map(bucket=>
-      "<button type='button' class='drawer-type-link' data-filter-type='"+esc(bucket.label)+"' aria-label='Browse "+esc(bucket.label)+"'>"+
-        "<span>"+esc(bucket.label)+"</span></button>"
-    ).join("");
+    const typeButtons=buckets.map(bucket=>{
+      const cover=bucket.products.find(p=>getImage(p))||null;
+      const url=cover?getImage(cover):"";
+      return "<button type='button' class='drawer-type-link' data-filter-type='"+esc(bucket.label)+"' aria-label='Browse "+esc(bucket.label)+"'>"+
+        (url?"<img class='drawer-type-thumb' src='"+esc(url)+"' alt='' loading='lazy' decoding='async'>":
+          "<span class='drawer-type-fallback' aria-hidden='true'>✦</span>")+
+        "<span>"+esc(bucket.label)+"</span></button>";
+    }).join("");
     sidebar.innerHTML=
       "<button type='button' class='drawer-all-category' data-filter-type=''>All product types</button>"+
       (typeButtons?"<div class='drawer-type-grid' aria-label='Available product types'>"+typeButtons+"</div>":
@@ -738,8 +745,8 @@
         '<div class="product-quantity-row"><span>Quantity</span><div class="quantity-picker"><button type="button" data-qty-minus aria-label="Decrease quantity">−</button><span data-qty>1</span><button type="button" data-qty-plus aria-label="Increase quantity">＋</button></div></div>'+
         '<div class="product-buy-actions"><button class="btn btn-dark" type="button" data-add-cart>Add to Cart</button><button class="btn btn-light" type="button" data-buy-now>Buy Now →</button></div>'+
         '<button class="modal-wishlist-button'+(savedInWishlist?' is-saved':'')+'" type="button" data-modal-wishlist aria-pressed="'+savedInWishlist+'"><span aria-hidden="true">'+(savedInWishlist?'♥':'♡')+'</span><span>'+(savedInWishlist?'Saved to wishlist':'Save to wishlist')+'</span></button>'+
-        '<div class="product-support-card"><span>Need help?</span><p>Ask us about this design, sizing, or delivery options.</p><button type="button" data-contact-store>Contact Rainbow <span aria-hidden="true">→</span></button></div>'+
         detailsPanel+lengthGuide+
+        '<div class="product-support-card"><span>Need help?</span><p>Ask us about this design, sizing, or delivery options.</p><button type="button" data-contact-store>Contact Rainbow on WhatsApp <span aria-hidden="true">↗</span></button></div>'+
       '</div></div>';
     const qtyEl=content.querySelector("[data-qty]");
     const minus=content.querySelector("[data-qty-minus]"),plus=content.querySelector("[data-qty-plus]");
@@ -785,18 +792,62 @@
       selectedVariant=activeVariants.find(v=>String(v.id)===String(generic.value))||null;
       selectedQty=1;updateVariantState();
     });
-    content.querySelectorAll("[data-gallery-src]").forEach(button=>button.addEventListener("click",()=>{
+    stopGalleryRotation();
+    const showGalleryImage=index=>{
+      if(images.length<2)return;
+      activeImageIndex=(index+images.length)%images.length;
       const image=content.querySelector("[data-gallery-main]");
-      activeImageIndex=Number(button.dataset.galleryIndex||0);
-      if(image){image.src=button.dataset.gallerySrc;image.alt=button.dataset.galleryAlt||product.product_name;}
+      const entry=images[activeImageIndex];
+      if(image){image.src=entry.public_url;image.alt=product.product_name+" — image "+(activeImageIndex+1);}
       const count=content.querySelector("[data-gallery-count]");
-      if(count)count.textContent=(activeImageIndex+1)+" / "+images.length+" photo"+(images.length===1?"":"s");
-      content.querySelectorAll("[data-gallery-src]").forEach(item=>{
-        const active=item===button;
-        item.classList.toggle("active",active);
-        item.setAttribute("aria-current",String(active));
+      if(count)count.textContent=(activeImageIndex+1)+" / "+images.length+" photos";
+      content.querySelectorAll("[data-gallery-index]").forEach(button=>{
+        const active=Number(button.dataset.galleryIndex)===activeImageIndex;
+        button.classList.toggle("active",active);
+        button.setAttribute("aria-current",String(active));
       });
+    };
+    const pauseGallery=()=>stopGalleryRotation();
+    const resumeGallery=()=>{
+      stopGalleryRotation();
+      if(galleryReducedMotion||images.length<2)return;
+      galleryTimer=window.setInterval(()=>{
+        if(document.visibilityState!=="hidden"&&document.getElementById("productModal")?.classList.contains("open")){
+          showGalleryImage(activeImageIndex+1);
+        }
+      },10000);
+    };
+    content.querySelectorAll("[data-gallery-index]").forEach(button=>button.addEventListener("click",()=>{
+      showGalleryImage(Number(button.dataset.galleryIndex||0));
+      resumeGallery();
     }));
+    const gallery=content.querySelector(".product-detail-main");
+    if(gallery&&images.length>1){
+      let swipeX=null,swipeY=null;
+      gallery.addEventListener("touchstart",event=>{
+        const touch=event.changedTouches?.[0];
+        if(!touch)return;
+        swipeX=touch.clientX;swipeY=touch.clientY;pauseGallery();
+      },{passive:true});
+      gallery.addEventListener("touchend",event=>{
+        const touch=event.changedTouches?.[0];
+        if(!touch||swipeX===null)return;
+        const dx=touch.clientX-swipeX,dy=touch.clientY-swipeY;
+        if(Math.abs(dx)>45&&Math.abs(dx)>Math.abs(dy)*1.3){
+          showGalleryImage(activeImageIndex+(dx<0?1:-1));
+          event.stopPropagation(); // Swipe photos, not the next jewellery product.
+        }
+        swipeX=null;swipeY=null;resumeGallery();
+      },{passive:true});
+      gallery.addEventListener("mouseenter",pauseGallery);
+      gallery.addEventListener("mouseleave",resumeGallery);
+      gallery.addEventListener("focusin",pauseGallery);
+      gallery.addEventListener("focusout",event=>{
+        if(!gallery.contains(event.relatedTarget))resumeGallery();
+      });
+      gallery.setAttribute("aria-label","Product photos. Swipe left or right to see more.");
+    }
+    resumeGallery();
     minus.onclick=()=>{selectedQty=Math.max(1,selectedQty-1);updateVariantState();};
     plus.onclick=()=>{selectedQty=Math.min(Math.max(1,stockOf(selectedVariant)),selectedQty+1);updateVariantState();};
     const makeCartItem=quantity=>({
@@ -843,8 +894,10 @@
       render();
     });
     content.querySelector("[data-contact-store]")?.addEventListener("click",()=>{
-      closeProductModal();
-      document.getElementById("contact")?.scrollIntoView({behavior:scrollBehavior,block:"start"});
+      const text="Hello Rainbow Gold Covering! I have a question about "+product.product_name+
+        " ("+product.product_code+"). Could you help me with this design?";
+      const url="https://wa.me/919952436899?text="+encodeURIComponent(text);
+      window.open(url,"_blank","noopener,noreferrer");
     });
     updateVariantState();
     if(panel)panel.scrollTop=0;
@@ -871,6 +924,7 @@
   }
 
   function closeProductModal(){
+    stopGalleryRotation();
     const modal=document.getElementById("productModal");if(!modal?.classList.contains("open"))return;
     modal.classList.remove("open");modal.setAttribute("aria-hidden","true");document.body.classList.remove("modal-open");activeProductId="";updateProductNavigation();
     const restore=modalReturnFocus;modalReturnFocus=null;
@@ -988,6 +1042,7 @@
     window.addEventListener("pagehide",()=>{
       if(refreshInterval)window.clearInterval(refreshInterval);
       if(promotionTimer)window.clearInterval(promotionTimer);
+      stopGalleryRotation();
       if(realtimeRefreshTimer)window.clearTimeout(realtimeRefreshTimer);
       if(client&&realtimeChannel)client.removeChannel(realtimeChannel);
       realtimeChannel=null;
