@@ -1335,3 +1335,20 @@ button,.category-tile,[role="button"]{touch-action:manipulation}
  .featured-promotion-media{min-height:260px}
  .featured-promotion-stamp{right:17px;bottom:16px}
 }
+
+/* Courier tracking inside existing customer account/order-lookup cards. */
+.customer-shipment{border-top:1px solid #eadbca;margin-top:16px;padding-top:15px;display:grid;gap:9px}
+.customer-shipment-head{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:6px 14px;font-size:12px}
+.customer-shipment-head>span{color:#70675f}
+.customer-shipment-head strong{font-size:12px;color:#30251f;font-weight:750;overflow-wrap:anywhere}
+.tracking-manual-note{font-size:11px;line-height:1.65;color:#746c63;margin:12px 0}
+.tracking-courier-link{display:inline-flex;align-items:center;justify-content:center;min-height:42px;max-width:100%;padding:10px 15px;border-radius:10px;border:1px solid #8f1520;background:#8f1520;color:#fff;text-decoration:none;font-size:12px;font-weight:800;justify-self:start}
+.tracking-courier-link:hover{background:#6e0f1b;color:white}
+.tracking-courier-link:focus-visible{outline:3px solid #c5a263;outline-offset:3px}
+.shipment-timeline{list-style:none;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;padding:0;margin:16px 0 12px}
+.shipment-step{min-width:0;display:grid;justify-items:center;align-content:start;text-align:center;gap:7px;font-size:10px;line-height:1.4;color:#877c73}
+.shipment-dot{height:12px;width:12px;display:block;border-radius:50%;border:2px solid #c6bcb1;background:#fff;position:relative}
+.shipment-step.is-done,.shipment-step.is-current{color:#7d1420;font-weight:800}
+.shipment-step.is-done .shipment-dot{background:#8f1520;border-color:#8f1520}
+.shipment-step.is-current .shipment-dot{background:#fff;border:3px solid #8f1520;box-shadow:0 0 0 3px #f8e4e5}
+@media(max-width:430px){.shipment-step{font-size:9px}.shipment-timeline{gap:2px}.customer-shipment-head{display:grid;gap:3px}}
