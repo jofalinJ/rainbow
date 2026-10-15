@@ -10,7 +10,7 @@ export function setupShipmentManagement({client,getOrder,role,afterSave}){
   const feedback=byId("shipmentFeedback"),messagePreview=byId("shipmentMessagePreview");
   const history=byId("shipmentNotificationHistory"),stateLabel=byId("shipmentNotifyState");
   const save=byId("shipmentSave"),openWhatsApp=byId("shipmentWhatsapp"),copy=byId("shipmentCopy"),confirm=byId("shipmentConfirm");
-  let order=null,shipment=null,notifications=[],busy=false,openedAwb="",returnFocus=null;
+  let order=null,shipment=null,notifications=[],busy=false,openedAwb="",returnFocus=null,requestSerial=0,loadFailed=false;
   function alertMessage(text,error=false){feedback.textContent=text;feedback.className="shipment-feedback "+(error?"is-error":"is-success");}
   const hasConfirmed=()=>!!shipment?.consignment_number&&notifications.some(n=>n.awb_snapshot===shipment.consignment_number);
   function addSummary(label,value){
@@ -21,7 +21,9 @@ export function setupShipmentManagement({client,getOrder,role,afterSave}){
     const name=order?.customers?.name||"";
     const phone=order?.customers?.whatsapp_number||"";
     const alreadyConfirmed=hasConfirmed();
-    const canSend=!busy&&canNotifyShipment(shipment,phone,alreadyConfirmed);
+    const dirty=!!shipment&&(awbInput.value.trim().toUpperCase()!==String(shipment.consignment_number||"")||
+      dateInput.value!==String(shipment.dispatch_date||"")||statusInput.value!==shipment.status);
+    const canSend=!busy&&!loadFailed&&!dirty&&canNotifyShipment(shipment,phone,alreadyConfirmed);
     let message="";
     if(canSend||alreadyConfirmed){
       try{message=formatShipmentMessage({order_number:order.order_number,customer_name:name},shipment);}
@@ -31,7 +33,7 @@ export function setupShipmentManagement({client,getOrder,role,afterSave}){
     openWhatsApp.disabled=!canSend||!message;
     copy.disabled=!message;
     confirm.disabled=!canSend||openedAwb!==shipment?.consignment_number;
-    save.disabled=busy||role()!=="admin"||order?.payment_status!=="paid";
+    save.disabled=busy||loadFailed||role()!=="admin"||order?.payment_status!=="paid";
     awbInput.disabled=busy;dateInput.disabled=busy;statusInput.disabled=busy;
     stateLabel.textContent=alreadyConfirmed?"Manually confirmed":shipment?"Not confirmed":"No shipment saved";
     stateLabel.classList.toggle("is-confirmed",alreadyConfirmed);
@@ -48,7 +50,8 @@ export function setupShipmentManagement({client,getOrder,role,afterSave}){
     const detail=document.getElementById("modal");
     detail?.classList.remove("open");detail?.setAttribute("aria-hidden","true");
     returnFocus=invoker||document.activeElement;
-    shipment=null;notifications=[];openedAwb="";
+    const serial=++requestSerial;
+    shipment=null;notifications=[];openedAwb="";loadFailed=false;
     summary.replaceChildren();
     addSummary("Order",order.order_number);
     addSummary("Customer",order.customers?.name);
@@ -66,11 +69,13 @@ export function setupShipmentManagement({client,getOrder,role,afterSave}){
         .select("id,order_id,courier_provider,consignment_number,dispatch_date,status,updated_at")
         .eq("order_id",order.id).maybeSingle();
       if(error)throw error;
+      if(serial!==requestSerial)return;
       shipment=data||null;
       if(shipment){
         const {data:notes,error:noteError}=await client.from("shipment_notifications")
           .select("awb_snapshot,confirmed_at").eq("shipment_id",shipment.id).order("confirmed_at",{ascending:false});
         if(noteError)throw noteError;
+        if(serial!==requestSerial)return;
         notifications=notes||[];
         awbInput.value=shipment.consignment_number||"";
         dateInput.value=shipment.dispatch_date||"";
@@ -78,11 +83,14 @@ export function setupShipmentManagement({client,getOrder,role,afterSave}){
       }
       alertMessage(shipment?"Shipment loaded.":"No shipment saved for this order.");
     }catch(error){
+      if(serial!==requestSerial)return;
+      loadFailed=true;
       console.error("Shipment fetch failed",error?.code||"");
       alertMessage("Couldn't load shipment details. Please close and try again.",true);
-    }finally{busy=false;render();}
+    }finally{if(serial===requestSerial){busy=false;render();}}
   }
   function close(){
+    requestSerial++;
     modal.classList.remove("open");modal.setAttribute("aria-hidden","true");
     order=null;shipment=null;notifications=[];openedAwb="";
     if(returnFocus?.isConnected)returnFocus.focus({preventScroll:true});
@@ -108,7 +116,7 @@ export function setupShipmentManagement({client,getOrder,role,afterSave}){
     });
   }
   form.addEventListener("submit",async event=>{
-    event.preventDefault();if(!order||busy)return;
+    event.preventDefault();if(!order||busy||loadFailed)return;
     busy=true;openedAwb="";render();alertMessage("Saving shipment…");
     try{
       if(!form.reportValidity())return;
@@ -131,14 +139,14 @@ export function setupShipmentManagement({client,getOrder,role,afterSave}){
     }finally{busy=false;render();}
   });
   openWhatsApp.addEventListener("click",()=>{
-    if(!order||!shipment||!canNotifyShipment(shipment,order.customers?.whatsapp_number,hasConfirmed()))return;
+    if(openWhatsApp.disabled||!order||!shipment||!canNotifyShipment(shipment,order.customers?.whatsapp_number,hasConfirmed()))return;
     const message=formatShipmentMessage({order_number:order.order_number,customer_name:order.customers?.name},shipment);
     const url=whatsappTrackingUrl(order.customers?.whatsapp_number,message);
     if(!url)return;
-    const popup=window.open(url,"_blank","noopener,noreferrer");
+    window.open(url,"_blank","noopener,noreferrer");
     openedAwb=shipment.consignment_number;
     render();
-    alertMessage(popup?"WhatsApp opened. Return here after you actually send the message.":"If WhatsApp was blocked, use Copy message or allow popups. Do not confirm until you have sent it.");
+    alertMessage("WhatsApp requested. After you actually send the message, return and confirm. If blocked, use Copy message.");
   });
   copy.addEventListener("click",async()=>{
     if(!messagePreview.value)return;
@@ -148,7 +156,7 @@ export function setupShipmentManagement({client,getOrder,role,afterSave}){
     }catch{alertMessage("Copy was blocked by the browser. Select the message to copy.",true);}
   });
   confirm.addEventListener("click",async()=>{
-    if(!order||!shipment||openedAwb!==shipment.consignment_number||
+    if(confirm.disabled||!order||!shipment||openedAwb!==shipment.consignment_number||
       !canNotifyShipment(shipment,order.customers?.whatsapp_number,hasConfirmed()))return;
     if(!window.confirm("Did you personally send the tracking message in WhatsApp? Opening WhatsApp alone is NOT a confirmation."))return;
     busy=true;render();
