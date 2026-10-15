@@ -107,3 +107,17 @@ test("homepage editorial content and contact links match storefront feedback", a
     assert.equal(await instagram.getAttribute("target"), "_blank");
   });
 });
+
+test("checkout shows state delivery options and keeps future gateway modes disabled", async () => {
+  await runWithDriver("checkout-shipping-and-methods", async (driver) => {
+    await driver.get(BASE_URL + "/order.html");
+    const state = await driver.findElement(By.css("#state"));
+    await driver.wait(async () => (await state.findElements(By.css("option"))).length === 37, 10000);
+    const checkout = await driver.findElement(By.css("#checkoutQR"));
+    assert.equal(await checkout.isDisplayed(), false);
+    assert.equal((await driver.findElements(By.css("#paymentConfirmed"))).length, 0);
+    assert.equal((await driver.findElements(By.css("#deliveryNote"))).length, 0);
+    assert.equal((await driver.findElements(By.css("#paymentMethod option[disabled]"))).length, 4);
+    assert.equal(await driver.findElement(By.css("#placeOrder")).isEnabled(), false);
+  });
+});
