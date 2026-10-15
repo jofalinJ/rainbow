@@ -46,36 +46,137 @@ function resetEditor(){
   $("form").reset();$("gender").value="women";$("active").checked=true;$("cameraFile").value="";$("fileFile").value="";$("preview").innerHTML="";
   $("editPhotoFiles").value="";$("editCurrentPhotos").innerHTML="";$("size").value="0";$("color").value="0";$("stock").value=0;$("low").value=3;
   $("editorHeading").textContent="Add Product";$("saveProductBtn").textContent="Save Product";$("cancelEditBtn").hidden=true;
+  $("existingBtn").setAttribute("aria-pressed","false");$("newProductBtn").setAttribute("aria-pressed","true");
   $("form").style.display="block";$("existingBox").style.display="none";updateFields();
 }
-function setupVariantBox(){
-  $("newProductBtn").onclick=()=>{resetEditor();$("msg").textContent="";};
-  $("existingBtn").onclick=()=>{resetEditor();variantMode=true;$("existingBox").style.display="block";$("form").style.display="none";fillExistingProducts();};
-  $("cancelEditBtn").onclick=()=>{resetEditor();$("msg").textContent="Edit canceled.";};
-  $("existingProduct").onchange=updateExistingVariantFields;$("saveVariantBtn").onclick=saveVariant;$("category").onchange=updateFields;
-  $("editPhotoBtn").onclick=()=>$("editPhotoFiles").click();$("editPhotoFiles").onchange=handleEditPhotoSelection;
+let variantSaving=false;
+let variantRules=null;
+async function getVariantRules(){
+  if(!variantRules)variantRules=await import("../src/domain/variantRules.mjs");
+  return variantRules;
 }
-function fillExistingProducts(){
-  $("existingProduct").innerHTML=items.map(p=>'<option value="'+escHtml(p.id)+'">'+escHtml(p.product_code)+' — '+escHtml(p.product_name)+'</option>').join("")||'<option value="">No active products</option>';
+function variantMessage(text,error=false){
+  const node=$("msg");if(!node)return;
+  node.textContent=text;
+  node.classList.toggle("is-error",error);
+}
+function setupVariantBox(){
+  $("newProductBtn").onclick=()=>{resetEditor();variantMessage("");$("name").focus();};
+  $("existingBtn").onclick=()=>{
+    resetEditor();variantMode=true;
+    $("editorHeading").textContent="Add Product Variant";
+    $("existingBox").style.display="block";$("form").style.display="none";
+    $("existingBtn").setAttribute("aria-pressed","true");
+    $("newProductBtn").setAttribute("aria-pressed","false");
+    fillExistingProducts();
+    variantMessage("Select a product, then enter new variant details.");
+    $("existingProduct").focus();
+  };
+  $("cancelEditBtn").onclick=()=>{resetEditor();variantMessage("Edit cancelled.");};
+  $("existingProduct").onchange=()=>{updateExistingVariantFields();variantMessage("");};
+  $("saveVariantBtn").onclick=saveVariant;
+  $("category").onchange=updateFields;
+  $("editPhotoBtn").onclick=()=>$("editPhotoFiles").click();
+  $("editPhotoFiles").onchange=handleEditPhotoSelection;
+}
+function fillExistingProducts(preferredId=""){
+  const select=$("existingProduct");
+  const previous=preferredId||select.value;
+  select.replaceChildren(new Option("Choose an existing product…",""));
+  for(const p of items){
+    select.add(new Option(p.product_code+" — "+p.product_name+(p.active===false?" (draft)":""),String(p.id)));
+  }
+  select.value=items.some(p=>String(p.id)===String(previous))?String(previous):"";
   updateExistingVariantFields();
 }
+function displayExistingVariants(product,category){
+  const container=$("existingVariants");container.replaceChildren();
+  const variants=Array.isArray(product?.product_variants)?product.product_variants:[];
+  if(!variants.length){
+    const p=document.createElement("p");p.className="variant-empty";
+    p.textContent=product?"No variants saved yet. Your new variant will be the first.":"Select a product to see its existing variations.";
+    container.append(p);return;
+  }
+  const title=document.createElement("small");title.className="variant-empty";
+  title.textContent=variants.length+" existing variant"+(variants.length===1?"":"s")+":";
+  container.append(title);
+  for(const variant of variants){
+    const attributes=[];
+    if(category?.has_color)attributes.push("Color: "+(variant.color||"0"));
+    if(category?.has_size)attributes.push("Size: "+(variant.size||"0"));
+    if(category?.has_length)attributes.push("Length: "+(variant.length_cm??"—")+" cm");
+    attributes.push("Stock: "+Number(variant.stock_quantity||0));
+    const chip=document.createElement("span");chip.className="variant-chip"+(variant.active===false?" is-inactive":"");
+    chip.textContent=attributes.join(" · ")+(variant.active===false?" · Inactive":"");
+    container.append(chip);
+  }
+}
 function updateExistingVariantFields(){
-  const p=items.find(x=>String(x.id)===String($("existingProduct").value)),c=p&&cats.find(x=>String(x.id)===String(p.category_id));
-  ["existingColorField","existingSizeField","existingLengthField"].forEach(id=>setField(id,false));if(!c)return;
-  setField("existingColorField",!!c.has_color);setField("existingSizeField",!!c.has_size);setField("existingLengthField",!!c.has_length);
-  if(!c.has_color)$("existingColor").value="0";if(!c.has_size)$("existingSize").value="0";if(c.has_length)$("existingLength").value="";
+  const product=items.find(p=>String(p.id)===String($("existingProduct").value));
+  const category=product&&cats.find(c=>String(c.id)===String(product.category_id));
+  for(const id of ["existingColorField","existingSizeField","existingLengthField"])setField(id,false);
+  if(category){
+    setField("existingColorField",Boolean(category.has_color));
+    setField("existingSizeField",Boolean(category.has_size));
+    setField("existingLengthField",Boolean(category.has_length));
+  }
+  $("existingColor").value="0";$("existingSize").value="0";$("existingLength").value="";
+  $("existingStock").value="0";$("existingLow").value="3";
+  const canDifferentiate=Boolean(category&&(category.has_color||category.has_size||category.has_length));
+  $("saveVariantBtn").disabled=variantSaving||!product||!category||(!canDifferentiate&&(product.product_variants||[]).length>0);
+  const details=$("existingVariantHelp");
+  if(details){
+    details.textContent=!product?"Choose a product to add its variant."
+      :!category?"This product category is no longer available."
+      :!canDifferentiate&&product.product_variants?.length
+        ?"This category has no variant attributes. Use Inventory to update the existing stock."
+        :"New variants must have a distinct color, size or length. Existing variants are listed below.";
+  }
+  displayExistingVariants(product,category);
 }
 async function saveVariant(){
-  const p=items.find(x=>String(x.id)===String($("existingProduct").value));if(!p)return;
-  const c=cats.find(x=>String(x.id)===String(p.category_id));if(!c)return;
-  const color=c.has_color?($("existingColor").value.trim()||"0"):"0",size=c.has_size?($("existingSize").value.trim()||"0"):"0";
-  const length=c.has_length?Number($("existingLength").value):null;
-  if(c.has_length&&(!Number.isFinite(length)||length<=0)){$("msg").textContent="Enter a valid length in centimetres.";return;}
+  if(variantSaving)return;
+  const product=items.find(p=>String(p.id)===String($("existingProduct").value));
+  if(!product){variantMessage("Choose an existing product before saving.",true);return;}
+  const category=cats.find(c=>String(c.id)===String(product.category_id));
+  if(!category){variantMessage("The selected product category is unavailable.",true);return;}
+  let draft;
   try{
-    await sb("product_variants",{method:"POST",headers:{"Prefer":"return=minimal"},body:JSON.stringify({product_id:p.id,color,size,length_cm:length,stock_quantity:Number($("existingStock").value)||0,low_stock_limit:Number($("existingLow").value)||3})});
-    $("msg").textContent="Added variant to "+p.product_code+" ("+[color!=="0"?color:"",size!=="0"?"size "+size:"",length?"length "+length+" cm":""].filter(Boolean).join(", ")+")";
-    await load();fillExistingProducts();
-  }catch(e){$("msg").textContent="Error: "+e.message;console.error(e);}
+    const rules=await getVariantRules();
+    draft=rules.buildVariantDraft(category,{
+      color:$("existingColor").value,size:$("existingSize").value,
+      length:$("existingLength").value,stock:$("existingStock").value,low:$("existingLow").value
+    });
+    const duplicate=(product.product_variants||[]).find(v=>rules.sameVariant(v,draft));
+    if(duplicate)throw new Error("This exact variant already exists. Choose a different color, size or length; use Inventory to update existing stock.");
+  }catch(error){variantMessage(error.message,true);return;}
+  variantSaving=true;
+  $("saveVariantBtn").disabled=true;
+  $("saveVariantBtn").textContent="Saving variant…";
+  variantMessage("Saving new variant…");
+  try{
+    const response=await sb("product_variants",{
+      method:"POST",headers:{"Prefer":"return=representation"},
+      body:JSON.stringify({product_id:product.id,...draft})
+    });
+    if(!Array.isArray(response)||response.length!==1)throw new Error("The new variant could not be verified. Refresh and check the variant list.");
+    await load();
+    fillExistingProducts(product.id);
+    const attrs=[category.has_color?"color "+draft.color:null,category.has_size?"size "+draft.size:null,
+      category.has_length?"length "+draft.length_cm+" cm":null].filter(Boolean).join(" · ");
+    variantMessage("Saved a new variant for "+product.product_code+(attrs?" ("+attrs+")":"")+". Stock: "+draft.stock_quantity+".");
+  }catch(error){
+    console.error("Variant save failed",error?.code||"");
+    variantMessage(error?.code==="23505"?"This variant already exists. Choose a different color, size or length."
+      :"Could not save variant: "+(error?.message||"Unknown error"),true);
+  }finally{
+    variantSaving=false;
+    $("saveVariantBtn").textContent="Save Variant";
+    const selected=items.find(p=>String(p.id)===String($("existingProduct").value));
+    const c=selected&&cats.find(x=>String(x.id)===String(selected.category_id));
+    $("saveVariantBtn").disabled=!selected||!c||
+      (!c.has_color&&!c.has_size&&!c.has_length&&(selected.product_variants||[]).length>0);
+  }
 }
 
 function renderStorefrontCategorySettings(){
@@ -243,7 +344,7 @@ $("form").onsubmit=async e=>{
     })}))[0];
     await sb("product_variants",{method:"POST",headers:{"Prefer":"return=minimal"},body:JSON.stringify({
       product_id:product.id,color:c.has_color?($("color").value||"0"):"0",size:c.has_size?($("size").value||"0"):"0",length_cm:productLength,
-      stock_quantity:Number($("stock").value)||0,low_stock_limit:Number($("low").value)||3
+      stock_quantity:Number($("stock").value)||0,low_stock_limit:Number($("low").value??3)
     })});
     let uploadedCount=0;
     for(let i=0;i<selectedImages.length;i++){
