@@ -845,6 +845,7 @@
       gallery.addEventListener("focusout",event=>{
         if(!gallery.contains(event.relatedTarget))resumeGallery();
       });
+      gallery.dataset.swipeGallery="true";
       gallery.setAttribute("aria-label","Product photos. Swipe left or right to see more.");
     }
     resumeGallery();
