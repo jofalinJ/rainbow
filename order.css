@@ -40,3 +40,18 @@
 .order-summary>div{gap:14px}
 .order-summary>div strong{text-align:right}
 @media(max-width:560px){.order-summary>div{gap:10px}.gateway-status{font-size:12px}}
+
+/* Checkout: balanced three-part navigation, mobile-friendly second row */
+body:has(.order-page) .topbar .nav{min-height:88px!important;position:relative;display:grid!important;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr)!important;align-items:center!important;justify-content:initial!important;gap:12px!important;padding:10px 0!important}
+body:has(.order-page) .topbar .nav .logo{position:static!important;grid-column:2;grid-row:1;transform:none!important;display:flex!important;flex-direction:column!important;justify-self:center;text-align:center;gap:2px!important}
+body:has(.order-page) .topbar .nav .logo .brand-logo{width:35px;height:35px}
+body:has(.order-page) .topbar .nav .navlinks{grid-column:1;grid-row:1;display:flex!important;justify-content:flex-start!important;align-items:center;gap:10px!important;padding:0!important;margin:0!important;width:auto!important}
+body:has(.order-page) .topbar .nav .nav-actions{grid-column:3;grid-row:1;justify-self:end;align-self:center;display:flex;align-items:center;gap:12px;margin:0;padding:0!important}
+body:has(.order-page) .topbar .nav :is(.navlinks,.nav-actions) a{font-size:11px;white-space:nowrap}
+@media(max-width:680px){
+body:has(.order-page) .topbar .nav{grid-template-columns:1fr auto!important;grid-template-rows:auto auto;gap:8px!important;min-height:95px!important}
+body:has(.order-page) .topbar .nav .logo{grid-row:1;grid-column:1/-1}
+body:has(.order-page) .topbar .nav .navlinks{grid-row:2;grid-column:1;gap:10px!important}
+body:has(.order-page) .topbar .nav .nav-actions{grid-row:2;grid-column:2}
+body:has(.order-page) .topbar .nav .nav-actions .instagram-top{display:none}
+}
