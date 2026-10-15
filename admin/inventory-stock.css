@@ -1,0 +1,36 @@
+/* Inventory stock movement: existing red, warm-white and gold admin design. */
+.stock-row-button{min-height:38px;white-space:nowrap;font-size:12px;font-weight:750;color:#8f1520;background:#fffaf5;border:1px solid #d6bfa3;border-radius:9px;cursor:pointer;padding:8px 12px}
+.stock-row-button:hover{background:#f8eddf;border-color:#b58c4d}
+.stock-row-button:focus-visible,.stock-dialog button:focus-visible,.stock-dialog :is(input,select,textarea):focus-visible{outline:3px solid #c99b46;outline-offset:3px}
+.stock-dialog{width:min(790px,calc(100vw - 20px));max-height:calc(100dvh - 25px);margin:auto;padding:0;border:1px solid #e6d7c6;border-radius:20px;box-shadow:0 28px 84px #2f1a1933;background:#fffdfb;color:#352823;overflow:auto}
+.stock-dialog::backdrop{background:#21100ac2}
+.stock-dialog-head{position:sticky;top:0;z-index:2;background:#fffdfb;border-bottom:1px solid #eddfd1;padding:18px 24px;display:flex;justify-content:space-between;align-items:center;gap:15px}
+.stock-dialog-head h2{font:500 clamp(22px,4vw,30px)/1.2 Georgia,serif;margin:4px 0 0;color:#351e1d}
+.stock-dialog-head button{min-height:40px}
+.stock-dialog-content{padding:22px 24px 26px}
+.stock-variant-label{color:#6f5951;font-size:13px;line-height:1.6;margin:0 0 16px}
+.stock-balances{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:20px}
+.stock-balances div{background:#faf1e7;border:1px solid #ebd6bc;border-radius:14px;padding:16px}
+.stock-balances small{display:block;color:#856446;font-weight:750;font-size:10px;text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px}
+.stock-balances strong{font-size:28px;color:#81202a;font-weight:800}
+.stock-adjust-form{border:1px solid #ecdfd0;background:#fff;border-radius:14px;padding:19px}
+.stock-adjust-form h3,.stock-history-section h3{margin:0 0 15px;font-size:17px;letter-spacing:-.02em}
+.stock-adjust-form label{display:grid;gap:8px;font-size:12px;font-weight:750;color:#4d3a32;margin-bottom:15px}
+.stock-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.stock-dialog :is(input,textarea,select){font:inherit;font-size:13px;line-height:1.45;border:1px solid #dfcdbb;background:#fff;color:#342925;border-radius:10px;width:100%;min-width:0;min-height:44px;padding:11px 12px}
+.stock-dialog textarea{resize:vertical;min-height:85px}
+.stock-help{font-size:11px;color:#76685f;line-height:1.6}
+.stock-submit{min-height:45px;padding:11px 19px;border-radius:10px;border-color:#8f1520;background:#8f1520;color:#fff;font-weight:750;cursor:pointer}
+.stock-submit:disabled{cursor:not-allowed;opacity:.5}
+.stock-message{font-size:12px;color:#256642;line-height:1.55;min-height:18px;margin:12px 0 0}
+.stock-message.is-error{color:#b21b27}
+.stock-history-section{margin:22px 0 0}
+.stock-history{display:grid;gap:10px;margin-top:14px}
+.stock-history-row{background:#fff;border:1px solid #eee0d2;border-radius:12px;padding:15px}
+.stock-history-top{display:flex;gap:14px;justify-content:space-between;color:#46322c;font-size:13px}
+.stock-history-delta{font-variant-numeric:tabular-nums;color:#1f7650;white-space:nowrap}
+.stock-history-delta.is-negative{color:#b02030}
+.stock-history-meta,.stock-history-balance{display:block;font-size:11px;color:#786c65;line-height:1.6;margin-top:7px}
+.stock-history-detail{font-size:12px;color:#63544a;line-height:1.6;margin:7px 0 0;overflow-wrap:anywhere}
+.stock-history-empty{padding:15px 0;color:#776a61;font-size:12px}
+@media(max-width:540px){.stock-dialog-head{padding:15px}.stock-dialog-content{padding:14px}.stock-adjust-form{padding:14px}.stock-form-grid{grid-template-columns:1fr}.stock-balances strong{font-size:24px}.stock-history-top{flex-wrap:wrap}}
