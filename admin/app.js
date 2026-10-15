@@ -33,7 +33,7 @@ function renderSharedSidebar(){
   const nav=document.createElement("nav");nav.setAttribute("aria-label","Admin navigation");
   aside.append(nav);
   const user=document.createElement("div");user.className="user";
-  const signOut=document.createElement("button");signOut.type="button";signOut.textContent="Sign out";signOut.addEventListener("click",()=>logout());
+  const signOut=document.createElement("button");signOut.type="button";signOut.textContent="Sign out";signOut.style.marginTop="12px";signOut.addEventListener("click",()=>logout());
   user.append(signOut);aside.append(user);
 }
 function renderAuthorizedSidebar(profile,allowedItems){
