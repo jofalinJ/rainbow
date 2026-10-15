@@ -3,6 +3,7 @@
   const SUPABASE_URL=String(SUPABASE_CONFIG.supabaseUrl||"").trim();
   const SUPABASE_PUBLISHABLE_KEY=String(SUPABASE_CONFIG.supabasePublishableKey||"").trim();
   let client=null, realtimeChannel=null, realtimeRefreshTimer=null, refreshInterval=null, productsLoading=false, productsReloadRequested=false, catalogueProducts=[], catalogueCategories=[], visibleProducts=[], activeCategory="", activeProductId="";
+  let promotionProductId="";
   const WISHLIST_KEY="rainbow_wishlist_v1";
   let activeSearch="",activeSegment="all",wishlistOnly=false,visualSearchSignature=null,visualSearchScores=new Map(),speechRecognition=null;
   const wishlistIds=new Set(readWishlist());
@@ -42,6 +43,25 @@
   const updateCartCount=()=>{const el=document.getElementById("cartCount");if(el)el.textContent=getCart().reduce((n,x)=>n+Number(x.quantity||0),0)};
   const getStock=product=>(Array.isArray(product.product_variants)?product.product_variants:[])
     .filter(v=>v.active!==false).reduce((sum,v)=>sum+Number(v.stock_quantity||0),0);
+
+  function renderPromotion(){
+    const section=document.getElementById("featuredPromotion");
+    if(!section)return;
+    const product=catalogueProducts.find(p=>String(p.id)===promotionProductId);
+    const image=product?getImage(product):"";
+    if(!product||!image||getStock(product)<=0){
+      section.hidden=true;
+      return;
+    }
+    document.getElementById("promotionName").textContent=product.product_name||"Featured jewellery";
+    document.getElementById("promotionDescription").textContent=
+      String(product.description||"Explore this handpicked design from Rainbow Gold Covering.");
+    document.getElementById("promotionPrice").textContent=money(product.selling_price);
+    const photo=document.getElementById("promotionImage");
+    if(photo.src!==image)photo.src=image;
+    photo.alt=product.product_name||"Featured Rainbow jewellery";
+    section.hidden=false;
+  }
 
   function applyBusinessConfig(){
     const cfg=window.RAINBOW_BUSINESS_CONFIG;
@@ -811,21 +831,25 @@
     productsLoading=true;
     const status=document.getElementById("productStatus");
     try{
-      const [productsResult,categoriesResult]=await Promise.all([
+      const [productsResult,categoriesResult,promotionResult]=await Promise.all([
         client.from("products")
           .select("id,product_code,product_name,type,gender,display_priority,category_id,categories(name,storefront_order,show_in_storefront),selling_price,description,length_cm,thickness,gold_amount_g,created_at,product_variants(id,stock_quantity,color,size,length_cm,active),product_images(id,public_url,is_primary,sort_order)")
           .eq("active",true).order("display_priority",{ascending:false}).order("created_at",{ascending:false}),
-        client.from("categories").select("name,storefront_order,show_in_storefront").eq("active",true).order("storefront_order",{ascending:true}).order("name",{ascending:true})
+        client.from("categories").select("name,storefront_order,show_in_storefront").eq("active",true).order("storefront_order",{ascending:true}).order("name",{ascending:true}),
+        client.from("storefront_promotion").select("product_id").eq("id",1).maybeSingle()
       ]);
       if(productsResult.error)throw productsResult.error;
       if(categoriesResult.error){
         console.warn("Product types could not be loaded.",categoriesResult.error);
         catalogueCategories=[];
       }else catalogueCategories=Array.isArray(categoriesResult.data)?categoriesResult.data:[];
+      if(promotionResult.error)console.warn("Promotional banner selection unavailable.",promotionResult.error);
+      promotionProductId=String(promotionResult.data?.product_id||"");
       const stockedProducts=(productsResult.data||[]).filter(product=>getStock(product)>0);
       catalogueProducts=stockedProducts;
       if(activeProductId&&!stockedProducts.some(product=>String(product.id)===String(activeProductId)))closeProductModal();
       render();
+      renderPromotion();
     }catch(error){
       console.error(error);
       if(status)status.textContent="Products are temporarily unavailable.";
@@ -849,6 +873,10 @@
     updateCartCount();
     updateWishlistCount();
     bindProductModal();
+    document.getElementById("promotionView")?.addEventListener("click",()=>{
+      const product=catalogueProducts.find(p=>String(p.id)===promotionProductId);
+      if(product&&getStock(product)>0)openProductModal(product);
+    });
     bindCollectionFilters();
     bindHeaderActions();
     document.querySelectorAll("[data-scroll]").forEach(button=>button.addEventListener("click",()=>{
