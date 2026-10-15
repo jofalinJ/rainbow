@@ -108,3 +108,36 @@ test("admin dashboard provides the promotional product selector", { skip: !E2E_E
     assert.equal(await driver.findElement(By.css("#promotionClear")).getAttribute("type"), "button");
   });
 });
+
+test("admin orders provides shipment management with customer data and mobile controls", { skip: !E2E_ENABLED }, async () => {
+  requireAuthenticatedE2EConfig();
+  await runWithDriver("admin-shipment-modal", async driver => {
+    const login = new LoginPage(driver);
+    await login.open(BASE_URL);
+    await login.signIn(ADMIN_USERNAME, ADMIN_PASSWORD);
+    await driver.manage().window().setRect({ width: 430, height: 930 });
+    await driver.get(BASE_URL + "/admin/orders.html");
+    await driver.wait(until.elementLocated(By.css("#shipmentModal")), 10000);
+    assert.equal(await driver.findElement(By.css("#shipmentModal")).isDisplayed(), false);
+    await driver.wait(async () => {
+      const rows = await driver.findElements(By.css("#rows tr"));
+      return rows.length > 0 && !(await rows[0].getText()).includes("Loading");
+    }, 15000);
+    const actions = await driver.findElements(By.css("[data-shipment]"));
+    if (!actions.length) return; // Seeded test DB can legitimately have no online orders.
+    await driver.executeScript("arguments[0].click()", actions[0]);
+    const editor = await driver.findElement(By.css("#shipmentModal.open"));
+    assert.equal(await editor.isDisplayed(), true);
+    const summary = await driver.findElement(By.css("#shipmentOrderSummary"));
+    assert.ok((await summary.getText()).includes("Order"));
+    assert.ok((await summary.getText()).includes("Customer"));
+    assert.ok((await summary.getText()).includes("WhatsApp"));
+    assert.equal(await driver.findElement(By.css("#shipmentWhatsapp")).isEnabled(), false);
+    assert.equal(await driver.findElement(By.css("#shipmentConfirm")).isEnabled(), false);
+    const width = await driver.executeScript("return document.documentElement.scrollWidth");
+    const viewport = await driver.executeScript("return window.innerWidth");
+    assert.ok(width <= viewport + 2, "Shipment modal must not cause horizontal overflow");
+    await driver.findElement(By.css("#closeShipment")).click();
+    assert.equal(await editor.isDisplayed(), false);
+  });
+});
