@@ -23,53 +23,54 @@ const ADMIN_NAV_ITEMS=[
 function renderSharedSidebar(){
   const aside=document.querySelector("body > aside");
   if(!aside)return;
-  const current=(location.pathname.split("/").pop()||"index.html").toLowerCase();
   aside.replaceChildren();
   const brand=document.createElement("div");brand.className="brand";
   const logo=document.createElement("img");logo.src="../assets/brand/rainbow-logo.png";logo.alt="Rainbow Gold Covering logo";logo.width=36;logo.height=36;
   const name=document.createElement("span");name.innerHTML="RAINBOW<br>GOLD COVERING";
   brand.append(logo,name);aside.append(brand);
+  // Keep navigation empty until Supabase confirms the signed-in staff role.
+  // Rendering all links first caused a brief flash of admin-only pages for other roles.
   const nav=document.createElement("nav");nav.setAttribute("aria-label","Admin navigation");
-  ADMIN_NAV_ITEMS.forEach(item=>{
-    const link=document.createElement("a");link.href=item.href;link.textContent=item.label;
-    if(item.href===current){link.classList.add("active");link.setAttribute("aria-current","page");}
-    nav.append(link);
-  });
   aside.append(nav);
   const user=document.createElement("div");user.className="user";
-  const label=document.createElement("span");label.textContent="Staff";
-  const role=document.createElement("small");role.textContent="Checking access…";
   const signOut=document.createElement("button");signOut.type="button";signOut.textContent="Sign out";signOut.style.marginTop="12px";signOut.addEventListener("click",()=>logout());
-  user.append(label,document.createElement("br"),role,signOut);aside.append(user);
+  user.append(signOut);aside.append(user);
+}
+function renderAuthorizedSidebar(profile,allowedItems){
+  const aside=document.querySelector("body > aside");
+  if(!aside)return;
+  const nav=aside.querySelector("nav");
+  const current=(location.pathname.split("/").pop()||"index.html").toLowerCase();
+  const links=allowedItems.map(item=>{
+    const link=document.createElement("a");
+    link.href=item.href;link.textContent=item.label;
+    if(item.href===current){link.classList.add("active");link.setAttribute("aria-current","page");}
+    return link;
+  });
+  // Only publish links after the role and page have both been authorized.
+  if(nav)nav.replaceChildren(...links);
+  const user=aside.querySelector(".user");
+  if(user){
+    const label=document.createElement("span");
+    label.textContent=profile.full_name||profile.username||"Staff";
+    const line=document.createElement("br");
+    const role=document.createElement("small");
+    role.textContent=profile.role==="admin"?"Admin":profile.role==="cashier"?"Cashier":"Inventory Staff";
+    user.prepend(label,line,role);
+  }
 }
 async function applyRoleNavigation(){
   try{
     const p=await getMyProfile();
     if(!p.active){await bootSupabase().auth.signOut();location.href="login.html";return null;}
-    const allowed={
-      admin:ADMIN_NAV_ITEMS.filter(x=>x.roles.includes("admin")).map(x=>x.href),
-      inventory_staff:ADMIN_NAV_ITEMS.filter(x=>x.roles.includes("inventory_staff")).map(x=>x.href),
-      cashier:ADMIN_NAV_ITEMS.filter(x=>x.roles.includes("cashier")).map(x=>x.href)
-    };
-    if(!allowed[p.role])throw new Error("Invalid staff role: "+p.role);
+    if(!["admin","inventory_staff","cashier"].includes(p.role))throw new Error("Invalid staff role: "+p.role);
+    const allowedItems=ADMIN_NAV_ITEMS.filter(item=>item.roles.includes(p.role));
     const page=(location.pathname.split("/").pop()||"index.html").toLowerCase();
-    if(!allowed[p.role].includes(page)){
+    if(!allowedItems.some(item=>item.href===page)){
       location.href=p.role==="admin"?"index.html":p.role==="inventory_staff"?"products.html":"billing.html";
       return null;
     }
-    document.querySelectorAll("aside nav a").forEach(a=>{
-      const href=(a.getAttribute("href")||"").toLowerCase();
-      if(!allowed[p.role].includes(href)){a.remove();return;}
-      const active=href===page;
-      a.classList.toggle("active",active);
-      if(active)a.setAttribute("aria-current","page");else a.removeAttribute("aria-current");
-    });
-    const user=document.querySelector("aside .user");
-    if(user){
-      const roleLabel=p.role==="admin"?"Admin":p.role==="cashier"?"Cashier":"Inventory Staff";
-      const label=user.querySelector("span");if(label)label.textContent=p.full_name||p.username||"Staff";
-      const small=user.querySelector("small");if(small)small.textContent=roleLabel;
-    }
+    renderAuthorizedSidebar(p,allowedItems);
     return p;
   }catch(e){
     console.error(e);
