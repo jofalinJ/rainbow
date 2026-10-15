@@ -90,7 +90,7 @@ test("homepage editorial content and contact links match storefront feedback", a
 
     const logo = await driver.findElement(By.css("#story .story-card img.story-brand-logo"));
     assert.equal(await logo.isDisplayed(), true);
-    assert.match(await logo.getAttribute("src"), /assets\/brand\/rainbow-logo\.png/);
+    assert.match(await logo.getAttribute("src"), /assets\/brand\/logo2\.png/);
     assert.ok((await logo.getAttribute("alt")).includes("Rainbow"));
 
     const links = await driver.findElements(By.css("#contact .contact-phone a"));
