@@ -74,8 +74,11 @@ test("admin-selected homepage promotion opens the matching product details", asy
     const section = await driver.findElement(By.css("#featuredPromotion"));
     // The feature is intentionally hidden until an admin publishes a product.
     if (!(await section.isDisplayed())) return;
-    assert.ok((await driver.findElement(By.css("#promotionName")).getText()).trim().length > 0);
-    assert.match(await driver.findElement(By.css("#promotionPrice")).getText(), /₹/);
+    // Image-only rotating gallery: no product name or pricing overlay.
+    assert.equal((await driver.findElements(By.css("#promotionName, #promotionPrice"))).length, 0);
+    const image=await driver.findElement(By.css("#promotionImage"));
+    assert.ok((await image.getAttribute("src")).length > 8);
+    assert.ok((await image.getAttribute("alt")).trim().length > 0);
     await driver.findElement(By.css("#promotionView")).click();
     await driver.wait(until.elementLocated(By.css("#productModal.open #modalProductName")), 5000);
     assert.ok((await driver.findElement(By.css("#modalProductName")).getText()).trim().length > 0);
@@ -119,5 +122,39 @@ test("checkout shows state delivery options and keeps future gateway modes disab
     assert.equal((await driver.findElements(By.css("#deliveryNote"))).length, 0);
     assert.equal((await driver.findElements(By.css("#paymentMethod option[disabled]"))).length, 4);
     assert.equal(await driver.findElement(By.css("#placeOrder")).isEnabled(), false);
+  });
+});
+
+test("mobile storefront puts cart beside account and displays photo categories when available", async()=>{
+  await runWithDriver("mobile-storefront-navigation-images",async driver=>{
+    await driver.manage().window().setRect({width:390,height:844});
+    await driver.get(BASE_URL+"/");
+    const header=await driver.findElement(By.css(".storefront-header-actions"));
+    const account=await header.findElement(By.css("#accountOpen"));
+    const cart=await header.findElement(By.css(".cart-icon-link"));
+    const a=await account.getRect(),b=await cart.getRect();
+    assert.ok(b.x>=a.x,"Cart should follow account");
+    assert.equal((await driver.findElements(By.css("#orderTrackOpen"))).length,0);
+    await driver.findElement(By.css("#menuToggle")).click();
+    const status=await driver.findElement(By.css("#productStatus"));
+    await driver.wait(async()=> (await status.getText()).trim()!=="Loading products…",15000);
+    const links=await driver.findElements(By.css("#drawerCategories .drawer-type-link"));
+    for(const link of links){
+      const thumbs=await link.findElements(By.css("img.drawer-type-thumb"));
+      const fallback=await link.findElements(By.css(".drawer-type-fallback"));
+      assert.equal(thumbs.length+fallback.length,1);
+    }
+    await driver.findElement(By.css("#drawerClose")).click();
+  });
+});
+
+test("checkout top navigation and logo do not overlap at phone width",async()=>{
+  await runWithDriver("checkout-mobile-topbar",async driver=>{
+    await driver.manage().window().setRect({width:390,height:844});
+    await driver.get(BASE_URL+"/order.html");
+    const logo=await driver.findElement(By.css(".topbar .logo"));
+    const links=await driver.findElement(By.css(".topbar .navlinks"));
+    const a=await logo.getRect(),b=await links.getRect();
+    assert.ok(a.y+a.height<=b.y+2,"Mobile checkout logo should be above navigation row");
   });
 });
