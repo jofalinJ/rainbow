@@ -1371,3 +1371,30 @@ button,.category-tile,[role="button"]{touch-action:manipulation}
 .promotion-carousel-dots button.is-active{background:#8f1520;border-color:#8f1520;box-shadow:0 0 0 2px #fff}
 @media(max-width:640px){.rotating-feature{padding:19px 0 25px}.rotating-feature-frame{height:320px;border-radius:17px}.promotion-carousel-arrow{width:38px;height:38px}.promotion-carousel-arrow.is-left{left:8px}.promotion-carousel-arrow.is-right{right:8px}}
 @media(prefers-reduced-motion:reduce){.promotion-image-button img{transition:none}}
+
+/* 2026 storefront refinements — preserve the established Rainbow design */
+.storefront-header-row .menu-toggle{width:50px;height:50px;flex-basis:50px;border:1px solid #e9d8c4;border-radius:15px;background:#fff8f0}
+.storefront-header-row .menu-toggle svg{width:29px;height:29px;stroke-width:2.2}
+.storefront-header-row .menu-toggle:hover{background:#f7e9da}
+.storefront-header-actions{gap:5px}
+.drawer-type-link{display:flex;align-items:center;gap:11px;text-align:left;min-height:54px}
+.drawer-type-thumb,.drawer-type-fallback{display:grid;place-items:center;flex:0 0 46px;width:46px;height:46px;border-radius:10px;background:#fff8f2;border:1px solid #eadbc7}
+.drawer-type-thumb{object-fit:cover}
+.drawer-type-fallback{font-size:18px;color:#b68b4b}
+.drawer-type-link>span:last-child{min-width:0;line-height:1.4;overflow-wrap:anywhere}
+.drawer-quicklinks button,.drawer-quicklinks a{
+  font-family:inherit!important;font-size:13px!important;font-weight:650!important;line-height:1.45!important;
+  letter-spacing:normal!important;
+}
+.product-detail-main{touch-action:pan-y;position:relative}
+.product-detail-main[data-swipe-gallery]::after{content:"Swipe for more photos";pointer-events:none;position:absolute;bottom:14px;left:14px;
+  font-size:10px;letter-spacing:.04em;color:#55443d;background:#fffefad9;border-radius:999px;padding:6px 10px}
+.product-support-card{margin-top:18px}
+@media(max-width:540px){
+ .storefront-header-row .menu-toggle{width:46px;height:46px}
+ .storefront-header-row .menu-toggle svg{width:27px;height:27px}
+ .storefront-header-actions{gap:2px}
+ .storefront-header-row .logo strong{font-size:clamp(11px,3.3vw,16px)}
+ .drawer-type-thumb,.drawer-type-fallback{flex-basis:41px;width:41px;height:41px}
+ .drawer-type-link{gap:8px}
+}
