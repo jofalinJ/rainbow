@@ -1352,3 +1352,22 @@ button,.category-tile,[role="button"]{touch-action:manipulation}
 .shipment-step.is-done .shipment-dot{background:#8f1520;border-color:#8f1520}
 .shipment-step.is-current .shipment-dot{background:#fff;border:3px solid #8f1520;box-shadow:0 0 0 3px #f8e4e5}
 @media(max-width:430px){.shipment-step{font-size:9px}.shipment-timeline{gap:2px}.customer-shipment-head{display:grid;gap:3px}}
+
+/* Product-image-only storefront carousel: no text, prices or third-party stock art. */
+.rotating-feature{background:#fffaf5;padding:30px 0 40px}
+.rotating-feature-frame{height:clamp(270px,45vw,510px);position:relative;overflow:hidden;
+  border-radius:24px;border:1px solid #ebd9c3;background:linear-gradient(130deg,#faf5ec,#fff 55%,#f4ebdc);
+  box-shadow:0 20px 55px rgba(55,28,19,.11);isolation:isolate}
+.promotion-image-button{position:absolute;inset:0;display:grid;place-items:center;padding:0;border:0;background:transparent;width:100%;height:100%;cursor:pointer}
+.promotion-image-button img{width:100%;height:100%;object-fit:contain;display:block;transition:opacity .3s ease}
+.promotion-image-button:focus-visible{outline:4px solid #ac823a;outline-offset:-8px}
+.promotion-carousel-arrow{position:absolute;top:50%;z-index:3;transform:translateY(-50%);width:44px;height:44px;border-radius:50%;border:1px solid #e8d4bd;
+  background:rgba(255,255,255,.92);color:#8f1520;box-shadow:0 4px 16px #50322121;font-size:26px;display:grid;place-items:center;cursor:pointer}
+.promotion-carousel-arrow.is-left{left:16px}.promotion-carousel-arrow.is-right{right:16px}
+.promotion-carousel-arrow[hidden],.promotion-carousel-dots[hidden]{display:none!important}
+.promotion-carousel-arrow:focus-visible,.promotion-carousel-dots button:focus-visible{outline:3px solid #c89a3c;outline-offset:3px}
+.promotion-carousel-dots{position:absolute;bottom:15px;left:50%;transform:translateX(-50%);z-index:4;display:flex;gap:9px;background:rgba(255,255,255,.84);padding:9px 13px;border-radius:30px}
+.promotion-carousel-dots button{width:11px;height:11px;border-radius:50%;border:1px solid #af9385;background:#fff;cursor:pointer;padding:0}
+.promotion-carousel-dots button.is-active{background:#8f1520;border-color:#8f1520;box-shadow:0 0 0 2px #fff}
+@media(max-width:640px){.rotating-feature{padding:19px 0 25px}.rotating-feature-frame{height:320px;border-radius:17px}.promotion-carousel-arrow{width:38px;height:38px}.promotion-carousel-arrow.is-left{left:8px}.promotion-carousel-arrow.is-right{right:8px}}
+@media(prefers-reduced-motion:reduce){.promotion-image-button img{transition:none}}
