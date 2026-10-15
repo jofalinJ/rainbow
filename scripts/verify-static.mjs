@@ -18,7 +18,7 @@ for(const file of htmlFiles){
   const html=await fs.readFile(path.join(root,file),"utf8");
   for(const match of html.matchAll(refRe)){
     const ref=match[1];
-    if(!ref||ref.startsWith("#")||/^(https?:)?\/\//i.test(ref))continue;
+    if(!ref||ref.startsWith("#")||/^(?:(?:https?:)?\/\/|mailto:|tel:|sms:)/i.test(ref))continue;
     const clean=ref.split("?")[0].split("#")[0];
     if(!clean)continue;
     try{await fs.access(path.resolve(path.dirname(path.join(root,file)),clean));}
