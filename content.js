@@ -28,7 +28,7 @@
     }
   }
 
-  const esc=value=>String(value??"").replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
+  const esc=value=>String(value??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
   const money=value=>"₹"+Number(value||0).toLocaleString("en-IN",{maximumFractionDigits:2});
   const getProductImages=product=>{
     const images=Array.isArray(product.product_images)?product.product_images:[];
