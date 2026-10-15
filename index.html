@@ -8,14 +8,16 @@
 <meta property="og:image" content="https://jofalinj.github.io/rainbow/assets/brand/rainbow-logo.png">
 <meta name="description" content="Rainbow Kollam Gold Covering — premium gold-covering jewellery, collections and store information.">
 <title>Rainbow Kollam Gold Covering — Jewellery, Made to Shine</title>
-<link rel="stylesheet" href="content.css?v=20261011-storefront-categories-v5">
+<link rel="stylesheet" href="content.css?v=20261015-storefront-polish-v1">
 <script src="config.js"></script>
 <script src="admin/config.js"></script>
 </head>
 <body>
+<a class="skip-link" href="#mainContent">Skip to main content</a>
 <header class="topbar storefront-topbar">
   <nav class="nav container" aria-label="Main navigation">
     <div class="storefront-header-row">
+    <div class="storefront-header-left"><button id="menuToggle" class="icon-button menu-toggle" type="button" aria-label="Open shop navigation" aria-controls="shopDrawer" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button></div>
     <a class="logo" href="index.html" aria-label="Rainbow Kollam Gold Covering home"><img class="brand-logo" src="assets/brand/rainbow-logo.png" alt="Rainbow Kollam Gold Covering logo" width="46" height="46" fetchpriority="high"><span><strong data-config="brandName">RAINBOW KOLLAM</strong><small>GOLD COVERING</small></span></a>
     <div class="storefront-header-right">
     <div class="storefront-header-actions" aria-label="Account and shopping actions">
@@ -26,16 +28,13 @@
     </div>
     <form id="siteSearchForm" class="storefront-search-form" role="search">
       <label class="visually-hidden" for="siteSearch">Search jewellery</label>
-      <input id="siteSearch" type="search" autocomplete="off" placeholder="Search" aria-label="What are you looking for...">
+      <input id="siteSearch" type="search" autocomplete="off" placeholder="Search designs and categories" aria-label="Search jewellery and categories">
       <button id="voiceSearch" class="search-tool-button" type="button" aria-label="Search by voice" title="Voice search"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M9 21h6"/></svg></button>
       <button id="visualSearchButton" class="search-tool-button" type="button" aria-label="Search using a photo" title="Visual search"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h3l1.5-2h7L17 7h3v12H4z"/><circle cx="12" cy="13" r="4"/></svg></button>
       <button class="search-submit" type="submit" aria-label="Submit search" title="Search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 4 4"/></svg></button>
       <input id="visualSearchFile" type="file" accept="image/*" capture="environment" hidden>
     </form>
     </div>
-  </div>
-  <div class="storefront-menu-row">
-    <button id="menuToggle" class="icon-button menu-toggle" type="button" aria-label="Open shop navigation" aria-controls="shopDrawer" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
   </div>
     <p id="searchFeedback" class="search-feedback" role="status" aria-live="polite" hidden></p>
   </nav>
@@ -92,7 +91,7 @@
     <a id="accountTrackOrder" class="btn btn-light account-track-button" href="https://www.tpcindia.com/" target="_blank" rel="noopener noreferrer">Track an order with TPC India ↗</a>
   </section>
 </div>
-<main>
+<main id="mainContent" tabindex="-1">
 <section class="hero">
 <div class="container hero-grid">
 <div>
@@ -138,6 +137,6 @@
 </main>
 <footer class="container footer"><span class="footer-brand" data-config="footerBrand"><img class="footer-logo" src="assets/brand/rainbow-logo.png" alt="Rainbow Kollam Gold Covering logo" width="28" height="28" loading="lazy"><span data-config="footerBrandText">RAINBOW KOLLAM GOLD COVERING</span></span><span><a class="instagram-link" data-instagram href="https://www.instagram.com/rainbow_kollam_gold_covering/" target="_blank" rel="noopener noreferrer">Instagram · @rainbow_kollam_gold_covering</a></span><span class="footer-legal-link"><a href="privacy-policy.html">Privacy Policy</a></span><span class="footer-legal-link"><a href="terms-and-conditions.html">Terms &amp; Conditions</a></span><span class="footer-legal-link"><a href="sitemap.html">Sitemap</a></span><span>© <span id="year"></span> Rainbow Kollam Gold Covering. All rights reserved.</span></footer>
 <div id="productModal" class="product-modal" aria-hidden="true"><div class="product-modal-backdrop" data-close-product></div><button class="product-modal-nav previous" type="button" data-product-prev aria-label="Previous product" hidden>‹</button><div class="product-modal-panel" role="dialog" aria-modal="true" aria-labelledby="modalProductName"><button class="product-modal-close" type="button" aria-label="Close product details" data-close-product>×</button><div id="productModalContent"></div></div><button class="product-modal-nav next" type="button" data-product-next aria-label="Next product" hidden>›</button></div>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="content.js?v=20261011-categories-gender-v5"></script><script src="business-live.js?v=20261011-brand-name"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="content.js?v=20261015-storefront-polish-v1"></script><script src="business-live.js?v=20261011-brand-name"></script>
 </body>
 </html>
