@@ -7,10 +7,13 @@ const client=read("admin/my-attendance.js");
 const migration=read("supabase/migrations/20261015154500_simple_staff_attendance_no_photos.sql");
 
 describe("direct authenticated staff attendance",()=>{
-  it("shows direct Check in and Check out without photo, tick box or face pilot",()=>{
+  it("retains direct Check in / Check out while offering an optional separated face preview",()=>{
     expect(page).toMatch(/id="checkInButton"[^>]*>Check in<\/button>/);
     expect(page).toMatch(/id="checkOutButton"[^>]*>Check out<\/button>/);
-    for(const unsupported of ["facePilot","face-pilot.mjs","photoConsent","checkInPhoto","camera-upload","photoPreviewWrap"]){
+    expect(page).toContain('id="facePilot"');
+    expect(page).toContain('id="facePilotConsent"');
+    expect(page).toContain("does <strong>not</strong> replace your attendance buttons");
+    for(const unsupported of ["face-pilot.mjs","photoConsent","checkInPhoto","camera-upload","photoPreviewWrap"]){
       expect(page).not.toContain(unsupported);
     }
   });
