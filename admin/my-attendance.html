@@ -7,7 +7,7 @@
 <link rel="icon" type="image/png" href="../assets/brand/rainbow-logo.png">
 <title>Rainbow Gold Covering — My Attendance</title>
 <link rel="stylesheet" href="style.css">
-<link rel="stylesheet" href="my-attendance.css?v=20261011-private-capture">
+<link rel="stylesheet" href="my-attendance.css?v=20261015-human-pilot-v1">
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -30,9 +30,26 @@
     <div class="self-attendance-times"><div><span>Check-in</span><strong id="checkInTime">—</strong></div><div><span>Check-out</span><strong id="checkOutTime">—</strong></div><div><span>Hours worked</span><strong id="workingHours">—</strong></div></div>
     <p id="photoReviewStatus" class="photo-review-status"></p>
   </section>
+  <section class="panel face-pilot-panel" id="facePilot" aria-labelledby="facePilotTitle">
+    <div class="face-pilot-heading">
+      <div><p class="eyebrow">OPTIONAL TEST · FREE</p><h2 id="facePilotTitle">Face verification preview</h2></div>
+      <span class="face-pilot-label">BETA · NOT FOR PAYROLL</span>
+    </div>
+    <p class="face-pilot-description">Compare a live camera image with your enrolled staff photo using the open-source Human library. Anti-spoofing checks are experimental and may be inaccurate. The test does <strong>not</strong> check you in, change your attendance, or replace the existing method.</p>
+    <p class="face-pilot-description">Camera images and face descriptors are processed in this browser only; we do not store the result. Your private reference photo is downloaded temporarily after you consent. The free face models load from a third-party CDN.</p>
+    <label class="face-pilot-consent"><input id="facePilotConsent" type="checkbox"><span>I agree to this optional, on-device biometric comparison. I can stop or withdraw consent at any time.</span></label>
+    <div class="face-pilot-video-wrap"><video id="facePilotVideo" autoplay muted playsinline hidden aria-label="Live camera preview for optional face verification"></video></div>
+    <div class="face-pilot-buttons">
+      <button id="facePilotStart" class="primary" type="button" disabled>Try face verification</button>
+      <button id="facePilotStop" type="button" hidden>Stop camera</button>
+    </div>
+    <p id="facePilotStatus" class="face-pilot-status" role="status" aria-live="polite">Checking whether your reference photo is enrolled…</p>
+    <small class="face-pilot-note">If you decline or the test fails, use the normal check-in above. Only an administrator can enroll or replace the staff reference photo.</small>
+  </section>
   <p class="self-attendance-privacy">Only you and active administrators can access your check-in record. Your profile and attendance photos are not public.</p>
 </main>
 <script src="app.js?v=20261015-sidebar-role-guard-v1"></script>
 <script src="my-attendance.js?v=20261011-private-capture"></script>
+<script type="module" src="face-pilot.mjs?v=20261015-human-pilot-v1"></script>
 </body>
 </html>
