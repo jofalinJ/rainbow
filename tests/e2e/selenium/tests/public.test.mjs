@@ -81,3 +81,22 @@ test("admin-selected homepage promotion opens the matching product details", asy
     assert.ok((await driver.findElement(By.css("#modalProductName")).getText()).trim().length > 0);
   });
 });
+
+test("homepage editorial content and contact links match storefront feedback", async () => {
+  await runWithDriver("home-editorial-feedback", async (driver) => {
+    await driver.get(BASE_URL + "/");
+    assert.equal((await driver.findElements(By.css("#process .section-head > p"))).length, 0);
+    assert.equal((await driver.findElements(By.css("#story .section-head > p"))).length, 0);
+
+    const logo = await driver.findElement(By.css("#story .story-card img.story-brand-logo"));
+    assert.equal(await logo.isDisplayed(), true);
+    assert.match(await logo.getAttribute("src"), /assets\/brand\/rainbow-logo\.png/);
+    assert.ok((await logo.getAttribute("alt")).includes("Rainbow"));
+
+    const links = await driver.findElements(By.css("#contact .contact-phone a"));
+    assert.equal(links.length, 3);
+    const instagram = await driver.findElement(By.css("#contact .contact-phone .contact-instagram"));
+    assert.match(await instagram.getAttribute("href"), /instagram\.com\/rainbow_kollam_gold_covering\//);
+    assert.equal(await instagram.getAttribute("target"), "_blank");
+  });
+});

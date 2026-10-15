@@ -42,7 +42,7 @@ button{font:inherit}
 .story{background:#fff}
 .story-grid{display:grid;grid-template-columns:.8fr 1.2fr;gap:70px}
 .story-card{background:var(--cream);border:1px solid var(--line);border-radius:26px;padding:34px;box-shadow:var(--shadow)}
-.story-card .number{font:500 58px Georgia,serif;color:var(--gold)}
+.story-card .story-brand-logo{display:block;width:82px;height:82px;object-fit:contain;padding:9px;margin:0 0 19px;border:1px solid var(--line);border-radius:18px;background:#fff;box-shadow:0 8px 24px rgba(65,31,17,.06)}
 .story-copy{color:var(--muted);font-size:14px;line-height:1.9}
 .values{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:24px}
 .value{border-top:1px solid var(--gold);padding-top:17px}
@@ -990,6 +990,8 @@ body.modal-open{overflow:hidden}
 .contact-phone-label{flex:0 0 100%;margin:0;color:rgba(255,255,255,.76);font-size:11px;font-weight:700}
 .contact-phone a{display:inline-flex;align-items:center;min-height:36px;padding:8px 12px;border:1px solid rgba(255,255,255,.28);border-radius:999px;color:#fff;text-decoration:none;font-size:11px;font-weight:750}
 .contact-phone a:hover{border-color:var(--gold-soft);color:var(--gold-soft)}
+.contact-phone a.contact-instagram{border-color:rgba(230,199,120,.6);color:var(--gold-soft)}
+.contact-phone a.contact-instagram:hover{background:rgba(255,255,255,.09);border-color:var(--gold-soft);color:#fff}
 .drawer-type-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:9px}
 .drawer-type-link{display:flex;align-items:center;justify-content:space-between;gap:7px;min-width:0;min-height:38px;padding:8px 10px;border:1px solid #eee3d7;border-radius:10px;background:#fff;color:#312823;text-align:left;cursor:pointer}
 .drawer-type-link span{font-size:10px;line-height:1.25;overflow-wrap:anywhere}
