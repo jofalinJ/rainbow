@@ -19,7 +19,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm install
+      - run: npm install --legacy-peer-deps
       - name: Confirm published storefront responds
         run: |
           for attempt in $(seq 1 12); do

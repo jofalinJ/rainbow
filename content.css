@@ -1257,3 +1257,42 @@ body.modal-open{overflow:hidden}
 @media(max-width:620px){
   .storefront-topbar .nav{min-height:0!important;padding:6px 0 8px!important}
 }
+
+
+/* Storefront polish: aligned header, accessible controls and reduced motion. */
+.skip-link{position:fixed;top:-90px;left:14px;z-index:2000;padding:12px 16px;border-radius:10px;background:var(--red-dark);color:#fff;font-size:13px;font-weight:750;box-shadow:var(--shadow)}
+.skip-link:focus{top:12px}
+:is(a,button,input,select,textarea,[tabindex]):focus-visible{outline:3px solid var(--gold);outline-offset:3px}
+button,.category-tile,[role="button"]{touch-action:manipulation}
+#mainContent,#products,#collections,#contact,#story,#process{scroll-margin-top:150px}
+.hero-actions .btn{min-height:44px;cursor:pointer}
+.storefront-header-left{grid-column:1!important;grid-row:1!important;justify-self:start!important;display:flex;align-items:center;min-width:42px}
+.storefront-header-left .menu-toggle{position:static!important;transform:none!important;width:42px;height:42px;flex:0 0 42px;border-radius:12px}
+.storefront-header-row .logo{grid-column:2!important;grid-row:1!important;justify-self:center!important}
+.storefront-menu-row{display:none!important}
+@media(max-width:1200px){
+  .storefront-header-row{
+    grid-template-columns:minmax(42px,1fr) auto minmax(42px,1fr)!important;
+    grid-template-rows:minmax(52px,auto) auto!important;
+    gap:6px 0!important;
+  }
+  .storefront-header-right{
+    grid-column:1/-1!important;grid-row:2!important;justify-self:stretch!important;
+    width:100%!important;max-width:none!important;
+  }
+}
+@media(max-width:620px){
+  .storefront-header-left .menu-toggle{width:38px;height:38px;flex-basis:38px}
+  .storefront-header-right{flex-direction:row-reverse!important}
+  .storefront-header-right .storefront-search-form{min-width:0!important;flex:1 1 auto!important}
+  .storefront-header-actions{flex:0 0 auto!important}
+  .hero{padding:58px 0 68px}
+  .hero h1{font-size:clamp(42px,11.8vw,58px);line-height:1.02}
+  .hero-note{line-height:1.6}
+  .section{padding:64px 0}
+  .product-grid .category-tile{transition:box-shadow .2s ease,border-color .2s ease}
+}
+@media(prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
+}

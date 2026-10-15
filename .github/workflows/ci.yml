@@ -17,7 +17,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm install
+      - run: npm install --legacy-peer-deps
       - run: npm run lint
       - run: npm run test:unit
       - run: npm run build
@@ -37,7 +37,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm install
+      - run: npm install --legacy-peer-deps
       - name: Verify isolated test environment
         run: |
           test -n "$SUPABASE_TEST_URL"
@@ -68,7 +68,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm install
+      - run: npm install --legacy-peer-deps
       - name: Verify isolated E2E environment
         run: |
           test -n "$SUPABASE_TEST_URL"
