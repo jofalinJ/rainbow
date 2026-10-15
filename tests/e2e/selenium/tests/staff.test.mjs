@@ -183,3 +183,29 @@ test("customers have a detail dialog and orders page is usable at mobile width",
     assert.equal((await driver.findElements(By.css("#rows"))).length,1);
   });
 });
+
+test("product variant editor reveals selectable existing products and aligned fields on mobile", { skip: !E2E_ENABLED }, async () => {
+  requireAuthenticatedE2EConfig();
+  await runWithDriver("product-variant-mobile", async driver => {
+    const login = new LoginPage(driver);
+    await login.open(BASE_URL);
+    await login.signIn(ADMIN_USERNAME, ADMIN_PASSWORD);
+    await driver.manage().window().setRect({width:430,height:930});
+    await driver.get(BASE_URL + "/admin/products.html");
+    await driver.wait(until.elementLocated(By.css("#existingBtn")), 10000);
+    await driver.executeScript("arguments[0].click()", await driver.findElement(By.css("#existingBtn")));
+    await driver.wait(async () => (await driver.findElement(By.css("#existingProduct")).getTagName())==="select", 10000);
+    assert.equal(await driver.findElement(By.css("#existingBox")).isDisplayed(), true);
+    assert.equal(await driver.findElement(By.css("#form")).isDisplayed(), false);
+    assert.equal(await driver.findElement(By.css("#msg")).isDisplayed(), true);
+    assert.equal((await driver.findElement(By.css("#existingBtn")).getAttribute("aria-pressed")), "true");
+    const selector = await driver.findElement(By.css("#existingProduct"));
+    await driver.wait(async () => (await selector.findElements(By.css("option"))).length > 1, 10000);
+    assert.equal((await driver.findElement(By.css("#saveVariantBtn")).isEnabled()), false);
+    const width = await driver.executeScript("return document.documentElement.scrollWidth");
+    const viewport = await driver.executeScript("return window.innerWidth");
+    assert.ok(width <= viewport + 2, "Product editor should not cause horizontal overflow at mobile width");
+    await driver.executeScript("arguments[0].click()", await driver.findElement(By.css("#newProductBtn")));
+    assert.equal(await driver.findElement(By.css("#form")).isDisplayed(), true);
+  });
+});
