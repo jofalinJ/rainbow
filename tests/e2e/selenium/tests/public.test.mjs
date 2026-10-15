@@ -93,7 +93,7 @@ test("homepage editorial content and contact links match storefront feedback", a
     assert.match(await logo.getAttribute("src"), /assets\/brand\/logo2\.png/);
     assert.ok((await logo.getAttribute("alt")).includes("Rainbow"));
     const logoStyle = await driver.executeScript((element) => {
-      const style = getComputedStyle(element);
+      const style = element.ownerDocument.defaultView.getComputedStyle(element);
       return { blend: style.mixBlendMode, background: style.backgroundColor, border: style.borderTopStyle };
     }, logo);
     assert.equal(logoStyle.blend, "multiply");
