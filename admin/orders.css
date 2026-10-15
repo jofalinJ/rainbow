@@ -67,3 +67,18 @@
  #modal .modal-card{padding:16px}
  #modal .modal-actions>*{max-width:100%}
 }
+
+/* Full online order review: keep actions legible on narrower admin screens. */
+.orders-table{min-width:900px;table-layout:auto}
+.table-wrap{max-width:100%;overflow-x:auto;overscroll-behavior-inline:contain;scrollbar-gutter:stable}
+.orders-table th:first-child,.orders-table td:first-child{min-width:145px}
+.orders-table th:nth-child(2),.orders-table td:nth-child(2){min-width:130px}
+.orders-table th:nth-child(3),.orders-table td:nth-child(3){min-width:190px}
+.orders-table th:nth-child(4),.orders-table td:nth-child(4){min-width:105px}
+.orders-table th:nth-child(6),.orders-table td:nth-child(6){min-width:185px}
+.orders-table td{overflow-wrap:break-word}
+.orders-table .action-row{align-items:stretch}
+.orders-table .action-row button{min-height:37px}
+#modal .order-item-row{overflow-wrap:anywhere}
+#modal .order-amount-breakdown strong{font-variant-numeric:tabular-nums;white-space:nowrap}
+@media(max-width:740px){.orders-table{min-width:900px}}
