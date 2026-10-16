@@ -6,25 +6,16 @@ const page=read("admin/my-attendance.html");
 const client=read("admin/my-attendance.js");
 const migration=read("supabase/migrations/20261015154500_simple_staff_attendance_no_photos.sql");
 
-describe("direct authenticated staff attendance",()=>{
-  it("retains direct Check in / Check out while offering an optional separated face preview",()=>{
-    expect(page).toMatch(/id="checkInButton"[^>]*>Check in<\/button>/);
-    expect(page).toMatch(/id="checkOutButton"[^>]*>Check out<\/button>/);
-    expect(page).toContain('id="facePilot"');
-    expect(page).toContain('id="facePilotConsent"');
-    expect(page).toContain("does <strong>not</strong> replace your attendance buttons");
-    for(const unsupported of ["face-pilot.mjs","photoConsent","checkInPhoto","camera-upload","photoPreviewWrap"]){
-      expect(page).not.toContain(unsupported);
-    }
-  });
-
-  it("records a clock action without uploading photos or demanding consent",()=>{
-    expect(client).toContain('rpc("staff_attendance_action",{p_action:action})');
+describe("migration from direct attendance to verified attendance",()=>{
+  it("replaces direct check-in with the authenticated liveness flow",()=>{
+    expect(page).toContain('id="checkInButton"');
+    expect(page).toContain("Face Check-in");
+    expect(page).toContain("Face Check-out");
+    expect(page).not.toContain("face-preview.mjs");
+    expect(client).toContain('faceRequest(myAttendanceClient,"start_verification",{action})');
+    expect(client).toContain('captureLiveness(');
+    expect(client).not.toContain('rpc("staff_attendance_action"');
     expect(client).not.toContain('storage.from("staff-private")');
-    expect(client).not.toContain('photoConsent');
-    expect(client).not.toContain('selectedCheckInPhoto');
-    expect(client).toContain("attendanceSaving=true;");
-    expect(client).toContain("!attendanceReady||attendanceSaving");
   });
 
   it("keeps protected server timestamps, signed-in identity and duplicate protection",()=>{

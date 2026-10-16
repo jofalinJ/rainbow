@@ -15,7 +15,7 @@ const crossPageGlobals={
 };
 
 export default [
-  { ignores:["node_modules/**","coverage/**","test-results/**"] },
+  { ignores:["node_modules/**","coverage/**","test-results/**","dist/**"] },
   {
     files:["src/**/*.mjs","tests/**/*.mjs","scripts/**/*.mjs"],
     languageOptions:{ecmaVersion:"latest",sourceType:"module",globals:{...globals.node}},

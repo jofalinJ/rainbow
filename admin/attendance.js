@@ -1,419 +1,122 @@
-const ATTENDANCE_STATUSES=["Present","Absent","Half Day","On Leave"];
-let attendanceClient=null;
-let activeStaff=[];
-let dailyAttendance=[];
-let historyAttendance=[];
-let selectedAttendanceDate="";
-let pendingAttendanceUpdates=new Set();
-
-function attendanceEscape(value){
-  return String(value??"").replace(/[&<>"']/g,character=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[character]));
-}
-function attendancePad(value){return String(value).padStart(2,"0");}
-function attendanceDateKey(date){
-  return date.getFullYear()+"-"+attendancePad(date.getMonth()+1)+"-"+attendancePad(date.getDate());
-}
-function attendanceToday(){return attendanceDateKey(new Date());}
-function parseAttendanceDate(value){
-  const parts=String(value||"").split("-").map(Number);
-  if(parts.length!==3||parts.some(Number.isNaN))return new Date();
-  return new Date(parts[0],parts[1]-1,parts[2]);
-}
-function formatAttendanceDate(value){
-  if(!value)return "Date unavailable";
-  const date=parseAttendanceDate(value);
-  return date.toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"});
-}
-function attendanceTimeNow(){
-  const now=new Date();
-  return attendancePad(now.getHours())+":"+attendancePad(now.getMinutes())+":"+attendancePad(now.getSeconds());
-}
-function attendanceTimeLabel(value){
-  if(!value)return "—";
-  const parts=String(value).split(":");
-  if(parts.length<2)return value;
-  const date=new Date();
-  date.setHours(Number(parts[0]),Number(parts[1]),Number(parts[2]||0),0);
-  return date.toLocaleTimeString("en-IN",{hour:"numeric",minute:"2-digit"});
-}
-function attendanceDuration(checkIn,checkOut){
-  if(!checkIn)return "—";
-  if(!checkOut)return "In progress";
-  const toMinutes=value=>{
-    const parts=String(value).split(":").map(Number);
-    return parts[0]*60+parts[1];
-  };
-  const start=toMinutes(checkIn);
-  let end=toMinutes(checkOut);
-  if(!Number.isFinite(start)||!Number.isFinite(end))return "—";
-  if(end<start)end+=24*60;
-  const minutes=end-start;
-  return Math.floor(minutes/60)+"h "+(minutes%60)+"m";
-}
-function attendanceInitials(profile){
-  const name=String(profile.full_name||profile.username||"Staff").trim();
-  return name.split(/\s+/).filter(Boolean).slice(0,2).map(part=>part[0].toUpperCase()).join("")||"S";
-}
-function attendanceRole(role){
-  return String(role||"Staff").split("_").map(part=>part.charAt(0).toUpperCase()+part.slice(1)).join(" ");
-}
-function attendanceRelation(value){return Array.isArray(value)?(value[0]||{}):(value||{});}
-function setAttendanceMessage(id,message,kind){
-  const element=document.getElementById(id);
-  if(!element)return;
-  element.textContent=message||"";
-  element.className="attendance-message"+(kind?" "+kind:"");
-}
-async function attendanceSignedUrl(path){
-  if(!path)return "";
-  const {data,error}=await attendanceClient.storage.from("staff-private").createSignedUrl(path,600);
-  if(error){console.warn("Could not create staff photo link:",error);return "";}
-  return data?.signedUrl||"";
-}
-function getDailyRecord(staffId){
-  return dailyAttendance.find(record=>String(record.staff_id)===String(staffId))||null;
-}
-function attendanceSummaryCard(label,value){
-  return "<div class='attendance-summary-card'><span>"+attendanceEscape(label)+"</span><strong>"+attendanceEscape(value)+"</strong></div>";
-}
-function renderDailySummary(){
-  const summary=document.getElementById("dailySummary");
-  if(!summary)return;
-  const statusFor=profile=>getDailyRecord(profile.user_id)?.status||"Present";
-  const present=activeStaff.filter(profile=>statusFor(profile)==="Present").length;
-  const checkedIn=activeStaff.filter(profile=>Boolean(getDailyRecord(profile.user_id)?.check_in)).length;
-  const absent=activeStaff.filter(profile=>statusFor(profile)==="Absent").length;
-  const onLeave=activeStaff.filter(profile=>statusFor(profile)==="On Leave").length;
-  summary.innerHTML=attendanceSummaryCard("Active staff",activeStaff.length)+
-    attendanceSummaryCard("Present",present)+attendanceSummaryCard("Checked in",checkedIn)+
-    attendanceSummaryCard("Absent / on leave",absent+onLeave);
-}
-function renderDailyRows(){
-  const rows=document.getElementById("attendanceRows");
-  if(!rows)return;
-  const query=String(document.getElementById("staffSearch")?.value||"").trim().toLowerCase();
-  const canRecord=selectedAttendanceDate===attendanceToday();
-  const profiles=activeStaff.filter(profile=>[profile.full_name,profile.username,attendanceRole(profile.role)].some(value=>String(value||"").toLowerCase().includes(query)));
-  rows.innerHTML=profiles.map(profile=>{
-    const id=String(profile.user_id);
-    const record=getDailyRecord(id);
-    const name=profile.full_name||profile.username||"Staff member";
-    const busy=pendingAttendanceUpdates.has(id);
-    const status=record?.status||"Present";
-    const statusOptions=ATTENDANCE_STATUSES.map(option=>"<option value='"+option+"' "+(status===option?"selected":"")+">"+option+"</option>").join("");
-    const checkInDisabled=busy||!canRecord||Boolean(record?.check_in);
-    const checkOutDisabled=busy||!canRecord||!record?.check_in||Boolean(record?.check_out);
-    const timeHint=canRecord?"":"Check-in and check-out are available for today.";
-    const avatar=profile.referencePhotoUrl
-      ?"<img class='attendance-avatar photo' src='"+attendanceEscape(profile.referencePhotoUrl)+"' alt='' width='36' height='36' loading='lazy'>"
-      :"<span class='attendance-avatar' aria-hidden='true'>"+attendanceEscape(attendanceInitials(profile))+"</span>";
-    const reviewStatus=record?.photo_review_status||"Not submitted";
-    const photoReview=record?.photo_path
-      ?"<button type='button' data-photo-review='"+attendanceEscape(id)+"'>"+(reviewStatus==="Pending"?"Review photo":"View photos")+"</button><small>"+attendanceEscape(reviewStatus)+"</small>"
-      :"<small>—</small>";
-    return "<tr><td><div class='attendance-person'>"+avatar+"<span><b>"+attendanceEscape(name)+"</b><small>"+attendanceEscape(attendanceRole(profile.role))+"</small></span></div></td>"+
-      "<td><select data-attendance-status data-staff-id='"+attendanceEscape(id)+"' aria-label='Attendance status for "+attendanceEscape(name)+"' "+(busy?"disabled":"")+">"+statusOptions+"</select></td>"+
-      "<td><div class='time-action'><span>"+attendanceEscape(attendanceTimeLabel(record?.check_in))+"</span><button type='button' data-attendance-action='check_in' data-staff-id='"+attendanceEscape(id)+"' title='"+attendanceEscape(timeHint)+"' "+(checkInDisabled?"disabled":"")+">Check in</button></div></td>"+
-      "<td><div class='time-action'><span>"+attendanceEscape(attendanceTimeLabel(record?.check_out))+"</span><button type='button' data-attendance-action='check_out' data-staff-id='"+attendanceEscape(id)+"' title='"+attendanceEscape(timeHint)+"' "+(checkOutDisabled?"disabled":"")+">Check out</button></div></td>"+
-      "<td class='working-hours'>"+attendanceEscape(attendanceDuration(record?.check_in,record?.check_out))+"</td>"+
-      "<td><div class='photo-review-cell'>"+photoReview+"</div></td></tr>";
-  }).join("")||"<tr><td colspan='6'>"+(activeStaff.length?"No staff match this search.":"No active staff profiles found.")+"</td></tr>";
-}
+import {escapeHTML as attendanceEscape,indiaToday,timeLabel as attendanceTimeLabel,durationLabel,faceRequest,biometricError,noticeHTML,noticeReady,captureLiveness} from "./biometric-ui.mjs";
+let attendanceClient=null,activeStaff=[],dailyAttendance=[],historyAttendance=[],auditEvents=[],selectedAttendanceDate="",activeTab="daily",enrollmentStatus=null,enrollmentBusy=false,enrollmentOperation="",manualStaffId="",photoStaffId="";
+const el=id=>document.getElementById(id);
+const pad=value=>String(value).padStart(2,"0");
+const dateKey=date=>date.getFullYear()+"-"+pad(date.getMonth()+1)+"-"+pad(date.getDate());
+const recordIn=row=>row?.check_in_at||row?.check_in;
+const recordOut=row=>row?.check_out_at||row?.check_out;
+const relation=value=>Array.isArray(value)?value[0]||{}:value||{};
+const getDailyRecord=id=>dailyAttendance.find(row=>String(row.staff_id)===String(id));
+const profileName=profile=>profile?.full_name||profile?.username||"Staff member";
+const methodLabel=row=>row?(row.verification_method||"legacy").replaceAll("_"," ")+" / "+(row.verification_result||"legacy"):"—";
+function setAttendanceMessage(id,text,kind=""){el(id).textContent=text;el(id).className="attendance-message "+kind;}
+function summaryCard(label,value){return "<div class='attendance-summary-card'><span>"+attendanceEscape(label)+"</span><strong>"+attendanceEscape(value)+"</strong></div>";}
+function staffCell(profile,id){return "<div class='attendance-person'><span class='attendance-avatar' aria-hidden='true'>"+attendanceEscape(profileName(profile).trim().split(/\s+/).slice(0,2).map(part=>part[0]).join(""))+"</span><span><b>"+attendanceEscape(profileName(profile))+"</b><small class='employee-id'>"+attendanceEscape(id)+"</small></span></div>";}
 function renderDaily(){
-  renderDailySummary();
-  renderDailyRows();
+  const count=status=>activeStaff.filter(profile=>getDailyRecord(profile.user_id)?.status===status).length;
+  el("dailySummary").innerHTML=summaryCard("Active employees",activeStaff.length)+summaryCard("Checked in",dailyAttendance.filter(recordIn).length)+summaryCard("Checked out",dailyAttendance.filter(recordOut).length)+summaryCard("Absent / leave",count("Absent")+count("On Leave"));
+  const query=el("staffSearch").value.trim().toLowerCase();
+  el("attendanceRows").innerHTML=activeStaff.filter(profile=>[profile.full_name,profile.username,profile.user_id].some(value=>String(value||"").toLowerCase().includes(query))).map(profile=>{
+    const id=profile.user_id,row=getDailyRecord(id);
+    return "<tr><td>"+staffCell(profile,id)+"</td><td>"+attendanceEscape(row?.status||"Not recorded")+"</td><td>"+attendanceEscape(attendanceTimeLabel(recordIn(row)))+"</td><td>"+attendanceEscape(attendanceTimeLabel(recordOut(row)))+"</td><td class='working-hours'>"+attendanceEscape(durationLabel(row))+"</td><td class='verification-cell'>"+attendanceEscape(methodLabel(row))+"</td><td><div class='row-actions'><button type='button' data-manual='"+attendanceEscape(id)+"'>Manual entry / correction</button><button type='button' data-enroll='"+attendanceEscape(id)+"'>Face enrollment</button>"+(row?.photo_path?"<button type='button' data-photo-review='"+attendanceEscape(id)+"'>Historic photo · "+attendanceEscape(row.photo_review_status||"Not reviewed")+"</button>":"")+"</div></td></tr>";
+  }).join("")||"<tr><td colspan='7'>No active employees match this search.</td></tr>";
 }
 async function loadDaily(){
-  setAttendanceMessage("dailyMessage","Loading attendance…","");
+  setAttendanceMessage("dailyMessage","Loading attendance…");
   const [staffResult,recordsResult]=await Promise.all([
-    attendanceClient.from("staff_profiles").select("user_id,full_name,username,role,active,photo_path").eq("active",true).order("full_name",{ascending:true}),
-    attendanceClient.from("attendance").select("id,staff_id,date,check_in,check_out,status,notes,photo_path,photo_review_status,photo_reviewed_by,photo_reviewed_at").eq("date",selectedAttendanceDate).order("created_at",{ascending:true})
+    attendanceClient.from("staff_profiles").select("user_id,full_name,username,role,active,photo_path").eq("active",true).neq("role","admin").order("full_name",{ascending:true}),
+    attendanceClient.from("attendance").select("id,staff_id,date,check_in,check_out,check_in_at,check_out_at,working_seconds,status,verification_method,verification_result,notes,photo_path,photo_review_status,created_at,updated_at").eq("date",selectedAttendanceDate).order("created_at",{ascending:true})
   ]);
-  if(staffResult.error)throw new Error("Could not load active staff: "+staffResult.error.message);
-  if(recordsResult.error)throw new Error("Could not load attendance: "+recordsResult.error.message);
-  activeStaff=Array.isArray(staffResult.data)?staffResult.data:[];
-  dailyAttendance=Array.isArray(recordsResult.data)?recordsResult.data:[];
-  const photoPaths=[...new Set(activeStaff.map(profile=>profile.photo_path).concat(dailyAttendance.map(record=>record.photo_path)).filter(Boolean))];
-  const photoUrls=await Promise.all(photoPaths.map(async path=>[path,await attendanceSignedUrl(path)]));
-  const photoUrlByPath=new Map(photoUrls);
-  activeStaff=activeStaff.map(profile=>({...profile,referencePhotoUrl:photoUrlByPath.get(profile.photo_path)||""}));
-  dailyAttendance=dailyAttendance.map(record=>({...record,attendancePhotoUrl:photoUrlByPath.get(record.photo_path)||""}));
-  renderDaily();
-  setAttendanceMessage("dailyMessage",selectedAttendanceDate===attendanceToday()?"Attendance is up to date.":"Viewing attendance for "+formatAttendanceDate(selectedAttendanceDate)+".","");
+  if(staffResult.error)throw staffResult.error;if(recordsResult.error)throw recordsResult.error;
+  activeStaff=staffResult.data||[];dailyAttendance=recordsResult.data||[];
+  const selected=el("enrollmentStaff").value;
+  el("enrollmentStaff").innerHTML="<option value=''>Select an employee</option>"+activeStaff.map(profile=>"<option value='"+attendanceEscape(profile.user_id)+"'>"+attendanceEscape(profileName(profile))+" · "+attendanceEscape(profile.username||profile.user_id)+"</option>").join("");
+  el("enrollmentStaff").value=selected;
+  renderDaily();setAttendanceMessage("dailyMessage","Attendance date: "+selectedAttendanceDate+" · Times shown in India Standard Time. Missing records are not counted as present.");
 }
-async function saveAttendance(profile,changes){
-  const existing=getDailyRecord(profile.user_id);
-  const payload={
-    id:existing?.id,
-    staff_id:profile.user_id,
-    date:selectedAttendanceDate,
-    status:existing?.status||"Present",
-    photo_path:existing?.photo_path||null,
-    photo_review_status:existing?.photo_review_status||"Not submitted",
-    photo_reviewed_by:existing?.photo_reviewed_by||null,
-    photo_reviewed_at:existing?.photo_reviewed_at||null,
-    ...changes
-  };
-  const {error}=await attendanceClient.from("attendance").upsert(payload,{onConflict:"staff_id,date"});
-  if(error)throw new Error(error.message);
-  await loadDaily();
-}
-function bindDailyActions(){
-  const rows=document.getElementById("attendanceRows");
-  rows?.addEventListener("click",async event=>{
-    const review=event.target.closest("button[data-photo-review]");
-    if(review){openAttendancePhotoReview(review.dataset.photoReview);return;}
-    const button=event.target.closest("button[data-attendance-action]");
-    if(!button)return;
-    const profile=activeStaff.find(person=>String(person.user_id)===String(button.dataset.staffId));
-    if(!profile)return;
-    const id=String(profile.user_id);
-    const action=button.dataset.attendanceAction;
-    if(action==="check_out"&&!getDailyRecord(id)?.check_in)return;
-    pendingAttendanceUpdates.add(id);
-    renderDailyRows();
-    try{
-      const changes=action==="check_in"
-        ?{check_in:attendanceTimeNow()}
-        :{check_out:attendanceTimeNow()};
-      await saveAttendance(profile,changes);
-      setAttendanceMessage("dailyMessage",action==="check_in"?"Check-in recorded.":"Check-out recorded.","success");
-    }catch(error){
-      console.error("Attendance update failed:",error);
-      setAttendanceMessage("dailyMessage","Could not update attendance: "+(error.message||"Unknown error"),"error");
-      renderDailyRows();
-    }finally{
-      pendingAttendanceUpdates.delete(id);
-      renderDailyRows();
-    }
-  });
-  rows?.addEventListener("change",async event=>{
-    const select=event.target.closest("select[data-attendance-status]");
-    if(!select)return;
-    const profile=activeStaff.find(person=>String(person.user_id)===String(select.dataset.staffId));
-    if(!profile)return;
-    const id=String(profile.user_id);
-    pendingAttendanceUpdates.add(id);
-    renderDailyRows();
-    try{
-      await saveAttendance(profile,{status:select.value});
-      setAttendanceMessage("dailyMessage","Attendance status updated.","success");
-    }catch(error){
-      console.error("Attendance status update failed:",error);
-      setAttendanceMessage("dailyMessage","Could not update status: "+(error.message||"Unknown error"),"error");
-      renderDailyRows();
-    }finally{
-      pendingAttendanceUpdates.delete(id);
-      renderDailyRows();
-    }
-  });
-}
-function isoWeekValue(date){
-  const thursday=new Date(date.getFullYear(),date.getMonth(),date.getDate());
-  thursday.setDate(thursday.getDate()+4-(thursday.getDay()||7));
-  const year=thursday.getFullYear();
-  const januaryFour=new Date(year,0,4);
-  const firstMonday=new Date(year,0,4-((januaryFour.getDay()+6)%7));
-  const week=Math.floor((thursday-firstMonday)/(7*86400000))+1;
-  return year+"-W"+attendancePad(week);
-}
-function setHistoryDateInput(){
-  const period=document.getElementById("historyPeriod")?.value||"week";
-  const input=document.getElementById("historyDate");
-  if(!input)return;
-  input.type=period==="month"?"month":"week";
-  const now=new Date();
-  input.value=period==="month"?now.getFullYear()+"-"+attendancePad(now.getMonth()+1):isoWeekValue(now);
-}
+function isoWeekValue(date){const thursday=new Date(date.getFullYear(),date.getMonth(),date.getDate());thursday.setDate(thursday.getDate()+4-(thursday.getDay()||7));const year=thursday.getFullYear(),januaryFour=new Date(year,0,4),firstMonday=new Date(year,0,4-((januaryFour.getDay()+6)%7));return year+"-W"+pad(Math.floor((thursday-firstMonday)/(7*86400000))+1);}
+function setHistoryDateInput(){const month=el("historyPeriod").value==="month",now=new Date(indiaToday()+"T12:00:00+05:30");el("historyDate").type=month?"month":"week";el("historyDate").value=month?indiaToday().slice(0,7):isoWeekValue(now);}
 function historyRange(){
-  const period=document.getElementById("historyPeriod")?.value||"week";
-  const value=document.getElementById("historyDate")?.value||"";
-  if(period==="month"){
-    const match=value.match(/^(\d{4})-(\d{2})$/);
-    if(!match)throw new Error("Choose a month to view history.");
-    const year=Number(match[1]),month=Number(match[2]);
-    return {start:year+"-"+attendancePad(month)+"-01",end:attendanceDateKey(new Date(year,month,0))};
-  }
-  const match=value.match(/^(\d{4})-W(\d{2})$/);
-  if(!match)throw new Error("Choose a week to view history.");
-  const year=Number(match[1]),week=Number(match[2]);
-  const januaryFour=new Date(year,0,4);
-  const start=new Date(year,0,4-((januaryFour.getDay()+6)%7)+(week-1)*7);
-  const end=new Date(start);end.setDate(end.getDate()+6);
-  return {start:attendanceDateKey(start),end:attendanceDateKey(end)};
-}
-function renderHistorySummary(){
-  const summary=document.getElementById("historySummary");
-  if(!summary)return;
-  const count=status=>historyAttendance.filter(row=>(row.status||"Present")===status).length;
-  summary.innerHTML=attendanceSummaryCard("Records",historyAttendance.length)+
-    attendanceSummaryCard("Present",count("Present"))+attendanceSummaryCard("Absent",count("Absent"))+
-    attendanceSummaryCard("Half day / leave",count("Half Day")+count("On Leave"));
+  const value=el("historyDate").value;
+  if(el("historyPeriod").value==="month"){if(!/^\d{4}-\d{2}$/.test(value))throw new Error("Choose a month.");const [year,month]=value.split("-").map(Number);return {start:value+"-01",end:dateKey(new Date(year,month,0))};}
+  const match=value.match(/^(\d{4})-W(\d{2})$/);if(!match)throw new Error("Choose a week.");const year=Number(match[1]),week=Number(match[2]),januaryFour=new Date(year,0,4),start=new Date(year,0,4-((januaryFour.getDay()+6)%7)+(week-1)*7),end=new Date(start);end.setDate(end.getDate()+6);return {start:dateKey(start),end:dateKey(end)};
 }
 function renderHistory(){
-  const rows=document.getElementById("historyRows");
-  if(!rows)return;
-  renderHistorySummary();
-  const query=String(document.getElementById("historySearch")?.value||"").trim().toLowerCase();
-  const visible=historyAttendance.filter(row=>{
-    const staff=attendanceRelation(row.staff);
-    return [staff.full_name,staff.username,attendanceRole(staff.role)].some(value=>String(value||"").toLowerCase().includes(query));
-  });
-  rows.innerHTML=visible.map(row=>{
-    const staff=attendanceRelation(row.staff);
-    const name=staff.full_name||staff.username||"Staff member";
-    return "<tr><td>"+attendanceEscape(formatAttendanceDate(row.date))+"</td>"+
-      "<td><div class='attendance-person'><span class='attendance-avatar' aria-hidden='true'>"+attendanceEscape(attendanceInitials({full_name:name}))+"</span><span><b>"+attendanceEscape(name)+"</b><small>"+attendanceEscape(attendanceRole(staff.role))+"</small></span></div></td>"+
-      "<td>"+attendanceEscape(row.status||"Present")+"</td><td>"+attendanceEscape(attendanceTimeLabel(row.check_in))+"</td>"+
-      "<td>"+attendanceEscape(attendanceTimeLabel(row.check_out))+"</td><td class='working-hours'>"+
-      attendanceEscape(attendanceDuration(row.check_in,row.check_out))+"</td></tr>";
-  }).join("")||"<tr><td colspan='6'>"+(historyAttendance.length?"No staff match this search.":"No attendance history found for this range.")+"</td></tr>";
+  const query=el("historySearch").value.trim().toLowerCase(),visible=historyAttendance.filter(row=>{const staff=relation(row.staff);return [staff.full_name,staff.username,row.staff_id].some(value=>String(value||"").toLowerCase().includes(query));});
+  const seconds=visible.reduce((total,row)=>total+(Number(row.working_seconds)||0),0);
+  el("historySummary").innerHTML=summaryCard("Records",visible.length)+summaryCard("Present",visible.filter(row=>row.status==="Present").length)+summaryCard("Face verified",visible.filter(row=>row.verification_method==="face_liveness").length)+summaryCard("Completed hours",Math.floor(seconds/3600)+"h "+Math.floor(seconds%3600/60)+"m");
+  el("historyRows").innerHTML=visible.map(row=>"<tr><td>"+attendanceEscape(row.date)+"</td><td>"+staffCell(relation(row.staff),row.staff_id)+"</td><td>"+attendanceEscape(row.status)+"</td><td>"+attendanceEscape(attendanceTimeLabel(recordIn(row)))+"</td><td>"+attendanceEscape(attendanceTimeLabel(recordOut(row)))+"</td><td class='working-hours'>"+attendanceEscape(durationLabel(row))+"</td><td>"+attendanceEscape(methodLabel(row))+"</td></tr>").join("")||"<tr><td colspan='7'>No records for this report.</td></tr>";
 }
-let attendancePhotoReviewId="";
-function closeAttendancePhotoReview(){
-  const modal=document.getElementById("photoReviewDialog");
-  if(modal)modal.hidden=true;
-  attendancePhotoReviewId="";
+async function loadHistory(){try{const range=historyRange();setAttendanceMessage("historyMessage","Loading report…");const {data,error}=await attendanceClient.from("attendance").select("id,staff_id,date,check_in,check_out,check_in_at,check_out_at,working_seconds,status,verification_method,verification_result,staff:staff_profiles!attendance_staff_id_fkey(full_name,username,role)").gte("date",range.start).lte("date",range.end).order("date",{ascending:false}).order("check_in_at",{ascending:true});if(error)throw error;historyAttendance=data||[];renderHistory();setAttendanceMessage("historyMessage",range.start+" through "+range.end+" · "+historyAttendance.length+" records.");}catch(error){setAttendanceMessage("historyMessage",error.message,"error");}}
+function renderAudit(){const query=el("auditSearch").value.trim().toLowerCase();el("auditRows").innerHTML=auditEvents.filter(row=>[row.staff_id,row.actor_id,row.event].some(value=>String(value||"").toLowerCase().includes(query))).map(row=>"<tr><td>"+attendanceEscape(new Date(row.created_at).toLocaleString("en-IN",{timeZone:"Asia/Kolkata"}))+"</td><td>"+attendanceEscape(row.event)+"</td><td class='audit-id'>"+attendanceEscape(row.staff_id||"—")+"</td><td class='audit-id'>"+attendanceEscape(row.actor_id||"Service")+"</td><td><div>"+attendanceEscape(row.reason||"—")+"</div><details><summary>Event details</summary><pre>"+attendanceEscape(JSON.stringify(row.details||{},null,2))+"</pre></details></td></tr>").join("")||"<tr><td colspan='5'>No matching audit events.</td></tr>";}
+async function loadAudit(){try{setAttendanceMessage("auditMessage","Loading audit history…");const {data,error}=await attendanceClient.from("biometric_audit_events").select("id,actor_id,staff_id,attendance_id,event,reason,details,created_at").order("created_at",{ascending:false}).limit(200);if(error)throw error;auditEvents=data||[];renderAudit();setAttendanceMessage("auditMessage","Latest "+auditEvents.length+" audit events · includes enrollment, deletion and manual corrections.");}catch(error){setAttendanceMessage("auditMessage",error.message,"error");}}
+function renderEnrollment(){
+  const state=enrollmentStatus,id=el("enrollmentStaff").value,enrollment=state?.enrollment,samples=Number(enrollment?.sample_count||0),enrolled=Boolean(state?.enrolled),status=enrollment?.status;
+  const pending=status==="pending",deleting=status==="deleting",interrupted=status==="indexing",expired=status==="active"&&!enrolled;
+  const mustDelete=Boolean(enrollment&&!pending&&!enrolled);
+  el("enrollmentStaffId").textContent=id?"Employee ID: "+id:"";
+  el("enrollmentStaff").disabled=enrollmentBusy;
+  el("enrollmentState").textContent=enrollmentBusy?(enrollmentOperation==="delete"?"DELETING ENROLLMENT…":"VERIFYING LIVE SAMPLE…"):!id?"Select an employee to check enrollment.":!state?"Loading enrollment…":interrupted?"Enrollment interrupted. Delete enrollment and start again.":deleting?"Enrollment deletion is incomplete. Retry deletion before starting again.":expired?"Enrollment expired. Delete enrollment and start again.":mustDelete?"Enrollment is unavailable. Delete enrollment and start again.":enrolled?(state.enabled?"ENROLLED · Ready for face attendance":"ENROLLED · Face attendance service disabled"):!state.enabled?"Service configuration required. Secure face enrollment is unavailable.":pending?"ENROLLMENT IN PROGRESS · "+samples+" of 3 live samples accepted":"NOT ENROLLED · Three live samples required";
+  ["sampleOne","sampleTwo","sampleThree"].forEach((name,index)=>{el(name).classList.toggle("complete",samples>index||enrolled);el(name).textContent=samples>index||enrolled?"✓":String(index+1);});
+  el("beginEnrollment").textContent=enrolled?"Enrollment complete":mustDelete?"Delete enrollment before restarting":pending?"Capture live sample "+Math.min(samples+1,3)+" of 3":"Start live sample 1 of 3";
+  el("beginEnrollment").disabled=!id||!state?.enabled||!noticeReady(state?.notice)||enrolled||mustDelete||enrollmentBusy||!el("enrollmentConsent").checked||!el("enrollmentWitness").checked;
+  el("deleteEnrollment").textContent=deleting?"Retry deletion":"Delete enrollment";
+  el("deleteEnrollment").disabled=!id||enrollmentBusy||!(enrolled||enrollment);
+  el("enrollmentConsent").disabled=enrollmentBusy||enrolled||mustDelete;el("enrollmentWitness").disabled=enrollmentBusy||enrolled||mustDelete;
 }
-function openAttendancePhotoReview(staffId){
-  const profile=activeStaff.find(person=>String(person.user_id)===String(staffId));
-  const record=getDailyRecord(staffId);
-  if(!profile||!record?.photo_path)return;
-  attendancePhotoReviewId=String(record.id);
-  const modal=document.getElementById("photoReviewDialog");
-  const reference=document.getElementById("staffReferencePhoto");
-  const capture=document.getElementById("staffAttendancePhoto");
-  const person=document.getElementById("photoReviewPerson");
-  const message=document.getElementById("photoReviewMessage");
-  if(reference){reference.src=profile.referencePhotoUrl||"";reference.hidden=!profile.referencePhotoUrl;}
-  if(capture){capture.src=record.attendancePhotoUrl||"";capture.hidden=!record.attendancePhotoUrl;}
-  if(person)person.textContent=(profile.full_name||profile.username||"Staff member")+" · "+formatAttendanceDate(record.date)+" · "+(record.photo_review_status||"Pending");
-  if(message){message.textContent=profile.referencePhotoUrl?"Compare the reference and check-in photos manually.":"No staff profile photo is available for comparison.";message.className="attendance-message";}
-  if(modal)modal.hidden=false;
+async function loadEnrollment(){
+  const id=el("enrollmentStaff").value;enrollmentStatus=null;el("enrollmentConsent").checked=false;el("enrollmentWitness").checked=false;el("deleteEnrollmentForm").hidden=true;setAttendanceMessage("enrollmentMessage","");renderEnrollment();
+  if(!id){el("adminPrivacyNotice").textContent="Select an employee to load the configured privacy notice.";return;}
+  try{const result=await faceRequest(attendanceClient,"status",{staff_id:id});if(el("enrollmentStaff").value!==id)return;enrollmentStatus=result;el("adminPrivacyNotice").innerHTML=noticeHTML(result.notice);renderEnrollment();}catch(error){if(el("enrollmentStaff").value!==id)return;enrollmentStatus={enabled:false};el("adminPrivacyNotice").textContent="The privacy notice could not be loaded. Enrollment is unavailable.";setAttendanceMessage("enrollmentMessage",biometricError(error),"error");renderEnrollment();}
 }
-async function saveAttendancePhotoReview(decision){
-  if(!attendancePhotoReviewId||!["Approved","Rejected"].includes(decision))return;
-  const buttons=document.querySelectorAll("[data-photo-decision]");
-  buttons.forEach(button=>button.disabled=true);
-  setAttendanceMessage("photoReviewMessage","Saving review…","");
+async function beginEnrollment(){
+  if(el("beginEnrollment").disabled||enrollmentBusy)return;
+  const staffId=el("enrollmentStaff").value;enrollmentBusy=true;enrollmentOperation="capture";renderEnrollment();setAttendanceMessage("enrollmentMessage","Starting live enrollment sample…");
   try{
-    const {data,error:userError}=await attendanceClient.auth.getUser();
-    if(userError||!data.user)throw new Error("Sign in again to review attendance photos.");
-    const {error}=await attendanceClient.from("attendance").update({
-      photo_review_status:decision,
-      photo_reviewed_by:data.user.id,
-      photo_reviewed_at:new Date().toISOString()
-    }).eq("id",attendancePhotoReviewId);
-    if(error)throw new Error(error.message);
-    closeAttendancePhotoReview();
-    await loadDaily();
-    setAttendanceMessage("dailyMessage",decision==="Approved"?"Attendance photo approved after manual review.":"Attendance photo marked for follow-up.","success");
-  }catch(error){
-    console.error("Attendance photo review failed:",error);
-    setAttendanceMessage("photoReviewMessage","Could not save review: "+(error.message||"Unknown error"),"error");
-  }finally{
-    buttons.forEach(button=>button.disabled=false);
-  }
+    const pending=enrollmentStatus?.enrollment?.status==="pending";
+    const start=await faceRequest(attendanceClient,pending?"next_enrollment_sample":"start_enrollment",{staff_id:staffId,...(!pending?{consent:true,consent_version:enrollmentStatus.notice.version}:{})});
+    await captureLiveness({client:attendanceClient,start,dialog:el("livenessDialog"),container:el("livenessCamera"),message:el("captureMessage")});
+    enrollmentStatus=await faceRequest(attendanceClient,"status",{staff_id:staffId});
+    setAttendanceMessage("enrollmentMessage",enrollmentStatus.enrolled?"Enrollment complete. All three live samples were accepted. This employee can now sign in to their own account for face attendance.":"Live sample accepted. Continue until all three samples are complete.","success");
+  }catch(error){setAttendanceMessage("enrollmentMessage",biometricError(error),"error");try{enrollmentStatus=await faceRequest(attendanceClient,"status",{staff_id:staffId});}catch{/* Keep the last known state on network failure. */}}
+  finally{enrollmentBusy=false;enrollmentOperation="";renderEnrollment();}
 }
-async function loadHistory(){
-  try{
-    const range=historyRange();
-    setAttendanceMessage("historyMessage","Loading attendance history…","");
-    const {data,error}=await attendanceClient.from("attendance")
-      .select("id,staff_id,date,check_in,check_out,status,notes,staff:staff_profiles!attendance_staff_id_fkey(full_name,username,role)")
-      .gte("date",range.start).lte("date",range.end)
-      .order("date",{ascending:false}).order("check_in",{ascending:true});
-    if(error)throw new Error(error.message);
-    historyAttendance=Array.isArray(data)?data:[];
-    renderHistory();
-    setAttendanceMessage("historyMessage",historyAttendance.length
-      ?historyAttendance.length+" attendance record"+(historyAttendance.length===1?"":"s")+" in this range."
-      :"No attendance history found for this range.","");
-  }catch(error){
-    console.error("Attendance history failed:",error);
-    historyAttendance=[];
-    renderHistory();
-    setAttendanceMessage("historyMessage",error.message||"Could not load attendance history.","error");
-  }
+async function deleteEnrollment(){
+  if(enrollmentBusy||el("deleteEnrollment").disabled)return;const reason=el("deletionReason").value.trim();if(reason.length<5||reason.length>500){setAttendanceMessage("enrollmentMessage","Enter a deletion reason of 5–500 characters.","error");return;}
+  const staffId=el("enrollmentStaff").value;
+  // A lost deletion response may leave the server locked for deletion. Keep
+  // captures blocked until a fresh status proves that enrollment is usable.
+  if(enrollmentStatus?.enrollment)enrollmentStatus={...enrollmentStatus,enrolled:false,enrollment:{...enrollmentStatus.enrollment,status:"deleting"}};
+  enrollmentBusy=true;enrollmentOperation="delete";renderEnrollment();el("confirmDeleteEnrollment").disabled=true;
+  try{await faceRequest(attendanceClient,"delete_enrollment",{staff_id:staffId,reason});await loadEnrollment();el("deletionReason").value="";setAttendanceMessage("enrollmentMessage","Biometric enrollment deleted. New enrollment requires fresh employee consent. Attendance history is preserved.","success");}catch(error){setAttendanceMessage("enrollmentMessage",biometricError(error),"error");try{enrollmentStatus=await faceRequest(attendanceClient,"status",{staff_id:staffId});}catch{/* Preserve the deletion lock when status cannot be refreshed. */}}finally{enrollmentBusy=false;enrollmentOperation="";el("confirmDeleteEnrollment").disabled=false;renderEnrollment();}
 }
-function activateAttendanceTab(tab){
-  const history=tab==="history";
-  document.getElementById("dailyTab").classList.toggle("is-active",!history);
-  document.getElementById("dailyTab").setAttribute("aria-selected",String(!history));
-  document.getElementById("historyTab").classList.toggle("is-active",history);
-  document.getElementById("historyTab").setAttribute("aria-selected",String(history));
-  document.getElementById("dailyPanel").hidden=history;
-  document.getElementById("historyPanel").hidden=!history;
-  if(history)loadHistory();
+function localInput(value){if(!value)return "";const date=new Date(value);if(Number.isNaN(date.getTime()))return "";const parts=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Kolkata",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).formatToParts(date);const part=key=>parts.find(item=>item.type===key)?.value;return part("year")+"-"+part("month")+"-"+part("day")+"T"+part("hour")+":"+part("minute");}
+function openManual(id){manualStaffId=id;const profile=activeStaff.find(person=>person.user_id===id),row=getDailyRecord(id);el("manualAttendancePerson").textContent=profileName(profile)+" · "+id+" · "+selectedAttendanceDate;el("manualStatus").value=row?.status||"Present";el("manualCheckIn").value=localInput(row?.check_in_at);el("manualCheckOut").value=localInput(row?.check_out_at);el("manualReason").value="";el("manualAction").value=selectedAttendanceDate===indiaToday()?(!recordIn(row)?"check_in":!recordOut(row)?"check_out":"status"):"correct";el("manualAction").querySelectorAll("option").forEach(option=>option.disabled=["check_in","check_out"].includes(option.value)&&selectedAttendanceDate!==indiaToday());el("manualTimeFields").hidden=el("manualAction").value!=="correct";setAttendanceMessage("manualMessage","");el("manualAttendanceDialog").hidden=false;el("manualAction").focus();}
+async function saveManual(event){
+  event.preventDefault();const reason=el("manualReason").value.trim(),action=el("manualAction").value;if(reason.length<5){setAttendanceMessage("manualMessage","Enter a reason of at least 5 characters.","error");return;}
+  const payload={p_staff_id:manualStaffId,p_date:selectedAttendanceDate,p_action:action,p_reason:reason,p_status:el("manualStatus").value};
+  if(action==="correct"){payload.p_check_in_at=el("manualCheckIn").value?new Date(el("manualCheckIn").value+"+05:30").toISOString():null;payload.p_check_out_at=el("manualCheckOut").value?new Date(el("manualCheckOut").value+"+05:30").toISOString():null;}
+  el("saveManualAttendance").disabled=true;setAttendanceMessage("manualMessage","Saving audited correction…");
+  try{const {error}=await attendanceClient.rpc("admin_correct_attendance",payload);if(error)throw error;el("manualAttendanceDialog").hidden=true;await loadDaily();setAttendanceMessage("dailyMessage","Manual correction saved with your identity, server time and reason.","success");}catch(error){setAttendanceMessage("manualMessage",error.message,"error");}finally{el("saveManualAttendance").disabled=false;}
 }
-function changeAttendanceDay(offset){
-  const date=parseAttendanceDate(selectedAttendanceDate);
-  date.setDate(date.getDate()+offset);
-  selectedAttendanceDate=attendanceDateKey(date);
-  document.getElementById("attendanceDate").value=selectedAttendanceDate;
-  loadDaily().catch(error=>{
-    console.error("Attendance loading failed:",error);
-    setAttendanceMessage("dailyMessage",error.message||"Could not load attendance.","error");
-  });
+async function signedPhoto(path){if(!path)return "";const {data,error}=await attendanceClient.storage.from("staff-private").createSignedUrl(path,120);if(error)throw error;return data?.signedUrl||"";}
+async function openPhoto(id){
+  const profile=activeStaff.find(person=>person.user_id===id),row=getDailyRecord(id);if(!row?.photo_path)return;photoStaffId=id;el("photoReviewPerson").textContent=profileName(profile)+" · "+selectedAttendanceDate;el("photoReviewReason").value="";el("photoReviewDialog").hidden=false;setAttendanceMessage("photoReviewMessage","Loading private historic photos…");
+  try{const [reference,capture]=await Promise.all([signedPhoto(profile?.photo_path),signedPhoto(row.photo_path)]);el("staffReferencePhoto").src=reference;el("staffReferencePhoto").hidden=!reference;el("staffAttendancePhoto").src=capture;el("staffAttendancePhoto").hidden=!capture;setAttendanceMessage("photoReviewMessage",reference?"Historic photo review: "+(row.photo_review_status||"Not reviewed"):"No staff reference photo is available.");}catch(error){setAttendanceMessage("photoReviewMessage",error.message,"error");}
 }
+async function savePhotoReview(decision){const reason=el("photoReviewReason").value.trim();if(reason.length<5){setAttendanceMessage("photoReviewMessage","Enter a review reason of at least 5 characters.","error");return;}const buttons=document.querySelectorAll("[data-photo-decision]");buttons.forEach(button=>button.disabled=true);try{const {error}=await attendanceClient.rpc("admin_correct_attendance",{p_staff_id:photoStaffId,p_date:selectedAttendanceDate,p_action:"review_photo",p_reason:reason,p_photo_review_status:decision});if(error)throw error;el("photoReviewDialog").hidden=true;await loadDaily();setAttendanceMessage("dailyMessage","Historic photo review saved in the audit history.","success");}catch(error){setAttendanceMessage("photoReviewMessage",error.message,"error");}finally{buttons.forEach(button=>button.disabled=false);}}
+async function refreshActive(){try{if(activeTab==="daily")await loadDaily();if(activeTab==="history")await loadHistory();if(activeTab==="audit")await loadAudit();if(activeTab==="enrollment")await loadEnrollment();}catch(error){setAttendanceMessage("dailyMessage",error.message,"error");}}
+function activateAttendanceTab(tab){if(enrollmentBusy)return;activeTab=tab;["daily","history","enrollment","audit"].forEach(name=>{el(name+"Tab").classList.toggle("is-active",tab===name);el(name+"Tab").setAttribute("aria-selected",String(tab===name));el(name+"Tab").tabIndex=tab===name?0:-1;el(name+"Panel").hidden=tab!==name;});if(tab==="history")loadHistory();if(tab==="audit")loadAudit();}
 function bindAttendanceControls(){
-  document.getElementById("dailyTab")?.addEventListener("click",()=>activateAttendanceTab("daily"));
-  document.getElementById("historyTab")?.addEventListener("click",()=>activateAttendanceTab("history"));
-  document.getElementById("previousDay")?.addEventListener("click",()=>changeAttendanceDay(-1));
-  document.getElementById("nextDay")?.addEventListener("click",()=>changeAttendanceDay(1));
-  document.getElementById("attendanceDate")?.addEventListener("change",event=>{
-    selectedAttendanceDate=event.target.value||attendanceToday();
-    loadDaily().catch(error=>{
-      console.error("Attendance loading failed:",error);
-      setAttendanceMessage("dailyMessage",error.message||"Could not load attendance.","error");
-    });
-  });
-  document.getElementById("staffSearch")?.addEventListener("input",renderDailyRows);
-  document.getElementById("historySearch")?.addEventListener("input",renderHistory);
-  document.getElementById("historyPeriod")?.addEventListener("change",()=>{
-    setHistoryDateInput();
-    loadHistory();
-  });
-  document.getElementById("historyDate")?.addEventListener("change",loadHistory);
-  document.getElementById("refreshHistory")?.addEventListener("click",loadHistory);
-  document.getElementById("closePhotoReview")?.addEventListener("click",closeAttendancePhotoReview);
-  document.getElementById("photoReviewDialog")?.addEventListener("click",event=>{
-    if(event.target.id==="photoReviewDialog")closeAttendancePhotoReview();
-  });
-  document.querySelectorAll("[data-photo-decision]").forEach(button=>{
-    button.addEventListener("click",()=>saveAttendancePhotoReview(button.dataset.photoDecision));
-  });
-  document.addEventListener("keydown",event=>{
-    if(event.key==="Escape")closeAttendancePhotoReview();
-  });
-  document.getElementById("attendanceRefresh")?.addEventListener("click",()=>{
-    if(document.getElementById("historyPanel").hidden){
-      loadDaily().catch(error=>{
-        console.error("Attendance loading failed:",error);
-        setAttendanceMessage("dailyMessage",error.message||"Could not load attendance.","error");
-      });
-    }else loadHistory();
-  });
+  document.querySelectorAll("[data-tab]").forEach(button=>{button.addEventListener("click",()=>activateAttendanceTab(button.dataset.tab));button.addEventListener("keydown",event=>{const tabs=["daily","history","enrollment","audit"];if(["ArrowRight","ArrowLeft","Home","End"].includes(event.key)){event.preventDefault();const next=event.key==="Home"?0:event.key==="End"?3:(tabs.indexOf(activeTab)+(event.key==="ArrowRight"?1:3))%4;activateAttendanceTab(tabs[next]);el(tabs[next]+"Tab").focus();}});});
+  const chooseDate=()=>{selectedAttendanceDate=el("attendanceDate").value||indiaToday();refreshActive();};el("attendanceDate").addEventListener("change",chooseDate);["previousDay","nextDay"].forEach((name,index)=>el(name).addEventListener("click",()=>{const date=new Date(selectedAttendanceDate+"T12:00:00");date.setDate(date.getDate()+(index?1:-1));el("attendanceDate").value=dateKey(date);chooseDate();}));
+  el("staffSearch").addEventListener("input",renderDaily);el("historySearch").addEventListener("input",renderHistory);el("auditSearch").addEventListener("input",renderAudit);el("historyPeriod").addEventListener("change",()=>{setHistoryDateInput();loadHistory();});el("historyDate").addEventListener("change",loadHistory);el("refreshHistory").addEventListener("click",loadHistory);el("attendanceRefresh").addEventListener("click",()=>{if(!enrollmentBusy)refreshActive();});
+  el("attendanceRows").addEventListener("click",event=>{const manual=event.target.closest("[data-manual]"),enroll=event.target.closest("[data-enroll]"),photo=event.target.closest("[data-photo-review]");if(manual)openManual(manual.dataset.manual);if(photo)openPhoto(photo.dataset.photoReview);if(enroll){activateAttendanceTab("enrollment");el("enrollmentStaff").value=enroll.dataset.enroll;loadEnrollment();}});
+  el("enrollmentStaff").addEventListener("change",loadEnrollment);["enrollmentConsent","enrollmentWitness"].forEach(id=>el(id).addEventListener("change",renderEnrollment));el("beginEnrollment").addEventListener("click",beginEnrollment);el("deleteEnrollment").addEventListener("click",()=>{el("deleteEnrollmentForm").hidden=false;el("deletionReason").focus();});el("confirmDeleteEnrollment").addEventListener("click",deleteEnrollment);el("cancelDeleteEnrollment").addEventListener("click",()=>el("deleteEnrollmentForm").hidden=true);
+  el("manualAttendanceForm").addEventListener("submit",saveManual);el("manualAction").addEventListener("change",()=>el("manualTimeFields").hidden=el("manualAction").value!=="correct");el("closeManualAttendance").addEventListener("click",()=>el("manualAttendanceDialog").hidden=true);el("closePhotoReview").addEventListener("click",()=>el("photoReviewDialog").hidden=true);document.querySelectorAll("[data-photo-decision]").forEach(button=>button.addEventListener("click",()=>savePhotoReview(button.dataset.photoDecision)));document.addEventListener("keydown",event=>{if(event.key==="Escape"&&!enrollmentBusy){el("manualAttendanceDialog").hidden=true;el("photoReviewDialog").hidden=true;}});
 }
 async function bootAttendance(){
-  bindAttendanceControls();
-  selectedAttendanceDate=attendanceToday();
-  document.getElementById("attendanceDate").value=selectedAttendanceDate;
-  setHistoryDateInput();
-  try{
-    attendanceClient=bootSupabase();
-    const profile=await getMyProfile();
-    if(!profile.active||profile.role!=="admin"){
-      location.href=profile.role==="inventory_staff"?"products.html":"billing.html";
-      throw new Error("Admin access required for attendance.");
-    }
-    await loadDaily();
-  }catch(error){
-    console.error("Attendance page failed to initialize:",error);
-    setAttendanceMessage("dailyMessage",error.message||"Could not initialize attendance.","error");
-    const rows=document.getElementById("attendanceRows");
-    if(rows)rows.innerHTML="<tr><td colspan='6'>Attendance could not be loaded.</td></tr>";
-  }
+  selectedAttendanceDate=indiaToday();el("attendanceDate").value=selectedAttendanceDate;setHistoryDateInput();bindAttendanceControls();
+  try{attendanceClient=bootSupabase();await requireSession();const profile=await getMyProfile();if(!profile.active||profile.role!=="admin"){location.replace("my-attendance.html");return;}await loadDaily();}catch(error){setAttendanceMessage("dailyMessage",error.message||"Could not initialize attendance.","error");}
 }
-if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",bootAttendance,{once:true});
-else bootAttendance();
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",bootAttendance,{once:true});else bootAttendance();

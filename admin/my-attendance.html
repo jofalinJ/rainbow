@@ -1,43 +1,32 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#8f1520">
-<link rel="icon" type="image/png" href="../assets/brand/rainbow-logo.png">
-<title>Rainbow Gold Covering — My Attendance</title>
-<link rel="stylesheet" href="style.css">
-<link rel="stylesheet" href="my-attendance.css?v=20261015-face-preview-v1">
-<script src="config.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#8f1520">
+<link rel="icon" type="image/png" href="../assets/brand/rainbow-logo.png"><title>Rainbow Gold Covering — Face Attendance</title>
+<link rel="stylesheet" href="style.css"><link rel="stylesheet" href="my-attendance.css?v=20261015-biometric"><link rel="stylesheet" href="../dist/face-liveness.css">
+<script src="config.js"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 <aside aria-label="Staff navigation"></aside>
 <main class="my-attendance-page">
-  <header class="my-attendance-header">
-    <div><p class="eyebrow">TEAM</p><h1>My Attendance</h1><p id="staffGreeting" class="muted">Record your attendance for today.</p></div>
-    <button class="profile" type="button" onclick="logout()">Sign out</button>
-  </header>
-  <section class="panel self-attendance-card">
-    <div class="self-attendance-top"><div><p class="eyebrow">TODAY</p><h2 id="indiaDateLabel">Loading date…</h2></div><span id="todayAttendanceStatus" class="self-attendance-status">Loading…</span></div>
-    <p class="self-attendance-instruction">Tap <strong>Check in</strong> when your shift starts and <strong>Check out</strong> when you finish. Your work times are recorded automatically in India Standard Time.</p>
-    <div class="self-attendance-actions"><button id="checkInButton" class="primary" type="button" disabled>Check in</button><button id="checkOutButton" type="button" disabled>Check out</button></div>
-    <section id="facePilot" class="face-preview-panel" aria-labelledby="facePilotHeading">
-      <div class="face-preview-head"><div><p class="eyebrow">OPTIONAL · ON-DEVICE PREVIEW</p><h3 id="facePilotHeading">Face biometric preview</h3></div><span class="face-preview-pill">Experimental</span></div>
-      <p class="face-preview-notice">Compare your live face with the private staff photo enrolled by an administrator. This optional check does <strong>not</strong> replace your attendance buttons or verify payroll. Camera access is requested only when you start; the browser controls permission prompts.</p>
-      <label class="face-consent"><input type="checkbox" id="facePilotConsent"><span>I choose to use my enrolled photo for this face comparison. My consent is saved so I won't need to repeat it. I can withdraw it here at any time.</span></label>
-      <div class="face-preview-actions"><button id="facePilotStart" type="button" disabled>Verify face (preview)</button><button id="facePilotStop" type="button" hidden>Stop camera</button></div>
-      <video id="facePilotVideo" playsinline autoplay muted hidden aria-label="Live camera preview for local face verification"></video>
-      <p id="facePilotStatus" class="face-pilot-status" role="status" aria-live="polite">Checking enrollment…</p>
-    </section>
-        <p id="selfAttendanceMessage" class="self-attendance-message" role="status" aria-live="polite">Loading your attendance…</p>
-    <div class="self-attendance-times"><div><span>Check-in</span><strong id="checkInTime">—</strong></div><div><span>Check-out</span><strong id="checkOutTime">—</strong></div><div><span>Hours worked</span><strong id="workingHours">—</strong></div></div>
+  <header class="my-attendance-header"><div><p class="eyebrow">RAINBOW GOLD COVERING · TEAM</p><h1>Face Attendance</h1><p class="muted">A secure start and finish to your working day.</p></div><button class="profile" type="button" onclick="logout()">Sign out</button></header>
+  <section class="panel self-attendance-card" aria-label="Your attendance">
+    <div class="self-attendance-top"><div><p class="eyebrow">TODAY · INDIA STANDARD TIME</p><h2 id="indiaDateLabel">Loading date…</h2><time id="indiaClock" class="india-clock"></time></div><span id="todayAttendanceStatus" class="self-attendance-status" role="status">LOADING</span></div>
+    <div class="staff-identity"><span class="identity-seal" aria-hidden="true">R</span><div><h3 id="staffGreeting">Loading your staff account…</h3><span class="identity-label">SIGNED-IN EMPLOYEE ID</span><output id="signedInStaffId">—</output></div></div>
+    <p class="self-attendance-instruction">Your face is compared only with the enrollment for this signed-in account. On a shared tablet, sign out after use so the next employee can sign in with their own account.</p>
+    <div id="enrollmentBanner" class="enrollment-banner" role="status">Checking secure face enrollment…</div>
+    <p id="shiftDateLabel" class="shift-date-label"></p>
+    <div class="self-attendance-actions"><button id="checkInButton" class="primary" type="button" disabled><span aria-hidden="true">◎</span> Face Check-in</button><button id="checkOutButton" type="button" disabled><span aria-hidden="true">◎</span> Face Check-out</button></div>
+    <p id="selfAttendanceMessage" class="self-attendance-message" role="status" aria-live="polite">Loading your attendance…</p>
+    <div class="self-attendance-times"><div><span>Check-in · IST</span><strong id="checkInTime">—</strong></div><div><span>Check-out · IST</span><strong id="checkOutTime">—</strong></div><div><span>Hours worked</span><strong id="workingHours">—</strong></div></div>
+    <div class="attendance-record-meta"><span id="verificationMethod">Verification: —</span><button id="refreshAttendance" type="button">Refresh attendance</button></div>
     <p id="photoReviewStatus" class="photo-review-status"></p>
+    <details class="biometric-privacy"><summary>Face verification & your privacy</summary><div id="employeePrivacyNotice">The configured privacy notice will appear here.</div></details>
+    <p class="alternative-attendance">Unable to use the camera or prefer another method? Ask an administrator to record your attendance. Every manual entry requires a reason and is audited.</p>
   </section>
-  <p class="self-attendance-privacy">Only you and active administrators can access your attendance record. Check-in and check-out are linked to your signed-in staff account.</p>
+  <section class="panel personal-history"><div class="history-heading"><div><p class="eyebrow">YOUR RECORDS</p><h2>Attendance history</h2></div><label>Month <input id="personalHistoryMonth" type="month"></label></div><p id="personalHistoryMessage" role="status" class="self-attendance-message"></p><div class="table-wrap"><table><thead><tr><th>Date</th><th>Status</th><th>Check-in · IST</th><th>Check-out · IST</th><th>Hours</th><th>Method / result</th></tr></thead><tbody id="personalHistoryRows"><tr><td colspan="6">Loading your history…</td></tr></tbody></table></div></section>
+  <p class="self-attendance-privacy">Attendance belongs to your signed-in account. Only you and authorized active administrators can access your record.</p>
 </main>
-<script src="app.js?v=20261015-admin-attendance-nav-v2"></script>
-<script src="my-attendance.js?v=20261015-no-admin-attendance-v2"></script>
-<script type="module" src="face-preview.mjs?v=20261015-face-preview-v1"></script>
-</body>
-</html>
+<div id="livenessDialog" class="biometric-capture-overlay" hidden><section class="biometric-capture-dialog" role="dialog" aria-modal="true" aria-labelledby="captureTitle"><div class="capture-heading"><div><p class="eyebrow">SECURE FACE VERIFICATION</p><h2 id="captureTitle">Verify your identity</h2></div><button type="button" data-capture-cancel>Cancel</button></div><p id="captureMessage" role="status" aria-live="polite"></p><div id="livenessCamera" class="liveness-camera"></div><p class="capture-help">Keep your entire face visible. Do not use a photograph or recording. Attendance is recorded only after the server confirms liveness and a face match.</p></section></div>
+<script src="app.js?v=20261015-admin-attendance-nav-v2"></script><script type="module" src="../dist/face-liveness.js"></script><script type="module" src="my-attendance.js?v=20261015-biometric"></script>
+</body></html>

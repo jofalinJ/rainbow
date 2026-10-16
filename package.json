@@ -17,17 +17,34 @@
     "test:coverage": "vitest run tests/unit --coverage",
     "test:watch": "vitest",
     "lint": "eslint .",
-    "build": "node scripts/verify-static.mjs",
-    "security": "npm audit --audit-level=high"
+    "build": "npm run build:biometric && node scripts/verify-static.mjs",
+    "security": "npm audit --audit-level=high",
+    "build:biometric": "node scripts/build-biometric.mjs",
+    "test:database": "node --test tests/database/biometric.test.mjs",
+    "check:biometric": "node scripts/check-biometric.mjs"
   },
   "devDependencies": {
+    "@aws-sdk/client-rekognition": "3.1148.0",
+    "@aws-sdk/client-sts": "3.1148.0",
+    "@electric-sql/pglite": "0.5.10",
     "@eslint/js": "^9.39.1",
     "@supabase/supabase-js": "^2.58.0",
     "@vitest/coverage-v8": "5.0.3",
+    "deno": "2.9.6",
+    "esbuild": "0.28.2",
     "eslint": "^9.39.1",
     "globals": "^16.5.0",
     "selenium-webdriver": "^4.38.0",
-    "vitest": "5.0.3",
-    "vite": "^7.3.0"
+    "supabase": "2.121.0",
+    "typescript": "5.9.3",
+    "vite": "^7.3.0",
+    "vitest": "5.0.3"
+  },
+  "dependencies": {
+    "@aws-amplify/ui-react": "6.15.7",
+    "@aws-amplify/ui-react-liveness": "3.7.0",
+    "aws-amplify": "6.22.2",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
   }
 }
