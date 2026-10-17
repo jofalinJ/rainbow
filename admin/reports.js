@@ -42,3 +42,29 @@ document.querySelector("#refreshReports")?.addEventListener("click",loadReports)
 requireSession().then(loadReports).catch(error=>{
   const rows=document.querySelector("#reportRows");if(rows)rows.innerHTML="<tr><td colspan='6'>"+reportEsc(error?.message||"Please sign in.")+"</td></tr>";
 });
+
+async function loadVariance(){
+ const table=document.querySelector("#varianceRows");
+ const label=document.querySelector("#varianceMessage");
+ const btn=document.querySelector("#checkVariance");
+ if(!table)return;
+ btn.disabled=true;
+ try{
+  const {data,error}=await reportsClient.rpc("inventory_variance_report",{p_limit:500});
+  if(error)throw error;
+  table.replaceChildren();
+  const mismatch=(data||[]).filter(x=>x.status!=="MATCH");
+  for(const x of mismatch){
+   const tr=document.createElement("tr");
+   for(const val of [x.variant_id,x.actual_qty,x.recorded_qty,x.status]){
+    const td=document.createElement("td");
+    td.textContent=String(val??"—");tr.append(td);
+   }
+   table.append(tr);
+  }
+  label.textContent="Checked "+(data||[]).length+" variants; "+mismatch.length+
+   " journal mismatch(es). This is not full business ledger reconciliation.";
+ }catch(e){label.textContent="Audit unavailable: "+e.message;}
+ finally{btn.disabled=false;}
+}
+document.querySelector("#checkVariance")?.addEventListener("click",loadVariance);
