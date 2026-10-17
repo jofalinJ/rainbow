@@ -5,7 +5,7 @@
 \ir online_order_source_ledger.sql
 
 -- PostgreSQL roles are cluster-wide and CI may have made them in a prior DB.
-do $
+do $$
 begin
   if not exists(select 1 from pg_roles where rolname='anon') then
     create role anon nologin;
@@ -13,7 +13,7 @@ begin
   if not exists(select 1 from pg_roles where rolname='authenticated') then
     create role authenticated nologin;
   end if;
-end $;
+end $$;
 grant usage on schema public,auth to anon,authenticated;
 
 create table auth.users(id uuid primary key);
