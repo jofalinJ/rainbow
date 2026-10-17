@@ -88,6 +88,9 @@ main>header h1{font-size:30px;letter-spacing:-.8px}
 .wa-btn{color:#217a45;border-color:#bcdcc8;background:#f6fff8}
 #receiptScreen .receipt button{border-radius:8px}
 #receiptScreen .receipt button:last-child{background:var(--rainbow-red);color:#fff;border-color:var(--rainbow-red)}
+#saleHoldActions{margin-top:12px;padding:12px;border:1px solid #e4b896;border-radius:10px;background:#fff7ed;font-size:12px;line-height:1.5}
+#saleHoldActions[hidden]{display:none}
+#saleHoldActions a{color:#8f1520;font-weight:700;margin-right:12px}
 @media(max-width:1000px){main{padding:24px}.billing-layout{grid-template-columns:1fr}.catalog{max-height:none}}
 @media(max-width:600px){main{padding:15px}.billing-search{flex-wrap:wrap}.billing-search input{flex-basis:100%}.billing-search button{flex:1}.panel{padding:15px}.product-card{padding:11px}.grand-total{font-size:20px}}
 
@@ -128,7 +131,13 @@ main>header h1{font-size:30px;letter-spacing:-.8px}
 <label class="pay-option"><input type="radio" name="payment" value="bank_transfer"> Bank Transfer</label>
 </div>
 <button class="complete" id="completeSale" type="button" disabled>Complete Sale</button>
-<p id="billingMsg" class="billing-msg"></p>
+<p id="billingMsg" class="billing-msg" role="status" aria-live="polite"></p>
+<div id="saleHoldActions" hidden>
+  <strong>Unverified checkout — do not collect payment twice.</strong>
+  <p>Review recent bills and reconcile cash/UPI/card payment before releasing this hold. Retrying the same sale uses its original operation ID.</p>
+  <a href="bills.html" target="_blank" rel="noopener noreferrer">Review Bills</a>
+  <button id="clearSaleHold" type="button">I reviewed it — clear hold</button>
+</div>
 </div>
 </section>
 </div>
@@ -148,7 +157,7 @@ main>header h1{font-size:30px;letter-spacing:-.8px}
 
 <section id="receiptScreen" class="receipt-screen" style="display:none">
 <div class="receipt">
-<h3>JJ GOLD COVERING</h3>
+<h3>RAINBOW GOLD COVERING</h3>
 <small id="receiptMeta"></small>
 <div class="receipt-items" id="receiptItems"></div>
 <div class="total-line"><span>Subtotal</span><strong id="receiptSubtotal"></strong></div>
@@ -163,6 +172,6 @@ main>header h1{font-size:30px;letter-spacing:-.8px}
 </main>
 <div id="receiptPdfStage" class="invoice" style="position:absolute;left:-100000px;top:0;width:80mm;background:#fff"></div>
 <script src="app.js?v=20261015-admin-attendance-nav-v2"></script>
-<script src="billing.js?v=20261006"></script>
+<script src="billing.js?v=20261017-idempotent"></script>
 </body>
 </html>
