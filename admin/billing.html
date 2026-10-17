@@ -13,6 +13,13 @@
 <script src="../invoice-template.js"></script>
 <script src="../bill-pdf.js"></script>
 <style>
+.offline-draft-panel{margin-top:16px;padding:15px;border:1px solid #b79d85;border-radius:12px;background:#fffdf9}
+.offline-draft-panel h3{font-size:14px;margin:0 0 8px}
+.offline-draft-panel p{font-size:12px;line-height:1.5}
+.offline-draft-row{display:flex;align-items:center;gap:9px;border-bottom:1px solid #e9e2d9;padding:12px 0;flex-wrap:wrap}
+.offline-draft-row span{flex:1 1 180px;font-size:12px}
+.offline-draft-panel button{font-size:12px}
+
 .billing-layout{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(340px,.75fr);gap:18px}
 .billing-search{display:flex;gap:10px;margin-bottom:14px}
 .billing-search input{flex:1}
@@ -132,6 +139,15 @@ main>header h1{font-size:30px;letter-spacing:-.8px}
 </div>
 <button class="complete" id="completeSale" type="button" disabled>Complete Sale</button>
 <p id="billingMsg" class="billing-msg" role="status" aria-live="polite"></p>
+<section id="offlineDraftPanel" class="offline-draft-panel" aria-label="Unsubmitted offline drafts">
+ <h3>Offline drafts · NOT BILLS</h3>
+ <p id="offlineDraftStatus" role="status" aria-live="polite">Checking network…</p>
+ <p>Save only product variant IDs and quantities on this device. No customer details or payments are saved. Stock is NOT reserved. To issue a bill, reconnect and verify the live catalog.</p>
+ <button type="button" id="saveOfflineDraft">Save current cart as unsent draft</button>
+ <div id="offlineDraftRows"></div>
+ <p id="offlineDraftMsg" role="status" aria-live="polite"></p>
+</section>
+
 <div id="saleHoldActions" hidden>
   <strong>Unverified checkout — do not collect payment twice.</strong>
   <p>Review recent bills and reconcile cash/UPI/card payment before releasing this hold. Retrying the same sale uses its original operation ID.</p>
@@ -172,6 +188,6 @@ main>header h1{font-size:30px;letter-spacing:-.8px}
 </main>
 <div id="receiptPdfStage" class="invoice" style="position:absolute;left:-100000px;top:0;width:80mm;background:#fff"></div>
 <script src="app.js?v=20261015-admin-attendance-nav-v2"></script>
-<script src="billing.js?v=20261017-idempotent"></script>
+<script src="billing.js?v=20261017-offline-draft-v1"></script>
 </body>
 </html>
