@@ -82,3 +82,14 @@
 #modal .order-item-row{overflow-wrap:anywhere}
 #modal .order-amount-breakdown strong{font-variant-numeric:tabular-nums;white-space:nowrap}
 @media(max-width:740px){.orders-table{min-width:900px}}
+
+/* Phase 4: controlled unpaid order cancellation, not a paid refund workflow. */
+.order-cancel-panel{margin:20px 0;padding:16px;border:1px solid #e6c4b4;border-radius:12px;background:#fffaf7}
+.order-cancel-panel h3{margin:0 0 10px;font-size:16px}
+.order-cancel-panel label{display:block;margin:12px 0 6px;font-size:13px;font-weight:600}
+.order-cancel-panel textarea{display:block;width:100%;box-sizing:border-box;border:1px solid #d5c9c2;border-radius:9px;padding:10px;font:inherit;resize:vertical}
+.order-cancel-panel .cancel-payment-check{display:flex;align-items:flex-start;gap:10px;line-height:1.5;margin:14px 0;font-weight:500}
+.cancel-payment-check input{width:18px;height:18px;flex:0 0 18px;margin-top:2px}
+#cancelUnpaidConfirm{background:#8f1520;color:#fff;border:0;border-radius:8px;padding:10px 14px}
+#cancelUnpaidConfirm:disabled{background:#d7cecc;cursor:not-allowed}
+#cancelUnpaidFeedback{font-size:13px;line-height:1.6}
