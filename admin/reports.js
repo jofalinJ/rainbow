@@ -5,7 +5,7 @@ const reportDate=value=>{if(!value)return "—";const d=new Date(value);return N
 function setReportValue(id,value){const el=document.getElementById(id);if(el)el.textContent=value;}
 function reportStatus(message,error=false){const el=document.querySelector("#reportMessage");if(el){el.textContent=message;el.className="form-msg"+(error?" error":"");}}
 function renderReports(orders,products){
-  const activeOrders=orders.filter(o=>!["cancelled","refunded"].includes(String(o.status||"").toLowerCase()));
+  const activeOrders=orders.filter(o=>o.payment_status==="paid"&&!["cancelled","refunded"].includes(String(o.status||"").toLowerCase()));
   const sales=activeOrders.reduce((sum,o)=>sum+Number(o.total_amount||0),0);
   const start=new Date();start.setHours(0,0,0,0);
   const todayCount=orders.filter(o=>o.created_at&&new Date(o.created_at)>=start&&!["cancelled","refunded"].includes(String(o.status||"").toLowerCase())).length;
