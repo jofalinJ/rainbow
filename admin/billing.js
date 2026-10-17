@@ -25,8 +25,14 @@ function showSaleHoldActions(){
   }
   $b("completeSale").textContent=pendingSale&&!saleInFlight?"Retry Same Sale":"Complete Sale";
 }
+function lockSaleControls(){
+  const locked=Boolean(pendingSale||getSaleHold());
+  document.querySelectorAll(".customer-form input,.customer-form textarea,.pay-options input,[data-add-variant],[data-inc],[data-dec],[data-remove]")
+    .forEach(input=>{input.disabled=locked;});
+  $b("clearCart").disabled=locked;
+}
 function guardSaleEdit(){
-  if(!pendingSale)return false;
+  if(!pendingSale&&!getSaleHold())return false;
   setMsg("A checkout is unresolved. Retry the SAME sale or review Bills before clearing the hold.","error");
   return true;
 }
@@ -60,6 +66,7 @@ function refreshTotals(){
   $b("total").textContent=moneyB(total);
   $b("completeSale").disabled=cart.size===0||saleInFlight||Boolean(getSaleHold()&&!pendingSale);
   showSaleHoldActions();
+  lockSaleControls();
   return{subtotal,discount,cgst,sgst,total};
 }
 function renderCatalog(){
@@ -83,6 +90,7 @@ function renderCatalog(){
       '<div class="variant-actions"><button type="button" data-add-variant="'+v.id+'">Add</button></div></article>';
   }).join("")||'<div class="empty">No available products found.</div>';
   document.querySelectorAll("[data-add-variant]").forEach(btn=>btn.addEventListener("click",()=>addToCart(btn.dataset.addVariant)));
+  lockSaleControls();
 }
 function addToCart(variantId){
   if(guardSaleEdit())return;
