@@ -165,6 +165,8 @@ begin
  end if;
  v_hash:=pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(
  jsonb_build_object('supplier',p_supplier_id,'items',p_items,'notes',v_notes)::text,'UTF8')),'hex');
+ -- Stable operation-level transaction lock makes concurrent retries serialize.
+ perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(p_operation_id::text,0));
  select po.id,po.created_by,po.request_hash,po.po_number
  into v_prior from public.purchase_orders po where po.id=p_operation_id;
  if found then
