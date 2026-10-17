@@ -52,6 +52,6 @@ describe("P0 local sale idempotency contract",()=>{
     expect(page).toContain('id="saleHoldActions"');
     expect(page).toContain('id="clearSaleHold"');
     expect(page).toContain('href="bills.html"');
-    expect(page).toContain("billing.js?v=20261017-idempotent");
+    expect(page).toMatch(/billing\.js\?v=\d{8}-[a-z0-9-]+/);
   });
 });

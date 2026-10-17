@@ -176,6 +176,10 @@ async function loadCatalog(){
 }
 async function completeSale(){
   if(cart.size===0||saleInFlight)return;
+  if(!navigator.onLine){
+    setMsg("You are offline. Save a cart DRAFT only. No payment, invoice or stock allocation is authorized while disconnected.","error");
+    return;
+  }
   if(!pendingSale&&getSaleHold()){
     showSaleHoldActions();
     return;
@@ -273,3 +277,28 @@ $b("completeSale").addEventListener("click",completeSale);
 $b("newSale").addEventListener("click",()=>{$b("receiptScreen").style.display="none";$b("productSearch").focus();});
 renderCart();
 requireSession().then(loadCatalog).catch(e=>setMsg(e.message||"Could not load billing.","error"));
+
+import("./offline-drafts.mjs").then(({setupOfflineDraftPanel})=>{
+ setupOfflineDraftPanel({
+  getCartLines:()=>[...cart.values()].map(x=>({variantId:x.variantId,quantity:x.quantity})),
+  restoreDraft:async draft=>{
+   if(!navigator.onLine)throw new Error("Reconnect to validate catalog and stock.");
+   if(saleInFlight||pendingSale||getSaleHold())throw new Error("Resolve any pending checkout before restoring a draft.");
+   // Validation occurs against a fresh server catalog, not stale local prices.
+   await loadCatalog();
+   const validated=[];
+   for(const line of draft.lines){
+    const record=findVariant(line.variantId);
+    if(!record||!record.v.active||Number(record.v.stock_quantity)<line.quantity)
+     throw new Error("A product is unavailable or stock changed; keep the draft for manual review.");
+    validated.push({variantId:line.variantId,p:record.p,v:record.v,
+      price:Number(record.p.selling_price),quantity:line.quantity});
+   }
+   if(!confirm("Replace the current cart with "+validated.length+
+     " freshly validated draft lines? This does not charge or create a sale."))return;
+   cart.clear();
+   validated.forEach(line=>cart.set(line.variantId,line));
+   renderCart();
+  }
+ });
+}).catch(error=>console.warn("Offline draft support unavailable",error));
