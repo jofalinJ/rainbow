@@ -210,7 +210,7 @@ function openOrder(id){
     "<div class='order-status-editor'><label for='mStatus'>Manual order status</label>"+
       "<div class='modal-actions'><select id='mStatus' "+(!canUpdate?"disabled":"")+">"+selectOptions+"</select>"+
       "<button type='button' data-save-status "+(!canUpdate?"disabled":"")+">Save status</button></div>"+
-      "<small>Verify payment first. Use Manage Shipment to record dispatch and delivery. Cancellation or refunds require a dedicated workflow.</small></div>"+
+      "<small>Verify payment before confirming/processing an order. Use Manage Shipment for dispatch and delivery. Unpaid pending orders may be cancelled using the separate verified-unpaid control. Paid refunds and returns require a separate controlled workflow.</small></div>"+
     "<section class='order-audit'><h3>Shipment and status history</h3><div id='orderHistory' role='status' aria-live='polite'>Loading history…</div></section>";
   document.querySelector("#mStatus").value=o.status||"pending";
   document.querySelector("[data-modal-wa]")?.addEventListener("click",()=>sendAlert(o.id));
