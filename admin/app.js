@@ -11,6 +11,7 @@ const ADMIN_NAV_ITEMS=[
   {label:"Dashboard",href:"index.html",roles:["admin"]},
   {label:"Products",href:"products.html",roles:["admin","inventory_staff"]},
   {label:"Inventory",href:"inventory.html",roles:["admin","inventory_staff"]},
+  {label:"Purchasing",href:"purchasing.html",roles:["admin","inventory_staff"]},
   {label:"Bills",href:"bills.html",roles:["admin","cashier"]},
   {label:"Orders",href:"orders.html",roles:["admin","cashier"]},
   {label:"Billing",href:"billing.html",roles:["admin","cashier"]},
