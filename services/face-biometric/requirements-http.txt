@@ -1,0 +1,6 @@
+# Python 3.12. Shared by the CPU worker and lightweight HTTP unit tests.
+fastapi==0.143.3
+starlette==1.8.0
+uvicorn==0.54.0
+pydantic==2.14.1
+cryptography==50.0.2

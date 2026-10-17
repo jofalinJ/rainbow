@@ -23,7 +23,7 @@ describe("admin and customer page improvements",()=>{
     const app=read("admin/app.js");
     expect(app).toContain('roles:["cashier","inventory_staff"]');
     expect(app).toContain('{label:"Attendance",href:"attendance.html",roles:["admin"]}');
-    expect(read("admin/my-attendance.js")).toContain('if(profile.role==="admin"){location.replace("index.html");return;}');
+    expect(read("admin/my-attendance.js")).toContain('if(profile.role==="admin"){location.replace("attendance.html");return;}');
     expect(attendanceSql).toContain("sp.role in ('cashier','inventory_staff')");
     expect(attendanceSql).not.toContain("sp.role in ('admin','cashier','inventory_staff')");
   });

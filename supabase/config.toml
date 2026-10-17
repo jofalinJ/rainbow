@@ -1,0 +1,7 @@
+# Caller identity is checked against Supabase Auth inside the attendance function.
+[functions.face-attendance]
+verify_jwt = false
+
+# A separate high-entropy scheduler secret is checked in constant time.
+[functions.face-attendance-retention]
+verify_jwt = false
