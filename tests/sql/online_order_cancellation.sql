@@ -4,8 +4,16 @@
 -- then tests Phase 4 cancellation on existing fixture orders.
 \ir online_order_source_ledger.sql
 
-create role anon nologin;
-create role authenticated nologin;
+-- PostgreSQL roles are cluster-wide and CI may have made them in a prior DB.
+do $
+begin
+  if not exists(select 1 from pg_roles where rolname='anon') then
+    create role anon nologin;
+  end if;
+  if not exists(select 1 from pg_roles where rolname='authenticated') then
+    create role authenticated nologin;
+  end if;
+end $;
 grant usage on schema public,auth to anon,authenticated;
 
 create table auth.users(id uuid primary key);
