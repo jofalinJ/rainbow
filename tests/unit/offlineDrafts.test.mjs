@@ -22,7 +22,7 @@ describe("device-only offline drafts are not sales",()=>{
   expect(sw).toContain('offline-drafts.html');
   expect(sw).toContain('offline-drafts.js');
   expect(sw).toContain('event.request.method!=="GET"');
-  expect(sw).toContain("u.origin!==self.location.origin");
+  expect(sw).toMatch(/(?:u|url)\.origin!==self\.location\.origin/);
   expect(nav).toContain('href:"offline-drafts.html"');
  });
 });
