@@ -50,6 +50,15 @@ Status: **technical review, not an approved production deployment**. No migratio
 - Admin Orders UI requires statement-check attestation and reason; new isolated PostgreSQL CI tests role guards, exactly-once behavior, payment/shipment and historic guards, and late-failure rollback.
 - Staging-only release until current DB migration compatibility, full RLS, refund/legal SOP and payment-verification concurrency have been tested. See `docs/UNPAID_ONLINE_CANCELLATION.md`.
 
+## Phase 5A: supplier purchasing and goods receipts (staging only)
+
+- Added `suppliers`, `purchase_orders`, `purchase_order_lines`, `goods_receipts`, and `goods_receipt_lines` with staff-only RLS reads and security-definer write RPCs.
+- `create_supplier` requires active admin; `create_purchase_order` and `receive_purchase_order` require active admin/inventory staff. Creating a PO does **not** change stock.
+- `receive_purchase_order` locks PO and variants, checks outstanding quantities, creates source-linked `stock_in` movements and supplier GRN under one transaction; partial delivery is supported. Duplicate GRN operation IDs or supplier invoice references cannot add extra stock.
+- Added `admin/purchasing.html` + JS with separate supplier, PO and receiving workflows, using session-scoped holds for uncertain network outcomes.
+- Disposable PostgreSQL CI tests cover authorized/unauthorized users, duplicate PO/GRN requests, partial/full receiving, double invoice, overreceiving, forced transaction rollback and migration replay.
+- Missing: real full-schema Supabase staging, concurrent receiving trials, real supplier accounting/GST checks, controlled GRN reversal, returns/refunds, supplier returns and offline goods receiving. See `docs/SUPPLIER_PURCHASING.md`.
+
 ## Release and safety boundaries
 
 - `main`: unchanged until explicit review/merge.
