@@ -31,6 +31,23 @@ function manualStatusChoices(o){
   return [current];
 }
 let openOrderId="";
+let cancelInFlight=false;
+
+function canCancelUnpaidOnlineOrder(o){
+  return currentRole==="admin"&&o?.source==="online"&&
+    o?.status==="pending"&&o?.payment_status==="pending";
+}
+function refreshCancelControl(){
+  const reason=document.querySelector("#cancelUnpaidReason");
+  const attestation=document.querySelector("#cancelPaymentChecked");
+  const button=document.querySelector("#cancelUnpaidConfirm");
+  if(!button)return;
+  const valid=Boolean(reason&&attestation&&
+    reason.value.trim().length>=12&&reason.value.trim().length<=240&&
+    attestation.checked&&!cancelInFlight);
+  button.disabled=!valid;
+}
+
 function dateLabel(value){
   if(!value)return "Date unavailable";
   const d=new Date(value);
@@ -179,6 +196,17 @@ function openOrder(id){
     "<h3 class='order-detail-heading'>Billing breakdown</h3><div class='order-amount-breakdown'>"+amounts+"</div>"+
     "<div class='modal-actions'>"+(address?"<a class='button' href='"+esc(map)+"' target='_blank' rel='noopener noreferrer'>Open delivery location ↗</a>":"")+
        paymentAction+(currentRole==="admin"?"<button type='button' id='manageOrderShipment'>Manage Shipment</button>":"")+"</div>"+
+    (canCancelUnpaidOnlineOrder(o)?
+      "<section class='order-cancel-panel' aria-label='Cancel unpaid online order'>"+
+        "<h3>Cancel unpaid order &amp; release reserved stock</h3>"+
+        "<p class='order-detail-warning'>Only use this after checking the actual UPI/bank statement and confirming no money has been received. Orders with recorded shipments or incomplete stock history cannot be cancelled automatically.</p>"+
+        "<label for='cancelUnpaidReason'>Cancellation reason (12–240 characters)</label>"+
+        "<textarea id='cancelUnpaidReason' rows='3' minlength='12' maxlength='240' placeholder='e.g. Customer cancelled; checked UPI statement and no payment was received'></textarea>"+
+        "<label class='cancel-payment-check'><input type='checkbox' id='cancelPaymentChecked'> I personally checked the bank/UPI statement and verified that this order is unpaid.</label>"+
+        "<button type='button' id='cancelUnpaidConfirm' disabled>Cancel order &amp; release stock</button>"+
+        "<p id='cancelUnpaidFeedback' role='status' aria-live='polite'></p>"+
+      "</section>"
+      :"")+
     "<div class='order-status-editor'><label for='mStatus'>Manual order status</label>"+
       "<div class='modal-actions'><select id='mStatus' "+(!canUpdate?"disabled":"")+">"+selectOptions+"</select>"+
       "<button type='button' data-save-status "+(!canUpdate?"disabled":"")+">Save status</button></div>"+
@@ -188,12 +216,56 @@ function openOrder(id){
   document.querySelector("[data-modal-wa]")?.addEventListener("click",()=>sendAlert(o.id));
   document.querySelector("[data-modal-verify]")?.addEventListener("click",()=>verifyPayment(o.id));
   document.querySelector("[data-save-status]").onclick=()=>updateStatus(o.id);
+  document.querySelector("#cancelUnpaidReason")?.addEventListener("input",refreshCancelControl);
+  document.querySelector("#cancelPaymentChecked")?.addEventListener("change",refreshCancelControl);
+  document.querySelector("#cancelUnpaidConfirm")?.addEventListener("click",()=>cancelUnpaidOrder(o.id));
   if(currentRole==="admin")loadOrderAudit(o.id);
   else document.querySelector("#orderHistory").textContent="Shipment audit history is available to administrators.";
   document.querySelector("#manageOrderShipment")?.addEventListener("click",event=>shipmentManager?.open(o.id,event.currentTarget));
   document.querySelector("#modal").classList.add("open");
   document.querySelector("#modal").setAttribute("aria-hidden","false");
 }
+async function cancelUnpaidOrder(id){
+  if(cancelInFlight||currentRole!=="admin")return;
+  const order=allOrders.find(o=>String(o.id)===String(id));
+  if(!canCancelUnpaidOnlineOrder(order)||openOrderId!==String(id))return;
+  const reason=document.querySelector("#cancelUnpaidReason")?.value.trim()||"";
+  const checked=Boolean(document.querySelector("#cancelPaymentChecked")?.checked);
+  if(reason.length<12||reason.length>240||!checked){
+    const msg=document.querySelector("#cancelUnpaidFeedback");
+    if(msg)msg.textContent="Provide a clear reason and confirm the bank/UPI statement was checked.";
+    return;
+  }
+  const label=order.order_number||String(id).slice(0,8);
+  if(!confirm("Cancel order "+label+" and restore its reserved stock? You must have checked that no payment was received. This cannot be undone automatically."))return;
+  cancelInFlight=true;refreshCancelControl();
+  const feedback=document.querySelector("#cancelUnpaidFeedback");
+  if(feedback)feedback.textContent="Checking payment and allocation history, then cancelling…";
+  try{
+    const {data,error}=await ordersClient.rpc("cancel_unpaid_online_order",{
+      p_order_id:id,p_reason:reason,p_payment_checked:true
+    });
+    if(error)throw error;
+    if(feedback)feedback.textContent=data?.already_cancelled
+      ?"Order was already cancelled; no additional stock was released."
+      :"Order cancelled. Stock released for "+Number(data?.released_variants||0)+" variant(s).";
+    await loadOrders({quiet:true});
+    if(openOrderId===String(id)){
+      document.querySelector("#modal")?.classList.remove("open");
+      document.querySelector("#modal")?.setAttribute("aria-hidden","true");
+      openOrderId="";
+    }
+  }catch(error){
+    console.warn("Unpaid order cancellation could not be confirmed",error?.code||"");
+    if(feedback)feedback.textContent="Cancellation not confirmed: "+(error?.message||"Connection error")+
+      ". Refresh Orders and inspect the order before attempting again.";
+    // A timeout may happen AFTER commit. Preserve the filled reason and force
+    // manual refresh/reconciliation rather than assuming a second release.
+  }finally{
+    cancelInFlight=false;refreshCancelControl();
+  }
+}
+
 async function verifyPayment(id){
   if(currentRole!=="admin"){alert("Only an admin can verify UPI payments.");return;}
   if(!confirm("Verify the UPI reference against the store's payment receipt before marking this order paid."))return;
