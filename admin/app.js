@@ -107,3 +107,11 @@ function startDashboardLiveUpdates(){
 renderSharedSidebar();
 async function bootAdminPage(){const profile=await applyRoleNavigation();if(profile?.role==="admin"&&document.querySelector("#sales")){await loadDashboard();startDashboardLiveUpdates();}}
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",bootAdminPage,{once:true});else bootAdminPage();
+
+/* Only the non-sensitive offline draft shell is cached by this worker.
+ * All authenticated product, invoice, billing and API requests remain online. */
+if(typeof navigator!=="undefined"&&"serviceWorker" in navigator&&
+   typeof location!=="undefined"&&location.protocol==="https:"){
+  navigator.serviceWorker.register("offline-sw.js",{scope:"./"}).catch(error=>
+    console.warn("Offline draft shell unavailable",error?.message||""));
+}
