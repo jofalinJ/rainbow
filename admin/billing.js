@@ -18,7 +18,7 @@ function setSaleHold(id){
   }
 }
 function showSaleHoldActions(){
-  const unresolved=Boolean(getSaleHold());
+  const unresolved=Boolean(getSaleHold())&&!saleInFlight;
   $b("saleHoldActions").hidden=!unresolved;
   if(!pendingSale&&unresolved){
     setMsg("A previous sale may have completed. Review Bills and any payment before another checkout. Do not charge twice.","error");
@@ -213,7 +213,7 @@ async function completeSale(){
     cart.clear();
     renderCart();
     clearCustomer();
-    await loadCatalog();
+    try{await loadCatalog();}catch(error){console.warn("Sale committed but catalog could not refresh",error);}
     setMsg("Sale completed: "+data.invoice_number,"success");
   }catch(e){
     console.error(e);
