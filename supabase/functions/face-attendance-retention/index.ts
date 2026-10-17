@@ -1,6 +1,6 @@
 import {createClient} from 'npm:@supabase/supabase-js@2.58.0';
-import {awsProvider} from '../face-attendance/aws-provider.ts';
-import {openCollection} from '../face-attendance/service.mjs';
+import {providers} from '../face-attendance/providers.ts';
+import {openCollection,collectionDescriptor} from '../face-attendance/service.mjs';
 
 // Invoke daily from an authenticated scheduler. Retry incomplete deletions on every run.
 Deno.serve(async (request: Request) => {
@@ -14,16 +14,20 @@ Deno.serve(async (request: Request) => {
   const headers = {'Content-Type':'application/json','Cache-Control':'no-store'};
   if (request.method !== 'POST' || secret.length < 32 || difference !== 0) return new Response('{}',{status:403,headers});
   const db = createClient(env.SUPABASE_URL,env.SUPABASE_SERVICE_ROLE_KEY,{auth:{persistSession:false,autoRefreshToken:false}});
-  const provider = awsProvider(env);
-  const {data,error} = await db.from('biometric_enrollments').select('staff_id,generation,collection_ref').lte('expires_at',new Date().toISOString()).limit(100);
+  const providerFor = providers(env);
+  const cutoff = new Date().toISOString();
+  const {data,error} = await db.from('biometric_enrollments').select('staff_id,generation').lte('expires_at',cutoff).limit(100);
   if (error) return new Response('{"error":"Retention query failed"}',{status:503,headers});
   let removed=0,failed=0;
   for (const row of data || []) {
     try {
-      const {data:locked,error:lockError} = await db.from('biometric_enrollments').update({status:'deleting'}).eq('staff_id',row.staff_id).eq('generation',row.generation).select('staff_id').maybeSingle();
+      // Recheck expiry in the update: a stale candidate must not delete a
+      // generation whose enrollment completed after the initial selection.
+      const {data:locked,error:lockError} = await db.from('biometric_enrollments').update({status:'deleting'}).eq('staff_id',row.staff_id).eq('generation',row.generation).lte('expires_at',cutoff).select('collection_ref').maybeSingle();
       if (lockError) throw lockError;
       if (!locked) continue;
-      await provider.deleteCollection(await openCollection(row.collection_ref,row.staff_id,env.BIOMETRIC_TEMPLATE_KEY));
+      const saved = collectionDescriptor(await openCollection(locked.collection_ref,row.staff_id,env.BIOMETRIC_TEMPLATE_KEY));
+      await providerFor(saved.kind).deleteCollection(saved.id);
       const {error:purgeError} = await db.rpc('biometric_purge_enrollment',{p_staff:row.staff_id,p_generation:row.generation});
       if (purgeError) throw purgeError;
       removed++;

@@ -13,6 +13,7 @@ const GENERATION = '30000000-0000-4000-8000-000000000001';
 const COLLECTION = 'rgc-isolated-employee-enrollment';
 const KEY = Buffer.alloc(32, 17).toString('base64');
 const validEnv = () => ({
+  BIOMETRIC_PROVIDER: 'aws',
   AWS_REGION: 'ap-south-1', BIOMETRIC_TEMPLATE_KEY: KEY,
   BIOMETRIC_ATTENDANCE_ENABLED: 'true', BIOMETRIC_VALIDATION_APPROVED: 'true', AWS_AI_OPT_OUT_CONFIRMED: 'true', BIOMETRIC_RETENTION_READY: 'true',
   AWS_ACCESS_KEY_ID: 'server-access-key', AWS_SECRET_ACCESS_KEY: 'server-secret-never-returned',
@@ -245,7 +246,7 @@ describe('server-derived biometric evidence and attendance', () => {
     await expect(h.run({operation: 'complete', session_id: SESSION})).rejects.toThrow();
     expect(h.provider.match).not.toHaveBeenCalled();
     expect(h.rpcCalls('biometric_finish_attendance')).toHaveLength(0);
-    expect(h.evidence.image).toEqual(new Uint8Array(4));
+    expect(h.provider.results).not.toHaveBeenCalled();
   });
 
   it('rejects a staff request naming another employee before any claim or credential request', async () => {
@@ -366,7 +367,7 @@ describe('authorized enrollment and temporary browser credentials', () => {
     expect(h.rpcCalls('biometric_open_session')[0][1]).toMatchObject({p_actor: STAFF, p_staff: STAFF, p_purpose: 'check_out'});
     expect(h.rpcCalls('biometric_open_session')[0][1].p_provider_session_id).toMatch(/^[\da-f-]{36}$/i);
     expect(h.sessionUpdates).toEqual([{updates: {provider_session_id: 'aws-server-created-session'}, filters: {id: SESSION, status: 'pending'}}]);
-    expect(result).toEqual({session_id: SESSION, liveness_session_id: 'aws-server-created-session', region: 'ap-south-1', credentials: h.credentials});
+    expect(result).toEqual({provider: 'aws', session_id: SESSION, liveness_session_id: 'aws-server-created-session', region: 'ap-south-1', credentials: h.credentials});
     const rejected = await harness({rpcErrors: {biometric_open_session: {message: 'Session limit reached'}}});
     await expect(rejected.run({operation: 'start_verification', action: 'check_in'})).rejects.toMatchObject({code: 'DATABASE_REJECTED'});
     expect(rejected.provider.createSession).not.toHaveBeenCalled();

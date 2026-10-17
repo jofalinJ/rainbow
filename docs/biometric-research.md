@@ -1,8 +1,24 @@
 # Face attendance provider research
 
-Verified against primary sources on **15 October 2026**. This is engineering research and a production-readiness aid; deployment and the employer's policy/legal decisions are separate steps.
+AWS and India policy notes were verified against primary sources on **15 October 2026**. The self-hosted option below was checked on **17 October 2026**. This is engineering research and a production-readiness aid; deployment and the employer's policy/legal decisions are separate steps.
 
-## Recommended provider and browser integration
+## Self-hosted option selected for an isolated pilot
+
+The application now supports a separate face server using **OpenCV YuNet** for face detection, **OpenCV SFace** for verification of the signed-in employee, and the **MiniFASNet** ensemble from Silent-Face-Anti-Spoofing for passive presentation-attack detection. These are different jobs: detecting a face does not establish identity, and matching a face does not establish that it is live. Setup, server secrets, deletion and the pilot checklist are in [Self-hosted biometrics](SELF_HOSTED_BIOMETRICS.md). The AWS implementation remains an optional provider; its setup requirements below apply only when AWS is selected.
+
+OpenCV documents `FaceDetectorYN` and `FaceRecognizerSF` and separate detection/alignment/feature/matching steps. Its published benchmark thresholds vary by dataset; copying a benchmark score does not establish an attendance operating point. The implementation's thresholds require validation with the intended participants and devices. [Official OpenCV tutorial](https://docs.opencv.org/4.x/d0/dd4/tutorial_dnn_face.html)
+
+SFace's official model directory states Apache 2.0 licensing; YuNet's states MIT. Keep their notices with the exact downloaded artifacts. The service pins `face_detection_yunet_2023mar.onnx` with OpenCV 4.x: the newer `2026may` export targets dynamic inputs in the OpenCV 5.x ONNX Runtime engine and must not be substituted without compatibility testing. [SFace model and license](https://github.com/opencv/opencv_zoo/tree/main/models/face_recognition_sface), [YuNet model compatibility and license](https://github.com/opencv/opencv_zoo/tree/main/models/face_detection_yunet)
+
+Silent-Face-Anti-Spoofing supplies passive RGB classifiers rather than the AWS streamed challenge. Its maintainers warn that camera model, scene and pose affect results and that test inputs should originate from a camera. The project's published performance figures do not establish performance on the shop tablet. [Official MiniFASNet project guidance](https://github.com/minivision-ai/Silent-Face-Anti-Spoofing/blob/master/README_EN.md)
+
+The upstream project has an Apache 2.0 license. Retain the license/attribution and review the exact checkpoint artifacts and dependency licenses before deployment; a repository license is not a warranty of training-data rights, accuracy or suitability for employee attendance. Review upstream maintenance and assign an owner for security updates. [Official MiniFASNet license](https://github.com/minivision-ai/Silent-Face-Anti-Spoofing/blob/master/LICENSE)
+
+**Engineering limitation:** the custom browser sends JPEG frames to the face server. One-use session tokens and server-side scoring limit replay and keep the API secret off the tablet, but do not attest that submitted pixels came from a fresh physical camera. An altered browser/client can submit generated or substituted images. A blink or head-turn prompt would not fix that trust boundary. Passive PAD is not a certified, spoof-proof or equivalent replacement for AWS Face Liveness. Keep initial use supervised and do not enable production/payroll reliance before the documented consenting-participant, Android and controlled-spoof pilot is reviewed. If the local threat model requires camera attestation or stronger injection resistance, use a suitable trusted capture solution or retain supervised attendance.
+
+There are no AWS liveness/matching API calls when the local provider is selected. Hardware, electricity, networking, backups and maintenance still cost money. The existing Supabase/site hosting continues to be needed. AWS collections cannot be imported into SFace; changing providers requires deliberate template deletion and fresh consent/enrollment. The employer must update the disclosed storage location and processor details to describe the actual self-hosted server.
+
+## Optional AWS provider and browser integration
 
 Use **Amazon Rekognition Face Liveness** followed by **Rekognition collection matching bounded to the employee whose identity has already been claimed**. Liveness is a real, streamed challenge/response service; a camera selfie or local face detector alone cannot replace it. AWS states that liveness remains probabilistic and should be combined with other factors. [AWS service overview](https://docs.aws.amazon.com/rekognition/latest/dg/face-liveness.html)
 

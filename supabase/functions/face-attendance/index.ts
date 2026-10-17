@@ -1,5 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.58.0';
-import { awsProvider } from './aws-provider.ts';
+import { providers } from './providers.ts';
 import { handleOperation, BiometricError, readRequestBody } from './service.mjs';
 
 Deno.serve(async (request: Request) => {
@@ -23,7 +23,7 @@ Deno.serve(async (request: Request) => {
     const text = await readRequestBody(request);
     let body;
     try { body = JSON.parse(text); } catch { return json({code:'INVALID_REQUEST',error:'Invalid JSON.'},400); }
-    return json(await handleOperation({db,provider:awsProvider(env),actor:user.id,env},body));
+    return json(await handleOperation({db,providerFor:providers(env),actor:user.id,env},body));
   } catch (error) {
     if (error instanceof BiometricError) return json({code:error.code,error:error.message},error.status);
     // Never log provider responses, photos, template references, credentials or request bodies.

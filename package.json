@@ -21,6 +21,7 @@
     "security": "npm audit --audit-level=high",
     "build:biometric": "node scripts/build-biometric.mjs",
     "test:database": "node --test tests/database/biometric.test.mjs",
+    "test:self-hosted-contract": "node --test tests/contract/selfHostedContract.test.mjs",
     "check:biometric": "node scripts/check-biometric.mjs"
   },
   "devDependencies": {

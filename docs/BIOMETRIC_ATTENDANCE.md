@@ -1,5 +1,7 @@
 # Verified staff attendance
 
+**Update — self-hosted option:** The default provider is now the self-hosted OpenCV/MiniFASNet service. It requires no AWS account or AWS face API fees. Follow [the self-hosted setup and pilot guide](SELF_HOSTED_BIOMETRICS.md). AWS remains an optional provider selected with `BIOMETRIC_PROVIDER=aws`; AWS-specific provisioning and data-processing details below apply only to that option.
+
 This change extends the existing vanilla JavaScript site, Supabase staff accounts, and `attendance` table. It is **not production-ready until the configured provider, retention scheduler and real-device pilot have been validated**. No live deployment or live employee enrollment was performed during implementation.
 
 ## What changed
@@ -39,7 +41,7 @@ Punch functions lock the staff row even before the first daily record exists. Th
 
 Use an isolated Supabase environment first. Applying the migration, deploying functions and publishing pages are deployment actions; do them only after the owner approves deployment. Deploy the migration and updated admin manual path together: the old unchecked punch endpoint is intentionally disabled by the migration.
 
-An AWS account with paid Rekognition Face Liveness and collection matching in **Mumbai (`ap-south-1`)** is required. Confirm quotas and pricing in the account; no fixed price is assumed here. Provision two separate IAM roles:
+For the optional AWS provider, an AWS account with paid Rekognition Face Liveness and collection matching in **Mumbai (`ap-south-1`)** is required. Confirm quotas and pricing in the account; no fixed price is assumed here. Provision two separate IAM roles:
 
 1. Backend principal: `rekognition:CreateFaceLivenessSession`, `rekognition:GetFaceLivenessSessionResults`, `rekognition:DetectFaces`, and create/delete/index/search permissions for application collections. Restrict collection resources to this account/region and the `rgc-` prefix where the action supports resource scoping. Permit `sts:AssumeRole` only for the browser liveness role.
 2. Browser liveness role: trust only that backend principal; allow only `rekognition:StartFaceLivenessSession` on `*` (the streaming action does not support per-session resource scoping). The backend adds the same restrictive STS session policy. Never use a broad authenticated/anonymous Cognito role here.
@@ -105,6 +107,8 @@ The unit suite mocks provider evidence and verifies rejection/authorization/clea
 The current Indian privacy framework and phased DPDP commencement were checked using official sources; see [the dated research and links](biometric-research.md). Have the employer's privacy/employment adviser approve the actual policy, processor terms, grievance process and retention before recommending production use. This repository does not certify legal compliance.
 
 ## Implementation verification results — 16 October 2026
+
+These are the earlier AWS implementation results. The updated self-hosted checks and current totals are in [the self-hosted verification results](SELF_HOSTED_BIOMETRICS.md#verification-completed--17-october-2026).
 
 - Clean lockfile installation, static build, lint and both Edge Function type checks: passed.
 - Unit/UI/provider tests: **194 passed**. Provider responses are mocked.

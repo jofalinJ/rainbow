@@ -1,5 +1,7 @@
+import {selfHostedUrl} from './self-hosted-provider.mjs';
 // All provider evidence is retrieved server-side. A browser's success callback is never proof.
 export const CONSENT_VERSION = '2026-10-15-v1';
+export const SELF_HOSTED_CONSENT_VERSION = '2026-10-17-self-hosted-v1';
 export class BiometricError extends Error {
   constructor(code, message, status = 400) { super(message); this.code = code; this.status = status; }
 }
@@ -42,15 +44,39 @@ export async function openCollection(sealed, staffId, encodedKey) {
   return new TextDecoder().decode(await crypto.subtle.decrypt({name:'AES-GCM', iv:base64ToBytes(iv), additionalData:new TextEncoder().encode(staffId)}, key, base64ToBytes(ciphertext)));
 }
 export function configuration(env) {
+  const kind = env.BIOMETRIC_PROVIDER || 'self_hosted';
   const region = env.AWS_REGION || 'ap-south-1';
   const key = env.BIOMETRIC_TEMPLATE_KEY || '';
   let validKey = false;
   try { validKey = base64ToBytes(key).length === 32; } catch { /* fail closed */ }
-  const enabled = env.BIOMETRIC_ATTENDANCE_ENABLED === 'true' && env.BIOMETRIC_VALIDATION_APPROVED === 'true'
-    && env.AWS_AI_OPT_OUT_CONFIRMED === 'true' && env.BIOMETRIC_RETENTION_READY === 'true' && validKey && region === 'ap-south-1'
-    && Boolean(env.AWS_ACCESS_KEY_ID && env.AWS_SECRET_ACCESS_KEY && env.AWS_LIVENESS_ROLE_ARN && env.BIOMETRIC_PRIVACY_CONTACT);
-  return {enabled:Boolean(enabled), region, key, notice:{version:CONSENT_VERSION, retention_days:90,
-    storage_region:'AWS Mumbai (ap-south-1)', privacy_contact:env.BIOMETRIC_PRIVACY_CONTACT || 'Ask your administrator to configure the privacy contact.'}};
+  const common = env.BIOMETRIC_ATTENDANCE_ENABLED === 'true' && env.BIOMETRIC_VALIDATION_APPROVED === 'true'
+    && env.BIOMETRIC_RETENTION_READY === 'true' && validKey && Boolean(env.BIOMETRIC_PRIVACY_CONTACT);
+  const configured = kind === 'self_hosted'
+    ? Boolean(selfHostedUrl(env) && (env.SELF_HOSTED_FACE_API_KEY || '').length >= 32 && env.SELF_HOSTED_STORAGE_LOCATION && env.SELF_HOSTED_PAD_VALIDATED === 'true')
+    : kind === 'aws' && region === 'ap-south-1' && env.AWS_AI_OPT_OUT_CONFIRMED === 'true'
+      && Boolean(env.AWS_ACCESS_KEY_ID && env.AWS_SECRET_ACCESS_KEY && env.AWS_LIVENESS_ROLE_ARN);
+  return {enabled:Boolean(common && configured),kind,region,key,notice:{
+    version:kind === 'self_hosted' ? SELF_HOSTED_CONSENT_VERSION : CONSENT_VERSION,retention_days:90,
+    provider:kind,processor:kind === 'self_hosted' ? 'Rainbow’s self-hosted face service (OpenCV SFace and MiniFASNet)' : 'Amazon Rekognition',
+    storage_region:kind === 'self_hosted' ? (env.SELF_HOSTED_STORAGE_LOCATION || '') : 'AWS Mumbai (ap-south-1)',
+    privacy_contact:env.BIOMETRIC_PRIVACY_CONTACT || 'Ask your administrator to configure the privacy contact.'}};
+}
+// The provider is part of the authenticated encrypted reference. Legacy refs are AWS.
+export function collectionDescriptor(value) {
+  const kind = value.startsWith('self_hosted:') ? 'self_hosted' : 'aws';
+  const id = kind === 'self_hosted' ? value.slice('self_hosted:'.length) : value;
+  if (!/^rgc-[\w-]{1,120}$/.test(id)) throw new Error('Invalid provider collection');
+  return {kind,id};
+}
+export function validateSelfHostedEvidence(result,sessionId) {
+  if (result.provider !== 'self_hosted' || result.template_token !== sessionId || result.status !== 'SUCCEEDED'
+    || !Number.isFinite(result.live_score) || result.live_score < .95 || result.live_score > 1 || result.frames_verified !== 6) {
+    deny('LIVENESS_FAILED', 'The server could not verify a complete live capture. Attendance was not recorded.');
+  }
+  if (result.face_count === 0) deny('NO_FACE', 'No face detected. Face the camera in good light.');
+  if (result.face_count !== 1) deny('MULTIPLE_FACES', 'Only one person can be in the camera view.');
+  if (result.quality_passed !== true) deny('POOR_QUALITY', 'The capture was unclear. Improve lighting and keep your face visible.');
+  return result.template_token;
 }
 export function validateEvidence(result) {
   if (result.status !== 'SUCCEEDED') deny('LIVENESS_FAILED', 'The live check did not complete. Please try again.');
@@ -77,10 +103,14 @@ const rpc = async (db, name, args) => required(db.rpc(name, args));
 async function enrollment(db, staffId) {
   return required(db.from('biometric_enrollments').select('*').eq('staff_id', staffId).maybeSingle());
 }
-const visibleEnrollment = row => row ? {status:row.status,sample_count:row.sample_count,expires_at:row.expires_at} : null;
-export async function handleOperation({db, provider, actor, env}, body) {
+const enrollmentKind = row => row?.consent_version === SELF_HOSTED_CONSENT_VERSION ? 'self_hosted' : 'aws';
+const visibleEnrollment = row => row ? {status:row.status,sample_count:row.sample_count,expires_at:row.expires_at,provider:enrollmentKind(row)} : null;
+/** @param {{db:any,provider?:any,providerFor?:(kind:string)=>any,actor:string,env:Record<string,string|undefined>}} context
+ * @param {any} body */
+export async function handleOperation({db, provider=null, providerFor, actor, env}, body) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) deny('INVALID_REQUEST', 'Invalid request.');
   const cfg = configuration(env);
+  const getProvider = providerFor || (() => provider);
   const profile = await required(db.from('staff_profiles').select('user_id,active,role').eq('user_id', actor).maybeSingle());
   if (!profile?.active || !['admin','cashier','inventory_staff'].includes(profile.role)) deny('FORBIDDEN', 'An active staff account is required.', 403);
   const isAdmin = profile.role === 'admin';
@@ -88,7 +118,9 @@ export async function handleOperation({db, provider, actor, env}, body) {
   if (!uuid(target) || (body.staff_id && body.staff_id !== target)) deny('FORBIDDEN', 'Use your own signed-in staff account.', 403);
   const current = await enrollment(db, target);
   const operation = body.operation;
-  if (operation === 'status') return {enabled:cfg.enabled,enrolled:current?.status === 'active' && Date.parse(current.expires_at) > Date.now(),enrollment:visibleEnrollment(current),notice:cfg.notice,region:cfg.region};
+  if (operation === 'status') return {enabled:cfg.enabled,provider:cfg.kind,
+    enrolled:current?.status === 'active' && Date.parse(current.expires_at) > Date.now() && enrollmentKind(current) === cfg.kind,
+    provider_mismatch:Boolean(current && enrollmentKind(current) !== cfg.kind),enrollment:visibleEnrollment(current),notice:cfg.notice,region:cfg.region};
   if (operation === 'cancel' && uuid(body.session_id)) {
     await rpc(db, 'biometric_fail_session', {p_actor:actor,p_session:body.session_id,p_reason:'CANCELLED'});
     return {cancelled:true};
@@ -101,22 +133,28 @@ export async function handleOperation({db, provider, actor, env}, body) {
     // Compare generation so concurrent deletion cannot delete a replacement enrollment.
     const locked = await rpc(db, 'biometric_request_deletion', {p_actor:actor,p_staff:target,p_generation:current.generation,p_reason:body.reason.trim()});
     if (!locked) deny('CONFLICT', 'Enrollment changed. Refresh and try again.', 409);
-    const collection = await openCollection(locked.collection_ref, target, cfg.key);
-    await provider.deleteCollection(collection);
+    const collection = collectionDescriptor(await openCollection(locked.collection_ref, target, cfg.key));
+    await getProvider(collection.kind).deleteCollection(collection.id);
     await rpc(db, 'biometric_remove_enrollment', {p_actor:actor,p_staff:target,p_generation:locked.generation,p_reason:body.reason.trim()});
     return {deleted:true};
   }
   if (!cfg.enabled) deny('SERVICE_DISABLED', 'Face attendance is not enabled. Ask an administrator to use the supervised alternative.', 503);
-  const start = async (staffId, purpose) => {
-    // Reserve/rate-limit before contacting AWS; a temporary UUID never reaches the browser.
+  const selectedProvider = getProvider(cfg.kind);
+  const resolveCollection = async row => {
+    const saved = collectionDescriptor(await openCollection(row.collection_ref,row.staff_id,cfg.key));
+    if (saved.kind !== cfg.kind || enrollmentKind(row) !== cfg.kind) deny('PROVIDER_CHANGED','Delete the old enrollment before switching face providers.',409);
+    return saved.id;
+  };
+  const start = async (staffId, purpose, collection) => {
+    // Reserve/rate-limit before contacting the provider; this UUID never reaches the browser.
     const session = await rpc(db, 'biometric_open_session', {p_actor:actor,p_staff:staffId,p_purpose:purpose,p_provider_session_id:crypto.randomUUID()});
     try {
-      const created = await provider.createSession();
+      const created = await selectedProvider.createSession({collection,purpose});
       const updated = await required(db.from('biometric_sessions').update({provider_session_id:created})
         .eq('id',session.id).eq('status','pending').select('id').maybeSingle());
       if (!updated) deny('CONFLICT', 'The session was cancelled. Start again.', 409);
-      const credentials = await provider.browserCredentials();
-      return {session_id:session.id,liveness_session_id:created,region:cfg.region,credentials};
+      const credentials = await selectedProvider.browserCredentials(created);
+      return {session_id:session.id,liveness_session_id:created,provider:cfg.kind,region:cfg.region,credentials,...(credentials.capture?{capture:credentials.capture}:{})};
     } catch (error) {
       try { await rpc(db, 'biometric_fail_session', {p_actor:actor,p_session:session.id,p_reason:'PROVIDER_START_FAILED'}); } catch { /* fail closed */ }
       throw error;
@@ -125,27 +163,27 @@ export async function handleOperation({db, provider, actor, env}, body) {
   if (operation === 'start_enrollment') {
     if (!isAdmin) deny('FORBIDDEN', 'Only an administrator can initiate enrollment.', 403);
     if (target === actor) deny('FORBIDDEN', 'Select a non-admin employee for enrollment.', 403);
-    if (body.consent !== true || body.consent_version !== CONSENT_VERSION) deny('CONSENT_REQUIRED', 'The employee must read and accept the current biometric notice.');
+    if (body.consent !== true || body.consent_version !== cfg.notice.version) deny('CONSENT_REQUIRED', 'The employee must read and accept the current biometric notice.');
     if (current) deny('ALREADY_ENROLLED', 'Delete the existing enrollment with a reason before enrolling again.', 409);
     const employee = await required(db.from('staff_profiles').select('active,role').eq('user_id', target).maybeSingle());
     if (!employee?.active || !['cashier','inventory_staff'].includes(employee.role)) deny('FORBIDDEN', 'Select an active non-admin employee.', 403);
     const collection = 'rgc-' + crypto.randomUUID();
-    await provider.createCollection(collection);
+    await selectedProvider.createCollection(collection);
     try {
-      await rpc(db, 'biometric_prepare_enrollment', {p_actor:actor,p_staff:target,p_collection_ref:await sealCollection(collection,target,cfg.key),p_consent_version:CONSENT_VERSION});
-    } catch (error) { await provider.deleteCollection(collection); throw error; }
-    return start(target, 'enrollment');
+      await rpc(db, 'biometric_prepare_enrollment', {p_actor:actor,p_staff:target,p_collection_ref:await sealCollection(cfg.kind === 'self_hosted' ? 'self_hosted:'+collection : collection,target,cfg.key),p_consent_version:cfg.notice.version});
+    } catch (error) { await selectedProvider.deleteCollection(collection); throw error; }
+    return start(target, 'enrollment',collection);
   }
   if (operation === 'next_enrollment_sample') {
     if (!isAdmin) deny('FORBIDDEN', 'Administrator access required.', 403);
     if (current?.status !== 'pending') deny('NOT_PENDING', 'No enrollment is waiting for samples.');
-    return start(target, 'enrollment');
+    return start(target, 'enrollment',await resolveCollection(current));
   }
   if (operation === 'start_verification') {
     if (isAdmin) deny('FORBIDDEN', 'Personal attendance is for non-admin employees.', 403);
     if (!['check_in','check_out'].includes(body.action)) deny('INVALID_ACTION', 'Choose check-in or check-out.');
     if (current?.status !== 'active' || Date.parse(current.expires_at) <= Date.now()) deny('NOT_ENROLLED', 'Ask an administrator to enroll or renew your face, or use the alternative method.');
-    return start(actor, body.action);
+    return start(actor, body.action,await resolveCollection(current));
   }
   if (operation !== 'complete' || !uuid(body.session_id)) deny('INVALID_REQUEST', 'Invalid operation or session.');
   const session = await rpc(db, 'biometric_claim_session', {p_actor:actor,p_session:body.session_id});
@@ -153,21 +191,25 @@ export async function handleOperation({db, provider, actor, env}, body) {
   try {
     const saved = await enrollment(db, session.staff_id);
     if (!saved || saved.generation !== session.enrollment_generation || saved.status === 'deleting') deny('ENROLLMENT_CHANGED', 'Enrollment changed. Start again.', 409);
-    const result = await provider.results(session.provider_session_id);
+    const collection = await resolveCollection(saved);
+    const result = await selectedProvider.results(session.provider_session_id);
     image = result.image;
-    validateEvidence(result);
-    const collection = await openCollection(saved.collection_ref, session.staff_id, cfg.key);
-    if (session.purpose !== 'enrollment' || saved.sample_count > 0) {
+    const sample = cfg.kind === 'self_hosted' ? validateSelfHostedEvidence(result,session.provider_session_id) : validateEvidence(result);
+    // The local worker checks every existing sample atomically in /samples.
+    // Its one-use evidence cannot be consumed by a separate enrollment match.
+    if (session.purpose !== 'enrollment' || (cfg.kind === 'aws' && saved.sample_count > 0)) {
       // Only this selected employee's isolated collection is ever searched.
-      const similarity = await provider.match(collection, image);
-      if (!Number.isFinite(similarity) || similarity < 99) deny('FACE_MISMATCH', 'Your face did not match this employee. Attendance was not recorded.');
+      const similarity = await selectedProvider.match(collection, sample);
+      const matched = cfg.kind === 'self_hosted' ? similarity?.matched === true && Number.isFinite(similarity.similarity) && similarity.similarity >= .5 && similarity.similarity <= 1
+        : Number.isFinite(similarity) && similarity >= 99;
+      if (!matched) deny('FACE_MISMATCH', 'Your face did not match this employee. Attendance was not recorded.');
     }
     if (session.purpose === 'enrollment') {
       // Freeze this generation before writing an external vector. If indexing or
       // its commit is interrupted, it must be deleted rather than retried with
       // an uncommitted sample still present in the employee's collection.
       await rpc(db, 'biometric_begin_index', {p_actor:actor,p_session:session.id});
-      await provider.index(collection, image);
+      await selectedProvider.index(collection, sample);
       const savedEnrollment = await rpc(db, 'biometric_finish_sample', {p_actor:actor,p_session:session.id});
       return {enrollment:visibleEnrollment(savedEnrollment)};
     }

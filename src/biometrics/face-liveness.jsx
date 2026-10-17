@@ -2,10 +2,12 @@ import React from 'react';
 import {createRoot} from 'react-dom/client';
 import {FaceLivenessDetectorCore} from '@aws-amplify/ui-react-liveness';
 import '@aws-amplify/ui-react/styles.css';
+import {mountSelfHostedCapture} from './self-hosted-capture.mjs';
 
 // Short-lived StartFaceLivenessSession-only credentials live in this closure, never web storage.
 window.RainbowLiveness = {
-  mount(container, {sessionId,region,credentials,onComplete,onError,onCancel}) {
+  mount(container, {kind,sessionId,region,credentials,capture,onComplete,onError,onCancel}) {
+    if (kind === 'self_hosted') return mountSelfHostedCapture(container,{sessionId,credentials,capture,onComplete,onError,onCancel});
     const root = createRoot(container);
     let active = true;
     const credentialProvider = async () => {

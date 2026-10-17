@@ -536,3 +536,13 @@ test('historical photo review remains available through the audited correction R
   assert.ok(reviewed.photo_reviewed_at instanceof Date);
   assert.equal(reviewed.verification_method, 'legacy');
 });
+
+
+test('self-hosted enrollment records its own explicit notice version', async () => {
+  const notice='2026-10-17-self-hosted-v1';
+  const row=await service(() => one('select * from public.biometric_prepare_enrollment($1,$2,$3,$4)', [ADMIN,STAFF,SEALED,notice]));
+  assert.equal(row.consent_version,notice);
+  assert.equal(row.status,'pending');
+  const audit=await one("select details from public.biometric_audit_events where event='enrollment_started'");
+  assert.equal(audit.details.consent_version,notice);
+});

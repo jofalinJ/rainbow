@@ -75,7 +75,7 @@ create table public.biometric_enrollments (
   generation uuid not null default gen_random_uuid(),
   status text not null default 'pending' check (status in ('pending', 'indexing', 'active', 'deleting')),
   sample_count integer not null default 0 check (sample_count between 0 and 3),
-  consent_version text not null check (consent_version = '2026-10-15-v1'),
+  consent_version text not null check (consent_version in ('2026-10-15-v1','2026-10-17-self-hosted-v1')),
   consent_at timestamptz not null default now(),
   enrolled_by uuid references auth.users(id) on delete set null,
   expires_at timestamptz not null default (now() + interval '24 hours'),
@@ -142,7 +142,7 @@ begin
   end if;
   perform 1 from public.staff_profiles where user_id = p_staff and active and role in ('cashier', 'inventory_staff') for update;
   if not found then raise exception 'Choose an active cashier or inventory staff member.' using errcode = '42501'; end if;
-  if p_consent_version is distinct from '2026-10-15-v1' then
+  if p_consent_version is null or p_consent_version not in ('2026-10-15-v1','2026-10-17-self-hosted-v1') then
     raise exception 'The current staff consent is required.' using errcode = '22023';
   end if;
   if exists (select 1 from public.biometric_enrollments where staff_id = p_staff) then
