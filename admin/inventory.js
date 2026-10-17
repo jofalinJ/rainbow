@@ -4,7 +4,7 @@ async function getInventoryRules(){if(!inventoryRules)inventoryRules=await impor
 let inventory=[],categories=[],selectedCategoryId=null,inventoryTools=null;
 async function loadInventory(){inventoryRules=await getInventoryRules();categories=await sb("categories?select=id,name,has_color,has_size,has_length,has_thickness,has_gold_amount&active=eq.true&order=name");inventory=await sb("product_variants?select=id,color,size,length_cm,stock_quantity,low_stock_limit,barcode,products(id,product_code,product_name,type,category_id,length_cm,thickness,gold_amount_g)&active=eq.true&order=created_at.desc");if(categories.length)selectedCategoryId=selectedCategoryId||categories[0].id;renderCategories();renderInventory();
 if(!inventoryTools){
-  const module=await import("./inventory-adjustments.mjs");
+  const module=await import("./inventory-adjustments.mjs?v=20261017-journal-v1");
   inventoryTools=module.setupInventoryAdjustmentUI({
     getVariant:id=>inventory.find(item=>String(item.id)===String(id)),
     onUpdated:loadInventory
