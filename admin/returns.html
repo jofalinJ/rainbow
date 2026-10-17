@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#8f1520">
+<link rel="icon" type="image/png" href="../assets/brand/rainbow-logo.png">
+<title>Rainbow Gold Covering — Customer Returns</title>
+<link rel="stylesheet" href="style.css"><link rel="stylesheet" href="returns.css?v=20261017-b">
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script defer src="app.js?v=20261017-returns-b"></script>
+<script defer src="returns.js?v=20261017-b"></script>
+</head><body><aside aria-label="Admin sidebar"></aside><main>
+<header><div><p class="eyebrow">SALES · CONTROLLED REVERSALS</p><h1>Customer Returns</h1></div>
+<button id="reloadReturns" type="button">Refresh</button></header>
+<p id="returnsNotice" role="status" aria-live="polite">Checking administrator access…</p>
+<section class="panel">
+<div class="panelhead"><h2>Receive returned goods</h2><span class="muted">Refunds are never sent by this screen.</span></div>
+<form id="receiveReturnForm">
+<label class="returns-field">Original paid sale<select id="returnOrder" required></select></label>
+<table class="returns-lines"><thead><tr><th>Original product</th><th>Sold</th><th>Already returned</th><th>Return quantity</th><th>Sellable after inspection?</th></tr></thead>
+<tbody id="returnLines"></tbody></table>
+<div class="returns-fields">
+<label>Reason / inspection notes<textarea id="returnReason" minlength="12" maxlength="240" required rows="3" placeholder="Customer reason and inspected condition"></textarea></label>
+<label>Expected refund amount (₹)<input id="returnAmount" type="number" min="0" max="99999999.99" step="0.01" required value="0.00"><small>Not a payment. Requires external settlement evidence later.</small></label>
+</div>
+<button id="receiveReturn" type="submit" class="primary">Record inspected return</button>
+</form><p id="receiveReturnResult" role="status" aria-live="polite"></p>
+<div id="returnHold" class="return-hold" hidden><strong>Return result unconfirmed</strong>
+<p>Retry the same operation or review history before releasing its hold; a retry cannot restore stock twice.</p>
+<button type="button" id="retryReturn">Retry identical return</button>
+<button type="button" id="clearReturnHold">Reviewed — clear hold</button>
+</div>
+</section>
+<section class="panel returns-section">
+<div class="panelhead"><h2>Confirm external refund settlement</h2>
+<span class="muted">Requires actual bank/UPI/card transaction or signed cash voucher.</span></div>
+<form id="refundForm"><label class="returns-field">Return awaiting external settlement
+<select id="refundReturn" required></select></label>
+<div class="returns-fields">
+<label>Refund method<select id="refundMethod"><option value="upi">UPI</option><option value="cash">Cash</option><option value="card">Card</option><option value="bank_transfer">Bank transfer</option></select></label>
+<label>External reference / cash voucher<input id="refundReference" required minlength="6" maxlength="100" placeholder="Settlement reference"></label>
+</div><label class="return-check"><input id="refundChecked" type="checkbox" required>
+I personally verified that the external refund was completed for the full amount shown.</label>
+<button id="confirmRefund" type="submit" class="primary">Record verified settlement</button>
+</form><p id="refundResult" role="status" aria-live="polite"></p>
+</section>
+<section class="panel returns-section"><div class="panelhead"><h2>Return and refund history</h2>
+<span class="muted">Refund pending ≠ refund issued.</span></div>
+<div class="table-wrap"><table><thead><tr><th>Received</th><th>Order</th><th>Items</th><th>Amount due</th><th>Refund state</th><th>Received by</th></tr></thead>
+<tbody id="returnHistory"><tr><td colspan="6">Loading…</td></tr></tbody></table></div></section>
+</main></body></html>
