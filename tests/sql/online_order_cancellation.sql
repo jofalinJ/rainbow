@@ -43,6 +43,11 @@ create table public.order_shipments(
  order_id uuid primary key references public.orders(id)
 );
 \ir ../../supabase/migrations/20261017224500_cancel_unpaid_online_orders.sql
+-- The disposable fixture grants read permissions for assertion queries only.
+-- Production RLS is independently covered by full Supabase staging checks.
+grant select on public.orders,public.order_items,public.product_variants,
+  public.inventory_transactions,public.payments,
+  public.online_order_status_events,public.staff_profiles to authenticated;
 
 set rainbow_test.actor_id='20000000-0000-4000-8000-000000000002';
 set role authenticated;
@@ -84,6 +89,7 @@ select o.id,
 from public.orders o
 join public.order_items oi on oi.order_id=o.id
 where o.source='online';
+grant select on ci_target_orders to authenticated;
 set rainbow_test.actor_id='20000000-0000-4000-8000-000000000001';
 set role authenticated;
 do $$
@@ -275,7 +281,7 @@ declare v_id uuid; stock_before integer; history_before integer;
 begin
  select id into v_id from public.orders where order_number not in ('LEGACY-CI')
   and id not in (select id from ci_target_orders)
-  and source='online' order by created_at desc nulls last limit 1;
+  and source='online' limit 1;
  -- Fixture orders have no created_at; sorting still gets the extra order.
  select stock_quantity into stock_before from public.product_variants
    where id='00000000-0000-4000-8000-000000000001';
