@@ -113,3 +113,9 @@ jobs:
           PGPASSWORD: rainbow_ci_only
         run: |
           psql -h 127.0.0.1 -p 5432 -U postgres -d rainbow_ci -v ON_ERROR_STOP=1 -f tests/sql/stock_change_journal.sql
+      - name: Exercise online order source-ledger migration in separate disposable DB
+        env:
+          PGPASSWORD: rainbow_ci_only
+        run: |
+          psql -h 127.0.0.1 -p 5432 -U postgres -d postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE rainbow_online_ci'
+          psql -h 127.0.0.1 -p 5432 -U postgres -d rainbow_online_ci -v ON_ERROR_STOP=1 -f tests/sql/online_order_source_ledger.sql
