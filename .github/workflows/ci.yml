@@ -132,3 +132,10 @@ jobs:
         run: |
           psql -h 127.0.0.1 -p 5432 -U postgres -d postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE rainbow_purchase_ci'
           psql -h 127.0.0.1 -p 5432 -U postgres -d rainbow_purchase_ci -v ON_ERROR_STOP=1 -f tests/sql/supplier_purchase_receiving.sql
+
+      - name: Paid return SQL tests
+        env:
+          PGPASSWORD: rainbow_ci_only
+        run: |
+          psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE rainbow_returns_ci'
+          psql -h 127.0.0.1 -U postgres -d rainbow_returns_ci -v ON_ERROR_STOP=1 -f tests/sql/customer_returns_refund_evidence.sql
