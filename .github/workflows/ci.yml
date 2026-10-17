@@ -88,3 +88,28 @@ jobs:
           path: |
             test-results/selenium
             test-server.log
+
+  stock-audit-sql:
+    name: Stock audit migration / PostgreSQL 17
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: rainbow_ci
+          POSTGRES_PASSWORD: rainbow_ci_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d rainbow_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Execute stock journal SQL against disposable database
+        env:
+          PGPASSWORD: rainbow_ci_only
+        run: |
+          psql -h 127.0.0.1 -p 5432 -U postgres -d rainbow_ci -v ON_ERROR_STOP=1 -f tests/sql/stock_change_journal.sql
