@@ -90,11 +90,11 @@ jobs:
             test-server.log
 
   stock-audit-sql:
-    name: Stock audit migration / PostgreSQL 17
+    name: Stock audit migration / PostgreSQL 16
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:17
+        image: postgres:16
         env:
           POSTGRES_USER: postgres
           POSTGRES_DB: rainbow_ci
