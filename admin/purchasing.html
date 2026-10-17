@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+ <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+ <meta name="theme-color" content="#8f1520"><link rel="icon" type="image/png" href="../assets/brand/rainbow-logo.png">
+ <title>Rainbow Gold Covering — Purchasing</title>
+ <link rel="stylesheet" href="style.css"><link rel="stylesheet" href="purchasing.css?v=20261017-a">
+ <script src="config.js"></script>
+ <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+ <script defer src="app.js?v=20261017-purchasing-a"></script>
+ <script defer src="purchasing.js?v=20261017-a"></script>
+</head>
+<body>
+ <aside aria-label="Admin sidebar"></aside>
+ <main>
+  <header><div><p class="eyebrow">INVENTORY · SUPPLIER PROCUREMENT</p><h1>Purchasing</h1></div>
+  <button type="button" id="purchaseRefresh">Refresh</button></header>
+  <p id="purchaseNotice" class="purchase-notice" role="status" aria-live="polite">Checking access…</p>
+  <section class="panel" id="supplierPanel">
+   <div class="panelhead"><h2>Suppliers</h2><span class="muted">Admins may register suppliers; no stock changes here.</span></div>
+   <form id="supplierForm" class="purchase-fields">
+    <label>Supplier name<input id="supplierName" required minlength="2" maxlength="120" autocomplete="organization"></label>
+    <label>Phone (optional)<input id="supplierPhone" maxlength="30" autocomplete="tel"></label>
+    <label>GSTIN (optional)<input id="supplierGstin" maxlength="20"></label>
+    <button class="primary" type="submit">Add supplier</button>
+   </form>
+  </section>
+  <section class="panel purchase-section">
+   <div class="panelhead"><h2>Purchase order</h2><span class="muted">Ordering does not increase stock. Only a goods receipt does.</span></div>
+   <form id="poForm">
+    <div class="purchase-fields"><label>Supplier<select id="poSupplier" required></select></label>
+     <label>Internal note (optional)<input id="poNote" maxlength="240" placeholder="Approval reference"></label></div>
+    <div class="purchase-table-wrap"><table><thead><tr><th>Product / variant</th><th>Ordered quantity</th><th>Unit cost (₹)</th><th></th></tr></thead><tbody id="poDraftLines"></tbody></table></div>
+    <div class="purchase-actions"><button id="addPoLine" type="button">Add line</button>
+     <button class="primary" type="submit" id="submitPo">Create purchase order</button></div>
+   </form>
+   <p id="poFeedback" class="purchase-feedback" role="status" aria-live="polite"></p>
+   <div class="purchase-hold" id="poHold" hidden><strong>Unverified purchase request</strong><p>Retry the exact request or inspect the list before releasing the hold. Never create another PO just because the response timed out.</p>
+    <button id="poRetry" type="button">Retry same PO</button><button id="poClear" type="button">Reviewed — clear hold</button></div>
+  </section>
+  <section class="panel purchase-section">
+   <div class="panelhead"><h2>Receive delivered goods</h2><span class="muted">Record physically counted quantities only.</span></div>
+   <form id="grnForm">
+    <div class="purchase-fields"><label>Open purchase order<select id="grnOrder" required></select></label>
+     <label>Supplier invoice / delivery note number<input id="grnInvoice" required minlength="3" maxlength="80"></label></div>
+    <div class="purchase-table-wrap"><table><thead><tr><th>Variant</th><th>Ordered</th><th>Already received</th><th>Receive now</th></tr></thead><tbody id="grnDraftLines"></tbody></table></div>
+    <p class="muted">Partial receipts are supported. The invoice/delivery-note number must be unique for each supplier GRN.</p>
+    <button class="primary" type="submit" id="submitGrn">Confirm goods receipt &amp; add stock</button>
+   </form>
+   <p id="grnFeedback" class="purchase-feedback" role="status" aria-live="polite"></p>
+   <div class="purchase-hold" id="grnHold" hidden><strong>Unverified goods receipt</strong><p>This receipt may already have increased stock. Retry the same operation ID; never issue a second GRN until reconciled.</p>
+    <button id="grnRetry" type="button">Retry same receipt</button><button id="grnClear" type="button">Reviewed — clear hold</button></div>
+  </section>
+  <section class="panel purchase-section">
+   <div class="panelhead"><h2>Purchase history</h2><span class="muted">Source documents and receiving progress.</span></div>
+   <div class="purchase-table-wrap"><table><thead><tr><th>PO</th><th>Supplier</th><th>Ordered</th><th>Received</th><th>Status</th><th>Created</th></tr></thead><tbody id="poHistory"><tr><td colspan="6">Loading…</td></tr></tbody></table></div>
+  </section>
+ </main>
+</body>
+</html>
