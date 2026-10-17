@@ -1,6 +1,11 @@
 \set ON_ERROR_STOP on
 -- Disposable PostgreSQL test; real shop data is never touched.
 \ir online_order_source_ledger.sql
+-- Mirror production timestamps omitted by the minimal shared checkout fixture.
+alter table public.orders add column created_at timestamptz not null default now();
+alter table public.payments add column created_at timestamptz not null default now();
+alter table public.payments add column paid_at timestamptz;
+
 
 do $$
 begin
