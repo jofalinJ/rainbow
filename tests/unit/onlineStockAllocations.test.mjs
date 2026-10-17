@@ -43,6 +43,8 @@ describe("source-linked online stock allocations",()=>{
     expect(dbtest).toContain("online stock allocation");
     expect(dbtest).toContain("transaction_type='sale_online'");
     expect(dbtest).toContain("Insufficient stock unexpectedly accepted");
+    expect(dbtest).toContain("CI forced order item failure after stock allocation");
+    expect(dbtest).toContain("Late order failure left partially committed inventory or payment");
     expect(dbtest).toContain("Duplicate variants unexpectedly accepted");
     expect(dbtest).toContain("Migration rerun duplicated history or orders");
     expect(workflow).toContain("CREATE DATABASE rainbow_online_ci");
