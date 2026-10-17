@@ -126,3 +126,9 @@ jobs:
           psql -h 127.0.0.1 -p 5432 -U postgres -d postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE rainbow_cancel_ci'
           psql -h 127.0.0.1 -p 5432 -U postgres -d rainbow_cancel_ci -v ON_ERROR_STOP=1 -f tests/sql/online_order_cancellation.sql
 
+      - name: Validate supplier PO and goods receiving on disposable Postgres
+        env:
+          PGPASSWORD: rainbow_ci_only
+        run: |
+          psql -h 127.0.0.1 -p 5432 -U postgres -d postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE rainbow_purchase_ci'
+          psql -h 127.0.0.1 -p 5432 -U postgres -d rainbow_purchase_ci -v ON_ERROR_STOP=1 -f tests/sql/supplier_purchase_receiving.sql
