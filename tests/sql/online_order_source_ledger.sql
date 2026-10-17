@@ -198,6 +198,54 @@ begin
  end if;
 end $$;
 
+
+-- Simulate an order-item write failure AFTER the stock has already changed
+-- and the source-linked movement has been inserted. All writes must roll back.
+create or replace function public.ci_fail_order_item_insert()
+returns trigger language plpgsql as $
+begin
+ if pg_catalog.current_setting('rainbow_ci.fail_order_item',true)='yes' then
+   raise exception 'CI forced order item failure after stock allocation';
+ end if;
+ return new;
+end $;
+create trigger ci_fail_order_item
+  before insert on public.order_items
+  for each row execute function public.ci_fail_order_item_insert();
+set rainbow_ci.fail_order_item='yes';
+
+do $
+declare original_stock int; original_orders int; original_movements int; original_payments int;
+begin
+ select stock_quantity into original_stock from public.product_variants
+   where id='00000000-0000-4000-8000-000000000001';
+ select count(*) into original_orders from public.orders;
+ select count(*) into original_movements from public.inventory_transactions;
+ select count(*) into original_payments from public.payments;
+ begin
+   perform public.create_online_order(
+     '[{"variant_id":"00000000-0000-4000-8000-000000000001","quantity":1}]'::jsonb,
+     '{"name":"CI forced failure","whatsapp_number":"9990000004","address":"CI address","state":"Tamil Nadu","payment_method":"upi","payment_reference":"CIREF00000005"}'::jsonb,
+     null
+   );
+   raise exception 'Forced order-item failure was unexpectedly accepted';
+ exception when others then
+   if sqlerrm='Forced order-item failure was unexpectedly accepted' then raise; end if;
+   if sqlerrm not like '%CI forced order item failure%' then raise; end if;
+ end;
+ if (select stock_quantity from public.product_variants
+      where id='00000000-0000-4000-8000-000000000001')<>original_stock
+    or (select count(*) from public.orders)<>original_orders
+    or (select count(*) from public.inventory_transactions)<>original_movements
+    or (select count(*) from public.payments)<>original_payments then
+   raise exception 'Late order failure left partially committed inventory or payment';
+ end if;
+end $;
+
+reset rainbow_ci.fail_order_item;
+drop trigger ci_fail_order_item on public.order_items;
+drop function public.ci_fail_order_item_insert();
+
 -- A second movement for the same order/SKU must be refused by the unique index.
 do $$
 declare v record;
