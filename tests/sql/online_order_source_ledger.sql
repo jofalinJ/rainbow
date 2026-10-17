@@ -202,19 +202,19 @@ end $$;
 -- Simulate an order-item write failure AFTER the stock has already changed
 -- and the source-linked movement has been inserted. All writes must roll back.
 create or replace function public.ci_fail_order_item_insert()
-returns trigger language plpgsql as $
+returns trigger language plpgsql as $$
 begin
  if pg_catalog.current_setting('rainbow_ci.fail_order_item',true)='yes' then
    raise exception 'CI forced order item failure after stock allocation';
  end if;
  return new;
-end $;
+end $$;
 create trigger ci_fail_order_item
   before insert on public.order_items
   for each row execute function public.ci_fail_order_item_insert();
 set rainbow_ci.fail_order_item='yes';
 
-do $
+do $$
 declare original_stock int; original_orders int; original_movements int; original_payments int;
 begin
  select stock_quantity into original_stock from public.product_variants
@@ -240,7 +240,7 @@ begin
     or (select count(*) from public.payments)<>original_payments then
    raise exception 'Late order failure left partially committed inventory or payment';
  end if;
-end $;
+end $$;
 
 reset rainbow_ci.fail_order_item;
 drop trigger ci_fail_order_item on public.order_items;
