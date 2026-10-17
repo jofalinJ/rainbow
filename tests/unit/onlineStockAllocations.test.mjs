@@ -40,7 +40,7 @@ describe("source-linked online stock allocations",()=>{
     expect(history).not.toContain(' · Staff ID "+String(tx.created_by)');
   });
   it("runs an isolated SQL migration test against a new disposable database",()=>{
-    expect(dbtest).toContain("online order");
+    expect(dbtest).toContain("online stock allocation");
     expect(dbtest).toContain("transaction_type='sale_online'");
     expect(dbtest).toContain("Insufficient stock unexpectedly accepted");
     expect(dbtest).toContain("Duplicate variants unexpectedly accepted");
