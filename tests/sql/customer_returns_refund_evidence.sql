@@ -4,9 +4,8 @@
 \ir ../../supabase/migrations/20261017232000_customer_returns_and_refund_evidence.sql
 
 -- Create local paid test sale, separate from pending/cancelled fixtures.
-insert into public.orders(order_number,source,status,payment_status,total_amount,created_by)
-values ('RETURN-CI-001','local_store','confirmed','paid',400.00,
- '20000000-0000-4000-8000-000000000001');
+insert into public.orders(order_number,source,status,payment_status,total_amount)
+values ('RETURN-CI-001','local_store','confirmed','paid',400.00);
 insert into public.order_items(order_id,variant_id,product_code,product_name,
  quantity,unit_price,line_total)
 select id,'00000000-0000-4000-8000-000000000001','RG001','CI test',4,100,400
