@@ -7,7 +7,7 @@ Status: **technical review, not an approved production deployment**. No migratio
 | ID | Priority | Current evidence | Risk | Next action / acceptance proof |
 | --- | --- | --- | --- | --- |
 | RGC-P0-001 | Critical | `admin/billing.js` previously called `create_local_sale` without operation ID. | A committed sale can be submitted again if the response is lost. | Introduced staged `create_local_sale_once` + UUID retries on this branch; test duplicate replay and concurrent retry in isolated Supabase before rollout. |
-| RGC-P0-002 | Critical | Stock adjustments have an atomic, attributable transaction path, but `docs/INVENTORY_ADJUSTMENTS.md` acknowledges historical gaps. | Not every stock change has a reconcilable ledger record. | Inventory all mutation paths (local POS, online sales, product creation, imports, returns), require source/actor/delta, and reconcile opening balances. |
+| RGC-P0-002 | Critical | Existing `inventory_transactions` does not cover every pathway. The branch now stages a separate, trigger-generated stock change journal with installation baseline and restricted inspection UI. | An observed quantity change is not the same as a source-linked business movement; old history cannot be rebuilt. | Review all paths and unify business movements, reservations and source document links; verify staging events and daily reconciliation before calling the ledger complete. |
 | RGC-P0-003 | Critical | `create_local_sale` lives in the deployed DB; its original DDL is not in the repository's current migration history. | Rebuilding an isolated environment can diverge from production. | Export and review baseline schema/functions into version control; produce clean staging DB from migrations; prohibit ad hoc production edits. |
 | RGC-P0-004 | Critical | `admin/billing.js` and online SQL use hard-coded 3% discount and 1.5% + 1.5% GST examples. | Tax treatment may differ across items and dates. | Add HSN/effective-dated tax configuration with CA-approved scenarios and invoice templates; do not claim GST compliance yet. |
 | RGC-P0-005 | Critical | Original invoice numbers use `INV-YYYYMMDD-######` in deployed function (more than 16 characters). | Invoice series requires accountant/legal review for applicable Indian GST rules. | CA review and controlled compliant sequence migration; keep issued numbers immutable and traceable. |
@@ -24,6 +24,13 @@ Status: **technical review, not an approved production deployment**. No migratio
 3. A session-scoped UUID hold survives refresh (no customer details are stored in sessionStorage). After reload, the original cart is not reconstructed; staff must manually reconcile before starting a new transaction.
 4. The legacy `create_local_sale` remains enabled for compatibility; **direct legacy calls bypass the new operation guard** until all clients have migrated and access is restricted.
 5. The change does **not** implement offline billing, automatic payment verification, GST certification, immutable system-wide stock movements, or tested DR.
+
+## Phase 2: database-observed inventory journal (also on this branch)
+
+- The migration `20261017220000_stock_change_journal.sql` adds a second, read-only-to-clients stock audit table and database triggers. It records opening snapshots for existing variants, then all future variant INSERT, UPDATE-of-stock (only if changed), and DELETE operations.
+- The inventory modal shows up to 30 database-observed changes separately from recorded business transactions. Rows may overlap with existing `inventory_transactions`; do not double count. A captured actor ID is not necessarily a staff user (online orders may run as customers or anonymously).
+- PostgreSQL 17 disposable CI checks actual migration behavior, transaction rollback, replay and staff permissions. Full Supabase staging integration and load testing still need to be done.
+- `docs/STOCK_CHANGE_JOURNAL.md` details the operational test plan and limits. This does **not** modify live inventory or backfill historical movement details.
 
 ## Release and safety boundaries
 
