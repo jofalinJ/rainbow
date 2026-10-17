@@ -152,3 +152,10 @@ jobs:
           expected=$(psql -h 127.0.0.1 -U postgres -d rainbow_returns_ci -Atc "select count(*)::text||':'||(select count(*) from public.customer_returns)||':'||(select count(*) from public.customer_refund_confirmations) from public.inventory_transactions")
           actual=$(psql -h 127.0.0.1 -U postgres -d rainbow_restored_ci -Atc "select count(*)::text||':'||(select count(*) from public.customer_returns)||':'||(select count(*) from public.customer_refund_confirmations) from public.inventory_transactions")
           test "$expected" = "$actual"
+
+      - name: Verify read-only daily reconciliation against disposable database
+        env:
+          PGPASSWORD: rainbow_ci_only
+        run: |
+          psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE rainbow_reconcile_ci'
+          psql -h 127.0.0.1 -U postgres -d rainbow_reconcile_ci -v ON_ERROR_STOP=1 -f tests/sql/shop_daily_reconciliation.sql
