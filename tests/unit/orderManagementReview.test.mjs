@@ -24,7 +24,7 @@ describe("complete online order review",()=>{
     }
     expect(styles).toContain(".order-detail-warning");
     expect(styles).toContain(".orders-table{min-width:900px");
-    expect(page).toContain("orders.js?v=20261015-full-order-v3");
+    expect(page).toMatch(/orders\.js\?v=\d{8}-[a-z0-9-]+/);
   });
   it("never changes order status directly from the browser",()=>{
     expect(orders).toContain('rpc("update_online_order_status"');

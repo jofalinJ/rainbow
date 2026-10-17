@@ -88,3 +88,67 @@ jobs:
           path: |
             test-results/selenium
             test-server.log
+
+  stock-audit-sql:
+    name: Stock audit migration / PostgreSQL 16
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: rainbow_ci
+          POSTGRES_PASSWORD: rainbow_ci_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d rainbow_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Execute stock journal SQL against disposable database
+        env:
+          PGPASSWORD: rainbow_ci_only
+        run: |
+          psql -h 127.0.0.1 -p 5432 -U postgres -d rainbow_ci -v ON_ERROR_STOP=1 -f tests/sql/stock_change_journal.sql
+          psql -h 127.0.0.1 -p 5432 -U postgres -d rainbow_ci -v ON_ERROR_STOP=1 -f tests/sql/inventory_variance_report.sql
+      - name: Exercise online order source-ledger migration in separate disposable DB
+        env:
+          PGPASSWORD: rainbow_ci_only
+        run: |
+          psql -h 127.0.0.1 -p 5432 -U postgres -d postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE rainbow_online_ci'
+          psql -h 127.0.0.1 -p 5432 -U postgres -d rainbow_online_ci -v ON_ERROR_STOP=1 -f tests/sql/online_order_source_ledger.sql
+      - name: Validate unpaid cancellation and rollback against disposable Postgres
+        env:
+          PGPASSWORD: rainbow_ci_only
+        run: |
+          psql -h 127.0.0.1 -p 5432 -U postgres -d postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE rainbow_cancel_ci'
+          psql -h 127.0.0.1 -p 5432 -U postgres -d rainbow_cancel_ci -v ON_ERROR_STOP=1 -f tests/sql/online_order_cancellation.sql
+
+      - name: Validate supplier PO and goods receiving on disposable Postgres
+        env:
+          PGPASSWORD: rainbow_ci_only
+        run: |
+          psql -h 127.0.0.1 -p 5432 -U postgres -d postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE rainbow_purchase_ci'
+          psql -h 127.0.0.1 -p 5432 -U postgres -d rainbow_purchase_ci -v ON_ERROR_STOP=1 -f tests/sql/supplier_purchase_receiving.sql
+
+      - name: Paid return SQL tests
+        env:
+          PGPASSWORD: rainbow_ci_only
+        run: |
+          psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE rainbow_returns_ci'
+          psql -h 127.0.0.1 -U postgres -d rainbow_returns_ci -v ON_ERROR_STOP=1 -f tests/sql/customer_returns_refund_evidence.sql
+
+      - name: Verify disposable database backup and restore
+        env:
+          PGPASSWORD: rainbow_ci_only
+        run: |
+          set -euo pipefail
+          pg_dump -h 127.0.0.1 -U postgres -d rainbow_returns_ci --format=custom --no-owner --no-privileges --file=/tmp/rainbow-ci.dump
+          psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE rainbow_restored_ci'
+          pg_restore -h 127.0.0.1 -U postgres -d rainbow_restored_ci --no-owner --no-privileges --exit-on-error /tmp/rainbow-ci.dump
+          expected=$(psql -h 127.0.0.1 -U postgres -d rainbow_returns_ci -Atc "select count(*)::text||':'||(select count(*) from public.customer_returns)||':'||(select count(*) from public.customer_refund_confirmations) from public.inventory_transactions")
+          actual=$(psql -h 127.0.0.1 -U postgres -d rainbow_restored_ci -Atc "select count(*)::text||':'||(select count(*) from public.customer_returns)||':'||(select count(*) from public.customer_refund_confirmations) from public.inventory_transactions")
+          test "$expected" = "$actual"

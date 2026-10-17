@@ -20,6 +20,12 @@ The existing **Admin → Inventory** page now offers **Manage stock** on each ac
 - The RPC checks the staff role on the server. Cashiers and customers cannot use stock adjustments.
 - **No historical stock, orders or invoices were changed** by the schema migration.
 
+### Additional planned stock visibility (feature branch)
+
+The unmerged production-hardening branch adds an **independent, database-observed stock change journal**. On installation, it snapshots each existing variant's current balance. Future INSERT, stock UPDATE and DELETE events are recorded automatically and can be inspected in a separate section of the Inventory dialog. The previous business transaction history remains as-is; the same change can appear in both records and must not be counted twice.
+
+This journal is **not a substitute for** the business movement ledger because an observed change may lack the original order, supplier purchase, reason or actor identity. See [STOCK_CHANGE_JOURNAL.md](STOCK_CHANGE_JOURNAL.md).
+
 ### Limitations and next steps
 
 - This page shows the latest 30 **recorded transactions**, not a reconstruction of every stock change since the store began operating. Older variants created with initial stock may lack a corresponding movement row.
