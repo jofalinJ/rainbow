@@ -68,3 +68,49 @@ async function loadVariance(){
  finally{btn.disabled=false;}
 }
 document.querySelector("#checkVariance")?.addEventListener("click",loadVariance);
+
+const diagnosticDescriptions={
+ legacy_missing_signed_movements:"Old ledger records may not contain signed balances; review source documents.",
+ unbalanced_signed_movements:"A movement has before/after quantities inconsistent with its delta.",
+ stock_snapshot_mismatches:"Actual variant stock differs from the latest database-generated stock journal event.",
+ goods_receipt_lines_without_movement:"A recorded GRN line lacks a matching stock-in transaction.",
+ online_lines_without_source_movement:"Includes pre-migration historical online orders; investigate recent records first.",
+ reused_paid_payment_references:"Multiple paid entries share a tender method/reference; verify settlement externally."
+};
+async function runDailyReview(){
+ const button=document.getElementById("shopReconcileRun");
+ const day=document.getElementById("shopReconcileDay");
+ const msg=document.getElementById("shopReconcileMessage");
+ const tbody=document.getElementById("shopReconcileRows");
+ if(!day.value){msg.textContent="Select a shop date first.";return;}
+ button.disabled=true;msg.textContent="Reading reconciliation indicators…";
+ try{
+  const {data,error}=await reportsClient.rpc("shop_daily_reconciliation",{p_day:day.value});
+  if(error)throw error;
+  setReportValue("daySalesTotal",reportMoney(data.settled_order_face_value));
+  setReportValue("dayTenderTotal",reportMoney(data.paid_tenders_total));
+  setReportValue("dayPending",String(data.orders_pending_payment||0));
+  let total=0;tbody.replaceChildren();
+  for(const [signal,description] of Object.entries(diagnosticDescriptions)){
+   const count=Number(data.diagnostics?.[signal]||0);
+   total+=count;
+   const row=document.createElement("tr");
+   for(const value of [signal.replaceAll("_"," "),count,description]){
+    const td=document.createElement("td");td.textContent=String(value);row.append(td);
+   }
+   tbody.append(row);
+  }
+  setReportValue("dayExceptions",String(total));
+  msg.textContent="Cash "+reportMoney(data.cash_tender)+", UPI "+
+   reportMoney(data.upi_tender)+", card "+reportMoney(data.card_tender)+
+   ". Figures use the Asia/Kolkata business-day boundary. "+
+   (data.notes||"");
+ }catch(error){msg.textContent="Review unavailable: "+error.message;}
+ finally{button.disabled=false;}
+}
+const localToday=new Intl.DateTimeFormat("en-CA",{
+ timeZone:"Asia/Kolkata",year:"numeric",month:"2-digit",day:"2-digit"
+}).format(new Date());
+const shopDay=document.getElementById("shopReconcileDay");
+if(shopDay){shopDay.value=localToday;shopDay.max=localToday;}
+document.querySelector("#shopReconcileRun")?.addEventListener("click",runDailyReview);
