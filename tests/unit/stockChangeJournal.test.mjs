@@ -45,7 +45,7 @@ describe("staged database stock journal",()=>{
     expect(integration).toContain("rollback;");
     expect(integration).toContain("set role authenticated;");
     expect(integration).toContain("deactivated staff could read stock journal");
-    expect(workflow).toContain("image: postgres:17");
+    expect(workflow).toContain("image: postgres:16");
     expect(workflow).toContain("tests/sql/stock_change_journal.sql");
   });
 });
