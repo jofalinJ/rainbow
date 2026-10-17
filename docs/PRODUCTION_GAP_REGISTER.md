@@ -7,7 +7,7 @@ Status: **technical review, not an approved production deployment**. No migratio
 | ID | Priority | Current evidence | Risk | Next action / acceptance proof |
 | --- | --- | --- | --- | --- |
 | RGC-P0-001 | Critical | `admin/billing.js` previously called `create_local_sale` without operation ID. | A committed sale can be submitted again if the response is lost. | Introduced staged `create_local_sale_once` + UUID retries on this branch; test duplicate replay and concurrent retry in isolated Supabase before rollout. |
-| RGC-P0-002 | Critical | Existing `inventory_transactions` does not cover every pathway. The branch now stages a separate, trigger-generated stock change journal with installation baseline and restricted inspection UI. | An observed quantity change is not the same as a source-linked business movement; old history cannot be rebuilt. | Review all paths and unify business movements, reservations and source document links; verify staging events and daily reconciliation before calling the ledger complete. |
+| RGC-P0-002 | Critical | Staged trigger journal observes all variant quantity changes; Phase 3 additionally links **new online allocations** to orders in `inventory_transactions`. | Existing local entries may lack signed balance fields; online allocations need controlled release and payment verification; purchasing/returns are incomplete. | Implement supplier/returns and exactly-once reservation release, validate all variants' source-linked movements against the journal, and prove staging reconciliation. |
 | RGC-P0-003 | Critical | `create_local_sale` lives in the deployed DB; its original DDL is not in the repository's current migration history. | Rebuilding an isolated environment can diverge from production. | Export and review baseline schema/functions into version control; produce clean staging DB from migrations; prohibit ad hoc production edits. |
 | RGC-P0-004 | Critical | `admin/billing.js` and online SQL use hard-coded 3% discount and 1.5% + 1.5% GST examples. | Tax treatment may differ across items and dates. | Add HSN/effective-dated tax configuration with CA-approved scenarios and invoice templates; do not claim GST compliance yet. |
 | RGC-P0-005 | Critical | Original invoice numbers use `INV-YYYYMMDD-######` in deployed function (more than 16 characters). | Invoice series requires accountant/legal review for applicable Indian GST rules. | CA review and controlled compliant sequence migration; keep issued numbers immutable and traceable. |
@@ -31,6 +31,15 @@ Status: **technical review, not an approved production deployment**. No migratio
 - The inventory modal shows up to 30 database-observed changes separately from recorded business transactions. Rows may overlap with existing `inventory_transactions`; do not double count. A captured actor ID is not necessarily a staff user (online orders may run as customers or anonymously).
 - PostgreSQL 17 disposable CI checks actual migration behavior, transaction rollback, replay and staff permissions. Full Supabase staging integration and load testing still need to be done.
 - `docs/STOCK_CHANGE_JOURNAL.md` details the operational test plan and limits. This does **not** modify live inventory or backfill historical movement details.
+
+## Phase 3: source-linked online allocation records
+
+- The new `20261017223000_online_order_source_ledger.sql` updates the current online checkout RPC in a **staged, reviewable migration only**.
+- Each online order line that decrements stock records a `sale_online` allocation row with source order ID, signed delta, before/after balances, reason and actor ID (possibly anonymous/customer). This does **not** represent verified payment.
+- Adds an order/variant uniqueness index, movement balance constraint and an extra conditional decrement check.
+- Adds disposable PostgreSQL CI integration tests for pending payment, two orders, source links, rollback on invalid checkouts, duplicate source events, balance constraint and migration replay.
+- The inventory history UI labels online records as **stock allocation**, displays source order reference and does not call a customer actor an employee.
+- The staging gate still requires real Supabase schema validation, an actual shop workflow acceptance test, concurrency checks and a dedicated cancellation/refund/stock-release design. See `docs/ONLINE_STOCK_ALLOCATIONS.md`.
 
 ## Release and safety boundaries
 
