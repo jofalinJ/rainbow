@@ -100,5 +100,6 @@ describe("shared admin sidebar", () => {
     expect(labels).toContain("Dashboard");
     expect(labels).toContain("Staff");
     expect(labels).toContain("Inventory");
+    expect(labels).toContain("Returns");
   });
 });
