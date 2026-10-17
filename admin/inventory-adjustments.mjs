@@ -21,7 +21,7 @@ export function setupInventoryAdjustmentUI({getVariant,onUpdated}){
     save.disabled=busy||!result||!currentId;
   }
   function historyText(tx){
-    const kinds={adjustment:"Manual adjustment",sale_local:"Store sale",sale_online:"Online sale",
+    const kinds={adjustment:"Manual adjustment",sale_local:"Store sale",sale_online:"Online order stock allocation",
       stock_in:"Stock received",return:"Return",damage:"Damaged",loss:"Stock loss"};
     return kinds[tx.transaction_type]||"Stock transaction";
   }
@@ -46,7 +46,8 @@ export function setupInventoryAdjustmentUI({getVariant,onUpdated}){
       const meta=document.createElement("small");meta.className="stock-history-meta";
       const when=new Date(tx.created_at);
       const formatted=Number.isNaN(when.getTime())?"Time unavailable":when.toLocaleString("en-IN",{timeZone:"Asia/Kolkata"});
-      meta.textContent=formatted+(tx.created_by?" · Staff ID "+String(tx.created_by).slice(0,8):" · Automated/system");
+      meta.textContent=formatted+(tx.created_by?" · Actor ID "+String(tx.created_by).slice(0,8):" · Automated/system")+
+        (tx.reference_order_id?" · Order ref "+String(tx.reference_order_id).slice(0,8):"");
       const detail=document.createElement("p");detail.className="stock-history-detail";
       detail.textContent=tx.reason||"No reason recorded";
       article.append(top,meta,detail);
@@ -112,7 +113,7 @@ export function setupInventoryAdjustmentUI({getVariant,onUpdated}){
   async function fetchHistory(id,token){
     history.textContent="Loading recent stock transactions…";
     const {data,error}=await client.from("inventory_transactions")
-      .select("id,transaction_type,quantity,quantity_delta,stock_before,stock_after,reason,created_at,created_by")
+      .select("id,transaction_type,quantity,quantity_delta,stock_before,stock_after,reason,created_at,created_by,reference_order_id")
       .eq("variant_id",id).order("created_at",{ascending:false}).limit(30);
     if(token!==serial)return;
     if(error)throw error;
