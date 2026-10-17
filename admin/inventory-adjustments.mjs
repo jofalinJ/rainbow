@@ -83,7 +83,7 @@ export function setupInventoryAdjustmentUI({getVariant,onUpdated}){
       const meta=document.createElement("small");meta.className="stock-history-meta";
       const when=new Date(entry.occurred_at);
       meta.textContent=(Number.isNaN(when.getTime())?"Time unavailable":when.toLocaleString("en-IN",{timeZone:"Asia/Kolkata"}))+
-        (entry.actor_user_id?" · Staff ID "+String(entry.actor_user_id).slice(0,8):" · Unknown/system actor");
+        (entry.actor_user_id?" · Actor ID "+String(entry.actor_user_id).slice(0,8):" · Unknown/system actor");
       const details=document.createElement("p");details.className="stock-history-detail";
       details.textContent="Recorded automatically by the database; business reason and source document may be unavailable.";
       item.append(row,meta,details);
