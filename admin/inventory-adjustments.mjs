@@ -7,7 +7,7 @@ export function setupInventoryAdjustmentUI({getVariant,onUpdated}){
   const $=id=>document.getElementById(id);
   const label=$("stockVariantLabel"),stockCurrent=$("stockCurrent"),after=$("stockAfter");
   const form=$("stockAdjustmentForm"),direction=$("stockDirection"),amount=$("stockQuantity"),reason=$("stockReason");
-  const save=$("stockSave"),message=$("stockMessage"),history=$("stockHistory");
+  const save=$("stockSave"),message=$("stockMessage"),history=$("stockHistory"),observed=$("stockObserved");
   let currentId="",currentStock=null,busy=false,serial=0,restoreFocus=null;
   function feedback(text,isError=false){
     message.textContent=text;
@@ -58,6 +58,57 @@ export function setupInventoryAdjustmentUI({getVariant,onUpdated}){
       history.append(article);
     }
   }
+  function renderObserved(rows){
+    if(!observed)return;
+    observed.replaceChildren();
+    if(!rows.length){
+      const p=document.createElement("p");
+      p.className="stock-history-empty";
+      p.textContent="No database-observed stock changes yet. The staging journal must be installed to capture future activity.";
+      observed.append(p);
+      return;
+    }
+    const kinds={BASELINE:"Migration baseline (not historical movement)",
+      INSERT:"Variant created",UPDATE:"Quantity changed",DELETE:"Variant deleted"};
+    for(const entry of rows){
+      const item=document.createElement("article");
+      item.className="stock-history-row";
+      const row=document.createElement("div");row.className="stock-history-top";
+      const label=document.createElement("strong");label.textContent=kinds[entry.event_kind]||"Database stock event";
+      const quantity=document.createElement("strong");
+      const delta=Number(entry.quantity_delta);
+      quantity.className="stock-history-delta"+(delta<0?" is-negative":"");
+      quantity.textContent=(delta>0?"+":"")+delta+" units";
+      row.append(label,quantity);
+      const meta=document.createElement("small");meta.className="stock-history-meta";
+      const when=new Date(entry.occurred_at);
+      meta.textContent=(Number.isNaN(when.getTime())?"Time unavailable":when.toLocaleString("en-IN",{timeZone:"Asia/Kolkata"}))+
+        (entry.actor_user_id?" · Staff ID "+String(entry.actor_user_id).slice(0,8):" · Unknown/system actor");
+      const details=document.createElement("p");details.className="stock-history-detail";
+      details.textContent="Recorded automatically by the database; business reason and source document may be unavailable.";
+      item.append(row,meta,details);
+      if(entry.stock_before!==null&&entry.stock_after!==null){
+        const balance=document.createElement("small");balance.className="stock-history-balance";
+        balance.textContent="Balance: "+entry.stock_before+" → "+entry.stock_after;
+        item.append(balance);
+      }
+      observed.append(item);
+    }
+  }
+  async function fetchObserved(id,token){
+    if(!observed)return;
+    observed.textContent="Loading database-observed stock changes…";
+    const {data,error}=await client.rpc("get_variant_stock_events",{
+      p_variant_id:id,p_limit:30
+    });
+    if(token!==serial)return;
+    if(error){
+      console.warn("Stock audit journal is not yet available",error.code||"");
+      observed.textContent="Database stock journal is unavailable; install and verify its staging migration first.";
+      return;
+    }
+    renderObserved(data||[]);
+  }
   async function fetchHistory(id,token){
     history.textContent="Loading recent stock transactions…";
     const {data,error}=await client.from("inventory_transactions")
@@ -89,7 +140,7 @@ export function setupInventoryAdjustmentUI({getVariant,onUpdated}){
       if(error)throw error;
       currentStock=Number(data.stock_quantity);
       stockCurrent.textContent=currentStock.toLocaleString("en-IN");
-      await fetchHistory(id,token);
+      await Promise.all([fetchHistory(id,token),fetchObserved(id,token)]);
     }catch(error){
       if(token===serial){
         console.warn("Cannot fetch current inventory",error?.code||"");
@@ -132,7 +183,7 @@ export function setupInventoryAdjustmentUI({getVariant,onUpdated}){
       reason.value="";amount.value="";
       feedback("Saved "+(validated.change>0?"+":"")+validated.change+
         " units. Current stock: "+currentStock+".");
-      await Promise.all([fetchHistory(id,token),onUpdated()]);
+      await Promise.all([fetchHistory(id,token),fetchObserved(id,token),onUpdated()]);
     }catch(error){
       if(token!==serial)return;
       console.warn("Stock adjustment rejected",error?.code||"");
