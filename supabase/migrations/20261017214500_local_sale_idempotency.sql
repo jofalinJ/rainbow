@@ -11,7 +11,7 @@
 create table if not exists public.local_sale_idempotency (
   operation_id uuid primary key,
   actor_id uuid not null,
-  request_hash text not null check (length(request_hash) = 32),
+  request_hash text not null check (length(request_hash) = 64),
   response jsonb,
   created_at timestamptz not null default now()
 );
@@ -66,8 +66,12 @@ begin
 
   -- Canonical jsonb textual form gives stable hashing despite object-key order.
   -- Hash only; do not persist customer PII or full cart payload.
-  v_hash := pg_catalog.md5(
-    jsonb_build_object('items',p_items,'customer',p_customer,'payment_method',p_payment_method)::text
+  v_hash := pg_catalog.encode(
+    pg_catalog.sha256(pg_catalog.convert_to(
+      jsonb_build_object('items',p_items,'customer',p_customer,'payment_method',p_payment_method)::text,
+      'UTF8'
+    )),
+    'hex'
   );
 
   -- Concurrent calls with the same UUID wait on the unique constraint.
