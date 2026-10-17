@@ -4,6 +4,32 @@ const cart=new Map();
 const TAX_RATE=.015;
 const DISCOUNT_RATE=.03;
 let lastReceipt=null;
+// The operation ID survives an uncertain HTTP response. Only the same request
+// may be retried until a cashier has reconciled the attempt with Bills.
+let saleInFlight=false;
+let pendingSale=null;
+const SALE_HOLD_KEY="rainbow.pos.unverifiedSaleOperation.v1";
+function getSaleHold(){
+  try{return sessionStorage.getItem(SALE_HOLD_KEY);}catch{return null;}
+}
+function setSaleHold(id){
+  try{if(id)sessionStorage.setItem(SALE_HOLD_KEY,id);else sessionStorage.removeItem(SALE_HOLD_KEY);}catch{
+    // A disabled storage API reduces reload protection; server retries remain safe.
+  }
+}
+function showSaleHoldActions(){
+  const unresolved=Boolean(getSaleHold());
+  $b("saleHoldActions").hidden=!unresolved;
+  if(!pendingSale&&unresolved){
+    setMsg("A previous sale may have completed. Review Bills and any payment before another checkout. Do not charge twice.","error");
+  }
+  $b("completeSale").textContent=pendingSale&&!saleInFlight?"Retry Same Sale":"Complete Sale";
+}
+function guardSaleEdit(){
+  if(!pendingSale)return false;
+  setMsg("A checkout is unresolved. Retry the SAME sale or review Bills before clearing the hold.","error");
+  return true;
+}
 
 function escB(x){return String(x??"").replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;" ,'"':"&quot;"}[m]));}
 function moneyB(v){return "₹"+Number(v||0).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2});}
@@ -32,7 +58,8 @@ function refreshTotals(){
   $b("cgst").textContent=moneyB(cgst);
   $b("sgst").textContent=moneyB(sgst);
   $b("total").textContent=moneyB(total);
-  $b("completeSale").disabled=cart.size===0;
+  $b("completeSale").disabled=cart.size===0||saleInFlight||Boolean(getSaleHold()&&!pendingSale);
+  showSaleHoldActions();
   return{subtotal,discount,cgst,sgst,total};
 }
 function renderCatalog(){
@@ -58,6 +85,7 @@ function renderCatalog(){
   document.querySelectorAll("[data-add-variant]").forEach(btn=>btn.addEventListener("click",()=>addToCart(btn.dataset.addVariant)));
 }
 function addToCart(variantId){
+  if(guardSaleEdit())return;
   const record=findVariant(variantId);
   if(!record)return;
   const existing=cart.get(variantId);
@@ -83,10 +111,11 @@ function renderCart(){
   }).join("")||'<div class="empty">No items added.</div>';
   document.querySelectorAll("[data-inc]").forEach(btn=>btn.addEventListener("click",()=>changeQty(btn.dataset.inc,1)));
   document.querySelectorAll("[data-dec]").forEach(btn=>btn.addEventListener("click",()=>changeQty(btn.dataset.dec,-1)));
-  document.querySelectorAll("[data-remove]").forEach(btn=>btn.addEventListener("click",()=>{cart.delete(btn.dataset.remove);renderCart();}));
+  document.querySelectorAll("[data-remove]").forEach(btn=>btn.addEventListener("click",()=>{if(guardSaleEdit())return;cart.delete(btn.dataset.remove);renderCart();}));
   refreshTotals();
 }
 function changeQty(id,delta){
+  if(guardSaleEdit())return;
   const line=cart.get(id);if(!line)return;
   const next=line.quantity+delta;
   if(next<=0){cart.delete(id);}
@@ -138,7 +167,11 @@ async function loadCatalog(){
   renderCatalog();
 }
 async function completeSale(){
-  if(cart.size===0)return;
+  if(cart.size===0||saleInFlight)return;
+  if(!pendingSale&&getSaleHold()){
+    showSaleHoldActions();
+    return;
+  }
   const payment=document.querySelector("input[name=payment]:checked")?.value||"cash";
   const items=[...cart.values()].map(x=>({variant_id:x.variantId,quantity:x.quantity}));
   const customerPhone=$b("customerPhone").value.trim();
@@ -153,13 +186,30 @@ async function completeSale(){
     address:$b("customerAddress").value.trim()
   };
   const snapshot=[...cart.values()].map(x=>({...x}));
+  // Create the operation once; retries MUST send the original payload.
+  if(!pendingSale){
+    pendingSale={
+      operationId:crypto.randomUUID(),items,customer,payment,
+      snapshot,customerPhone,customerName
+    };
+    setSaleHold(pendingSale.operationId);
+  }
+  saleInFlight=true;
+  const attempt=pendingSale;
   setMsg("Processing secure sale…");
-  $b("completeSale").disabled=true;
+  refreshTotals();
   try{
-    const {data,error}=await bootSupabase().rpc("create_local_sale",{p_items:items,p_customer:customer,p_payment_method:payment});
+    const {data,error}=await bootSupabase().rpc("create_local_sale_once",{
+      p_operation_id:attempt.operationId,
+      p_items:attempt.items,
+      p_customer:attempt.customer,
+      p_payment_method:attempt.payment
+    });
     if(error)throw error;
     const savedItems=await sb("order_items?select=product_code,product_name,product_type,variant_color,variant_size,length_cm,thickness,gold_amount_g,quantity,unit_price,discount_amount,line_total&order_id=eq."+encodeURIComponent(data.order_id));
-    showReceipt(data,savedItems||snapshot.map(x=>({product_code:x.p.product_code,product_name:x.p.product_name,quantity:x.quantity,unit_price:x.price,discount_amount:0,line_total:x.price*x.quantity})),customerPhone,customerName);
+    showReceipt(data,savedItems||attempt.snapshot.map(x=>({product_code:x.p.product_code,product_name:x.p.product_name,quantity:x.quantity,unit_price:x.price,discount_amount:0,line_total:x.price*x.quantity})),attempt.customerPhone,attempt.customerName);
+    pendingSale=null;
+    setSaleHold(null);
     cart.clear();
     renderCart();
     clearCustomer();
@@ -167,9 +217,10 @@ async function completeSale(){
     setMsg("Sale completed: "+data.invoice_number,"success");
   }catch(e){
     console.error(e);
-    setMsg(e.message||"Could not complete sale.","error");
+    setMsg("Sale status unconfirmed. Retry SAME sale (no second payment), or check Bills. "+(e.message||"Request failed."),"error");
   }finally{
-    $b("completeSale").disabled=cart.size===0;
+    saleInFlight=false;
+    refreshTotals();
   }
 }
 function showReceipt(data,items,customerPhone="",customerName=""){
@@ -201,7 +252,15 @@ function clearCustomer(){
 $b("productSearch").addEventListener("input",renderCatalog);
 $b("productSearch").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();const exact=catalog.flatMap(p=>(p.product_variants||[]).map(v=>({p,v}))).find(x=>x.v.active&&x.v.barcode&&x.v.barcode.toLowerCase()===e.currentTarget.value.trim().toLowerCase());if(exact)addToCart(exact.v.id);}});
 $b("clearSearch").addEventListener("click",()=>{$b("productSearch").value="";renderCatalog();$b("productSearch").focus();});
-$b("clearCart").addEventListener("click",()=>{cart.clear();renderCart();});
+$b("clearCart").addEventListener("click",()=>{if(guardSaleEdit())return;cart.clear();renderCart();});
+$b("clearSaleHold").addEventListener("click",()=>{
+  if(!getSaleHold())return;
+  if(!confirm("Have you checked Bills AND the payment record to confirm it is safe to start a new operation? Clearing this hold does NOT undo a successful sale."))return;
+  pendingSale=null;
+  setSaleHold(null);
+  setMsg("Sale hold cleared after manual reconciliation. If a payment was taken without a bill, resolve it before charging again.","error");
+  refreshTotals();
+});
 $b("completeSale").addEventListener("click",completeSale);
 $b("newSale").addEventListener("click",()=>{$b("receiptScreen").style.display="none";$b("productSearch").focus();});
 renderCart();
