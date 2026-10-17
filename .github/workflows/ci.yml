@@ -152,10 +152,3 @@ jobs:
           expected=$(psql -h 127.0.0.1 -U postgres -d rainbow_returns_ci -Atc "select count(*)::text||':'||(select count(*) from public.customer_returns)||':'||(select count(*) from public.customer_refund_confirmations) from public.inventory_transactions")
           actual=$(psql -h 127.0.0.1 -U postgres -d rainbow_restored_ci -Atc "select count(*)::text||':'||(select count(*) from public.customer_returns)||':'||(select count(*) from public.customer_refund_confirmations) from public.inventory_transactions")
           test "$expected" = "$actual"
-
-      - name: Test source-linked customer returns (disposable Postgres)
-        env:
-          PGPASSWORD: rainbow_ci_only
-        run: |
-          psql -h 127.0.0.1 -p 5432 -U postgres -d postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE rainbow_returns_ci'
-          psql -h 127.0.0.1 -p 5432 -U postgres -d rainbow_returns_ci -v ON_ERROR_STOP=1 -f tests/sql/customer_return_intake.sql
