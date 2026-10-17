@@ -1,0 +1,31 @@
+name: Rainbow Cloudflare API checks
+
+on:
+  pull_request:
+    paths:
+      - 'backend/rainbow-api/**'
+      - '.github/workflows/cloudflare-api-ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'backend/rainbow-api/**'
+      - '.github/workflows/cloudflare-api-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  cloudflare-api:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend/rainbow-api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate JavaScript
+        run: npm run check
+      - name: Test API routes
+        run: npm test
