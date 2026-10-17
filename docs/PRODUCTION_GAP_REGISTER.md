@@ -41,6 +41,15 @@ Status: **technical review, not an approved production deployment**. No migratio
 - The inventory history UI labels online records as **stock allocation**, displays source order reference and does not call a customer actor an employee.
 - The staging gate still requires real Supabase schema validation, an actual shop workflow acceptance test, concurrency checks and a dedicated cancellation/refund/stock-release design. See `docs/ONLINE_STOCK_ALLOCATIONS.md`.
 
+## Phase 4: verified-unpaid order cancellation / exactly-once stock release
+
+- Staged new RPC `cancel_unpaid_online_order(uuid,text,boolean)`, admin-only with explicit bank/UPI checking attestation and mandatory cancellation reason.
+- Prevents automatic release on paid, verified, shipped, non-pending, legacy untracked or already-returned orders. Missing original Phase 3 movement history requires manual reconciliation.
+- Locks the order row (serializes with manual payment verification), then variant rows; restores stock and writes a source-linked `return` ledger movement, a unique cancellation record and status audit in one transaction. A duplicate request returns `already_cancelled=true` without another stock change.
+- Preserves original payment status/payment rows: cancelling a pending order does **not** prove that no UPI transfer happened, or that a refund occurred.
+- Admin Orders UI requires statement-check attestation and reason; new isolated PostgreSQL CI tests role guards, exactly-once behavior, payment/shipment and historic guards, and late-failure rollback.
+- Staging-only release until current DB migration compatibility, full RLS, refund/legal SOP and payment-verification concurrency have been tested. See `docs/UNPAID_ONLINE_CANCELLATION.md`.
+
 ## Release and safety boundaries
 
 - `main`: unchanged until explicit review/merge.
