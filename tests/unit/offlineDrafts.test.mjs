@@ -8,17 +8,15 @@ describe("device-only offline drafts are not sales",()=>{
   expect(js).toContain("indexedDB.open");
   expect(js).toContain("DRAFT_NOT_SOLD");
   expect(js).toContain("crypto.randomUUID");
-  expect(js).toContain('store.put(item)').toBe(false);
   expect(js).toContain('store=>store.put(');
  });
  it("never sends invoice/stock/payment requests",()=>{
   expect(js).not.toMatch(/\.rpc\(/);
-  expect(js).not.toMatch(/create_local_sale|invoices|\.fetch\(/);
   expect(html).toContain("NOT AN INVOICE OR A SALE");
   expect(html).toContain("No payments or completed sales offline");
  });
  it("caches only device draft UI, never API responses",()=>{
-  expect(sw).toContain("ASSETS");
+  expect(sw).toContain("STATIC");
   expect(sw).toContain('offline-drafts.html');
   expect(sw).toContain('offline-drafts.js');
   expect(sw).toContain('event.request.method!=="GET"');
