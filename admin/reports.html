@@ -11,4 +11,20 @@
 <div class="table-wrap"><table><thead><tr><th>Variant ID</th><th>Actual units</th><th>Last observed</th><th>Finding</th></tr></thead><tbody id="varianceRows"><tr><td colspan="4">Run check when database migration is ready.</td></tr></tbody></table></div>
 <p id="varianceMessage" class="form-msg" role="status" aria-live="polite"></p>
 </section>
-</main><script src="app.js?v=20261015-admin-attendance-nav-v2"></script><script src="reports.js?v=20261017-variance"></script></body></html>
+<section class="panel" style="margin-top:18px">
+  <div class="panelhead"><div><h2>Daily operational reconciliation</h2>
+   <span class="muted">Read-only counts and exception signals. Not a GST return, bank statement or audited profit report.</span></div></div>
+  <label for="shopReconcileDay">Shop day (India)</label>
+  <input id="shopReconcileDay" type="date" style="padding:10px;border:1px solid #ddd;border-radius:8px">
+  <button id="shopReconcileRun" type="button">Check selected day</button>
+  <p id="shopReconcileMessage" role="status" aria-live="polite" class="form-msg"></p>
+  <div class="cards" style="margin-top:14px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
+   <div><small>Paid order face value</small><strong id="daySalesTotal">—</strong><span>Orders created this day</span></div>
+   <div><small>Paid tender total</small><strong id="dayTenderTotal">—</strong><span>Payments posted this day</span></div>
+   <div><small>Unverified orders</small><strong id="dayPending">—</strong><span>Awaiting verification</span></div>
+   <div><small>Flagged exceptions</small><strong id="dayExceptions">—</strong><span>Investigate, never auto-correct</span></div>
+  </div>
+  <div class="table-wrap"><table><thead><tr><th>Signal</th><th>Count</th><th>Interpretation</th></tr></thead>
+   <tbody id="shopReconcileRows"><tr><td colspan="3">Choose a date and run the read-only check.</td></tr></tbody></table></div>
+ </section>
+</main><script src="app.js?v=20261015-admin-attendance-nav-v2"></script><script src="reports.js?v=20261017-daily-review"></script></body></html>
