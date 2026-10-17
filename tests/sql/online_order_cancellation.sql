@@ -4,6 +4,9 @@
 -- then tests Phase 4 cancellation on existing fixture orders.
 \ir online_order_source_ledger.sql
 
+-- Mirror production's timestamp on the order row used by cancellation RPC.
+alter table public.orders add column updated_at timestamptz default now();
+
 -- PostgreSQL roles are cluster-wide and CI may have made them in a prior DB.
 do $$
 begin
