@@ -47,7 +47,7 @@ describe("Phase 5 supplier purchasing and goods receiving",()=>{
   expect(ui).toContain('"create_purchase_order"');
   expect(ui).toContain('"receive_purchase_order"');
   expect(ui).toContain("rainbow.purchasing.pendingGRN.v1");
-  expect(ui).toContain("retry the same");
+  expect(ui).toContain("Retry the SAME operation");
  });
  it("runs real PostgreSQL tests with partial, repeated and failed receipts",()=>{
   expect(fixture).toContain("Partial receipt balance/status/count failed");
