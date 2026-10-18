@@ -90,7 +90,7 @@
     const hero=document.getElementById("heroArt"),heroLink=document.getElementById("heroProductLink");
     const heroImage=document.getElementById("heroProductImage"),heroTitle=document.getElementById("heroProductTitle");
     if(hero){hero.classList.toggle("has-product",Boolean(heroProduct));}
-    if(heroLink){heroLink.hidden=!heroProduct;heroLink.href=heroProduct?"product.html?sku="+encodeURIComponent(heroProduct.product.product_code||heroProduct.product_code):"#products";}
+    if(heroLink){heroLink.hidden=!heroProduct;heroLink.href=heroProduct?"product.html?sku="+encodeURIComponent((heroProduct.product||heroProduct).product_code||""):"#products";}
     if(heroImage&&heroProduct){heroImage.src=heroProduct.image||getImage(heroProduct.product||heroProduct);heroImage.alt=(heroProduct.product||heroProduct).product_name||"Featured jewellery";}
     if(heroTitle&&heroProduct)heroTitle.textContent=(heroProduct.product||heroProduct).product_name||"Discover this design";
     if(signature===promotionSignature){section.hidden=!available.length;return;}
