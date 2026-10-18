@@ -7,7 +7,7 @@ const catalogue=context.RainbowCatalogue;
 function fakeClient(total=10000){
  const calls=[];
  const query={};
- for(const name of ["eq","gt","gte","lte","or","in","order","range"]){
+ for(const name of ["eq","gt","gte","lte","or","in","order","range","ilike"]){
    query[name]=(...args)=>{calls.push([name,...args]);return query;};
  }
  query.then=(resolve,reject)=>{
@@ -39,8 +39,8 @@ describe("catalogue scale: query and storage contracts",()=>{
    catalogue.buildQuery(c,{categoryId:"123",segment:"men",minPrice:"100",maxPrice:"500",color:"Gold",size:"M",length:"60"});
    expect(c.calls).toContainEqual(["eq","active",true]);
    expect(c.calls).toContainEqual(["gt","product_variants.stock_quantity",0]);
-   expect(c.calls).toContainEqual(["eq","product_variants.color","Gold"]);
-   expect(c.calls).toContainEqual(["eq","product_variants.size","M"]);
+   expect(c.calls).toContainEqual(["ilike","product_variants.color","Gold"]);
+   expect(c.calls).toContainEqual(["ilike","product_variants.size","M"]);
    expect(c.calls).toContainEqual(["eq","product_variants.length_cm",60]);
    expect(c.calls).toContainEqual(["gte","selling_price",100]);
    expect(c.calls).toContainEqual(["lte","selling_price",500]);
