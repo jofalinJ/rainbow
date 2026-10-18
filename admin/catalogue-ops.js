@@ -6,7 +6,7 @@
  const FIELDS=["product_code","category","product_name","type","selling_price","gender","color","size","length_cm","description","thickness","gold_amount_g"];
  const CODE_RE=/^[A-Za-z0-9][A-Za-z0-9/_-]{1,39}$/;
  const number=value=>Number(value);
- const cleanSearch=input=>String(input??"").trim().replace(/[,*%()\"\\]/g,"").slice(0,70);
+ const cleanSearch=input=>String(input??"").trim().replace(/[^\\p{L}\\p{N}\\s/_-]/gu," ").replace(/\\s+/g," ").slice(0,70);
  function csvParse(source){
    const sourceText=String(source??"").replace(/^\uFEFF/,"");
    const rows=[];let row=[],value="",quoted=false;
@@ -119,6 +119,6 @@
    return {rows:data||[],count:Math.max(0,count||0),page:current,pageSize:PAGE_SIZE,
      pages:Math.ceil(Math.max(0,count||0)/PAGE_SIZE)};
  }
- root.RainbowAdminCatalogue={PAGE_SIZE,IMPORT_MAX,IMAGE_MAX,FIELDS,csvParse,parseImport,resolveImport,
+ root.RainbowAdminCatalogue={PAGE_SIZE,IMPORT_MAX,IMAGE_MAX,FIELDS,SELECT,csvParse,parseImport,resolveImport,
    csvString,safeCsvCell,parsePhotoName,list,cleanSearch};
 })(typeof window!=="undefined"?window:globalThis);
