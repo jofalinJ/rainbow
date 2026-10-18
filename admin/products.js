@@ -270,7 +270,7 @@ async function uploadImage(file,productCode){
       if(paths.length)await bucket.remove(paths).catch(()=>{});
       throw error;
     }
-    return {path:mainPath,url:bucket.getPublicUrl(mainPath).data.publicUrl};
+    return {path:mainPath,thumbPath,url:bucket.getPublicUrl(mainPath).data.publicUrl};
   }
   // Fallback for older browsers; existing product photos are never changed.
   const ext=(file.name.split(".").pop()||"jpg").toLowerCase().replace(/[^a-z0-9]/g,"")||"jpg";
@@ -280,13 +280,30 @@ async function uploadImage(file,productCode){
   return {path,url:bucket.getPublicUrl(path).data.publicUrl};
 }
 
+
+async function uploadAndSavePhoto(file,product,attributes){
+  const uploaded=await uploadImage(file,product.product_code);
+  try{
+    await sb("product_images",{
+      method:"POST",headers:{"Prefer":"return=minimal"},
+      body:JSON.stringify({product_id:product.id,public_url:uploaded.url,storage_path:uploaded.path,...attributes})
+    });
+  }catch(error){
+    const names=[uploaded.path,uploaded.thumbPath].filter(Boolean);
+    await sbClient.storage.from(IMAGE_BUCKET).remove(names).catch(cleanupError=>{
+      console.warn("Storage cleanup after a failed photo record must be reviewed.",cleanupError);
+    });
+    throw error;
+  }
+  return uploaded;
+}
+
 async function uploadAdditionalPhotos(product,files){
   const current=photoRows(product);if(current.length+files.length>5)throw new Error("Only "+Math.max(0,5-current.length)+" more photo(s) can be added. Maximum 5 per product.");
   let added=0;
   try{
     for(const file of files){
-      const uploaded=await uploadImage(file,product.product_code);
-      await sb("product_images",{method:"POST",headers:{"Prefer":"return=minimal"},body:JSON.stringify({product_id:product.id,public_url:uploaded.url,storage_path:uploaded.path,alt_text:product.product_name,is_primary:current.length===0&&added===0,sort_order:current.length+added})});
+      await uploadAndSavePhoto(file,product,{alt_text:product.product_name,is_primary:current.length===0&&added===0,sort_order:current.length+added});
       added++;
     }
   }catch(error){error.photosAdded=added;throw error;}
@@ -373,10 +390,10 @@ $("form").onsubmit=async e=>{
     })});
     let uploadedCount=0;
     for(let i=0;i<selectedImages.length;i++){
-      const uploaded=await uploadImage(selectedImages[i],product.product_code);
-      await sb("product_images",{method:"POST",headers:{"Prefer":"return=minimal"},body:JSON.stringify({
-        product_id:product.id,public_url:uploaded.url,storage_path:uploaded.path,alt_text:product.product_name+(selectedImages.length>1?" — image "+(i+1):""),is_primary:i===0,sort_order:i
-      })});uploadedCount++;
+      await uploadAndSavePhoto(selectedImages[i],product,{
+        alt_text:product.product_name+(selectedImages.length>1?" — image "+(i+1):""),
+        is_primary:i===0,sort_order:i
+      });uploadedCount++;
     }
     const success="Saved "+product.product_code+(uploadedCount?" with "+uploadedCount+" photo"+(uploadedCount===1?"":"s"):"");
     await load();fillExistingProducts();resetEditor();$("msg").textContent=success;
