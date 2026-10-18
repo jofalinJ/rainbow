@@ -13,7 +13,10 @@
    const search=cleanSearch(filters.search);
    if(search){
      const term=search.replaceAll(" ","%");
-     query=query.or(["product_name","product_code","type","description"].map(col=>col+".ilike.%"+term+"%").join(","));
+     const categoryIds=(filters.searchCategoryIds||[]).filter(id=>/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(id)).slice(0,40);
+     const alternatives=["product_name","product_code","type","description"].map(col=>col+".ilike.%"+term+"%");
+     if(categoryIds.length)alternatives.push("category_id.in.("+categoryIds.join(",")+")");
+     query=query.or(alternatives.join(","));
    }
    if(filters.categoryId)query=query.eq("category_id",filters.categoryId);
    if(filters.segment==="men")query=query.in("gender",["male","unisex"]);
@@ -27,7 +30,7 @@
      query=query.eq("product_variants.length_cm",Number(filters.length));
    }
    if(Array.isArray(filters.wishlistIds)){
-     const ids=filters.wishlistIds.filter(id=>/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(id)).slice(0,400);
+     const ids=filters.wishlistIds.filter(id=>/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(id)).slice(0,400);
      if(ids.length)query=query.in("id",ids);
      else return {query:null,limit,offset,empty:true};
    }
