@@ -18,6 +18,7 @@
     "test:watch": "vitest",
     "lint": "eslint .",
     "build": "node scripts/verify-static.mjs",
+    "build:pages": "node scripts/verify-static.mjs && node scripts/build-cloudflare.mjs",
     "security": "npm audit --audit-level=high"
   },
   "devDependencies": {
