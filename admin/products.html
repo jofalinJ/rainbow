@@ -95,7 +95,7 @@
 <nav class="catalogue-pagination" aria-label="Product list pages">
 <button type="button" id="catalogPrev">← Previous</button><span id="catalogPageInfo" role="status" aria-live="polite">Loading products…</span><button type="button" id="catalogNext">Next →</button></nav>
 </section>
-<section class="panel" id="bulkTools" aria-labelledby="bulkTitle"><div class="panelhead"><div><h2 id="bulkTitle">Bulk product tools</h2><small>Validate locally first. Imports start as drafts with zero stock; no existing products are overwritten.</small></div><button type="button" id="downloadCsvTemplate">Download CSV template</button></div>
+<section class="panel" id="bulkTools" aria-labelledby="bulkTitle"><div class="panelhead"><div><h2 id="bulkTitle">Bulk product tools</h2><small>Validate locally first. Imports start as drafts with zero stock; no existing products are overwritten.</small></div><div><button type="button" id="downloadCsvTemplate">Download CSV template</button><button type="button" id="exportCatalogueCsv">Export catalogue CSV</button></div></div>
 <div class="catalogue-bulk-grid">
 <section><h3>1. Import product CSV</h3><p>Up to 500 products per batch, with unique product codes. Export your spreadsheet as UTF-8 CSV.</p><label for="bulkProductCsv">Select CSV</label><input id="bulkProductCsv" type="file" accept=".csv,text/csv">
 <div id="bulkPreview" class="bulk-preview" role="status" aria-live="polite"></div>
