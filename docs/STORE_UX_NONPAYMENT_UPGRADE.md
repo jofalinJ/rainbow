@@ -25,3 +25,5 @@ Branch: `feat/storefront-ux-nonpayment-20261018`. Keep production checkout/payme
 ## Verification commands
 `npm run lint`, `npm run build`, `npm run test:unit`, and public Selenium tests in staging.
 Approve release only after the test environment is configured and observed checks pass. Never copy mock product rows to production.
+
+The shipping, returns and terms pages are visible for customer transparency but intentionally marked `noindex` until owner-approved; they are not included as unfinished indexable XML sitemap entries.
