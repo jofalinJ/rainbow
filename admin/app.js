@@ -101,6 +101,11 @@ function startDashboardLiveUpdates(){
   document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")loadDashboard();});
   window.addEventListener("pagehide",()=>{if(dashboardRefreshTimer)clearTimeout(dashboardRefreshTimer);if(dashboardPollTimer)clearInterval(dashboardPollTimer);if(dashboardLiveChannel)client.removeChannel(dashboardLiveChannel);},{once:true});
 }
+  // Staff app installation only: pages remain authenticated and require online APIs.
+  if("serviceWorker" in navigator&&window.isSecureContext){
+    const link=document.createElement("link");link.rel="manifest";link.href="manifest.webmanifest";document.head.append(link);
+    const script=document.createElement("script");script.src="pwa.js";document.head.append(script);
+  }
 renderSharedSidebar();
 async function bootAdminPage(){const profile=await applyRoleNavigation();if(profile?.role==="admin"&&document.querySelector("#sales")){await loadDashboard();startDashboardLiveUpdates();}}
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",bootAdminPage,{once:true});else bootAdminPage();
