@@ -63,6 +63,11 @@ describe("admin catalogue pagination",()=>{
    expect(client.calls.find(x=>x[0]==="range")).toEqual(["range",9960,9999]);
    expect(client.calls.filter(x=>x[0]==="order").map(x=>x[1])).toEqual(["created_at","id"]);
  });
+ it("removes PostgREST punctuation from adversarial admin search terms",()=>{
+   const cleaned=ops.cleanSearch("RGC/C00004),active.eq.false");
+   expect(cleaned).toContain("RGC/C00004");
+   expect(cleaned).not.toMatch(/[(),.%]/);
+ });
  it("routes search to the database, never filters only the current page",async()=>{
    const client=mock();
    await ops.list(client,{search:"RGC/C00004"});
