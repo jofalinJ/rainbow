@@ -317,7 +317,7 @@
       else status.textContent=paging.total+" product"+(paging.total===1?"":"s")+" available";
     }
     const existingIds=[...grid.querySelectorAll("[data-product-id]")].map(card=>card.dataset.productId);
-    const appendOnly=products.length>existingIds.length&&existingIds.every((id,index)=>String(products[index]?.id)===String(id));
+    const appendOnly=existingIds.length>0&&products.length>existingIds.length&&existingIds.every((id,index)=>String(products[index]?.id)===String(id));
     const toRender=appendOnly?products.slice(existingIds.length):products;
     const rendered=toRender.length?toRender.map(p=>{
       const stock=getStock(p),stockClass=stock===0?"out":"in",stockText=stock===0?"Out of stock":"In stock",image=getThumb(p);
@@ -1039,7 +1039,8 @@
       segment:activeSegment,sort:catalogueSort,
       minPrice:filterState.minPrice,maxPrice:filterState.maxPrice,
       color:filterState.color,size:filterState.size,length:filterState.length,
-      wishlistIds:wishlistOnly?[...wishlistIds]:undefined
+      wishlistIds:wishlistOnly?[...wishlistIds]:undefined,
+      searchCategoryIds:activeSearch?catalogueCategories.filter(item=>normalizeCategory(item.name).includes(normalizeCategory(activeSearch))).map(item=>item.id):[]
     };
   }
   function renderPager(categoryLanding=false){
