@@ -15,6 +15,25 @@
      const term=search.replaceAll(" ","%");
      const categoryIds=(filters.searchCategoryIds||[]).filter(id=>/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(id)).slice(0,40);
      const alternatives=["product_name","product_code","type","description"].map(col=>col+".ilike.%"+term+"%");
+     // Product codes such as RGC/C00004 must remain exact-searchable.
+     const exactCode=String(filters.search||"").trim();
+     if(/^[a-z0-9][a-z0-9/_-]{1,39}$/i.test(exactCode))
+       alternatives.push("product_code.eq."+exactCode);
+     // Common jewellery spelling and Tamil transliteration variants. These expand server queries, not local pages.
+     const aliases={
+       "jimmiki":["jhumka","jimikki","earring"],
+       "jimikki":["jhumka","jimmiki","earring"],
+       "jumka":["jhumka","earring"],
+       "jhumki":["jhumka","earring"],
+       "jhumka":["jimikki","earring"],
+       "kammal":["earring","stud"],
+       "kolusu":["anklet"],
+       "mangalsutra":["thali","thali chain"]
+     };
+     const alternativesFor=aliases[search.toLowerCase()]||[];
+     for(const alias of alternativesFor)
+       for(const column of ["product_name","type"])
+         alternatives.push(column+".ilike.%"+alias.replaceAll(" ","%")+"%");
      if(categoryIds.length)alternatives.push("category_id.in.("+categoryIds.join(",")+")");
      query=query.or(alternatives.join(","));
    }
