@@ -11,7 +11,7 @@ alter table public.attendance
 create index if not exists attendance_photo_reviewed_by_idx
   on public.attendance (photo_reviewed_by);
 
-do $
+do $$
 begin
   if not exists (
     select 1 from pg_constraint
@@ -23,7 +23,7 @@ begin
       check (photo_review_status in ('Not submitted', 'Pending', 'Approved', 'Rejected'));
   end if;
 end
-$;
+$$;
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values (
