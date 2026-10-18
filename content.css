@@ -1433,3 +1433,15 @@ button,.category-tile,[role="button"]{touch-action:manipulation}
 @media(max-width:520px){.analytics-preference{display:block}.analytics-preference p{margin-bottom:9px}.analytics-preference button{margin-right:10px}.floating-whatsapp{bottom:10px;right:10px;padding:11px 13px}}
 
 .footer-analytics-button{border:0;background:none;padding:0;color:inherit;text-decoration:underline;font-size:inherit;text-transform:inherit;letter-spacing:inherit;cursor:pointer}
+
+/* Bounded, on-demand product listing. Browser automatically fetches at most 8 pages. */
+.catalogue-pager{min-height:100px;text-align:center;display:grid;justify-items:center;align-content:start;gap:14px;margin:30px auto 0;padding:24px 12px 12px;border-top:1px solid var(--line)}
+.catalogue-pager[hidden],.catalogue-pager button[hidden],.catalogue-sentinel[hidden]{display:none!important}
+.catalogue-pager #cataloguePageStatus{color:var(--muted);font-size:13px;line-height:1.5}
+.catalogue-pager .btn{min-width:190px;font-size:13px;cursor:pointer}
+.catalogue-pager .btn:disabled{opacity:.65;cursor:progress}
+.catalogue-sentinel{width:100%;height:12px;pointer-events:none}
+.catalogue-skeleton{height:310px;min-width:0;border-radius:14px;background:linear-gradient(110deg,#f5eee7 20%,#faf6f0 35%,#f5eee7 55%);background-size:220% 100%;animation:catalogue-pulse 1.3s infinite}
+@keyframes catalogue-pulse{to{background-position-x:-220%}}
+@media(prefers-reduced-motion:reduce){.catalogue-skeleton{animation:none}}
+.catalog-main .product-card{content-visibility:auto;contain-intrinsic-size:auto 360px}

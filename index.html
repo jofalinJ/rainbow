@@ -9,9 +9,10 @@
 <meta name="description" content="Shop Rainbow Gold Covering jewellery collections. Explore genuine product photographs, current stock, design options and prices.">
 <link rel="canonical" href="https://jofalinj.github.io/rainbow/">
 <title>Rainbow Gold Covering — Jewellery, Made to Shine</title>
-<link rel="stylesheet" href="content.css?v=20261018-discovery">
+<link rel="stylesheet" href="content.css?v=20261018-scale">
 <script src="config.js"></script>
 <script src="shop-discovery.js?v=20261018"></script>
+<script src="shop-catalogue.js?v=20261018"></script>
 <script src="analytics.js?v=20261018"></script>
 <script src="admin/config.js"></script>
 </head>
@@ -125,7 +126,7 @@
 <section id="latestSection" class="section latest-arrivals" hidden><div class="container"><div class="section-head"><div><span class="section-kicker">JUST ARRIVED</span><h2>Newest in store.</h2></div><a href="#products" class="btn btn-light">Explore all collections →</a></div><div id="latestGrid" class="latest-grid"></div></div></section>
 <section class="section live-products" id="products">
 <div class="container">
-<div class="section-head"><div><span class="section-kicker">SHOP</span><h2 id="productHeading">Shop by category.</h2></div></div>
+<div class="section-head"><div><span class="section-kicker">SHOP</span><h2 id="productHeading">Shop by category.</h2></div><button id="browseAllProducts" class="btn btn-light" type="button">Browse all jewellery →</button></div>
 <div class="catalog-layout">
 
 <div class="catalog-main" id="collections">
@@ -133,13 +134,18 @@
   <label>Sort by <select id="catalogSort"><option value="featured">Featured</option><option value="newest">Newest arrivals</option><option value="price-low">Price: low to high</option><option value="price-high">Price: high to low</option><option value="name">Name: A to Z</option></select></label>
   <label>Minimum price <input id="catalogMinPrice" type="number" min="0" step="1" inputmode="numeric" placeholder="₹ Min"></label>
   <label>Maximum price <input id="catalogMaxPrice" type="number" min="0" step="1" inputmode="numeric" placeholder="₹ Max"></label>
-  <label>Colour <select id="catalogColor"><option value="">All colours</option></select></label>
-  <label>Size <select id="catalogSize"><option value="">All sizes</option></select></label>
-  <label>Length <select id="catalogLength"><option value="">All lengths</option></select></label>
+  <label>Colour <input id="catalogColor" type="search" list="catalogColorList" autocomplete="off" placeholder="Any colour"><datalist id="catalogColorList"></datalist></label>
+  <label>Size <input id="catalogSize" type="search" list="catalogSizeList" autocomplete="off" placeholder="Any size"><datalist id="catalogSizeList"></datalist></label>
+  <label>Length (cm) <input id="catalogLength" type="number" step="0.1" min="0" inputmode="decimal" placeholder="Any length"></label>
   <button id="catalogReset" type="button" class="clear-filter">Reset filters</button>
 </form>
 <div class="product-toolbar"><div id="productStatus" class="product-status" aria-live="polite">Loading products…</div><button id="clearProductFilter" class="clear-filter" type="button" hidden>Back to product types</button></div>
 <div id="productGrid" class="product-grid"></div>
+<div id="cataloguePager" class="catalogue-pager" hidden>
+  <div id="cataloguePageStatus" role="status" aria-live="polite"></div>
+  <button type="button" id="loadMoreProducts" class="btn btn-light">Load more jewellery</button>
+  <div id="catalogueSentinel" class="catalogue-sentinel" aria-hidden="true"></div>
+</div>
 </div>
 </div>
 </div>
@@ -166,6 +172,6 @@
 </main>
 <footer class="container footer"><span class="footer-brand" data-config="footerBrand"><img class="footer-logo" src="assets/brand/rainbow-logo.png" alt="Rainbow Gold Covering logo" width="28" height="28" loading="lazy"><span data-config="footerBrandText">RAINBOW GOLD COVERING</span></span><span><a class="instagram-link" data-instagram href="https://www.instagram.com/rainbow_kollam_gold_covering/" target="_blank" rel="noopener noreferrer">Instagram · @rainbow_kollam_gold_covering</a></span><span class="footer-legal-link"><a href="privacy-policy.html">Privacy Policy</a></span><span class="footer-legal-link"><a href="shipping-policy.html">Shipping</a></span><span class="footer-legal-link"><a href="returns-and-refunds.html">Returns</a></span><span class="footer-legal-link"><a href="terms-and-conditions.html">Terms &amp; Conditions</a></span><span><button type="button" class="footer-analytics-button" onclick="window.RainbowAnalytics?.showSettings()">Analytics settings</button></span><span class="footer-legal-link"><a href="sitemap.html">Sitemap</a></span><span>© <span id="year"></span> Rainbow Gold Covering. All rights reserved.</span></footer>
 <div id="productModal" class="product-modal" aria-hidden="true"><div class="product-modal-backdrop" data-close-product></div><button class="product-modal-nav previous" type="button" data-product-prev aria-label="Previous product" hidden>‹</button><div class="product-modal-panel" role="dialog" aria-modal="true" aria-labelledby="modalProductName"><button class="product-modal-close" type="button" aria-label="Close product details" data-close-product>×</button><div id="productModalContent"></div></div><button class="product-modal-nav next" type="button" data-product-next aria-label="Next product" hidden>›</button></div>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="content.js?v=20261018-discovery"></script><script src="business-live.js?v=20261011-brand-name"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="content.js?v=20261018-scale"></script><script src="business-live.js?v=20261011-brand-name"></script>
 </body>
 </html>
