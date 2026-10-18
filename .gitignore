@@ -1,6 +1,7 @@
 node_modules/
 coverage/
 test-results/
+dist-pages/
 .env
 .env.*
 .DS_Store
