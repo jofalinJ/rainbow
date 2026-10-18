@@ -6,7 +6,7 @@
  const FIELDS=["product_code","category","product_name","type","selling_price","gender","color","size","length_cm","description","thickness","gold_amount_g"];
  const CODE_RE=/^[A-Za-z0-9][A-Za-z0-9/_-]{1,39}$/;
  const number=value=>Number(value);
- const cleanSearch=input=>String(input??"").trim().replace(/[^\\p{L}\\p{N}\\s/_-]/gu," ").replace(/\\s+/g," ").slice(0,70);
+ const cleanSearch=input=>String(input??"").trim().replace(/[^\p{L}\p{N}\s/_-]/gu," ").replace(/\s+/g," ").slice(0,70);
  function csvParse(source){
    const sourceText=String(source??"").replace(/^\uFEFF/,"");
    const rows=[];let row=[],value="",quoted=false;
