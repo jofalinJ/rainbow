@@ -1,115 +1,84 @@
+import {indiaToday,timeLabel,durationLabel,escapeHTML,faceRequest,biometricError,noticeHTML,captureLiveness} from "./biometric-ui.mjs";
 let myAttendanceClient=null;
 let myAttendanceUserId="";
+let myAttendanceProfile=null;
 let myAttendanceRecord=null;
+let biometricStatus=null;
+let loadedAttendanceDay="";
 let attendanceReady=false;
 let attendanceSaving=false;
-
-function indiaToday(){
-  const parts=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Kolkata",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date());
-  const part=name=>parts.find(value=>value.type===name)?.value||"00";
-  return part("year")+"-"+part("month")+"-"+part("day");
-}
-function indiaDateLabel(value){
-  const date=new Date(String(value)+"T12:00:00+05:30");
-  return Number.isNaN(date.getTime())?value:date.toLocaleDateString("en-IN",{timeZone:"Asia/Kolkata",weekday:"long",day:"numeric",month:"long",year:"numeric"});
-}
-function attendanceTimeLabel(value){
-  if(!value)return "—";
-  const parts=String(value).split(":");
-  if(parts.length<2)return value;
-  let hour=Number(parts[0]),minute=Number(parts[1]);
-  if(!Number.isFinite(hour)||!Number.isFinite(minute))return "—";
-  const suffix=hour>=12?"pm":"am";
-  hour=hour%12||12;
-  return hour+":"+String(minute).padStart(2,"0")+" "+suffix;
-}
-function hoursLabel(checkIn,checkOut){
-  if(!checkIn)return "—";
-  if(!checkOut)return "In progress";
-  const start=String(checkIn).split(":").map(Number);
-  const end=String(checkOut).split(":").map(Number);
-  if(!Number.isFinite(start[0])||!Number.isFinite(end[0]))return "—";
-  let startMinutes=start[0]*60+(start[1]||0),endMinutes=end[0]*60+(end[1]||0);
-  if(endMinutes<startMinutes)endMinutes+=1440;
-  const duration=endMinutes-startMinutes;
-  return Math.floor(duration/60)+"h "+(duration%60)+"m";
-}
-function setSelfAttendanceMessage(text,kind){
-  const el=document.getElementById("selfAttendanceMessage");
-  if(el){el.textContent=text||"";el.className="self-attendance-message"+(kind?" "+kind:"");}
-}
+const el=id=>document.getElementById(id);
+function setSelfAttendanceMessage(text,kind=""){el("selfAttendanceMessage").textContent=text;el("selfAttendanceMessage").className="self-attendance-message "+kind;}
 function renderMyAttendance(){
-  const record=myAttendanceRecord;
-  const status=document.getElementById("todayAttendanceStatus");
-  if(status)status.textContent=record?.check_in?(record.check_out?"Checked out":"Checked in"):"Not checked in";
-  const checkIn=document.getElementById("checkInTime");
-  const checkOut=document.getElementById("checkOutTime");
-  const hours=document.getElementById("workingHours");
-  if(checkIn)checkIn.textContent=attendanceTimeLabel(record?.check_in);
-  if(checkOut)checkOut.textContent=attendanceTimeLabel(record?.check_out);
-  if(hours)hours.textContent=hoursLabel(record?.check_in,record?.check_out);
-  const review=document.getElementById("photoReviewStatus");
-  if(review){
-    const value=record?.photo_review_status||"";
-    review.textContent=value==="Pending"?"Your photo is waiting for admin review.":value==="Approved"?"Your check-in photo was reviewed.":value==="Rejected"?"Your photo needs follow-up. Please contact an administrator.":"";
-  }
-  const checkInButton=document.getElementById("checkInButton");
-  const checkOutButton=document.getElementById("checkOutButton");
-  if(checkInButton)checkInButton.disabled=!attendanceReady||attendanceSaving||Boolean(record?.check_in);
-  if(checkOutButton)checkOutButton.disabled=!attendanceReady||attendanceSaving||!record?.check_in||Boolean(record?.check_out);
-
+  const record=myAttendanceRecord,inAt=record?.check_in_at||record?.check_in,outAt=record?.check_out_at||record?.check_out;
+  el("todayAttendanceStatus").textContent=attendanceSaving?"VERIFYING":inAt?(outAt?"CHECKED OUT":"CHECKED IN"):"NOT CHECKED IN";
+  el("checkInTime").textContent=timeLabel(inAt);el("checkOutTime").textContent=timeLabel(outAt);el("workingHours").textContent=durationLabel(record);
+  const ready=attendanceReady&&biometricStatus?.enabled&&biometricStatus?.enrolled&&!attendanceSaving;
+  el("checkInButton").disabled=!ready||Boolean(inAt);el("checkOutButton").disabled=!ready||!inAt||Boolean(outAt);
+  el("refreshAttendance").disabled=attendanceSaving;
+  el("shiftDateLabel").textContent=record?.date&&record.date!==indiaToday()?"Shift started on "+record.date+" · complete checkout for this shift before checking in again.":"";
+  el("verificationMethod").textContent="Verification: "+(record?String(record.verification_method||"legacy").replaceAll("_"," ")+" / "+(record.verification_result||"legacy"):"—");
+  el("photoReviewStatus").textContent=record?.photo_review_status==="Rejected"?"Your historic check-in photo needs follow-up. Contact an administrator.":"";
+  if(biometricStatus){el("enrollmentBanner").className="enrollment-banner "+(biometricStatus.enabled&&biometricStatus.enrolled?"ready":"");el("enrollmentBanner").textContent=!biometricStatus.enabled?"Face attendance requires secure service configuration. Ask an administrator to record your attendance.":!biometricStatus.enrolled?"Face enrollment is required. Ask an administrator to enroll you, or use the manual attendance alternative.":"Face enrollment ready · live verification required for every attendance action.";}
 }
-async function loadMyAttendance(){
+async function loadMyAttendance(preferredRecord=null){
+  const fields="id,staff_id,date,check_in,check_out,check_in_at,check_out_at,working_seconds,status,verification_method,verification_result,photo_review_status";
   const today=indiaToday();
-  const {data,error}=await myAttendanceClient.from("attendance")
-    .select("id,staff_id,date,check_in,check_out,status,photo_path,photo_review_status")
-    .eq("staff_id",myAttendanceUserId).eq("date",today).maybeSingle();
-  if(error)throw new Error(error.message);
-  myAttendanceRecord=data||null;
-  attendanceReady=true;
-  renderMyAttendance();
-  setSelfAttendanceMessage(myAttendanceRecord?"Attendance loaded for today.":"Tap Check in when your shift starts.","");
+  const {data,error}=await myAttendanceClient.from("attendance").select(fields).eq("staff_id",myAttendanceUserId).eq("date",today).maybeSingle();
+  if(error)throw error;
+  let record=data||null;
+  // A shift may cross midnight. Only this account's still-open shift in the last
+  // 24 hours is eligible; the database repeats this check while holding its lock.
+  if(!recordInProgress(record)){
+    const open=await myAttendanceClient.from("attendance").select(fields).eq("staff_id",myAttendanceUserId).not("check_in_at","is",null).is("check_out_at",null).gte("check_in_at",new Date(Date.now()-86400000).toISOString()).order("check_in_at",{ascending:false}).limit(1).maybeSingle();
+    if(open.error)throw open.error;
+    if(open.data)record=open.data;
+  }
+  if(preferredRecord?.staff_id===myAttendanceUserId)record=preferredRecord;
+  myAttendanceRecord=record;loadedAttendanceDay=today;attendanceReady=true;renderMyAttendance();
+}
+function recordInProgress(record){return Boolean((record?.check_in_at||record?.check_in)&&!(record?.check_out_at||record?.check_out));}
+async function loadBiometricStatus(){biometricStatus=await faceRequest(myAttendanceClient,"status");el("employeePrivacyNotice").innerHTML=noticeHTML(biometricStatus.notice);renderMyAttendance();}
+async function loadPersonalHistory(){
+  const month=el("personalHistoryMonth").value;if(!/^\d{4}-\d{2}$/.test(month))return;
+  const [year,number]=month.split("-").map(Number),last=new Date(year,number,0).getDate();
+  el("personalHistoryMessage").textContent="Loading your attendance history…";
+  try{
+    const {data,error}=await myAttendanceClient.from("attendance").select("date,status,check_in,check_out,check_in_at,check_out_at,working_seconds,verification_method,verification_result").eq("staff_id",myAttendanceUserId).gte("date",month+"-01").lte("date",month+"-"+last).order("date",{ascending:false});
+    if(error)throw error;
+    el("personalHistoryRows").innerHTML=(data||[]).map(row=>"<tr><td>"+escapeHTML(row.date)+"</td><td>"+escapeHTML(row.status)+"</td><td>"+escapeHTML(timeLabel(row.check_in_at||row.check_in))+"</td><td>"+escapeHTML(timeLabel(row.check_out_at||row.check_out))+"</td><td>"+escapeHTML(durationLabel(row))+"</td><td>"+escapeHTML((row.verification_method||"legacy").replaceAll("_"," ")+" / "+(row.verification_result||"legacy"))+"</td></tr>").join("")||"<tr><td colspan='6'>No attendance records for this month.</td></tr>";
+    el("personalHistoryMessage").textContent=(data||[]).length+" records · times shown in IST";
+  }catch(error){el("personalHistoryMessage").textContent="Could not load history: "+error.message;}
 }
 async function recordAttendanceAction(action){
-  if(!attendanceReady||attendanceSaving)return;
-  const record=myAttendanceRecord;
-  if(action==="check_in"&&record?.check_in)return;
-  if(action==="check_out"&&(!record?.check_in||record.check_out))return;
-  attendanceSaving=true;
-  renderMyAttendance();
-  setSelfAttendanceMessage(action==="check_in"?"Recording your check-in…":"Recording your check-out…","");
+  if(!attendanceReady||attendanceSaving||!biometricStatus?.enabled||!biometricStatus?.enrolled)return;
+  const inAt=myAttendanceRecord?.check_in_at||myAttendanceRecord?.check_in,outAt=myAttendanceRecord?.check_out_at||myAttendanceRecord?.check_out;
+  const dayChanged=Boolean(loadedAttendanceDay&&loadedAttendanceDay!==indiaToday());
+  if(!dayChanged&&(action==="check_in"&&inAt||action==="check_out"&&(!inAt||outAt)))return;
+  attendanceSaving=true;renderMyAttendance();setSelfAttendanceMessage("Starting secure face verification…");
   try{
-    // The authenticated RPC validates the active staff account and records IST server time.
-    const {error}=await myAttendanceClient.rpc("staff_attendance_action",{p_action:action});
-    if(error)throw new Error(error.message);
-    await loadMyAttendance();
-    setSelfAttendanceMessage(action==="check_in"?"Check-in recorded.":"Check-out recorded.","success");
-  }catch(error){
-    console.error("Staff attendance action failed:",error);
-    setSelfAttendanceMessage("Could not record attendance: "+(error.message||"Unknown error"),"error");
-  }finally{
-    attendanceSaving=false;
-    renderMyAttendance();
-  }
+    if(dayChanged){await loadMyAttendance();if(action==="check_in"&&(myAttendanceRecord?.check_in_at||myAttendanceRecord?.check_in)||action==="check_out"&&!recordInProgress(myAttendanceRecord))throw new Error("The attendance day changed. Review your refreshed shift status before starting again.");}
+    const start=await faceRequest(myAttendanceClient,"start_verification",{action});
+    const result=await captureLiveness({client:myAttendanceClient,start,dialog:el("livenessDialog"),container:el("livenessCamera"),message:el("captureMessage")});
+    // Reload the server's persisted row; never infer an attendance record from the camera callback.
+    await loadMyAttendance(result.attendance);await loadPersonalHistory();
+    const recorded=action==="check_in"?(myAttendanceRecord?.check_in_at||myAttendanceRecord?.check_in):(myAttendanceRecord?.check_out_at||myAttendanceRecord?.check_out);
+    if(!recorded)throw new Error("No confirmed attendance entry was returned. Refresh or contact an administrator before trying again.");
+    setSelfAttendanceMessage((myAttendanceProfile.full_name||myAttendanceProfile.username)+" · ID "+myAttendanceUserId+" · "+(action==="check_in"?"Checked in":"Checked out")+" at "+timeLabel(recorded)+" IST · "+myAttendanceRecord.status,"success");
+  }catch(error){setSelfAttendanceMessage(biometricError(error),"error");el("todayAttendanceStatus").textContent="VERIFICATION FAILED";}
+  finally{attendanceSaving=false;renderMyAttendance();if(el("selfAttendanceMessage").classList.contains("error"))el("todayAttendanceStatus").textContent="VERIFICATION FAILED";}
 }
+function updateClock(){const now=new Date();el("indiaDateLabel").textContent=now.toLocaleDateString("en-IN",{timeZone:"Asia/Kolkata",weekday:"long",day:"numeric",month:"long",year:"numeric"});el("indiaClock").textContent=now.toLocaleTimeString("en-IN",{timeZone:"Asia/Kolkata",hour:"numeric",minute:"2-digit",second:"2-digit"})+" IST";}
 async function bootMyAttendance(){
-  document.getElementById("indiaDateLabel").textContent=indiaDateLabel(indiaToday());
+  updateClock();const clockTimer=setInterval(updateClock,1000);window.addEventListener("pagehide",()=>clearInterval(clockTimer),{once:true});
   try{
-    myAttendanceClient=bootSupabase();
-    const session=await requireSession();
-    const profile=await getMyProfile();
+    myAttendanceClient=bootSupabase();const session=await requireSession();const profile=await getMyProfile();
     if(!profile.active)throw new Error("This staff account is inactive.");
-    if(profile.role==="admin"){location.replace("index.html");return;}
-    myAttendanceUserId=session.user.id;
-    const greeting=document.getElementById("staffGreeting");
-    if(greeting)greeting.textContent="Welcome, "+(profile.full_name||profile.username||"staff member")+". Record your attendance for today.";
-    await loadMyAttendance();
-  }catch(error){
-    console.error("My attendance could not load:",error);
-    setSelfAttendanceMessage(error.message||"Could not load your attendance.","error");
-  }
-  document.getElementById("checkInButton")?.addEventListener("click",()=>recordAttendanceAction("check_in"));
-  document.getElementById("checkOutButton")?.addEventListener("click",()=>recordAttendanceAction("check_out"));
+    if(profile.role==="admin"){location.replace("attendance.html");return;}
+    myAttendanceUserId=session.user.id;myAttendanceProfile=profile;el("staffGreeting").textContent=profile.full_name||profile.username||"Staff member";el("signedInStaffId").textContent=myAttendanceUserId;el("personalHistoryMonth").value=indiaToday().slice(0,7);
+    await loadMyAttendance();await loadPersonalHistory();
+    try{await loadBiometricStatus();setSelfAttendanceMessage(biometricStatus.enabled&&biometricStatus.enrolled?"Ready. Your camera opens only when you start a face check.":"Face attendance is unavailable for this account. Ask an administrator about enrollment or the manual attendance alternative.");}catch(error){biometricStatus={enabled:false};renderMyAttendance();setSelfAttendanceMessage(biometricError(error),"error");}
+  }catch(error){setSelfAttendanceMessage(error.message||"Could not load attendance.","error");}
+  el("checkInButton").addEventListener("click",()=>recordAttendanceAction("check_in"));el("checkOutButton").addEventListener("click",()=>recordAttendanceAction("check_out"));el("personalHistoryMonth").addEventListener("change",loadPersonalHistory);el("refreshAttendance").addEventListener("click",async()=>{try{await loadMyAttendance();await loadBiometricStatus();await loadPersonalHistory();setSelfAttendanceMessage("Attendance refreshed.");}catch(error){setSelfAttendanceMessage(biometricError(error),"error");}});
 }
-if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",bootMyAttendance,{once:true});
-else bootMyAttendance();
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",bootMyAttendance,{once:true});else bootMyAttendance();

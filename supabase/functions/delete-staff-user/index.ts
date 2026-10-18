@@ -85,6 +85,13 @@ Deno.serve(async (req) => {
       return json({ error: "Admin accounts are protected and cannot be deleted here." }, 403);
     }
 
+    const { data: enrollment, error: enrollmentError } = await admin
+      .from("biometric_enrollments").select("staff_id").eq("staff_id", targetUserId).maybeSingle();
+    if (enrollmentError) return json({ error: "Could not check biometric deletion requirements." }, 503);
+    if (enrollment) return json({
+      error: "Delete this employee's face enrollment from Attendance first so the provider templates are removed and audited."
+    }, 409);
+
     try {
       const photos = [
         ...await collectFiles(admin.storage, "profiles/" + targetUserId),

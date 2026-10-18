@@ -1,102 +1,14 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#8f1520">
-<link rel="icon" type="image/png" href="../assets/brand/rainbow-logo.png">
-<title>Rainbow Gold Covering — Staff Attendance</title>
-<link rel="stylesheet" href="style.css">
-<link rel="stylesheet" href="attendance.css?v=20261011-attendance-photo-review">
-<script src="config.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-</head>
-<body>
-<aside aria-label="Admin sidebar"></aside>
-<main class="attendance-page">
-  <header class="attendance-page-header">
-    <div>
-      <p class="eyebrow">TEAM MANAGEMENT</p>
-      <h1>Staff Attendance</h1>
-      <p class="muted attendance-subtitle">Attendance tracking for the Rainbow team.</p>
-    </div>
-    <button class="profile" id="attendanceRefresh" type="button">Refresh</button>
-  </header>
-
-  <section class="panel attendance-panel" aria-label="Staff attendance management">
-    <div class="attendance-tabs" role="tablist" aria-label="Attendance views">
-      <button id="dailyTab" class="attendance-tab is-active" type="button" role="tab" aria-selected="true" aria-controls="dailyPanel" data-tab="daily">Daily Attendance</button>
-      <button id="historyTab" class="attendance-tab" type="button" role="tab" aria-selected="false" aria-controls="historyPanel" data-tab="history">Attendance Summary / History</button>
-    </div>
-
-    <section id="dailyPanel" class="attendance-view" role="tabpanel" aria-labelledby="dailyTab">
-      <div class="attendance-toolbar">
-        <div class="date-navigation" aria-label="Choose attendance date">
-          <button id="previousDay" type="button" aria-label="Previous day">‹</button>
-          <label class="visually-hidden" for="attendanceDate">Attendance date</label>
-          <input id="attendanceDate" type="date">
-          <button id="nextDay" type="button" aria-label="Next day">›</button>
-        </div>
-        <label class="attendance-search">
-          <span class="visually-hidden">Search staff by name</span>
-          <input id="staffSearch" type="search" placeholder="Search staff by name">
-        </label>
-      </div>
-
-      <div id="dailySummary" class="attendance-summary" aria-live="polite"></div>
-      <p id="dailyMessage" class="attendance-message" role="status" aria-live="polite"></p>
-      <div class="table-wrap attendance-table-wrap">
-        <table class="attendance-table">
-          <thead><tr><th>Staff member</th><th>Status</th><th>Check-in</th><th>Check-out</th><th>Working hours</th><th>Historic photo</th></tr></thead>
-          <tbody id="attendanceRows"><tr><td colspan="6">Loading staff attendance…</td></tr></tbody>
-        </table>
-      </div>
-    </section>
-
-    <section id="historyPanel" class="attendance-view" role="tabpanel" aria-labelledby="historyTab" hidden>
-      <div class="attendance-toolbar history-toolbar">
-        <div class="history-range">
-          <label for="historyPeriod">Show by</label>
-          <select id="historyPeriod"><option value="week">Week</option><option value="month">Month</option></select>
-          <label class="visually-hidden" for="historyDate">History date range</label>
-          <input id="historyDate" type="week">
-          <button id="refreshHistory" type="button">Refresh history</button>
-        </div>
-        <label class="attendance-search">
-          <span class="visually-hidden">Search attendance history by staff name</span>
-          <input id="historySearch" type="search" placeholder="Search history by staff name">
-        </label>
-      </div>
-      <div id="historySummary" class="attendance-summary" aria-live="polite"></div>
-      <p id="historyMessage" class="attendance-message" role="status" aria-live="polite"></p>
-      <div class="table-wrap attendance-table-wrap">
-        <table class="attendance-table history-table">
-          <thead><tr><th>Date</th><th>Staff member</th><th>Status</th><th>Check-in</th><th>Check-out</th><th>Working hours</th></tr></thead>
-          <tbody id="historyRows"><tr><td colspan="6">Choose a week or month to view attendance.</td></tr></tbody>
-        </table>
-      </div>
-    </section>
-  </section>
-  <div id="photoReviewDialog" class="attendance-photo-overlay" hidden>
-    <section class="attendance-photo-dialog" role="dialog" aria-modal="true" aria-labelledby="photoReviewTitle">
-      <button id="closePhotoReview" class="photo-review-close" type="button" aria-label="Close photo review">×</button>
-      <p class="eyebrow">ATTENDANCE REVIEW</p>
-      <h2 id="photoReviewTitle">Compare staff photos</h2>
-      <p id="photoReviewPerson" class="muted"></p>
-      <div class="photo-comparison">
-        <figure><img id="staffReferencePhoto" alt="Staff profile reference photo"><figcaption>Staff profile photo</figcaption></figure>
-        <figure><img id="staffAttendancePhoto" alt="Attendance check-in photo"><figcaption>Check-in photo</figcaption></figure>
-      </div>
-      <p class="photo-review-guidance">Compare the images manually. The system does not use automated face recognition.</p>
-      <p id="photoReviewMessage" class="attendance-message" role="status"></p>
-      <div class="photo-review-actions">
-        <button type="button" data-photo-decision="Rejected">Reject photo</button>
-        <button type="button" class="approve-photo" data-photo-decision="Approved">Approve photo</button>
-      </div>
-    </section>
-  </div>
-</main>
-<script src="app.js?v=20261015-admin-attendance-nav-v2"></script>
-<script src="attendance.js?v=20261015-simple-check-in-v1"></script>
-</body>
-</html>
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#8f1520"><link rel="icon" type="image/png" href="../assets/brand/rainbow-logo.png"><title>Rainbow Gold Covering — Staff Attendance</title><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="my-attendance.css?v=20261015-biometric"><link rel="stylesheet" href="attendance.css?v=20261015-biometric"><link rel="stylesheet" href="../dist/face-liveness.css"><script src="config.js"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head><body><aside aria-label="Admin sidebar"></aside><main class="attendance-page">
+<header class="attendance-page-header"><div><p class="eyebrow">RAINBOW GOLD COVERING · TEAM MANAGEMENT</p><h1>Staff Attendance</h1><p class="muted attendance-subtitle">Live face verification, clear records and accountable corrections.</p></div><button class="profile" id="attendanceRefresh" type="button">Refresh</button></header>
+<section class="panel attendance-panel" aria-label="Staff attendance management">
+<div class="attendance-tabs" role="tablist" aria-label="Attendance views"><button id="dailyTab" class="attendance-tab is-active" type="button" role="tab" aria-selected="true" aria-controls="dailyPanel" data-tab="daily">Daily attendance</button><button id="historyTab" class="attendance-tab" type="button" role="tab" aria-selected="false" aria-controls="historyPanel" data-tab="history">History & monthly report</button><button id="enrollmentTab" class="attendance-tab" type="button" role="tab" aria-selected="false" aria-controls="enrollmentPanel" data-tab="enrollment">Face enrollment</button><button id="auditTab" class="attendance-tab" type="button" role="tab" aria-selected="false" aria-controls="auditPanel" data-tab="audit">Audit history</button></div>
+<section id="dailyPanel" class="attendance-view" role="tabpanel" aria-labelledby="dailyTab"><div class="attendance-toolbar"><div class="date-navigation" aria-label="Choose attendance date"><button id="previousDay" type="button" aria-label="Previous day">‹</button><label class="visually-hidden" for="attendanceDate">Attendance date</label><input id="attendanceDate" type="date"><button id="nextDay" type="button" aria-label="Next day">›</button></div><label class="attendance-search"><span class="visually-hidden">Search staff by name or ID</span><input id="staffSearch" type="search" placeholder="Search name or employee ID"></label></div><div id="dailySummary" class="attendance-summary" aria-live="polite"></div><p class="admin-alternative">Manual attendance is the alternative for employees who decline face verification or cannot use it. Each correction requires a reason and records the administrator and time.</p><p id="dailyMessage" class="attendance-message" role="status" aria-live="polite"></p><div class="table-wrap attendance-table-wrap"><table class="attendance-table"><thead><tr><th>Employee / ID</th><th>Status</th><th>Check-in · IST</th><th>Check-out · IST</th><th>Hours</th><th>Method / result</th><th>Manage</th></tr></thead><tbody id="attendanceRows"><tr><td colspan="7">Loading staff attendance…</td></tr></tbody></table></div></section>
+<section id="historyPanel" class="attendance-view" role="tabpanel" aria-labelledby="historyTab" hidden><div class="attendance-toolbar history-toolbar"><div class="history-range"><label for="historyPeriod">Show by</label><select id="historyPeriod"><option value="month">Month</option><option value="week">Week</option></select><label class="visually-hidden" for="historyDate">History date range</label><input id="historyDate" type="month"><button id="refreshHistory" type="button">Refresh report</button></div><label class="attendance-search"><span class="visually-hidden">Search history by name or ID</span><input id="historySearch" type="search" placeholder="Search name or employee ID"></label></div><div id="historySummary" class="attendance-summary" aria-live="polite"></div><p id="historyMessage" class="attendance-message" role="status" aria-live="polite"></p><div class="table-wrap attendance-table-wrap"><table class="attendance-table history-table"><thead><tr><th>Date</th><th>Employee / ID</th><th>Status</th><th>Check-in · IST</th><th>Check-out · IST</th><th>Hours</th><th>Method / result</th></tr></thead><tbody id="historyRows"><tr><td colspan="7">Choose a month or week.</td></tr></tbody></table></div></section>
+<section id="enrollmentPanel" class="attendance-view" role="tabpanel" aria-labelledby="enrollmentTab" hidden><div class="enrollment-layout"><div class="enrollment-main"><p class="eyebrow">ADMINISTRATOR-LED · THREE LIVE SAMPLES</p><h2>Face enrollment</h2><p class="enrollment-intro">Confirm the employee's identity in person before enrolling their face. Keep only that employee in the camera view.</p><label class="enrollment-staff-label" for="enrollmentStaff">Employee</label><select id="enrollmentStaff"><option value="">Select an employee</option></select><output id="enrollmentStaffId" class="enrollment-staff-id"></output><p id="enrollmentState" class="enrollment-state" role="status">Select an employee to check enrollment.</p><div class="enrollment-progress" aria-label="Enrollment progress"><span id="sampleOne">1</span><i></i><span id="sampleTwo">2</span><i></i><span id="sampleThree">3</span></div><div id="adminPrivacyNotice" class="enrollment-notice">Select an employee to load the configured privacy notice.</div><label class="enrollment-consent"><input id="enrollmentConsent" type="checkbox"><span><strong>Employee consent</strong> — I am the selected employee. I have read this notice, understand the purpose, processing, storage, retention and deletion options, and freely consent to face enrollment. I can request a manual attendance alternative.</span></label><label class="enrollment-consent"><input id="enrollmentWitness" type="checkbox"><span><strong>Administrator confirmation</strong> — I have verified this employee's identity in person and witnessed their consent.</span></label><div class="enrollment-buttons"><button id="beginEnrollment" class="primary" type="button" disabled>Start live sample 1 of 3</button><button id="deleteEnrollment" type="button" disabled>Delete enrollment</button></div><p id="enrollmentMessage" class="attendance-message" role="status" aria-live="polite"></p><div id="deleteEnrollmentForm" class="delete-enrollment-form" hidden><label for="deletionReason">Reason for biometric deletion</label><textarea id="deletionReason" minlength="5" rows="3" placeholder="Employee request, account change or other reason"></textarea><button id="confirmDeleteEnrollment" type="button">Confirm deletion</button><button id="cancelDeleteEnrollment" type="button">Cancel</button></div></div><aside class="enrollment-guidance" aria-label="Capture guidance"><div class="face-guide-symbol" aria-hidden="true">◎</div><h3>A clear, live capture</h3><ol><li>Use the front-facing camera in Android Chrome over HTTPS.</li><li>Stand in even light with your entire face visible.</li><li>Remove sunglasses and avoid glare or a bright window behind you.</li><li>Stay alone in frame and follow the live instructions for each sample.</li></ol><p>Camera permission is requested when a live sample starts. No biometric templates or camera credentials are saved in this browser.</p><p>An existing enrollment must be explicitly deleted before enrolling again. Deletions and enrollment actions are audited.</p></aside></div></section>
+<section id="auditPanel" class="attendance-view" role="tabpanel" aria-labelledby="auditTab" hidden><div class="attendance-toolbar"><div><p class="eyebrow">ACCOUNTABILITY</p><h2>Attendance & biometric audit</h2></div><label class="attendance-search"><span class="visually-hidden">Filter audit by employee ID</span><input id="auditSearch" type="search" placeholder="Filter employee or actor ID"></label></div><p id="auditMessage" class="attendance-message" role="status"></p><div class="table-wrap attendance-table-wrap"><table class="attendance-table"><thead><tr><th>Time · IST</th><th>Event</th><th>Employee ID</th><th>Actor ID</th><th>Reason / details</th></tr></thead><tbody id="auditRows"><tr><td colspan="5">Open audit history to load events.</td></tr></tbody></table></div></section>
+</section>
+<div id="manualAttendanceDialog" class="attendance-photo-overlay" hidden><form id="manualAttendanceForm" class="attendance-photo-dialog correction-dialog" role="dialog" aria-modal="true" aria-labelledby="manualAttendanceTitle"><button id="closeManualAttendance" class="photo-review-close" type="button" aria-label="Close correction">×</button><p class="eyebrow">AUTHORIZED MANUAL ATTENDANCE</p><h2 id="manualAttendanceTitle">Record a correction</h2><p id="manualAttendancePerson" class="muted"></p><label for="manualAction">Action</label><select id="manualAction"><option value="check_in">Check in now (server time)</option><option value="check_out">Check out now (server time)</option><option value="status">Update attendance status</option><option value="correct">Correct recorded times</option></select><label for="manualStatus">Attendance status</label><select id="manualStatus"><option>Present</option><option>Absent</option><option>Half Day</option><option>On Leave</option></select><div id="manualTimeFields" hidden><p class="correction-hint">Enter times in India Standard Time. Empty fields clear the corresponding recorded time. Both timestamps must belong to the selected attendance day.</p><label for="manualCheckIn">Check-in · IST</label><input id="manualCheckIn" type="datetime-local"><label for="manualCheckOut">Check-out · IST</label><input id="manualCheckOut" type="datetime-local"></div><label for="manualReason">Reason (required)</label><textarea id="manualReason" rows="3" required minlength="5" placeholder="Explain why this manual entry or correction is needed"></textarea><p id="manualMessage" class="attendance-message" role="status"></p><button id="saveManualAttendance" class="primary" type="submit">Save audited correction</button></form></div>
+<div id="photoReviewDialog" class="attendance-photo-overlay" hidden><section class="attendance-photo-dialog" role="dialog" aria-modal="true" aria-labelledby="photoReviewTitle"><button id="closePhotoReview" class="photo-review-close" type="button" aria-label="Close photo review">×</button><p class="eyebrow">HISTORIC ATTENDANCE PHOTO</p><h2 id="photoReviewTitle">Compare staff photos</h2><p id="photoReviewPerson" class="muted"></p><div class="photo-comparison"><figure><img id="staffReferencePhoto" alt="Staff profile reference photo"><figcaption>Staff profile reference</figcaption></figure><figure><img id="staffAttendancePhoto" alt="Historic attendance check-in photo"><figcaption>Historic check-in photo</figcaption></figure></div><p class="photo-review-guidance">This is a manual review of a historic photo. It does not establish a live biometric attendance match.</p><label for="photoReviewReason">Review reason (required)</label><textarea id="photoReviewReason" rows="2" minlength="5"></textarea><p id="photoReviewMessage" class="attendance-message" role="status"></p><div class="photo-review-actions"><button type="button" data-photo-decision="Rejected">Flag for follow-up</button><button type="button" class="approve-photo" data-photo-decision="Approved">Approve historic photo</button></div></section></div>
+</main><div id="livenessDialog" class="biometric-capture-overlay" hidden><section class="biometric-capture-dialog" role="dialog" aria-modal="true" aria-labelledby="captureTitle"><div class="capture-heading"><div><p class="eyebrow">SECURE ENROLLMENT</p><h2 id="captureTitle">Capture live face sample</h2></div><button type="button" data-capture-cancel>Cancel</button></div><p id="captureMessage" role="status" aria-live="polite"></p><div id="livenessCamera" class="liveness-camera"></div><p class="capture-help">Enrollment is confirmed by the secure service. Keep the selected employee alone in frame and follow the live camera instructions.</p></section></div><script src="app.js?v=20261015-admin-attendance-nav-v2"></script><script type="module" src="../dist/face-liveness.js"></script><script type="module" src="attendance.js?v=20261015-biometric"></script></body></html>

@@ -51,7 +51,7 @@ describe("storefront shopping/navigation refinements",()=>{
    expect(css).toContain("@media(max-width:680px)");
  });
 });
-describe("optional biometric preview safeguards",()=>{
+describe("historic optional preview safeguards",()=>{
  it("rejects no face, multiple faces, low confidence or failed liveness",()=>{
    expect(assessLiveFrame([]).ready).toBe(false);
    expect(assessLiveFrame([{},{}]).ready).toBe(false);
@@ -71,10 +71,10 @@ describe("optional biometric preview safeguards",()=>{
    expect(sql).toContain("bucket_id='staff-private'");
    expect(sql).toContain("sp.active=true and sp.role in ('cashier','inventory_staff')");
    const html=read("admin/my-attendance.html");
-   expect(html).toContain('id="facePilot"');
-   expect(html).toContain('id="facePilotConsent"');
-   expect(html).toContain('id="facePilotStart"');
-   expect(html).toContain("does <strong>not</strong> replace your attendance buttons");
+   expect(html).not.toContain('id="facePilot"');
+   expect(html).not.toContain("face-preview.mjs");
+   expect(html).toContain("Face Check-in");
+   expect(html).toContain("../dist/face-liveness.js");
    const js=read("admin/face-preview.mjs");
    expect(js).toContain("staff_face_preview_consent");
    expect(js).toContain('withdrawn_at:new Date().toISOString()');

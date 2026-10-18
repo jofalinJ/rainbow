@@ -17,11 +17,34 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm install --legacy-peer-deps
+      - run: npm ci --legacy-peer-deps
       - run: npm run lint
       - run: npm run test:unit
+      - run: npm run test:database
+      - run: npm run check:biometric
       - run: npm run build
       - run: npm run security
+
+  self-hosted:
+    name: Self-hosted service / HTTP contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci --legacy-peer-deps
+      - run: python -m pip install -r services/face-biometric/requirements-test.txt
+      - name: Service authentication, lifecycle and encrypted storage
+        working-directory: services/face-biometric
+        run: python -m unittest discover -s tests -v
+      - name: JavaScript to Python HTTP contract (synthetic engine)
+        env:
+          SELF_HOSTED_TEST_PYTHON: python
+        run: npm run test:self-hosted-contract
 
   integration:
     name: Supabase integration (isolated environment)
@@ -37,7 +60,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm install --legacy-peer-deps
+      - run: npm ci --legacy-peer-deps
       - name: Verify isolated test environment
         run: |
           test -n "$SUPABASE_TEST_URL"
@@ -68,7 +91,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm install --legacy-peer-deps
+      - run: npm ci --legacy-peer-deps
       - name: Verify isolated E2E environment
         run: |
           test -n "$SUPABASE_TEST_URL"
