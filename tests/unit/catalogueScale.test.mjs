@@ -68,6 +68,14 @@ describe("catalogue scale: query and storage contracts",()=>{
    const filter=c.calls.find(row=>row[0]==="or")?.[1];
    expect(filter).toContain("category_id.in.("+categoryId+")");
  });
+ it("finds slash-containing SKUs exactly and expands jewellery transliterations",()=>{
+   const c=fakeClient();
+   catalogue.buildQuery(c,{search:"RGC/C00004"});
+   expect(c.calls.find(row=>row[0]==="or")?.[1]).toContain("product_code.eq.RGC/C00004");
+   const d=fakeClient();
+   catalogue.buildQuery(d,{search:"jimmiki"});
+   expect(d.calls.find(row=>row[0]==="or")?.[1]).toContain("type.ilike.%earring%");
+ });
  it("only returns a thumbnail URL for managed optimized WebP objects",()=>{
    const full="https://demo.supabase.co/storage/v1/object/public/product-images/RG/abc-optimized.webp";
    expect(catalogue.thumbnailUrl({storage_path:"RG/abc-optimized.webp",public_url:full})).toContain("abc-thumb.webp");
