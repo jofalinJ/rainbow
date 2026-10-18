@@ -183,6 +183,37 @@
      photoBusy=false;$("bulkPhotosCancel").disabled=true;$("bulkPhotosStart").disabled=true;
    }
  }
+ async function exportCatalogueCsv(){
+   const button=$("exportCatalogueCsv");button.disabled=true;
+   try{
+     const client=await assertEditor();
+     const columns=["product_code","category","product_name","type","selling_price","gender","length_cm","description","thickness","gold_amount_g","active"];
+     const results=[columns];let offset=0;
+     // Export is a convenience snapshot; never treat it as a database-consistent backup.
+     while(offset<20000){
+       const {data,error}=await client.from("products")
+         .select("product_code,category_id,product_name,type,selling_price,gender,length_cm,description,thickness,gold_amount_g,active")
+         .order("id",{ascending:true}).range(offset,offset+249);
+       if(error)throw error;
+       if(!data?.length)break;
+       for(const p of data){
+         results.push([
+           p.product_code,
+           cats.find(cat=>cat.id===p.category_id)?.name||"",
+           p.product_name,p.type,p.selling_price,p.gender,p.length_cm,p.description,
+           p.thickness,p.gold_amount_g,p.active
+         ]);
+       }
+       offset+=data.length;
+       message("bulkProgress","Exported "+offset+" product records so far…");
+       if(data.length<250)break;
+     }
+     if(offset===20000)throw Error("Export capped at 20,000 products. Narrow the scope for a complete snapshot.");
+     downloadText("rainbow-catalogue-"+new Date().toISOString().slice(0,10)+".csv",api.csvString(results));
+     message("bulkProgress","Product snapshot exported ("+(results.length-1)+" products). It is not a complete database backup.");
+   }catch(error){message("bulkProgress","Export failed: "+error.message);}
+   finally{button.disabled=false;}
+ }
  async function catalogueHealth(){
    message("catalogueHealth","Checking store catalogue…");
    try{
@@ -210,6 +241,7 @@
  function init(){
    if(!api||!$("bulkTools"))return;
    $("downloadCsvTemplate").addEventListener("click",()=>downloadText("rainbow-products-template.csv",api.csvString([api.FIELDS])));
+   $("exportCatalogueCsv")?.addEventListener("click",exportCatalogueCsv);
    $("bulkProductCsv").addEventListener("change",previewCsv);
    $("bulkProductsStart").addEventListener("click",importDrafts);
    $("bulkProductsCancel").addEventListener("click",()=>{importCancelled=true;message("bulkProgress","Stopping after the current batch…");});
