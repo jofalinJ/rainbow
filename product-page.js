@@ -11,7 +11,7 @@
  if(!sku||sku.length>100){showError("This design link is incomplete. Browse available jewellery instead.");return;}
  if(!window.supabase?.createClient||!cfg.supabaseUrl||!cfg.supabasePublishableKey){showError("Catalogue temporarily unavailable. Please try again later.");return;}
  const client=window.supabase.createClient(cfg.supabaseUrl,cfg.supabasePublishableKey);
- const fields="id,product_code,product_name,type,selling_price,description,active,length_cm,thickness,gold_amount_g,product_images(public_url,is_primary,sort_order),product_variants(id,stock_quantity,color,size,length_cm,active)";
+ const fields="id,product_code,product_name,type,selling_price,description,active,length_cm,thickness,gold_amount_g,product_images(public_url,storage_path,is_primary,sort_order),product_variants(id,stock_quantity,color,size,length_cm,active)";
  const imagesOf=p=>(p.product_images||[]).filter(i=>i.public_url).sort((a,b)=>Number(Boolean(b.is_primary))-Number(Boolean(a.is_primary))||Number(a.sort_order||0)-Number(b.sort_order||0)).slice(0,5);
  const inStock=p=>(p.product_variants||[]).filter(v=>v.active!==false&&Number(v.stock_quantity)>0);
  const variantLabel=v=>[v.color&&v.color!=="0"?"Colour: "+v.color:"",v.size&&v.size!=="0"?"Size: "+v.size:"",v.length_cm?"Length: "+v.length_cm+" cm":""].filter(Boolean).join(" · ")||"Standard";
