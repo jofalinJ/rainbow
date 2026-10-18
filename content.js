@@ -1016,6 +1016,7 @@
   }
 
   function scheduleCatalogRefresh(){
+    if(document.visibilityState==="hidden")return;
     if(realtimeRefreshTimer)window.clearTimeout(realtimeRefreshTimer);
     realtimeRefreshTimer=window.setTimeout(()=>{
       realtimeRefreshTimer=null;
@@ -1100,7 +1101,8 @@
     await loadProducts();
     startRealtime();
     // Fallback refresh keeps the catalogue current even if realtime is temporarily unavailable.
-    refreshInterval=window.setInterval(scheduleCatalogRefresh,30000);
+    refreshInterval=window.setInterval(scheduleCatalogRefresh,120000);
+    document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")scheduleCatalogRefresh();});
     window.addEventListener("pagehide",()=>{
       if(refreshInterval)window.clearInterval(refreshInterval);
       if(promotionTimer)window.clearInterval(promotionTimer);
