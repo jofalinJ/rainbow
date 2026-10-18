@@ -21,8 +21,8 @@
    try{localStorage.setItem(KEY,enabled?"granted":"denied");}catch{}
    document.getElementById("analyticsPreference")?.remove();
  }
- function render(){
-   if(prefs()!==null||!document.body)return;
+ function render(force=false){
+   if((prefs()!==null&&!force)||!document.body||document.getElementById("analyticsPreference"))return;
    const banner=document.createElement("section");
    banner.id="analyticsPreference";banner.className="analytics-preference";
    banner.setAttribute("aria-label","Optional website analytics");
@@ -32,6 +32,6 @@
    const no=document.createElement("button");no.type="button";no.textContent="No thanks";no.addEventListener("click",()=>choose("denied"));
    banner.append(text,allow,no);document.body.append(banner);
  }
- root.RainbowAnalytics={track,consent:choose,enabled:()=>enabled};
+ root.RainbowAnalytics={track,consent:choose,enabled:()=>enabled,showSettings:()=>render(true)};
  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",render,{once:true});else render();
 })(window);
