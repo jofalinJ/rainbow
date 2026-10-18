@@ -1019,49 +1019,115 @@
     },{passive:true});
   }
 
+  function pageFilters(){
+    const selected=catalogueCategories.find(x=>normalizeCategory(x.name)===normalizeCategory(activeCategory));
+    return {
+      search:visualSearchSignature?"":activeSearch,
+      categoryId:activeCategory?(selected?.id||"00000000-0000-0000-0000-000000000000"):null,
+      segment:activeSegment,sort:catalogueSort,
+      minPrice:filterState.minPrice,maxPrice:filterState.maxPrice,
+      color:filterState.color,size:filterState.size,length:filterState.length,
+      wishlistIds:wishlistOnly?[...wishlistIds]:undefined
+    };
+  }
+  function renderPager(categoryLanding=false){
+    const pager=document.getElementById("cataloguePager"),status=document.getElementById("cataloguePageStatus");
+    const button=document.getElementById("loadMoreProducts");
+    if(!pager||!button||!status)return;
+    pager.hidden=categoryLanding||(!paging.hasMore&&!paging.error&&!paging.loading&&paging.offset===0);
+    if(pager.hidden)return;
+    status.textContent=paging.error?"Unable to load designs: "+paging.error
+      :paging.loading?"Loading jewellery…"
+      :"Showing "+catalogueProducts.length+" of "+paging.total+" available designs.";
+    button.hidden=!paging.hasMore&&!paging.error;
+    button.disabled=paging.loading;
+    button.textContent=paging.error?"Retry loading":paging.loading?"Loading…":"Load more jewellery";
+  }
+  async function loadMoreProducts(manual=false){
+    if(!client||!catalogue||paging.loading||(!paging.hasMore&&!paging.error))return;
+    const epoch=paging.epoch;
+    paging.loading=true;paging.error="";renderPager(false);
+    try{
+      const response=await catalogue.page(client,{...pageFilters(),offset:paging.offset,limit:catalogue.PAGE_SIZE});
+      if(epoch!==paging.epoch)return;
+      const known=new Set(catalogueProducts.map(product=>String(product.id)));
+      for(const product of response.items){
+        if(!known.has(String(product.id))){catalogueProducts.push(product);known.add(String(product.id));}
+      }
+      paging.offset+=response.items.length;
+      paging.total=response.total;
+      paging.hasMore=response.hasMore&&response.items.length>0;
+      if(!manual)paging.autoPages++;
+      syncShopFilters();
+      render();renderPromotion();
+    }catch(error){
+      if(epoch!==paging.epoch)return;
+      console.warn("Catalogue page failed",error);
+      paging.error="Check your connection and retry.";
+      const state=document.getElementById("productStatus");
+      if(state)state.textContent="Could not load jewellery right now.";
+    }finally{
+      if(epoch===paging.epoch){paging.loading=false;renderPager(false);}
+    }
+  }
+  function resetCatalogue(){
+    paging.epoch++;paging.offset=0;paging.total=0;paging.loading=false;paging.error="";
+    paging.hasMore=true;paging.autoPages=0;
+    catalogueProducts=[];visibleProducts=[];render();
+    return loadMoreProducts();
+  }
+  function bindCataloguePaging(){
+    document.getElementById("loadMoreProducts")?.addEventListener("click",()=>loadMoreProducts(true));
+    const sentinel=document.getElementById("catalogueSentinel");
+    if(sentinel&&"IntersectionObserver" in window){
+      loaderObserver=new IntersectionObserver(entries=>{
+        if(!entries.some(entry=>entry.isIntersecting))return;
+        if(paging.autoPages<8&&paging.hasMore&&!paging.loading&&!paging.error&&
+           !visualSearchSignature&&!document.getElementById("cataloguePager")?.hidden){
+          loadMoreProducts();
+        }
+      },{rootMargin:"450px 0px",threshold:0});
+      loaderObserver.observe(sentinel);
+    }
+  }
   function scheduleCatalogRefresh(){
     if(document.visibilityState==="hidden")return;
     if(realtimeRefreshTimer)window.clearTimeout(realtimeRefreshTimer);
     realtimeRefreshTimer=window.setTimeout(()=>{
       realtimeRefreshTimer=null;
+      // Keep a scrolled catalogue stable. Checkout always checks the authoritative stock.
+      if(paging.offset>catalogue.PAGE_SIZE)return;
       loadProducts();
-    },250);
+    },400);
   }
-
   async function loadProducts(){
-    if(productsLoading){productsReloadRequested=true;return;}
-    productsLoading=true;
+    if(metadataLoading)return;
+    metadataLoading=true;
     const status=document.getElementById("productStatus");
     try{
-      const [productsResult,categoriesResult,promotionResult]=await Promise.all([
-        client.from("products")
-          .select("id,product_code,product_name,type,gender,display_priority,category_id,categories(name,storefront_order,show_in_storefront),selling_price,description,length_cm,thickness,gold_amount_g,created_at,product_variants(id,stock_quantity,color,size,length_cm,active),product_images(id,public_url,is_primary,sort_order)")
-          .eq("active",true).order("display_priority",{ascending:false}).order("created_at",{ascending:false}),
-        client.from("categories").select("name,storefront_order,show_in_storefront").eq("active",true).order("storefront_order",{ascending:true}).order("name",{ascending:true}),
-        client.from("storefront_promotion_items").select("product_id,display_order").order("display_order",{ascending:true})
+      if(!catalogue)throw new Error("Catalogue discovery module was not loaded.");
+      const [categoriesResult,promotionResult]=await Promise.all([
+        client.from("categories").select("id,name,storefront_order,show_in_storefront")
+          .eq("active",true).order("storefront_order",{ascending:true}).order("name",{ascending:true}),
+        client.from("storefront_promotion_items").select("product_id,display_order").order("display_order",{ascending:true}).limit(8)
       ]);
-      if(productsResult.error)throw productsResult.error;
-      if(categoriesResult.error){
-        console.warn("Product types could not be loaded.",categoriesResult.error);
-        catalogueCategories=[];
-      }else catalogueCategories=Array.isArray(categoriesResult.data)?categoriesResult.data:[];
-      if(promotionResult.error)console.warn("Promotional banner selection unavailable.",promotionResult.error);
-      promotionProductIds=Array.isArray(promotionResult.data)
-        ?promotionResult.data.map(item=>String(item.product_id)):[];
-      const stockedProducts=(productsResult.data||[]).filter(product=>getStock(product)>0);
-      catalogueProducts=stockedProducts;
-      syncShopFilters();
+      if(categoriesResult.error)throw categoriesResult.error;
+      catalogueCategories=categoriesResult.data||[];
+      promotionProductIds=promotionResult.error?[]:(promotionResult.data||[]).map(p=>String(p.product_id));
+      const [latestResult,promotionResultPage]=await Promise.all([
+        catalogue.page(client,{sort:"newest",limit:4}),
+        promotionProductIds.length?catalogue.page(client,{wishlistIds:promotionProductIds,limit:8})
+          :Promise.resolve({items:[]})
+      ]);
+      newestProducts=latestResult.items;
+      promotionProducts=promotionResultPage.items;
       renderLatestArrivals();
-      if(activeProductId&&!stockedProducts.some(product=>String(product.id)===String(activeProductId)))closeProductModal();
-      render();
       renderPromotion();
+      await resetCatalogue();
     }catch(error){
-      console.error(error);
-      if(status)status.textContent="Products are temporarily unavailable.";
-    }finally{
-      productsLoading=false;
-      if(productsReloadRequested){productsReloadRequested=false;scheduleCatalogRefresh();}
-    }
+      console.warn("Catalogue metadata unavailable",error);
+      if(status)status.textContent="Products are temporarily unavailable. Please try again.";
+    }finally{metadataLoading=false;}
   }
   function startRealtime(){
     if(!client||realtimeChannel)return;
@@ -1095,6 +1161,7 @@
     }
     bindCollectionFilters();
     bindAdvancedFilters();
+    bindCataloguePaging();
     bindHeaderActions();
     document.querySelectorAll("[data-scroll]").forEach(button=>button.addEventListener("click",()=>{
       document.querySelector(button.dataset.scroll)?.scrollIntoView({behavior:scrollBehavior});
@@ -1113,6 +1180,7 @@
       stopGalleryRotation();
       if(realtimeRefreshTimer)window.clearTimeout(realtimeRefreshTimer);
       if(client&&realtimeChannel)client.removeChannel(realtimeChannel);
+      if(loaderObserver)loaderObserver.disconnect();
       realtimeChannel=null;
     },{once:true});
   }
