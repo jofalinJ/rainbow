@@ -23,7 +23,7 @@ describe("unified billing and inventory staff", () => {
     expect(sql).toContain("if v_actor is null or not exists(");
   });
   it("only offers one Staff role and removes role-changing controls", () => {
-    expect(staffHtml).toContain('<option value="cashier">Staff — Billing &amp; Inventory</option>');
+    expect(staffHtml).toContain('<option value="cashier">Staff</option>');
     expect(staffHtml).not.toContain('<option value="inventory_staff">');
     expect(staffJs).not.toContain("data-role-user");
     expect(staffJs).not.toContain("changeRole(");

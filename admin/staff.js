@@ -58,7 +58,7 @@ function renderStaff(staff){
           ? "<span class='muted'>Protected</span>"
           : "<div class='staff-action-group'>"+
               "<button type='button' data-action='toggle' data-user-id='"+escapeHtml(s.user_id)+"' data-active='"+(!s.active)+"'>"+(s.active?"Deactivate":"Activate")+"</button>"+
-              "<button type='button' data-testid='delete-staff' class='danger-button' data-action='delete' data-user-id='"+escapeHtml(s.user_id)+"' data-username='"+escapeHtml(s.username||s.full_name||"staff")+"'>Delete</button>"+
+              "<button type='button' data-testid='delete-staff' class='danger-button' data-action='delete' data-user-id='"+escapeHtml(s.user_id)+"' data-username='"+escapeHtml(s.username||s.full_name||"staff")+"'>Remove</button>"+
             "</div>"
         )+
       "</td>"+
@@ -70,7 +70,8 @@ async function loadStaff(){
   try{
     const {data,error}=await bootSupabase()
       .from("staff_profiles")
-      .select("user_id,full_name,username,role,active,created_at,photo_path")
+      .select("user_id,full_name,username,role,active,created_at,photo_path,archived_at")
+      .is("archived_at",null)
       .order("created_at",{ascending:true});
 
     if(error)throw new Error(error.message);
@@ -169,7 +170,7 @@ async function deleteStaff(userId,username){
   if(deletingUserId)return;
 
   const label=username||"this staff account";
-  if(!confirm("Delete "+label+" permanently? This removes the staff login and staff profile. This cannot be undone."))return;
+  if(!confirm("Remove "+label+" from staff? Their login will be blocked and they will disappear from the staff list. Previous orders, stock records and attendance are preserved."))return;
 
   deletingUserId=userId;
 
@@ -192,7 +193,7 @@ async function deleteStaff(userId,username){
 
     const msg=document.querySelector("#formMsg");
     if(msg){
-      msg.textContent="Staff account deleted.";
+      msg.textContent="Staff access removed. Past orders and inventory records have been preserved.";
       msg.className="form-msg success";
     }
 

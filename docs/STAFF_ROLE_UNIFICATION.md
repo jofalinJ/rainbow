@@ -24,3 +24,11 @@ where tgrelid = 'public.staff_profiles'::regclass
 ```
 
 Existing inventory-only staff get expanded billing permissions **by design**. Do not deploy this change without accepting that access expansion. The migration does not delete accounts, products, invoices or historical records. Rolling back the frontend does **not** safely reverse these expanded permissions; a rollback requires a separately reviewed security migration and staff-role decisions.
+
+## Safe staff removal (with order and inventory history)
+
+Historical order, stock and payment records can reference `auth.users` without `ON DELETE CASCADE`, so deleting a login fails when it was used in a sale. The admin **Remove** button calls the existing `delete-staff-user` Edge Function, but now archives the account (`active=false`, `archived_at` set) and bans sign-in for 100 years. Non-admin data access remains blocked by RLS even with an unexpired token. The account disappears from the active staff list, but sales and stock records preserve the original employee ID.
+
+Apply `20261018224500_archive_removed_staff.sql` before deploying the new Edge Function and frontend. **Deactivate** is for temporary inactivity; **Remove** is an archived employee and isn't restored by the UI. Names/usernames remain reserved while archived. Use a separately reviewed admin-only restore workflow if recovery is needed.
+
+Verify using a test user with a test order: remove the test user, confirm login is rejected and the user is hidden from staff management, and confirm the order's `created_by` and stock ledger `created_by` are unchanged.
