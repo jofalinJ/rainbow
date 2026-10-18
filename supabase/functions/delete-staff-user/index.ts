@@ -15,25 +15,6 @@ const json = (data: unknown, status = 200) =>
 const isUuid = (value: string) =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 
-async function collectFiles(storage: any, prefix: string, depth = 0): Promise<string[]> {
-  if (depth > 5) throw new Error("Staff photo folder nesting is invalid.");
-  const files: string[] = [];
-  let offset = 0;
-  while (true) {
-    const { data, error } = await storage.from("staff-private").list(prefix, { limit: 100, offset });
-    if (error) throw error;
-    const entries = data || [];
-    for (const entry of entries) {
-      const path = prefix + "/" + entry.name;
-      if (entry.id) files.push(path);
-      else files.push(...await collectFiles(storage, path, depth + 1));
-    }
-    if (entries.length < 100) break;
-    offset += entries.length;
-  }
-  return files;
-}
-
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -85,39 +66,34 @@ Deno.serve(async (req) => {
       return json({ error: "Admin accounts are protected and cannot be deleted here." }, 403);
     }
 
-    try {
-      const photos = [
-        ...await collectFiles(admin.storage, "profiles/" + targetUserId),
-        ...await collectFiles(admin.storage, "attendance/" + targetUserId)
-      ];
-      for (let offset = 0; offset < photos.length; offset += 100) {
-        const { error } = await admin.storage.from("staff-private").remove(photos.slice(offset, offset + 100));
-        if (error) throw error;
-      }
-    } catch (photoError) {
-      console.error("Private staff photo cleanup failed:", photoError);
-      return json({ error: "Private staff photos could not be removed; the account was not deleted." }, 500);
-    }
-
-    const { error: authDeleteError } = await admin.auth.admin.deleteUser(targetUserId);
-    if (authDeleteError) return json({ error: "Could not delete the staff login." }, 500);
-
-    const { error: profileDeleteError } = await admin
+    // Preserve historical orders and stock audit attribution: never delete auth.users.
+    const { data: archived, error: archiveError } = await admin
       .from("staff_profiles")
-      .delete()
-      .eq("user_id", targetUserId);
+      .update({ active: false, archived_at: new Date().toISOString() })
+      .eq("user_id", targetUserId)
+      .neq("role", "admin")
+      .select("user_id")
+      .maybeSingle();
 
-    if (profileDeleteError) {
-      return json({
-        error: "The login was removed, but the staff profile could not be removed. Contact an administrator."
-      }, 500);
+    if (archiveError || !archived) {
+      return json({ error: "Could not remove staff access. No account was deleted." }, 500);
     }
 
-    return json({
-      success: true,
-      user_id: targetUserId,
-      username: target.username
-    });
+    // active=false prevents data access even with an existing JWT.
+    // Ban future password sign-ins as an additional protection.
+    const { error: banError } = await admin.auth.admin.updateUserById(
+      targetUserId,
+      { ban_duration: "876000h" }
+    );
+    if (banError) {
+      console.error("Staff sign-in ban failed after access was revoked:", banError);
+      return json({
+        success: true,
+        archived: true,
+        warning: "Staff data access is disabled, but the sign-in ban needs admin follow-up."
+      });
+    }
+    return json({ success: true, archived: true, user_id: targetUserId, username: target.username });
   } catch (error) {
     return json({
       error: error instanceof Error ? error.message : "Could not delete staff."

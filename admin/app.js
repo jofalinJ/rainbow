@@ -9,12 +9,12 @@ async function getMyProfile(){const user=await getAuthUser();const {data,error}=
 async function sb(path,options={}){const session=await requireSession();const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),15000);try{const r=await fetch(SUPABASE_URL+"/rest/v1/"+path,{...options,headers:{apikey:SUPABASE_ANON_KEY,Authorization:"Bearer "+session.access_token,"Content-Type":"application/json",...(options.headers||{})},signal:controller.signal});const body=await r.text();if(!r.ok)throw new Error(body||("Request failed: "+r.status));if(!body.trim())return null;return JSON.parse(body);}catch(e){if(e.name==="AbortError")throw new Error("Supabase request timed out. Check your connection.");throw e;}finally{clearTimeout(timer);}}
 const ADMIN_NAV_ITEMS=[
   {label:"Dashboard",href:"index.html",roles:["admin"]},
-  {label:"Products",href:"products.html",roles:["admin","inventory_staff"]},
-  {label:"Inventory",href:"inventory.html",roles:["admin","inventory_staff"]},
-  {label:"Bills",href:"bills.html",roles:["admin","cashier"]},
-  {label:"Orders",href:"orders.html",roles:["admin","cashier"]},
-  {label:"Billing",href:"billing.html",roles:["admin","cashier"]},
-  {label:"Customers",href:"customers.html",roles:["admin","cashier"]},
+  {label:"Products",href:"products.html",roles:["admin","cashier","inventory_staff"]},
+  {label:"Inventory",href:"inventory.html",roles:["admin","cashier","inventory_staff"]},
+  {label:"Bills",href:"bills.html",roles:["admin","cashier","inventory_staff"]},
+  {label:"Orders",href:"orders.html",roles:["admin","cashier","inventory_staff"]},
+  {label:"Billing",href:"billing.html",roles:["admin","cashier","inventory_staff"]},
+  {label:"Customers",href:"customers.html",roles:["admin","cashier","inventory_staff"]},
   {label:"Reports",href:"reports.html",roles:["admin"]},
   {label:"Staff",href:"staff.html",roles:["admin"]},
   {label:"My Attendance",href:"my-attendance.html",roles:["cashier","inventory_staff"]},
@@ -55,7 +55,7 @@ function renderAuthorizedSidebar(profile,allowedItems){
     label.textContent=profile.full_name||profile.username||"Staff";
     const line=document.createElement("br");
     const role=document.createElement("small");
-    role.textContent=profile.role==="admin"?"Admin":profile.role==="cashier"?"Cashier":"Inventory Staff";
+    role.textContent=profile.role==="admin"?"Admin":"Staff";
     user.prepend(label,line,role);
   }
 }
@@ -67,7 +67,7 @@ async function applyRoleNavigation(){
     const allowedItems=ADMIN_NAV_ITEMS.filter(item=>item.roles.includes(p.role));
     const page=(location.pathname.split("/").pop()||"index.html").toLowerCase();
     if(!allowedItems.some(item=>item.href===page)){
-      location.href=p.role==="admin"?"index.html":p.role==="inventory_staff"?"products.html":"billing.html";
+      location.href=p.role==="admin"?"index.html":"billing.html";
       return null;
     }
     renderAuthorizedSidebar(p,allowedItems);

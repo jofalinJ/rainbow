@@ -91,18 +91,19 @@ describe("shared admin sidebar", () => {
     expect(user.children.some(child => child.textContent === "Checking access…")).toBe(false);
   });
 
-  it("only publishes inventory staff links after verification", async () => {
-    const { aside, verify } = sidebarFor("inventory_staff", "inventory.html");
+  it.each(["inventory_staff", "cashier"])("gives %s the same combined staff navigation", async role => {
+    const { aside, verify } = sidebarFor(role, "inventory.html");
     await verify();
     const nav = aside.querySelector("nav");
-    expect(nav.children.map(child => child.textContent)).toEqual(["Products", "Inventory", "My Attendance"]);
+    expect(nav.children.map(child => child.textContent)).toEqual([
+      "Products", "Inventory", "Bills", "Orders", "Billing", "Customers", "My Attendance"
+    ]);
     expect(nav.children.find(child => child.getAttribute("aria-current") === "page")?.textContent).toBe("Inventory");
-    const user = aside.querySelector(".user");
-    expect(user.children.find(child => child.tagName === "small")?.textContent).toBe("Inventory Staff");
+    expect(aside.querySelector(".user").children.find(child => child.tagName === "small")?.textContent).toBe("Staff");
   });
 
-  it("never displays admin-only links when a cashier opens an unauthorized page", async () => {
-    const { aside, location, verify } = sidebarFor("cashier", "inventory.html");
+  it.each(["inventory_staff", "cashier"])("blocks %s from admin-only staff management", async role => {
+    const { aside, location, verify } = sidebarFor(role, "staff.html");
     await verify();
     expect(aside.querySelector("nav").children).toHaveLength(0);
     expect(location.href).toBe("billing.html");

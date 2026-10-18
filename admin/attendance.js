@@ -55,7 +55,7 @@ function attendanceInitials(profile){
   return name.split(/\s+/).filter(Boolean).slice(0,2).map(part=>part[0].toUpperCase()).join("")||"S";
 }
 function attendanceRole(role){
-  return String(role||"Staff").split("_").map(part=>part.charAt(0).toUpperCase()+part.slice(1)).join(" ");
+  return role==="admin"?"Admin":"Staff";
 }
 function attendanceRelation(value){return Array.isArray(value)?(value[0]||{}):(value||{});}
 function setAttendanceMessage(id,message,kind){
@@ -404,7 +404,7 @@ async function bootAttendance(){
     attendanceClient=bootSupabase();
     const profile=await getMyProfile();
     if(!profile.active||profile.role!=="admin"){
-      location.href=profile.role==="inventory_staff"?"products.html":"billing.html";
+      location.href="billing.html";
       throw new Error("Admin access required for attendance.");
     }
     await loadDaily();
