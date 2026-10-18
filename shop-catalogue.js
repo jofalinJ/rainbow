@@ -17,12 +17,12 @@
    }
    if(filters.categoryId)query=query.eq("category_id",filters.categoryId);
    if(filters.segment==="men")query=query.in("gender",["male","unisex"]);
-   if(filters.segment==="women")query=query.or("gender.eq.women,gender.eq.unisex,gender.is.null");
+   if(filters.segment==="women")query=query.in("gender",["women","unisex"]);
    const min=finitePrice(filters.minPrice),max=finitePrice(filters.maxPrice);
    if(min!==null)query=query.gte("selling_price",min);
    if(max!==null)query=query.lte("selling_price",max);
-   if(filters.color)query=query.eq("product_variants.color",String(filters.color));
-   if(filters.size)query=query.eq("product_variants.size",String(filters.size));
+   if(filters.color)query=query.ilike("product_variants.color",String(filters.color).replace(/[%_,()]/g,""));
+   if(filters.size)query=query.ilike("product_variants.size",String(filters.size).replace(/[%_,()]/g,""));
    if(filters.length!==" "&&filters.length!==""&&filters.length!=null&&Number.isFinite(Number(filters.length))&&Number(filters.length)>0){
      query=query.eq("product_variants.length_cm",Number(filters.length));
    }
