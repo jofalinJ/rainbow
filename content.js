@@ -251,12 +251,28 @@
   function bindAdvancedFilters(){
     const form=document.getElementById("shopFilters");if(!form)return;
     form.addEventListener("submit",event=>event.preventDefault());
-    const mobileToggle=document.getElementById("mobileFiltersToggle");
-    mobileToggle?.addEventListener("click",()=>{
-      const expanded=form.classList.toggle("is-open");
-      mobileToggle.setAttribute("aria-expanded",String(expanded));
-      const symbol=mobileToggle.querySelector('[aria-hidden="true"]');
-      if(symbol)symbol.textContent=expanded?"−":"+";
+    // Move the SAME live form between desktop sidebar and mobile hamburger drawer.
+    // Moving nodes preserves values, listeners, and avoids duplicate field IDs.
+    const desktopHost=document.getElementById("desktopFilterHost");
+    const drawerHost=document.getElementById("drawerFilterHost");
+    const breakpoint=window.matchMedia?.("(max-width: 800px)");
+    if(desktopHost&&drawerHost&&breakpoint){
+      const placeFilters=()=>{
+        const mobile=breakpoint.matches;
+        const target=mobile?drawerHost:desktopHost;
+        if(form.parentElement!==target)target.appendChild(form);
+        const menuToggle=document.getElementById("menuToggle");
+        if(menuToggle)menuToggle.setAttribute("aria-label",
+          mobile?"Open navigation and jewellery filters":"Open navigation");
+        if(!mobile&&document.getElementById("shopDrawer")?.classList.contains("is-open"))closeShopDrawer();
+      };
+      placeFilters();
+      if(breakpoint.addEventListener)breakpoint.addEventListener("change",placeFilters);
+      else breakpoint.addListener?.(placeFilters);
+    }
+    document.getElementById("drawerFilterResults")?.addEventListener("click",()=>{
+      closeShopDrawer();
+      document.getElementById("products")?.scrollIntoView({behavior:scrollBehavior,block:"start"});
     });
     const fields=[["catalogMinPrice","minPrice"],["catalogMaxPrice","maxPrice"],["catalogColor","color"],["catalogSize","size"],["catalogLength","length"]];
     for(const [id,key] of fields)document.getElementById(id)?.addEventListener("change",event=>{
