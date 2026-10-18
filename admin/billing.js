@@ -119,7 +119,7 @@ async function sendBillWhatsAppPdf(data,items,phone,customerName){
     const response=await fetch(SUPABASE_URL+"/functions/v1/send-whatsapp-bill",{
       method:"POST",
       headers:{apikey:SUPABASE_ANON_KEY,Authorization:"Bearer "+session.access_token,"Content-Type":"application/json"},
-      body:JSON.stringify({invoice_token:data.public_token,pdf_base64:pdfBase64,filename:"JJ-GOLD-COVERING-"+data.invoice_number+".pdf"})
+      body:JSON.stringify({invoice_token:data.public_token,pdf_base64:pdfBase64,filename:"RAINBOW-GOLD-COVERING-"+data.invoice_number+".pdf"})
     });
     const result=await response.json().catch(()=>({}));
     if(!response.ok)throw new Error(result.error||"WhatsApp bill could not be sent.");
