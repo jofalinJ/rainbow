@@ -61,6 +61,10 @@ test("customer mobile navigation opens and closes with accessible state", async 
     const toggle = await driver.findElement(By.css("#menuToggle"));
     await toggle.click();
     assert.equal(await toggle.getAttribute("aria-expanded"), "true");
+    const drawer=await driver.findElement(By.css("#shopDrawer"));
+    await driver.wait(async () => driver.executeScript(drawer => {
+      return Math.abs(drawer.getBoundingClientRect().left)<1;
+    }, drawer), 5000);
     await driver.findElement(By.css("#drawerClose")).click();
     assert.equal(await toggle.getAttribute("aria-expanded"), "false");
   });

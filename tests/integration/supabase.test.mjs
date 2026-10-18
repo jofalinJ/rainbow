@@ -16,10 +16,7 @@ describe("isolated Supabase integration", () => {
     expect(url).not.toBe(productionUrl);
   });
 
-  it("can read the core ecommerce schema", async () => {
-    if(!url||!key){
-      return;
-    }
+  it.skipIf(!url||!key)("can read the core ecommerce schema", async () => {
     const client=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}});
     const checks=[
       ["products","id"],
