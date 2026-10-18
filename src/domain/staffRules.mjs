@@ -1,5 +1,5 @@
 const USERNAME_PATTERN = /^[a-z0-9._-]{3,30}$/;
-const ALLOWED_ROLES = new Set(["cashier", "inventory_staff"]);
+const ALLOWED_ROLES = new Set(["cashier"]);
 
 export function validateStaffCreation(input) {
   const name = String(input?.name ?? "").trim();

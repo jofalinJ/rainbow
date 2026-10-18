@@ -51,10 +51,7 @@ function renderStaff(staff){
       "<td><b>"+escapeHtml(s.full_name||"—")+"</b></td>"+
       "<td class='muted'>"+escapeHtml(s.username||"—")+"</td>"+
       "<td><div class='staff-photo-cell'>"+photo+"<label class='staff-photo-upload'>Change photo<input type='file' data-profile-photo='"+escapeHtml(s.user_id)+"' accept='image/jpeg,image/png,image/webp' capture='user'></label></div></td>"+
-      "<td><select data-role-user='"+escapeHtml(s.user_id)+"' "+(isAdmin?"disabled":"")+">"+
-        "<option value='cashier' "+(s.role==="cashier"?"selected":"")+">Cashier</option>"+
-        "<option value='inventory_staff' "+(s.role==="inventory_staff"?"selected":"")+">Inventory Staff</option>"+
-      "</select></td>"+
+      "<td><span class='muted'>"+(isAdmin?"Admin":"Staff")+"</span></td>"+
       "<td><span class='status "+statusClass+"'>"+statusLabel+"</span></td>"+
       "<td class='staff-actions'>"+
         (isAdmin
@@ -155,17 +152,6 @@ async function createStaff(e){
   }
 }
 
-async function changeRole(userId,role){
-  try{
-    const {error}=await bootSupabase().from("staff_profiles").update({role}).eq("user_id",userId);
-    if(error)throw new Error(error.message);
-    await loadStaff();
-  }catch(e){
-    alert("Could not change role: "+e.message);
-    await loadStaff();
-  }
-}
-
 async function toggleStaff(userId,active){
   if(!confirm(active?"Activate this staff account?":"Deactivate this staff account?"))return;
 
@@ -236,8 +222,6 @@ function bindStaffTable(){
       });
       return;
     }
-    const select=e.target.closest("select[data-role-user]");
-    if(select)changeRole(select.dataset.roleUser,select.value);
   });
 
   rows.addEventListener("click",e=>{
