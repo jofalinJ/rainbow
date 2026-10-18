@@ -102,7 +102,7 @@ function startDashboardLiveUpdates(){
   window.addEventListener("pagehide",()=>{if(dashboardRefreshTimer)clearTimeout(dashboardRefreshTimer);if(dashboardPollTimer)clearInterval(dashboardPollTimer);if(dashboardLiveChannel)client.removeChannel(dashboardLiveChannel);},{once:true});
 }
   // Staff app installation only: pages remain authenticated and require online APIs.
-  if("serviceWorker" in navigator&&window.isSecureContext){
+  if(typeof navigator!=="undefined"&&"serviceWorker" in navigator&&window.isSecureContext&&document.head){
     const link=document.createElement("link");link.rel="manifest";link.href="manifest.webmanifest";document.head.append(link);
     const script=document.createElement("script");script.src="pwa.js";document.head.append(script);
   }
