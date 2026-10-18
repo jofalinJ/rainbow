@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#8f1520">
+<title>Jewellery details | Rainbow Gold Covering</title>
+<meta name="description" content="Explore Rainbow Gold Covering jewellery designs, availability, price and selected options.">
+<link rel="icon" type="image/png" href="assets/brand/rainbow-logo.png">
+<link rel="stylesheet" href="content.css?v=20261018"><link rel="stylesheet" href="product-page.css?v=20261018">
+<script src="config.js"></script><script defer src="analytics.js?v=20261018"></script>
+</head>
+<body>
+<a href="#main" class="skip-link">Skip to product details</a>
+<header class="topbar"><nav class="nav container" aria-label="Product navigation">
+<a class="logo" href="index.html"><img src="assets/brand/rainbow-logo.png" width="42" height="42" alt=""><span><strong>RAINBOW</strong><small>GOLD COVERING</small></span></a>
+<a class="btn btn-light" href="index.html#products">← Browse jewellery</a>
+<a class="btn btn-light" href="order.html">My bag <span id="detailCartCount"></span></a>
+</nav></header>
+<main id="main" class="container detail-page">
+<nav class="product-crumb" aria-label="Breadcrumb"><a href="index.html">Home</a> › <a href="index.html#products">Jewellery</a> › <span id="crumbName">Product</span></nav>
+<div id="productLoading" role="status" aria-live="polite">Loading the latest product details…</div>
+<div id="productError" class="product-error" role="alert" hidden></div>
+<article id="productDetail" class="detail-grid" hidden>
+<section aria-label="Product photographs"><div class="detail-main-image"><img id="detailMainImage" alt="" width="720" height="720" fetchpriority="high"></div><div id="detailThumbnails" class="detail-thumbnails" aria-label="Other product photographs"></div></section>
+<section class="detail-info"><span class="section-kicker" id="detailCategory">RAINBOW JEWELLERY</span><h1 id="detailName"></h1>
+<p class="detail-code">Design code <strong id="detailSku"></strong></p>
+<div class="detail-price-row"><strong id="detailPrice"></strong><span id="detailStock" aria-live="polite"></span></div>
+<p id="detailDescription"></p>
+<dl id="detailSpecs" class="detail-specs"></dl>
+<label class="detail-picker-label" for="detailVariant">Choose option</label>
+<select id="detailVariant" class="detail-picker"></select>
+<label class="detail-picker-label" for="detailQty">Quantity</label>
+<input type="number" id="detailQty" class="detail-picker" min="1" step="1" value="1" inputmode="numeric">
+<div class="detail-buttons"><button id="detailAdd" class="btn btn-dark" type="button">Add to bag</button><button id="detailBuy" class="btn btn-light" type="button">Buy now</button><button id="detailShare" class="btn btn-light" type="button">Share design</button></div>
+<p id="detailMessage" aria-live="polite"></p>
+<details class="detail-help"><summary>General care guidance</summary><p>Keep jewellery dry when practical, store pieces separately and wipe gently with a soft cloth. Avoid sprays and harsh cleaners. Ask the shop about the actual composition and care needs of your chosen design.</p></details><div class="detail-help"><h2>Need help choosing?</h2><p>Ask Rainbow Gold Covering about the design, measurements, care or delivery arrangements.</p><a id="detailWhatsApp" href="https://wa.me/919952436899" target="_blank" rel="noopener noreferrer">Ask on WhatsApp ↗</a></div>
+</section></article>
+<section id="detailRelated" class="detail-related" hidden><h2>More designs you may like</h2><div id="detailRelatedGrid" class="detail-related-grid"></div></section>
+</main>
+<footer class="container footer"><span>Rainbow Gold Covering</span><a href="index.html#contact">Contact the store</a><a href="shipping-policy.html">Shipping information</a><a href="returns-and-refunds.html">Returns information</a><button type="button" class="footer-analytics-button" onclick="window.RainbowAnalytics?.showSettings()">Analytics settings</button></footer>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="product-page.js?v=20261018"></script>
+</body></html>

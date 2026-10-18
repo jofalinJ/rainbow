@@ -80,7 +80,7 @@ async function createAndDownloadPdf(token){
     setBillMsg("Creating PDF…");
     const data=await fetchBill(token);
     const pdf=await RainbowBillPdf.fromData(data,$bl("pdfStage"));
-    pdf.save("JJ-GOLD-COVERING-"+data.invoice_number+".pdf");
+    pdf.save("RAINBOW-GOLD-COVERING-"+data.invoice_number+".pdf");
     setBillMsg("PDF created.","success");
   }catch(e){
     console.error(e);
