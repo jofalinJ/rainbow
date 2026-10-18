@@ -8,7 +8,7 @@
  function track(event,details={}){
    if(!enabled||!allowed.has(event))return;
    const safe={};
-   for(const key of ["item_id","quantity","term","results","sort","category"]){
+   for(const key of ["item_id","quantity","results","sort","category"]){
      if(Object.prototype.hasOwnProperty.call(details,key))safe[key]=String(details[key]).slice(0,80);
    }
    // No names, phone numbers, email addresses, addresses, payment refs, or persistent user IDs.
