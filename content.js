@@ -803,8 +803,8 @@
         '<div class="product-buy-actions"><button class="btn btn-dark" type="button" data-add-cart>Add to Cart</button><button class="btn btn-light" type="button" data-buy-now>Buy Now →</button></div>'+
         '<button class="modal-wishlist-button'+(savedInWishlist?' is-saved':'')+'" type="button" data-modal-wishlist aria-pressed="'+savedInWishlist+'"><span aria-hidden="true">'+(savedInWishlist?'♥':'♡')+'</span><span>'+(savedInWishlist?'Saved to wishlist':'Save to wishlist')+'</span></button>'+
         detailsPanel+lengthGuide+
-        '<p class="product-permalink"><a href="product.html?sku='+encodeURIComponent(product.product_code||"")+'">View full details &amp; share ↗</a></p>'+
         '<div class="product-support-card"><span>Need help?</span><p>Ask us about this design, sizing, or delivery options.</p><button type="button" data-contact-store>Contact Rainbow on WhatsApp <span aria-hidden="true">↗</span></button></div>'+
+        '<p class="product-permalink"><a href="product.html?sku='+encodeURIComponent(product.product_code||"")+'">View full details &amp; share ↗</a></p>'+
       '</div></div>';
     const qtyEl=content.querySelector("[data-qty]");
     const minus=content.querySelector("[data-qty-minus]"),plus=content.querySelector("[data-qty-plus]");
