@@ -228,6 +228,21 @@
     const suggestions=document.getElementById("productSearchSuggestions");
     if(suggestions)suggestions.replaceChildren(...catalogueProducts.slice(0,120).map(p=>new Option(p.product_name)));
   }
+  function renderLatestArrivals(){
+    const section=document.getElementById("latestSection"),grid=document.getElementById("latestGrid");
+    if(!section||!grid)return;
+    const latest=[...catalogueProducts].filter(p=>getStock(p)>0&&Boolean(getImage(p)))
+      .sort((a,b)=>Date.parse(b.created_at||0)-Date.parse(a.created_at||0)).slice(0,4);
+    section.hidden=latest.length===0;
+    grid.replaceChildren();
+    latest.forEach(p=>{
+      const anchor=document.createElement("a");anchor.href="product.html?sku="+encodeURIComponent(p.product_code||"");anchor.className="latest-item";
+      const img=document.createElement("img");img.src=getImage(p);img.alt=p.product_name||"New jewellery design";img.width=320;img.height=320;img.loading="lazy";img.decoding="async";
+      const label=document.createElement("strong");label.textContent=p.product_name||"Jewellery";
+      const price=document.createElement("span");price.textContent=money(p.selling_price);
+      anchor.append(img,label,price);grid.append(anchor);
+    });
+  }
   function bindAdvancedFilters(){
     const form=document.getElementById("shopFilters");if(!form)return;
     form.addEventListener("submit",event=>event.preventDefault());
@@ -301,16 +316,16 @@
     grid.innerHTML=products.length?products.map(p=>{
       const stock=getStock(p),stockClass=stock===0?"out":"in",stockText=stock===0?"Out of stock":"In stock",image=getImage(p);
       const saved=wishlistIds.has(String(p.id));
-      return "<article class='product-card' tabindex='0' role='button' aria-label='View details for "+esc(p.product_name)+"' data-product-id='"+esc(p.id)+"'>"+
-        "<div class='product-image'>"+(image?"<img src='"+esc(image)+"' alt='"+esc(p.product_name)+"' loading='lazy'>":"<div class='placeholder'>RG</div>")+
+      return "<article class='product-card' data-product-id='"+esc(p.id)+"'>"+
+        "<div class='product-image'>"+(image?"<img src='"+esc(image)+"' alt='"+esc(p.product_name)+"' width='320' height='320' loading='lazy' decoding='async'>":"<div class='placeholder'>RG</div>")+
         "<button type='button' class='product-wishlist-button"+(saved?" is-saved":"")+"' data-wishlist-product='"+esc(p.id)+"' aria-label='"+(saved?"Remove ":"Add ")+esc(p.product_name)+(saved?" from":" to")+" wishlist' aria-pressed='"+saved+"'>"+(saved?"♥":"♡")+"</button></div>"+
         "<div class='product-body'><h3 class='product-name'>"+esc(p.product_name)+"</h3><div class='product-type'>"+esc(categoryFor(p))+"</div>"+
-        "<div class='product-meta'><strong class='product-price'>"+money(p.selling_price)+"</strong><span class='product-stock "+stockClass+"'>"+stockText+"</span></div></div></article>";
+        "<div class='product-meta'><strong class='product-price'>"+money(p.selling_price)+"</strong><span class='product-stock "+stockClass+"'>"+stockText+"</span></div><div class='product-card-actions'><button type='button' data-product-open>Quick view</button><a href='product.html?sku="+encodeURIComponent(p.product_code||"")+"'>Full details ↗</a></div></div></article>";
     }).join(""):"<div class='product-empty'>"+(wishlistOnly?"No saved items yet. Tap the heart on a product to add it to your wishlist.":activeSearch?"No products matched that search. Try another term or browse the categories.":visualSearchSignature?"No visual matches could be ranked for this image. Try a clearer photo or search by name.":activeCategory?"No "+esc(activeCategory.toLowerCase())+" products are currently in stock.":"No products are currently in stock. Please check again soon.")+"</div>";
     grid.querySelectorAll("[data-product-id]").forEach(card=>{
       const open=()=>openProductModal(catalogueProducts.find(p=>String(p.id)===String(card.dataset.productId)));
-      card.addEventListener("click",event=>{if(event.target.closest("[data-wishlist-product]"))return;open();});
-      card.addEventListener("keydown",event=>{if(event.key==="Enter"||event.key===" "){if(event.target.closest("[data-wishlist-product]"))return;event.preventDefault();open();}});
+      card.addEventListener("click",event=>{if(event.target.closest("[data-wishlist-product],a[href]"))return;open();});
+      card.querySelector("[data-product-open]")?.addEventListener("keydown",event=>{if(event.key===" "){event.preventDefault();open();}});
     });
     grid.querySelectorAll("[data-wishlist-product]").forEach(button=>button.addEventListener("click",event=>{
       event.preventDefault();event.stopPropagation();const id=String(button.dataset.wishlistProduct);
@@ -356,7 +371,7 @@
   function applyTextSearch(){
     const field=document.getElementById("siteSearch");activeSearch=String(field?.value||"").trim();
     activeCategory="";activeSegment="all";wishlistOnly=false;visualSearchSignature=null;visualSearchScores.clear();
-    render();track("search",{term:activeSearch,results:visibleProducts.length});showSearchFeedback(activeSearch?"Showing catalogue results for \""+activeSearch+"\".":"");
+    render();track("search",{results:visibleProducts.length});showSearchFeedback(activeSearch?"Showing catalogue results for \""+activeSearch+"\".":"");
     document.getElementById("products")?.scrollIntoView({behavior:scrollBehavior,block:"start"});
   }
   function colorSignature(image){
@@ -1031,6 +1046,7 @@
       const stockedProducts=(productsResult.data||[]).filter(product=>getStock(product)>0);
       catalogueProducts=stockedProducts;
       syncShopFilters();
+      renderLatestArrivals();
       if(activeProductId&&!stockedProducts.some(product=>String(product.id)===String(activeProductId)))closeProductModal();
       render();
       renderPromotion();
