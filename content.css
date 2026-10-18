@@ -1444,4 +1444,4 @@ button,.category-tile,[role="button"]{touch-action:manipulation}
 .catalogue-skeleton{height:310px;min-width:0;border-radius:14px;background:linear-gradient(110deg,#f5eee7 20%,#faf6f0 35%,#f5eee7 55%);background-size:220% 100%;animation:catalogue-pulse 1.3s infinite}
 @keyframes catalogue-pulse{to{background-position-x:-220%}}
 @media(prefers-reduced-motion:reduce){.catalogue-skeleton{animation:none}}
-.catalogue-main .product-card{content-visibility:auto;contain-intrinsic-size:auto 360px}
+.catalog-main .product-card{content-visibility:auto;contain-intrinsic-size:auto 360px}
