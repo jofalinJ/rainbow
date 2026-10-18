@@ -122,7 +122,7 @@
     const brand=document.querySelector('[data-config="brandName"]');
     const eyebrow=document.querySelector('[data-config="eyebrow"]');
     const footer=document.querySelector('[data-config="footerBrandText"]');
-    if(brand){const words=String(cfg.businessName||"Rainbow Kollam Gold Covering").trim().split(/\s+/);brand.textContent=words.slice(0,2).join(" ").toUpperCase();const sub=brand.parentElement?.querySelector("small");if(sub)sub.textContent=words.slice(2).join(" ").toUpperCase();}
+    if(brand){const words=String(cfg.businessName||"Rainbow Gold Covering").trim().split(/\s+/);brand.textContent=words.slice(0,2).join(" ").toUpperCase();const sub=brand.parentElement?.querySelector("small");if(sub)sub.textContent=words.slice(2).join(" ").toUpperCase();}
     if(eyebrow)eyebrow.textContent=(cfg.businessName||"Rainbow Gold Covering").toUpperCase()+" · "+(cfg.trustLine||"");
     if(footer)footer.textContent=cfg.businessName||"Rainbow Gold Covering";
     const branches=document.getElementById("branchList");
