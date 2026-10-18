@@ -13,8 +13,8 @@
  }
  async function assertEditor(){
    const profile=await getMyProfile();
-   if(!profile.active||!["admin","inventory_staff"].includes(profile.role))
-     throw Error("Only active administrators or inventory staff can manage catalogue imports.");
+   if(!profile.active||!["admin","cashier","inventory_staff"].includes(profile.role))
+     throw Error("Only active administrators or staff can manage catalogue imports.");
    await requireSession();
    return bootSupabase();
  }
