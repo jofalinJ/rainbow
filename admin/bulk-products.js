@@ -3,7 +3,7 @@
  "use strict";
  const $=id=>document.getElementById(id),api=window.RainbowAdminCatalogue;
  const message=(id,text)=>{if($(id))$(id).textContent=text;};
- let draftRows=[],photoJobs=[],uploadCancelled=false,importCancelled=false,importBusy=false,photoBusy=false;
+ let draftRows=[],photoJobs=[],uploadCancelled=false,importCancelled=false,importBusy=false,photoBusy=false,productPreviewEpoch=0,photoPreviewEpoch=0;
  function downloadText(name,text,mime="text/csv;charset=utf-8"){
    const blob=new Blob([text],{type:mime});
    const url=URL.createObjectURL(blob);
@@ -33,6 +33,8 @@
    "Row "+r.number+" | "+r.raw.product_code+" | "+r.raw.product_name+
    (r.issues.length?" | ⚠ "+r.issues.join("; "):" | Valid")).join("\n");
  async function previewCsv(){
+   if(importBusy)return;
+   const epoch=++productPreviewEpoch;
    const file=$("bulkProductCsv")?.files?.[0];
    draftRows=[];$("bulkProductsStart").disabled=true;$("bulkProductsConfirm").checked=false;
    if(!file)return;
@@ -41,6 +43,7 @@
      const client=await assertEditor();
      const rows=api.resolveImport(api.parseImport(await file.text()),cats);
      const found=await existingCodes(client,rows.map(r=>r.raw.product_code));
+     if(epoch!==productPreviewEpoch)return;
      for(const row of rows)if(found.has(row.raw.product_code.toLowerCase()))row.issues.push("Product code already exists");
      draftRows=rows;
      const invalid=rows.filter(row=>row.issues.length);
@@ -54,13 +57,15 @@
    if(importBusy||!draftRows.length||draftRows.some(row=>row.issues.length)||
       !$("bulkProductsConfirm").checked)return;
    importBusy=true;importCancelled=false;
+   const workingRows=draftRows.slice();
+   $("bulkProductCsv").disabled=true;
    $("bulkProductsStart").disabled=true;$("bulkProductsCancel").disabled=false;
    let created=0,variantCount=0;
    try{
      const client=await assertEditor();
-     for(let i=0;i<draftRows.length;i+=20){
+     for(let i=0;i<workingRows.length;i+=20){
        if(importCancelled)break;
-       const rows=draftRows.slice(i,i+20);
+       const rows=workingRows.slice(i,i+20);
        const found=await existingCodes(client,rows.map(r=>r.raw.product_code));
        if(found.size)throw Error("Code conflict detected in batch starting at row "+rows[0].number+
          ". Stop and revalidate; successful earlier rows remain unpublished.");
@@ -79,7 +84,7 @@
        if(result.error)throw Error("Drafts imported, but initial zero-stock variants were not created: "+result.error.message+
          ". Correct the drafts before retrying.");
        variantCount+=variants.length;
-       message("bulkProgress","Imported "+created+"/"+draftRows.length+" unpublished drafts and "+
+       message("bulkProgress","Imported "+created+"/"+workingRows.length+" unpublished drafts and "+
          variantCount+" zero-stock variants. You can stop after this batch.");
      }
      message("bulkProgress",(importCancelled?"Stopped safely. ":"Import completed. ")+
@@ -92,10 +97,12 @@
        " No existing product was overwritten. Refresh and re-preview the file.");
      draftRows=[];
    }finally{
-     importBusy=false;$("bulkProductsCancel").disabled=true;$("bulkProductsStart").disabled=true;
+     importBusy=false;$("bulkProductCsv").disabled=false;$("bulkProductsCancel").disabled=true;$("bulkProductsStart").disabled=true;
    }
  }
  async function previewPhotos(){
+   if(photoBusy)return;
+   const epoch=++photoPreviewEpoch;
    photoJobs=[];$("bulkPhotosStart").disabled=true;$("bulkPhotosConfirm").checked=false;
    const files=[...($("bulkPhotoFiles")?.files||[])];
    if(!files.length)return;
@@ -132,6 +139,7 @@
        if(error)throw error;
        results.push(...(data||[]));
      }
+     if(epoch!==photoPreviewEpoch)return;
      const lookup=new Map(results.map(p=>[p.product_code,p])),groups=new Map();
      for(const entry of mapped){
        const p=lookup.get(entry.code);
@@ -159,11 +167,13 @@
  async function uploadBatchPhotos(){
    if(photoBusy||!photoJobs.length||!$("bulkPhotosConfirm").checked)return;
    photoBusy=true;uploadCancelled=false;
+   const workingJobs=photoJobs.slice();
+   $("bulkPhotoFiles").disabled=true;
    $("bulkPhotosStart").disabled=true;$("bulkPhotosCancel").disabled=false;
    let completed=0;
    try{
      await assertEditor();
-     for(const job of photoJobs){
+     for(const job of workingJobs){
        if(uploadCancelled)break;
        const {data,error}=await bootSupabase().from("product_images")
          .select("id,sort_order,is_primary").eq("product_id",job.product.id);
@@ -175,7 +185,7 @@
          is_primary:data.length===0&&job.position===1,sort_order:job.position-1
        });
        completed++;
-       message("bulkProgress","Uploaded "+completed+"/"+photoJobs.length+" photographs (originals and thumbnails).");
+       message("bulkProgress","Uploaded "+completed+"/"+workingJobs.length+" photographs (originals and thumbnails).");
      }
      message("bulkProgress",(uploadCancelled?"Stopped safely. ":"Photo upload completed. ")+
        completed+" product images uploaded. Existing images were preserved.");
@@ -186,7 +196,7 @@
        " Re-preview before retrying.");
      photoJobs=[];
    }finally{
-     photoBusy=false;$("bulkPhotosCancel").disabled=true;$("bulkPhotosStart").disabled=true;
+     photoBusy=false;$("bulkPhotoFiles").disabled=false;$("bulkPhotosCancel").disabled=true;$("bulkPhotosStart").disabled=true;
    }
  }
  async function exportCatalogueCsv(){
