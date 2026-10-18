@@ -61,6 +61,13 @@ describe("catalogue scale: query and storage contracts",()=>{
    expect(filter).not.toContain(")");
    expect(filter).not.toContain("%  ");
  });
+ it("finds matching category names without downloading their product rows",()=>{
+   const c=fakeClient();
+   const categoryId="11111111-2222-3333-4444-555555555555";
+   catalogue.buildQuery(c,{search:"earrings",searchCategoryIds:[categoryId]});
+   const filter=c.calls.find(row=>row[0]==="or")?.[1];
+   expect(filter).toContain("category_id.in.("+categoryId+")");
+ });
  it("only returns a thumbnail URL for managed optimized WebP objects",()=>{
    const full="https://demo.supabase.co/storage/v1/object/public/product-images/RG/abc-optimized.webp";
    expect(catalogue.thumbnailUrl({storage_path:"RG/abc-optimized.webp",public_url:full})).toContain("abc-thumb.webp");
