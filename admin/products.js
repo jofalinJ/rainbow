@@ -239,7 +239,7 @@ async function lookupProductByCode(code){
 }
 async function init(){
   const profile=await getMyProfile();
-  if(!profile.active||!["admin","inventory_staff"].includes(profile.role))throw new Error("You do not have product-management permission.");
+  if(!profile.active||!["admin","cashier","inventory_staff"].includes(profile.role))throw new Error("You do not have product-management permission.");
   cats=await sb("categories?select=*&active=eq.true&order=storefront_order.asc,name.asc");
   $("category").innerHTML=cats.map(cat=>'<option value="'+escHtml(cat.id)+'">'+escHtml(cat.name)+"</option>").join("");
   updateFields();setupVariantBox();
