@@ -195,7 +195,7 @@
     const buckets=categoryBuckets();
     const typeButtons=buckets.map(bucket=>{
       const cover=bucket.products.find(p=>getImage(p))||null;
-      const url=cover?getImage(cover):"";
+      const url=cover?getThumb(cover):"";
       return "<button type='button' class='drawer-type-link' data-filter-type='"+esc(bucket.label)+"' aria-label='Browse "+esc(bucket.label)+"'>"+
         (url?"<img class='drawer-type-thumb' src='"+esc(url)+"' alt='' loading='lazy' decoding='async'>":
           "<span class='drawer-type-fallback' aria-hidden='true'>✦</span>")+
@@ -296,7 +296,7 @@
       if(status)status.textContent=buckets.length?"Choose a product type to explore.":"No product types have in-stock products yet.";
       grid.innerHTML=buckets.length?buckets.map(bucket=>{
         const product=bucket.products.find(item=>getImage(item))||bucket.products[0];
-        const image=product?getImage(product):"";
+        const image=product?getThumb(product):"";
         return "<button type='button' class='category-tile' data-category-tile='"+esc(bucket.label)+"' aria-label='Browse "+esc(bucket.label)+"'>"+
           "<span class='category-tile-image'>"+(image?"<img src='"+esc(image)+"' alt='' loading='lazy'>":"<span class='placeholder'>RG</span>")+"</span>"+
           "<span class='category-tile-copy'><strong>"+esc(bucket.label)+"</strong><small>View collection</small></span></button>";
