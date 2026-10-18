@@ -49,11 +49,6 @@
 <aside id="shopDrawer" class="shop-drawer" role="dialog" aria-modal="true" aria-labelledby="drawerTitle" aria-hidden="true" inert>
   <div class="drawer-topline"><span id="drawerTitle" class="visually-hidden">Shop navigation</span><button id="drawerClose" class="icon-button drawer-close" type="button" aria-label="Close navigation"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
   <div class="drawer-section"><p class="drawer-section-label">SHOP BY</p><div class="drawer-tabs" role="group" aria-label="Shop sections"><button type="button" class="drawer-tab is-active" data-segment="all" aria-pressed="true">All</button><button type="button" class="drawer-tab" data-segment="women" aria-pressed="false">Women</button><button type="button" class="drawer-tab" data-segment="men" aria-pressed="false">Men</button></div></div>
-  <section class="drawer-section drawer-filter-section" id="drawerFilterSection" aria-labelledby="drawerFilterTitle">
-    <p id="drawerFilterTitle" class="drawer-section-label">FILTER &amp; SORT</p>
-    <div id="drawerFilterHost"></div>
-    <button type="button" id="drawerFilterResults" class="drawer-filter-results">View matching jewellery →</button>
-  </section>
   <div class="drawer-section drawer-categories-section"><div class="drawer-section-heading"><p class="drawer-section-label">ALL PRODUCT TYPES</p><span>Choose a type to browse</span></div><div id="drawerCategories" class="drawer-categories"></div></div>
   <div class="drawer-quicklinks"><a id="drawerTrackAction" href="https://www.tpcindia.com/" target="_blank" rel="noopener noreferrer"><span>Track your order</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></a><button type="button" id="drawerWishlistAction"><span>Your wishlist</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button><a href="#contact" data-close-drawer><span>Contact Rainbow</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></a><a href="https://www.instagram.com/rainbow_kollam_gold_covering/" target="_blank" rel="noopener noreferrer"><span>Instagram ↗</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg></a></div>
 </aside>
@@ -131,29 +126,22 @@
 <section id="latestSection" class="section latest-arrivals" hidden><div class="container"><div class="section-head"><div><span class="section-kicker">JUST ARRIVED</span><h2>Newest in store.</h2></div><a href="#products" class="btn btn-light">Explore all collections →</a></div><div id="latestGrid" class="latest-grid"></div></div></section>
 <section class="section live-products" id="products">
   <div class="container">
-    <div class="catalog-layout catalog-layout--filters-left">
-      <aside class="catalog-filter-sidebar" aria-label="Browse and filter jewellery">
-        <div class="catalog-filter-sidebar-inner">
-          <div class="section-head"><div><span class="section-kicker">SHOP</span><h2 id="productHeading">Shop by category.</h2></div><button id="browseAllProducts" class="btn btn-light" type="button">Browse all jewellery →</button></div>
-          <div id="desktopFilterHost"><form id="shopFilters" class="shop-filters" aria-label="Filter and sort jewellery">
-  <label>Sort by <select id="catalogSort"><option value="featured">Featured</option><option value="newest">Newest arrivals</option><option value="price-low">Price: low to high</option><option value="price-high">Price: high to low</option><option value="name">Name: A to Z</option></select></label>
-  <label>Minimum price <input id="catalogMinPrice" type="number" min="0" step="1" inputmode="numeric" placeholder="₹ Min"></label>
-  <label>Maximum price <input id="catalogMaxPrice" type="number" min="0" step="1" inputmode="numeric" placeholder="₹ Max"></label>
-  <label>Colour <input id="catalogColor" type="search" list="catalogColorList" autocomplete="off" placeholder="Any colour"><datalist id="catalogColorList"></datalist></label>
-  <label>Size <input id="catalogSize" type="search" list="catalogSizeList" autocomplete="off" placeholder="Any size"><datalist id="catalogSizeList"></datalist></label>
-  <label>Length (cm) <input id="catalogLength" type="number" step="0.1" min="0" inputmode="decimal" placeholder="Any length"></label>
-  <button id="catalogReset" type="button" class="clear-filter">Reset filters</button>
-</form></div>
-          <div class="product-toolbar"><div id="productStatus" class="product-status" aria-live="polite">Loading products…</div><button id="clearProductFilter" class="clear-filter" type="button" hidden>Back to product types</button></div>
-        </div>
-      </aside>
+    <div class="catalog-layout">
       <div class="catalog-main" id="collections">
+        <div class="section-head">
+          <div><span class="section-kicker">SHOP</span><h2 id="productHeading">Shop by category.</h2></div>
+          <button id="browseAllProducts" class="btn btn-light" type="button">Browse all jewellery →</button>
+        </div>
+        <div class="product-toolbar">
+          <div id="productStatus" class="product-status" aria-live="polite">Loading products…</div>
+          <button id="clearProductFilter" class="clear-filter" type="button" hidden>Back to product types</button>
+        </div>
         <div id="productGrid" class="product-grid"></div>
-<div id="cataloguePager" class="catalogue-pager" hidden>
-  <div id="cataloguePageStatus" role="status" aria-live="polite"></div>
-  <button type="button" id="loadMoreProducts" class="btn btn-light">Load more jewellery</button>
-  <div id="catalogueSentinel" class="catalogue-sentinel" aria-hidden="true"></div>
-</div>
+        <div id="cataloguePager" class="catalogue-pager" hidden>
+          <div id="cataloguePageStatus" role="status" aria-live="polite"></div>
+          <button type="button" id="loadMoreProducts" class="btn btn-light">Load more jewellery</button>
+          <div id="catalogueSentinel" class="catalogue-sentinel" aria-hidden="true"></div>
+        </div>
       </div>
     </div>
   </div>
