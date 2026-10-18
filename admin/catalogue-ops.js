@@ -95,6 +95,7 @@
  function parsePhotoName(name){
    const match=/^(.+)__([1-5])\.(?:jpe?g|png|webp)$/i.exec(String(name||""));
    if(!match)return null;
+   if(match[1].includes("/"))return null; // Slash-containing SKUs must use portable %2F filenames.
    let code;
    try{code=decodeURIComponent(match[1]);}catch{return null;}
    return CODE_RE.test(code)?{code,position:Number(match[2]),filename:name}:null;
