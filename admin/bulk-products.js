@@ -103,7 +103,7 @@
      message("bulkPhotoPreview","Choose at most "+api.IMAGE_MAX+" images per batch.");return;
    }
    try{
-     const client=await assertEditor(),mapped=[],issues=[],codes=new Set(),names=new Set();
+     const client=await assertEditor(),mapped=[],issues=[],codes=new Set(),names=new Set(),hashes=new Set();
      for(const file of files){
        const parsed=api.parsePhotoName(file.name);
        if(!parsed){issues.push(file.name+": filename must be SKU__1.jpg to SKU__5.webp");continue;}
@@ -112,6 +112,12 @@
        }
        if(names.has(parsed.code.toLowerCase()+"#"+parsed.position)){
          issues.push(file.name+": duplicate image position in this batch");continue;
+       }
+       if(window.crypto?.subtle&&file.arrayBuffer){
+         const digest=await crypto.subtle.digest("SHA-256",await file.arrayBuffer());
+         const hash=[...new Uint8Array(digest)].map(byte=>byte.toString(16).padStart(2,"0")).join("");
+         if(hashes.has(hash)){issues.push(file.name+": identical bytes to another selected photo");continue;}
+         hashes.add(hash);
        }
        names.add(parsed.code.toLowerCase()+"#"+parsed.position);mapped.push({...parsed,file});
        codes.add(parsed.code);
