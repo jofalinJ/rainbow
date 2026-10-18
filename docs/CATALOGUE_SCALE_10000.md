@@ -27,7 +27,7 @@ If query performance degrades at scale, measure using `EXPLAIN (ANALYZE, BUFFERS
 - The optional visual colour-search button searches **only currently loaded product images**; whole-catalogue visual recognition requires a separate indexed similarity-search service.
 - Server search matches substrings; it does not do cross-product fuzzy/typo search. Search suggestions come from loaded results, not all 10,000.
 - Long scroll sessions can accumulate cards. Auto-fetch stops after 8 pages and the site uses `content-visibility` to reduce rendering cost. Virtualized item windows could be introduced if telemetry shows many shoppers scrolling through hundreds of pages.
-- Admin's older full-product table is not converted to server pagination here; that is a separate admin scalability task.
+- **Follow-up PR #21** adds 40-row server pagination, SKU lookup and bulk import to the staff product editor; PR #20 alone does not include those changes.
 - The product detail pages from PR #19 are client-rendered; search-engine crawling still needs static prerendering or SSR for reliable product indexing.
 - Cost, database load, Lighthouse/Core Web Vitals, bandwidth and RLS throughput at 10,000 actual products **have not been benchmarked**. This is a scalability-ready architecture, not a claim that 10,000 production records have been load-tested.
 

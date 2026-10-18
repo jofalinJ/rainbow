@@ -9,6 +9,17 @@
 @media(max-width:650px){.entry-grid{grid-template-columns:1fr 1fr}.entry-grid .wide{grid-column:span 2}}
 .category-editor{max-width:190px;min-width:140px;padding:7px;border:1px solid #eadfd1;border-radius:8px;background:#fff;color:#17120f;font:inherit}.save-category{white-space:nowrap;padding:7px 10px}.save-category:disabled{opacity:.5;cursor:wait}
 .edit-current-photos,.edit-photo-preview{display:flex;gap:8px;flex-wrap:wrap;width:100%;min-height:0;overflow:visible;background:transparent}.edit-current-photos img,.edit-photo-preview img{width:58px;height:58px;object-fit:cover;border-radius:10px;border:1px solid #eadfd1}.edit-photo-preview .photo-preview-item{width:58px;height:58px}.panel table button{margin:2px 3px 2px 0}.publish-toggle label{display:flex;align-items:center;gap:8px;min-height:40px}.publish-toggle input{width:18px;height:18px;flex:0 0 auto}.storefront-category-rows{display:grid;gap:8px}.storefront-category-row{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:12px;padding:12px;border:1px solid #eadfd1;border-radius:12px;background:#fff}.storefront-category-order{display:flex;gap:4px}.storefront-category-order button{min-width:34px;padding:7px}.storefront-category-name{font-weight:700}.storefront-category-name small{display:block;margin-top:3px;color:#766f68;font-size:11px;font-weight:400}.storefront-category-visible{display:flex;align-items:center;gap:7px;font-size:12px}.category-display-save{display:flex;align-items:center;gap:12px;margin-top:14px;font-size:12px}@media(max-width:650px){.storefront-category-row{grid-template-columns:auto 1fr;gap:9px}.storefront-category-visible{grid-column:2}.category-display-save{align-items:flex-start;flex-direction:column}}@media(max-width:650px){.panel{overflow-x:auto}}
+
+.catalogue-controls{display:flex;gap:8px;flex-wrap:wrap}.catalogue-controls input{min-width:220px;max-width:350px}.catalogue-controls select{min-height:38px;padding:6px;border-radius:8px;border:1px solid #ddd}
+.catalogue-pagination{display:flex;align-items:center;justify-content:center;gap:16px;padding:17px 4px}.catalogue-pagination button{min-height:40px;padding:8px 14px}.catalogue-pagination button:disabled{opacity:.4}.catalogue-pagination span{font-size:13px}
+.catalogue-lookup{display:flex;gap:8px}.catalogue-lookup input{flex:1}.catalogue-bulk-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px}
+.catalogue-bulk-grid>section{padding:18px;border:1px solid #e8dfd6;border-radius:14px;background:#fff}.catalogue-bulk-grid p{line-height:1.6;color:#665c54}
+.catalogue-bulk-grid h3{margin:0 0 10px}.catalogue-bulk-grid input[type=file]{display:block;margin:10px 0}
+.bulk-consent{display:flex;gap:8px;align-items:start;margin:13px 0;font-size:13px}.bulk-consent input{margin-top:3px}
+.bulk-preview{max-height:220px;overflow:auto;white-space:pre-wrap;word-break:break-word;margin:10px 0;padding:12px;border-radius:9px;background:#faf5ee;font-size:12px}
+.catalogue-bulk-grid button{min-height:38px;margin:3px;padding:8px 12px}.catalogue-bulk-grid button:disabled{opacity:.48}
+.catalogue-health{white-space:pre-wrap;padding:12px;border:1px solid #e8dfd6;border-radius:9px;background:#faf5ee;font-size:13px}
+@media(max-width:850px){.catalogue-bulk-grid{grid-template-columns:1fr}.catalogue-controls input{min-width:170px}.catalogue-lookup{flex-direction:column}}
 </style></head>
 <body>
 <aside aria-label="Admin sidebar"></aside>
@@ -22,7 +33,10 @@
  </div>
  <section id="existingBox" class="variant-editor-panel" style="display:none" aria-labelledby="variantEditorTitle">
    <div class="product-form-section-head"><div><h3 id="variantEditorTitle">New product variant</h3><p>Keep the existing product name, price and photos. Add only the unique color, size or length and its stock.</p></div></div>
-   <div class="field"><label for="existingProduct">Choose existing product</label><select id="existingProduct" aria-describedby="existingVariantHelp"></select></div>
+   <div class="field"><label for="existingProduct">Products on this page</label><select id="existingProduct" aria-describedby="existingVariantHelp"></select></div>
+<div class="field"><label for="lookupProductCode">Or find any product by its exact code</label>
+<div class="catalogue-lookup"><input id="lookupProductCode" type="search" placeholder="e.g. RGC/C00004" autocomplete="off"><button id="lookupProductButton" type="button">Find product</button></div></div>
+<p id="lookupProductStatus" role="status" aria-live="polite"></p>
    <p id="existingVariantHelp" class="field-help">Select a product to see its existing variants.</p>
    <div id="existingVariants" class="existing-variants" aria-live="polite"></div>
    <div id="variantFields" class="entry-grid variant-grid">
@@ -72,5 +86,32 @@
  <p id="msg" class="product-form-message" role="status" aria-live="polite"></p>
 </section>
 <section class="panel" id="categoryDisplay"><div class="panelhead"><h2>Storefront category display</h2><span>Set the category order and choose which in-stock types can appear in the shop.</span></div><div id="storefrontCategoryRows" class="storefront-category-rows">Loading categories…</div><div class="category-display-save"><button type="button" id="saveStorefrontCategories">Save storefront display</button><span id="storefrontCategoryMessage" role="status"></span></div></section>
-<section class="panel"><div class="panelhead"><h2>Product Catalog</h2><input id="search" data-testid="product-search" placeholder="Search name, code or type"></div><div class="table-wrap"><table><thead><tr><th>Code</th><th>Product</th><th>Category</th><th>Type</th><th>Audience</th><th>Visibility</th><th>Price</th><th>Stock</th><th>Photos</th><th>Action</th></tr></thead><tbody id="rows"></tbody></table></div></section>
-</main><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="app.js?v=20261015-admin-attendance-nav-v2"></script><script src="image-prep.js?v=20261018"></script><script src="products.js?v=20261018-catalogue-thumbs"></script></body></html>
+<section class="panel" aria-labelledby="catalogueAdminTitle">
+<div class="panelhead"><div><h2 id="catalogueAdminTitle">Product Catalogue</h2><small>Search and manage products across the full database, 40 at a time.</small></div>
+<div class="catalogue-controls"><input id="search" data-testid="product-search" type="search" placeholder="Search code, name or type" aria-label="Search entire product database">
+<select id="adminProductStatus" aria-label="Filter product visibility"><option value="all">All statuses</option><option value="published">Published</option><option value="draft">Drafts</option></select></div></div>
+<p id="adminCatalogMessage" aria-live="polite"></p>
+<div class="table-wrap"><table><thead><tr><th>Code</th><th>Product</th><th>Category</th><th>Type</th><th>Audience</th><th>Visibility</th><th>Price</th><th>Stock</th><th>Photos</th><th>Action</th></tr></thead><tbody id="rows"></tbody></table></div>
+<nav class="catalogue-pagination" aria-label="Product list pages">
+<button type="button" id="catalogPrev">← Previous</button><span id="catalogPageInfo" role="status" aria-live="polite">Loading products…</span><button type="button" id="catalogNext">Next →</button></nav>
+</section>
+<section class="panel" id="bulkTools" aria-labelledby="bulkTitle"><div class="panelhead"><div><h2 id="bulkTitle">Bulk product tools</h2><small>Validate locally first. Imports start as drafts with zero stock; no existing products are overwritten.</small></div><div><button type="button" id="downloadCsvTemplate">Download CSV template</button><button type="button" id="exportCatalogueCsv">Export catalogue CSV</button></div></div>
+<div class="catalogue-bulk-grid">
+<section><h3>1. Import product CSV</h3><p>Up to 500 products per batch, with unique product codes. Export your spreadsheet as UTF-8 CSV.</p><label for="bulkProductCsv">Select CSV</label><input id="bulkProductCsv" type="file" accept=".csv,text/csv">
+<div id="bulkPreview" class="bulk-preview" role="status" aria-live="polite"></div>
+<label class="bulk-consent"><input id="bulkProductsConfirm" type="checkbox"> I have reviewed these drafts and confirm the import.</label>
+<button type="button" id="bulkProductsStart" disabled>Import validated drafts</button>
+<button type="button" id="bulkProductsCancel" disabled>Stop after current batch</button></section>
+<section><h3>2. Batch upload product photographs</h3><p>Up to 50 images per batch. Name each <code>SKU__1.jpg</code> through <code>SKU__5.jpg</code>. Encode slashes in codes as <code>%2F</code>. Existing photos are never replaced.</p>
+<label for="bulkPhotoFiles">Select images</label><input id="bulkPhotoFiles" type="file" accept="image/png,image/jpeg,image/webp" multiple>
+<div id="bulkPhotoPreview" class="bulk-preview" role="status" aria-live="polite"></div>
+<label class="bulk-consent"><input id="bulkPhotosConfirm" type="checkbox"> I have checked the product codes and photograph positions.</label>
+<button type="button" id="bulkPhotosStart" disabled>Upload validated images</button>
+<button type="button" id="bulkPhotosCancel" disabled>Stop after current photograph</button>
+</section></div>
+<p id="bulkProgress" role="status" aria-live="polite"></p></section>
+<section class="panel" aria-labelledby="opsTitle"><div class="panelhead"><div><h2 id="opsTitle">Catalogue health</h2><small>Read-only diagnostics, no customer information.</small></div><button id="refreshCatalogHealth" type="button">Refresh</button></div>
+<div class="catalogue-health" id="catalogueHealth" role="status" aria-live="polite">Check available product metrics.</div>
+<p><small>For full disaster recovery, use managed database backups or encrypted <code>pg_dump</code> snapshots; product CSV exports alone are not database backups.</small></p>
+</section>
+</main><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="app.js?v=20261015-admin-attendance-nav-v2"></script><script src="image-prep.js?v=20261018"></script><script src="catalogue-ops.js?v=20261018"></script><script src="products.js?v=20261018-admin-scale"></script><script src="bulk-products.js?v=20261018"></script></body></html>

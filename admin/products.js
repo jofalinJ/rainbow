@@ -2,6 +2,8 @@ let productRules=null;
 async function getProductRules(){if(!productRules)productRules=await import("../src/domain/productRules.mjs");return productRules;}
 const $=id=>document.getElementById(id);
 let cats=[],items=[],editingProductId=null,variantMode=false,selectedImages=[],previewObjectUrls=[],editPhotoFiles=[],editPhotoPreviewUrls=[];
+let cataloguePage=0,cataloguePages=0,catalogueTotal=0,catalogueRevision=0,catalogueBusy=false,catalogueTimer=null,pinnedProduct=null,lastListMs=0;
+const findCurrentProduct=id=>items.find(x=>String(x.id)===String(id))||(pinnedProduct&&String(pinnedProduct.id)===String(id)?pinnedProduct:null);
 const escHtml=value=>String(value??"").replace(/[&<>"]/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[ch])).split(String.fromCharCode(39)).join("&#39;");
 const IMAGE_BUCKET="product-images";
 const TYPE_OPTIONS={"Roll Chain":["Roll","Designer","Heavy","Light"],"Thrissur Chain":["Roll","Designer","Heavy","Light"],"Coir Chain":["Roll","Designer","Heavy","Light"],"China Chain":["Roll","Designer","Heavy","Light"],"Bracelet":["Chain","Stone","Plain","Designer"],"Bangle":["Plain","Stone","Designer"],"Ring":["Stone","Plain","Designer"],"Dollar":["Stone","Plain","Designer"],"Earring":["Stone","Plain","Designer","Hoop","Jhumka"],"Anklet":["Plain","Stone","Designer"],"Necklace":["Stone","Plain","Designer"],"Thali Chain":["Chain","Thali","Designer","Heavy","Light","Plain"],"Men's Jewellery":["Chain","Bracelet","Bangle","Ring","Pendant","Necklace","Earring","Anklet","Dollar","Roll","Designer","Heavy","Light","Plain","Stone"]};
@@ -12,7 +14,7 @@ function setField(id,show){
 }
 function updateFields(){
   const c=cats.find(x=>String(x.id)===String($("category").value));if(!c)return;
-  const current=editingProductId?items.find(x=>String(x.id)===String(editingProductId)):null;
+  const current=editingProductId?findCurrentProduct(editingProductId):null;
   setField("sizeField",!!c.has_size&&!editingProductId);setField("colorField",!!c.has_color&&!editingProductId);
   setField("lengthField",!!c.has_length);setField("thicknessField",!!c.has_thickness);setField("goldField",!!c.has_gold_amount);
   const baseTypes=TYPE_OPTIONS[c.name]||[];
@@ -83,7 +85,7 @@ function fillExistingProducts(preferredId=""){
   const select=$("existingProduct");
   const previous=preferredId||select.value;
   select.replaceChildren(new Option("Choose an existing product…",""));
-  for(const p of items){
+  for(const p of [...items,...(pinnedProduct&&!items.some(x=>x.id===pinnedProduct.id)?[pinnedProduct]:[])]){
     select.add(new Option(p.product_code+" — "+p.product_name+(p.active===false?" (draft)":""),String(p.id)));
   }
   select.value=items.some(p=>String(p.id)===String(previous))?String(previous):"";
@@ -112,7 +114,7 @@ function displayExistingVariants(product,category){
   }
 }
 function updateExistingVariantFields(){
-  const product=items.find(p=>String(p.id)===String($("existingProduct").value));
+  const product=findCurrentProduct($("existingProduct").value);
   const category=product&&cats.find(c=>String(c.id)===String(product.category_id));
   for(const id of ["existingColorField","existingSizeField","existingLengthField"])setField(id,false);
   if(category){
@@ -183,11 +185,11 @@ function renderStorefrontCategorySettings(){
   const root=$("storefrontCategoryRows");if(!root)return;
   cats=cats.slice().sort((a,b)=>Number(a.storefront_order||0)-Number(b.storefront_order||0)||a.name.localeCompare(b.name));
   root.innerHTML=cats.map((category,index)=>{
-    const count=items.filter(product=>String(product.category_id)===String(category.id)&&product.active!==false&&(product.product_variants||[]).some(variant=>variant.active!==false&&Number(variant.stock_quantity)>0)).length;
+    const count=items.filter(product=>String(product.category_id)===String(category.id)).length;
     return '<div class="storefront-category-row" data-category-row="'+escHtml(category.id)+'">'+
       '<div class="storefront-category-order"><button type="button" data-category-up="'+escHtml(category.id)+'" aria-label="Move '+escHtml(category.name)+' up" '+(index===0?'disabled':'')+'>↑</button>'+
       '<button type="button" data-category-down="'+escHtml(category.id)+'" aria-label="Move '+escHtml(category.name)+' down" '+(index===cats.length-1?'disabled':'')+'>↓</button></div>'+
-      '<div class="storefront-category-name">'+escHtml(category.name)+'<small>'+count+' active product'+(count===1?'':'s')+(count===0?' · hidden from the shop menu':'')+'</small></div>'+
+      '<div class="storefront-category-name">'+escHtml(category.name)+'<small>'+count +' product'+(count===1?'':'s')+' on the current admin page' +'</small></div>'+
       '<label class="storefront-category-visible"><input type="checkbox" data-category-visible="'+escHtml(category.id)+'" '+(category.show_in_storefront===false?'':'checked')+'> Show in storefront</label></div>';
   }).join("")||'<p>No active categories.</p>';
   root.querySelectorAll("[data-category-up]").forEach(button=>button.onclick=()=>moveStorefrontCategory(button.dataset.categoryUp,-1));
@@ -219,18 +221,77 @@ async function saveStorefrontCategories(){
     renderStorefrontCategorySettings();
   }catch(error){if(status)status.textContent="Could not save storefront order: "+error.message;}
 }
-async function init(){
-  cats=await sb("categories?select=*&active=eq.true&order=storefront_order.asc,name.asc");
-  $("category").innerHTML=cats.map(c=>'<option value="'+escHtml(c.id)+'">'+escHtml(c.name)+"</option>").join("");
-  updateFields();setupVariantBox();await load();fillExistingProducts();
+async function lookupProductByCode(code){
+  const value=String(code||"").trim(),message=$("lookupProductStatus");
+  if(message)message.textContent="Finding product…";
+  if(!value||value.length>80){if(message)message.textContent="Enter an exact product code.";return null;}
+  try{
+    const {data,error}=await bootSupabase().from("products")
+      .select(RainbowAdminCatalogue.SELECT||"id,product_code,product_name,type,gender,display_priority,active,selling_price,category_id,length_cm,description,thickness,gold_amount_g,product_variants(id,color,size,length_cm,stock_quantity,active),product_images(id,public_url,storage_path,is_primary,sort_order)")
+      .eq("product_code",value).maybeSingle();
+    if(error)throw error;
+    if(!data){if(message)message.textContent="No product found for this code.";return null;}
+    pinnedProduct=data;
+    fillExistingProducts(data.id);
+    if(message)message.textContent="Found "+data.product_code+" — "+data.product_name+".";
+    return data;
+  }catch(error){if(message)message.textContent="Lookup failed: "+error.message;return null;}
 }
-async function load(){
-  items=await sb("products?select=id,product_code,product_name,type,gender,display_priority,active,selling_price,category_id,length_cm,description,thickness,gold_amount_g,product_variants(id,color,size,length_cm,stock_quantity,active),product_images(id,public_url,storage_path,is_primary,sort_order)&order=active.desc,created_at.desc");
-  render();
+async function init(){
+  const profile=await getMyProfile();
+  if(!profile.active||!["admin","inventory_staff"].includes(profile.role))throw new Error("You do not have product-management permission.");
+  cats=await sb("categories?select=*&active=eq.true&order=storefront_order.asc,name.asc");
+  $("category").innerHTML=cats.map(cat=>'<option value="'+escHtml(cat.id)+'">'+escHtml(cat.name)+"</option>").join("");
+  updateFields();setupVariantBox();
+  $("lookupProductButton")?.addEventListener("click",()=>lookupProductByCode($("lookupProductCode").value));
+  $("lookupProductCode")?.addEventListener("keydown",event=>{
+    if(event.key==="Enter"){event.preventDefault();lookupProductByCode(event.currentTarget.value);}
+  });
+  const search=$("search");
+  search.addEventListener("input",()=>{
+    clearTimeout(catalogueTimer);
+    catalogueTimer=setTimeout(()=>load({reset:true}),300);
+  });
+  $("adminProductStatus")?.addEventListener("change",()=>load({reset:true}));
+  $("catalogPrev")?.addEventListener("click",()=>{if(cataloguePage>0){cataloguePage--;load();}});
+  $("catalogNext")?.addEventListener("click",()=>{if(cataloguePage+1<cataloguePages){cataloguePage++;load();}});
+  await load({reset:true});fillExistingProducts();
+}
+async function load({reset=false}={}){
+  if(reset)cataloguePage=0;
+  const request=++catalogueRevision;
+  catalogueBusy=true;
+  if($("adminCatalogMessage"))$("adminCatalogMessage").textContent="Loading products…";
+  $("catalogPrev").disabled=true;$("catalogNext").disabled=true;
+  const started=performance.now();
+  try{
+    const result=await RainbowAdminCatalogue.list(bootSupabase(),{
+      page:cataloguePage,search:$("search").value,
+      status:$("adminProductStatus")?.value||"all",categories:cats
+    });
+    if(request!==catalogueRevision)return;
+    if(result.pages>0&&cataloguePage>=result.pages){cataloguePage=result.pages-1;return load();}
+    items=result.rows;catalogueTotal=result.count;cataloguePages=result.pages;
+    lastListMs=Math.round(performance.now()-started);
+    if($("adminCatalogMessage"))$("adminCatalogMessage").textContent=
+      "Database search • "+catalogueTotal.toLocaleString("en-IN")+" matching products • "+lastListMs+" ms response";
+    render();fillExistingProducts();
+  }catch(error){
+    if(request!==catalogueRevision)return;
+    console.warn("Admin catalogue read failed",error);
+    if($("adminCatalogMessage"))$("adminCatalogMessage").textContent="Could not load products: "+error.message;
+  }finally{
+    if(request===catalogueRevision){
+      catalogueBusy=false;
+      const prev=$("catalogPrev"),next=$("catalogNext"),info=$("catalogPageInfo");
+      prev.disabled=cataloguePage<=0;next.disabled=cataloguePage+1>=cataloguePages;
+      info.textContent=catalogueTotal?
+        "Page "+(cataloguePage+1)+" of "+cataloguePages+" • "+catalogueTotal.toLocaleString("en-IN")+" products":"No matching products";
+    }
+  }
 }
 function render(){
-  const q=$("search").value.toLowerCase();
-  const a=items.filter(p=>[p.product_name,p.product_code,p.type,((cats.find(c=>String(c.id)===String(p.category_id))||{}).name)].some(x=>(x||"").toLowerCase().includes(q)));
+  const a=items; // Already filtered, counted and paginated on Supabase.
   $("rows").innerHTML=a.map(p=>{
     const stock=(p.product_variants||[]).filter(v=>v.active!==false).reduce((sum,v)=>sum+Number(v.stock_quantity||0),0),photos=photoRows(p).length;
     return '<tr><td><b>'+escHtml(p.product_code)+'</b></td><td>'+escHtml(p.product_name)+'</td>'+
@@ -238,7 +299,7 @@ function render(){
       '<td>'+escHtml(p.type)+'</td><td>'+escHtml(p.gender||"women")+'</td><td>'+(p.active===false?"Draft":"Published")+'</td><td>₹'+Number(p.selling_price).toLocaleString("en-IN")+'</td><td>'+stock+'</td>'+
       '<td><span class="photo-count">'+photos+'/5</span><button class="save-category" type="button" data-add-photos="'+escHtml(p.id)+'" '+(photos>=5?'disabled':'')+'>Add photos</button><input type="file" accept="image/*" multiple hidden data-image-input="'+escHtml(p.id)+'"></td>'+
       '<td><button class="save-category" type="button" data-edit-product="'+escHtml(p.id)+'">Edit product</button></td></tr>';
-  }).join("")||'<tr><td colspan="10">No products found.</td></tr>';
+  }).join("")||'<tr><td colspan="10">No products found for the current database filters.</td></tr>';
   bindProductActions();bindImageUploadActions();renderStorefrontCategorySettings();
 }
 function bindProductActions(){document.querySelectorAll("[data-edit-product]").forEach(button=>{button.onclick=()=>startEditProduct(button.dataset.editProduct);});}
@@ -310,7 +371,7 @@ async function uploadAdditionalPhotos(product,files){
   return added;
 }
 async function addPhotosToProduct(productId,input){
-  const product=items.find(p=>String(p.id)===String(productId)),files=Array.from(input.files||[]);
+  const product=findCurrentProduct(productId),files=Array.from(input.files||[]);
   if(!product||!files.length){input.value="";return;}
   const remaining=5-photoRows(product).length;
   if(files.length>remaining){$("msg").textContent="This product has "+photoRows(product).length+" photos. You can add only "+Math.max(0,remaining)+" more (maximum 5).";input.value="";return;}
@@ -375,7 +436,7 @@ $("form").onsubmit=async e=>{
     const rules=await getProductRules(),draft={categoryId:c.id,name:$("name").value.trim(),type:$("type").value.trim(),sellingPrice:$("price").value};
     const validation=rules.validateProductDraft(draft);if(!validation.ok)throw new Error(validation.error);
     if(editingProductId){
-      const product=items.find(x=>String(x.id)===String(editingProductId));if(!product)throw new Error("That product could not be found. Refresh the page and try again.");
+      const product=findCurrentProduct(editingProductId);if(!product)throw new Error("That product could not be found. Refresh the page and try again.");
       if(photoRows(product).length+editPhotoFiles.length>5)throw new Error("A product can have no more than five photos.");
       await saveExistingProduct(product,c,validation,productLength);return;
     }
@@ -399,6 +460,5 @@ $("form").onsubmit=async e=>{
     await load();fillExistingProducts();resetEditor();$("msg").textContent=success;
   }catch(error){console.error(error);$("msg").textContent="Error: "+error.message;}
 };
-$("search").oninput=render;
 $("saveStorefrontCategories").onclick=saveStorefrontCategories;
 init().catch(error=>{$("msg").textContent="Error: "+error.message;console.error(error);});
