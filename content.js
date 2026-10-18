@@ -251,6 +251,13 @@
   function bindAdvancedFilters(){
     const form=document.getElementById("shopFilters");if(!form)return;
     form.addEventListener("submit",event=>event.preventDefault());
+    const mobileToggle=document.getElementById("mobileFiltersToggle");
+    mobileToggle?.addEventListener("click",()=>{
+      const expanded=form.classList.toggle("is-open");
+      mobileToggle.setAttribute("aria-expanded",String(expanded));
+      const symbol=mobileToggle.querySelector('[aria-hidden="true"]');
+      if(symbol)symbol.textContent=expanded?"−":"+";
+    });
     const fields=[["catalogMinPrice","minPrice"],["catalogMaxPrice","maxPrice"],["catalogColor","color"],["catalogSize","size"],["catalogLength","length"]];
     for(const [id,key] of fields)document.getElementById(id)?.addEventListener("change",event=>{
       filterState[key]=event.target.value.trim();resetCatalogue();
