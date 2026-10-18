@@ -19,5 +19,6 @@
 #facePilotVideo{display:block;width:min(100%,480px);height:auto;max-height:320px;object-fit:cover;border-radius:12px;margin-top:15px;background:#211812;transform:scaleX(-1)}
 .face-pilot-status{min-height:20px;font-size:11px;line-height:1.65;color:#74655b;margin:11px 0 0}
 .face-pilot-status.success{color:#216b43}.face-pilot-status.error{color:#ac2028}
+.face-camera-help{font-size:12px;line-height:1.7;color:#6e6158;margin-top:13px}.face-camera-help summary{cursor:pointer;color:#8f1520;font-weight:650}.face-camera-help p{margin:9px 0}.face-camera-help summary:focus-visible{outline:3px solid #c9a15e;outline-offset:3px}
 .face-preview-panel :is(button,input):focus-visible{outline:3px solid #c9a15e;outline-offset:3px}
 @media(max-width:540px){.face-preview-panel{padding:14px}.face-preview-head{flex-wrap:wrap}.face-preview-actions button{flex:1 1 180px}}

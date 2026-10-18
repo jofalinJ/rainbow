@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import process from "node:process";
+import { readdir } from "node:fs/promises";
 
 const port=Number(process.env.PORT||4173);
 const server=spawn(process.execPath,["scripts/static-server.mjs"],{stdio:["ignore","inherit","inherit"],env:{...process.env,PORT:String(port)}});
@@ -22,8 +23,11 @@ try{
       if(code!==null&&code!==0)reject(new Error("Static server exited before E2E tests started."));
     });
   });
+  const directory="tests/e2e/selenium/tests";
+  const files=(await readdir(directory)).filter(name=>name.endsWith(".test.mjs")).sort().map(name=>`${directory}/${name}`);
+  if(!files.length)throw new Error("No Selenium test files found.");
   const result=await new Promise(resolve=>{
-    const test=spawn(process.execPath,["--test","tests/e2e/selenium/tests"],{stdio:"inherit",env:{...process.env,E2E_BASE_URL:process.env.E2E_BASE_URL||`http://127.0.0.1:${port}`}});
+    const test=spawn(process.execPath,["--test",...files],{stdio:"inherit",env:{...process.env,E2E_BASE_URL:process.env.E2E_BASE_URL||`http://127.0.0.1:${port}`}});
     test.on("exit",(code,signal)=>resolve(code??(signal?1:0)));
     test.on("error",()=>resolve(1));
   });

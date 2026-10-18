@@ -3,6 +3,8 @@ let myAttendanceUserId="";
 let myAttendanceRecord=null;
 let attendanceReady=false;
 let attendanceSaving=false;
+let loadedAttendanceDay="";
+let attendanceDayRefreshing=false;
 
 function indiaToday(){
   const parts=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Kolkata",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date());
@@ -55,8 +57,8 @@ function renderMyAttendance(){
   }
   const checkInButton=document.getElementById("checkInButton");
   const checkOutButton=document.getElementById("checkOutButton");
-  if(checkInButton)checkInButton.disabled=!attendanceReady||attendanceSaving||Boolean(record?.check_in);
-  if(checkOutButton)checkOutButton.disabled=!attendanceReady||attendanceSaving||!record?.check_in||Boolean(record?.check_out);
+  if(checkInButton){checkInButton.disabled=!attendanceReady||attendanceSaving||Boolean(record?.check_in);checkInButton.textContent=record?.check_in?"Checked in today":"Check in";}
+  if(checkOutButton){checkOutButton.disabled=!attendanceReady||attendanceSaving||!record?.check_in||Boolean(record?.check_out);checkOutButton.textContent=record?.check_out?"Checked out":"Check out";}
 
 }
 async function loadMyAttendance(){
@@ -66,11 +68,20 @@ async function loadMyAttendance(){
     .eq("staff_id",myAttendanceUserId).eq("date",today).maybeSingle();
   if(error)throw new Error(error.message);
   myAttendanceRecord=data||null;
+  loadedAttendanceDay=today;
   attendanceReady=true;
   renderMyAttendance();
-  setSelfAttendanceMessage(myAttendanceRecord?"Attendance loaded for today.":"Tap Check in when your shift starts.","");
+  setSelfAttendanceMessage(myAttendanceRecord?.check_in?(myAttendanceRecord.check_out?"Today's attendance is complete. Check-in is available once per India date.":"Checked in for today. Check out when your shift ends; another check-in is not needed."):"After your optional face preview, tap Check in when your shift starts. One check-in is allowed per India date.","");
+}
+async function refreshAttendanceDay(){
+  if(!myAttendanceClient||!myAttendanceUserId||!loadedAttendanceDay||attendanceSaving||attendanceDayRefreshing||loadedAttendanceDay===indiaToday())return;
+  attendanceDayRefreshing=true;attendanceReady=false;renderMyAttendance();
+  document.getElementById("indiaDateLabel").textContent=indiaDateLabel(indiaToday());
+  try{await loadMyAttendance();}catch(error){setSelfAttendanceMessage("Could not refresh today's attendance. Reload this page before checking in.","error");}
+  finally{attendanceDayRefreshing=false;renderMyAttendance();}
 }
 async function recordAttendanceAction(action){
+  await refreshAttendanceDay();
   if(!attendanceReady||attendanceSaving)return;
   const record=myAttendanceRecord;
   if(action==="check_in"&&record?.check_in)return;
@@ -83,7 +94,7 @@ async function recordAttendanceAction(action){
     const {error}=await myAttendanceClient.rpc("staff_attendance_action",{p_action:action});
     if(error)throw new Error(error.message);
     await loadMyAttendance();
-    setSelfAttendanceMessage(action==="check_in"?"Check-in recorded.":"Check-out recorded.","success");
+    setSelfAttendanceMessage(action==="check_in"?"Check-in recorded for today. Check out when your shift ends.":"Check-out recorded. Today's attendance is complete.","success");
   }catch(error){
     console.error("Staff attendance action failed:",error);
     setSelfAttendanceMessage("Could not record attendance: "+(error.message||"Unknown error"),"error");
@@ -94,6 +105,9 @@ async function recordAttendanceAction(action){
 }
 async function bootMyAttendance(){
   document.getElementById("indiaDateLabel").textContent=indiaDateLabel(indiaToday());
+  const dayTimer=setInterval(refreshAttendanceDay,30_000);
+  window.addEventListener("pagehide",()=>clearInterval(dayTimer),{once:true});
+  window.addEventListener("focus",refreshAttendanceDay);
   try{
     myAttendanceClient=bootSupabase();
     const session=await requireSession();

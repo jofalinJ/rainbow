@@ -7,7 +7,7 @@
 <link rel="icon" type="image/png" href="../assets/brand/rainbow-logo.png">
 <title>Rainbow Gold Covering — My Attendance</title>
 <link rel="stylesheet" href="style.css">
-<link rel="stylesheet" href="my-attendance.css?v=20261015-face-preview-v1">
+<link rel="stylesheet" href="my-attendance.css?v=20261017-camera-recovery-v2">
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -20,13 +20,15 @@
   </header>
   <section class="panel self-attendance-card">
     <div class="self-attendance-top"><div><p class="eyebrow">TODAY</p><h2 id="indiaDateLabel">Loading date…</h2></div><span id="todayAttendanceStatus" class="self-attendance-status">Loading…</span></div>
-    <p class="self-attendance-instruction">Tap <strong>Check in</strong> when your shift starts and <strong>Check out</strong> when you finish. Your work times are recorded automatically in India Standard Time.</p>
+    <p class="self-attendance-instruction">After your optional face preview, tap <strong>Check in</strong> when your shift starts and <strong>Check out</strong> when you finish. Check-in is allowed once per day. Your work times and attendance date use India Standard Time.</p>
     <div class="self-attendance-actions"><button id="checkInButton" class="primary" type="button" disabled>Check in</button><button id="checkOutButton" type="button" disabled>Check out</button></div>
     <section id="facePilot" class="face-preview-panel" aria-labelledby="facePilotHeading">
       <div class="face-preview-head"><div><p class="eyebrow">OPTIONAL · ON-DEVICE PREVIEW</p><h3 id="facePilotHeading">Face biometric preview</h3></div><span class="face-preview-pill">Experimental</span></div>
       <p class="face-preview-notice">Compare your live face with the private staff photo enrolled by an administrator. This optional check does <strong>not</strong> replace your attendance buttons or verify payroll. Camera access is requested only when you start; the browser controls permission prompts.</p>
       <label class="face-consent"><input type="checkbox" id="facePilotConsent"><span>I choose to use my enrolled photo for this face comparison. My consent is saved so I won't need to repeat it. I can withdraw it here at any time.</span></label>
       <div class="face-preview-actions"><button id="facePilotStart" type="button" disabled>Verify face (preview)</button><button id="facePilotStop" type="button" hidden>Stop camera</button></div>
+      <p class="face-preview-notice">Use even light from in front of you, keep your whole face visible and look toward the camera. The preview allows up to 30 seconds to obtain consistent frames. A failed check does not mean you are a different person.</p>
+      <details class="face-camera-help"><summary>Camera blocked or face check unavailable?</summary><p>In Chrome, open the site controls beside the address and allow Camera, then reload this page. On Android, also check Chrome's camera permission in your device settings. Open this page directly in Chrome rather than inside another app. If the camera is busy, close other video apps and try again.</p><p>If face checks keep failing, use the normal attendance button and ask your administrator for help. This experimental preview cannot confirm official attendance or guarantee identity accuracy.</p></details>
       <video id="facePilotVideo" playsinline autoplay muted hidden aria-label="Live camera preview for local face verification"></video>
       <p id="facePilotStatus" class="face-pilot-status" role="status" aria-live="polite">Checking enrollment…</p>
     </section>
@@ -37,7 +39,7 @@
   <p class="self-attendance-privacy">Only you and active administrators can access your attendance record. Check-in and check-out are linked to your signed-in staff account.</p>
 </main>
 <script src="app.js?v=20261015-admin-attendance-nav-v2"></script>
-<script src="my-attendance.js?v=20261015-no-admin-attendance-v2"></script>
-<script type="module" src="face-preview.mjs?v=20261015-face-preview-v1"></script>
+<script src="my-attendance.js?v=20261017-daily-attendance-v3"></script>
+<script type="module" src="face-preview.mjs?v=20261017-camera-recovery-v2"></script>
 </body>
 </html>

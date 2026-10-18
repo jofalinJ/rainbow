@@ -28,11 +28,12 @@ class Element {
   }
 }
 
-function sidebarFor(role, page) {
+function sidebarFor(role, page, authResult) {
   const aside = new Element("aside");
   const location = { pathname: "/admin/" + page, href: "" };
   const document = {
     readyState: "loading",
+    body: { appendChild() {} },
     createElement: tag => new Element(tag),
     querySelector: selector => selector === "body > aside" ? aside : null,
     addEventListener() {}
@@ -40,7 +41,7 @@ function sidebarFor(role, page) {
   const profile = { role, full_name: "Current staff member", active: true };
   const client = {
     auth: {
-      getUser: async () => ({ data: { user: { id: "staff-1" } }, error: null }),
+      getUser: async () => authResult || ({ data: { user: { id: "staff-1" } }, error: null }),
       signOut: async () => ({ error: null })
     },
     from: () => ({
@@ -56,12 +57,27 @@ function sidebarFor(role, page) {
     supabase: { createClient: () => client },
     addEventListener() {}
   };
-  const context = createContext({ document, window, location, console });
+  const context = createContext({ document, window, location, console: { ...console, error() {} } });
   runInContext(source, context, { filename: "admin/app.js" });
   return { aside, location, verify: () => runInContext("applyRoleNavigation()", context) };
 }
 
 describe("shared admin sidebar", () => {
+  it.each([
+    { data: { user: null }, error: null },
+    { data: { user: null }, error: { name: "AuthSessionMissingError", message: "Auth session missing!" } },
+    { data: { user: null }, error: { status: 401, message: "Invalid token" } }
+  ])("redirects unauthenticated staff and leaves navigation empty", async result => {
+    const {aside, location, verify}=sidebarFor("admin","staff.html",result);
+    await verify();
+    expect(location.href).toBe("login.html");
+    expect(aside.querySelector("nav").children).toHaveLength(0);
+  });
+  it("keeps transient authentication outages distinct from sign-out", async () => {
+    const {location, verify}=sidebarFor("admin","staff.html",{data:{user:null},error:{name:"AuthRetryableFetchError",status:503,message:"Unavailable"}});
+    await verify();
+    expect(location.href).toBe("");
+  });
   it.each([
     ["inventory_staff", "inventory.html"],
     ["cashier", "billing.html"],
