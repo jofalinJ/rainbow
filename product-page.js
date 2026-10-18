@@ -89,6 +89,13 @@
      }catch(e){if(e.name!=="AbortError")set("detailMessage","Use your browser's share menu to copy the link.");}
    });
    $("detailWhatsApp").href="https://wa.me/919952436899?text="+encodeURIComponent("Hello Rainbow Gold Covering, I'd like to know more about "+product.product_name+" ("+product.product_code+").");
+   const restock=$("detailRestock");
+   if(restock){
+     restock.hidden=variants.length>0;
+     restock.href="https://wa.me/919952436899?text="+encodeURIComponent(
+       "Hello Rainbow Gold Covering, could you tell me when "+product.product_name+
+       " ("+product.product_code+") is back in stock?");
+   }
    const json=document.createElement("script");json.type="application/ld+json";
    json.textContent=JSON.stringify({"@context":"https://schema.org","@type":"Product",name:product.product_name,sku:product.product_code,description:product.description||"",image:images.map(x=>x.public_url),brand:{"@type":"Brand",name:"Rainbow Gold Covering"},offers:{"@type":"Offer",price:Number(product.selling_price).toFixed(2),priceCurrency:"INR",availability:variants.length?"https://schema.org/InStock":"https://schema.org/OutOfStock",url:location.href}}).replace(/</g,"\\u003c");
    document.head.append(json);
