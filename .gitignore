@@ -4,3 +4,9 @@ test-results/
 .env
 .env.*
 .DS_Store
+
+# Never commit local encrypted or plaintext database dumps.
+backups/
+*.pgcustom
+*.pgcustom.age
+*.dump
