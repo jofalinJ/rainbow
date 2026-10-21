@@ -59,7 +59,18 @@ export async function razorpayTestAvailability(){
     }
     const data=await res.json();
     if(data.enabled===true && data.mode==="test" && /^rzp_test_[A-Za-z0-9]+$/.test(data.keyId||"")){
-      return {available:true,message:"Razorpay test checkout is connected. No real money is deducted through Razorpay Test Mode."};
+      // The public Key ID format is not proof that Razorpay will accept the
+      // matching server-side secret. Probe a read-only provider operation first.
+      const probe=await fetch(base+"/api/razorpay/provider-check?check="+Date.now(),{
+        method:"GET",mode:"cors",cache:"no-store",headers:{"Accept":"application/json"}
+      });
+      if(!probe.ok)return {available:false,message:"Payment provider verification is temporarily unavailable. Retry shortly."};
+      const result=await probe.json();
+      if(result.provider==="connected")
+        return {available:true,message:"Razorpay test checkout is connected. No real money is deducted through Razorpay Test Mode."};
+      if(result.provider==="credentials_rejected")
+        return {available:false,message:"Razorpay rejected the shop's Test Key ID / Key Secret. Online checkout is paused until the merchant fixes the matching credential pair."};
+      return {available:false,message:"Razorpay could not be verified right now. Please retry later."};
     }
     return {available:false,message:"Razorpay test checkout is not enabled on the payment server. Manual UPI remains available."};
   }catch(error){
