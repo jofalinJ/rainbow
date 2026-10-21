@@ -123,16 +123,73 @@ test("creates only the database-approved order amount",async()=>{
     ]);
   }finally{globalThis.fetch=oldFetch;}
 });
-test("concurrent retry in creating state does NOT create another provider order",async()=>{
+test("creating state checks Razorpay receipt but never creates a duplicate provider order",async()=>{
   const oldFetch=globalThis.fetch,calls=[];
   globalThis.fetch=mockFetch({
-    "/rest/v1/rpc/create_razorpay_checkout":{state:"creating",amount_paise:1000}
+    "/rest/v1/rpc/create_razorpay_checkout":{state:"creating",amount_paise:1000,
+      expires_at:"2099-01-01T00:00:00Z",order_number:"RG-TEST123"},
+    "/v1/orders":{items:[]}
   },calls);
   try {
     const res=await worker.fetch(request("/api/razorpay/create",
       {checkout_id:checkoutId,items,customer:checkoutCustomer}),baseEnv);
     assert.equal(res.status,409);
-    assert.deepEqual(calls.map(x=>x.path),["/rest/v1/rpc/create_razorpay_checkout"]);
+    assert.deepEqual(calls.map(x=>x.method),["POST","GET"]);
+  }finally{globalThis.fetch=oldFetch;}
+});
+test("reuses the exact Razorpay receipt after a lost database attachment",async()=>{
+  const oldFetch=globalThis.fetch,calls=[];
+  const receipt=checkoutId.replace(/-/g,"");
+  globalThis.fetch=mockFetch({
+    "/rest/v1/rpc/create_razorpay_checkout":{state:"creating",amount_paise:1000,
+      expires_at:"2099-01-01T00:00:00Z",order_number:"RG-TEST123"},
+    "/v1/orders":{items:[{receipt,id:rOrder,amount:1000,currency:"INR",status:"created"}]},
+    "/rest/v1/rpc/attach_razorpay_order":{state:"ready",gateway_order_id:rOrder}
+  },calls);
+  try {
+    const res=await worker.fetch(request("/api/razorpay/create",
+      {checkout_id:checkoutId,items,customer:checkoutCustomer}),baseEnv);
+    assert.equal(res.status,200);
+    assert.equal((await res.json()).gatewayOrderId,rOrder);
+    assert.deepEqual(calls.map(x=>x.method),["POST","GET","POST"]);
+  }finally{globalThis.fetch=oldFetch;}
+});
+test("ambiguous receipts are not attached to the local payment reservation",async()=>{
+  const oldFetch=globalThis.fetch,calls=[];
+  const receipt=checkoutId.replace(/-/g,"");
+  globalThis.fetch=mockFetch({
+    "/rest/v1/rpc/create_razorpay_checkout":{state:"creating",amount_paise:1000,
+      expires_at:"2099-01-01T00:00:00Z",order_number:"RG-TEST123"},
+    "/v1/orders":{items:[
+      {receipt,id:rOrder,amount:1000,currency:"INR",status:"created"},
+      {receipt,id:"order_second00000",amount:1000,currency:"INR",status:"created"}
+    ]}
+  },calls);
+  try {
+    const res=await worker.fetch(request("/api/razorpay/create",
+      {checkout_id:checkoutId,items,customer:checkoutCustomer}),baseEnv);
+    assert.equal(res.status,409);
+    assert.deepEqual(calls.map(x=>x.method),["POST","GET"]);
+  }finally{globalThis.fetch=oldFetch;}
+});
+test("provider-check never returns gateway order data or credentials",async()=>{
+  const oldFetch=globalThis.fetch,calls=[];
+  globalThis.fetch=mockFetch({
+    "/v1/orders":{items:[{id:"order_private",receipt:"private"}]}
+  },calls);
+  try {
+    const res=await worker.fetch(request("/api/razorpay/provider-check",undefined,"GET"),baseEnv);
+    assert.equal(res.status,200);
+    assert.deepEqual(await res.json(),{provider:"connected"});
+    assert.deepEqual(calls.map(x=>x.method),["GET"]);
+  }finally{globalThis.fetch=oldFetch;}
+});
+test("provider-check reports credentials rejected without exposing sensitive details",async()=>{
+  const oldFetch=globalThis.fetch,calls=[];
+  globalThis.fetch=mockFetch({"/v1/orders":()=>mockReply({error:"private"},401)},calls);
+  try {
+    const res=await worker.fetch(request("/api/razorpay/provider-check",undefined,"GET"),baseEnv);
+    assert.deepEqual(await res.json(),{provider:"credentials_rejected"});
   }finally{globalThis.fetch=oldFetch;}
 });
 test("provider amount mismatch is rejected before database attachment",async()=>{
