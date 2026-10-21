@@ -12,7 +12,7 @@ describe("payment security release gates",()=>{
   it("refuses new Razorpay payments until explicitly enabled with TEST keys",()=>{
     expect(opts).toContain('env.PAYMENTS_ENABLED === "true"');
     expect(opts).toContain("rzp_test_");
-    expect(publicConfig).toContain('apiBaseUrl:""');
+    expect(publicConfig).toContain('apiBaseUrl:"https://rainbow-api.jofalin2005.workers.dev"');
     expect(worker).toContain("verifyHmac");
     expect(worker).toContain('payment.status!=="captured"');
   });
