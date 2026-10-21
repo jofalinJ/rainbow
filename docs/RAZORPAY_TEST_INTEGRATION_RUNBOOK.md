@@ -111,3 +111,24 @@ the test database, webhook, rates, CI, staff refunds and regression checks pass.
 
 See [Razorpay Standard Checkout official guide](https://razorpay.com/docs/payments/payment-gateway/web-integration/standard/integration-steps/)
 and [Razorpay webhook verification documentation](https://razorpay.com/docs/webhooks/validate-test/).
+
+## Additional staged manual UPI fix
+
+A separate, unapplied migration `20261021202500_manual_upi_guest_idempotency.sql`
+protects the existing public `create_online_order` RPC:
+- Locks and remembers each manual UPI checkout key, returning the same order on retries.
+- Derives a stable legacy key from phone + UPI reference when older cached pages
+  do not send a client checkout UUID.
+- Creates a new order contact record instead of overwriting an existing customer's
+  saved name/address using only their phone number.
+
+This is **staged only**. Before deploying, audit genuine UPI references across
+devices and add verified gateway/bank-side reconciliation to prevent reuse of a
+single transaction reference in otherwise different checkout sessions. The manually
+entered UTR is not proof that the money arrived.
+
+The GitHub Actions workflow `Payment SQL in disposable PostgreSQL` runs
+`tests/sql/payment-fixture.sql` and `tests/sql/payment-behavior.sql` on a
+temporary PostgreSQL 17 service, so migrations can be syntax and behavior tested
+without writing to the production Supabase instance. Because its schema fixture
+is a focused copy, it **does not replace** a full isolated Supabase staging test.
