@@ -132,3 +132,11 @@ without writing to the production Supabase instance. Because its schema fixture
 is a focused copy, it **does not replace** a full isolated Supabase staging test.
 
 The connected production storefront domain is `rainbowgoldcovering.com` (GitHub CNAME). The default Worker allowed origins include `https://rainbowgoldcovering.com`, `https://www.rainbowgoldcovering.com` and the legacy GitHub Pages origin. Confirm the actual deployed hostname when enabling the gateway.
+
+### Cloudflare Worker deployment state (October 2026)
+
+The production-named `rainbow-api` is currently a **TEST-only** gateway (its server rejects any Razorpay key that does not begin `rzp_test_`). Cloudflare Workers Builds repeatedly reset dashboard-managed `PAYMENTS_ENABLED` during automatic GitHub deployments. The source-of-truth Wrangler configuration now explicitly sets `vars.PAYMENTS_ENABLED: "true"`, with `keep_vars: true` preserving dashboard-managed secrets and other variables. **This does not enable real payments; do not introduce live API keys into this Worker.**
+
+To suspend checkout immediately, set an encrypted runtime secret `PAYMENTS_SUSPENDED=true` in Cloudflare and deploy that setting. The Worker refuses checkout even if `PAYMENTS_ENABLED` remains true. Remove/rotate this secret only after verifying the gateway is safe again. To stop TEST checkout in source permanently, change the Wrangler variable to `"false"` and deploy. Real payment onboarding must use a separately reviewed live-specific configuration and full financial controls.
+
+An automated GitHub Actions workflow `Razorpay live readiness smoke` probes the public endpoint with Origin `https://rainbowgoldcovering.com` and checks published static assets without revealing payment secrets. It reports the actual live flags, which must match the page's availability state.

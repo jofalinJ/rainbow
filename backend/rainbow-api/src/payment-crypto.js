@@ -21,5 +21,5 @@ export function isTestSecretsConfigured(env={}) {
       env.SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY);
 }
 export function isTestConfigured(env={}) {
-  return env.PAYMENTS_ENABLED === "true" && isTestSecretsConfigured(env);
+  return env.PAYMENTS_ENABLED === "true" && env.PAYMENTS_SUSPENDED !== "true" && isTestSecretsConfigured(env);
 }
