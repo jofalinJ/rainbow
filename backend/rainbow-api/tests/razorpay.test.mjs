@@ -192,6 +192,19 @@ test("provider-check reports credentials rejected without exposing sensitive det
     assert.deepEqual(await res.json(),{provider:"credentials_rejected"});
   }finally{globalThis.fetch=oldFetch;}
 });
+test("expired reservation is confirmed before client can safely replace its checkout token",async()=>{
+  const oldFetch=globalThis.fetch,calls=[];
+  globalThis.fetch=mockFetch({
+    "/rest/v1/rpc/create_razorpay_checkout":{state:"expired",amount_paise:1000}
+  },calls);
+  try{
+    const res=await worker.fetch(request("/api/razorpay/create",
+      {checkout_id:checkoutId,items,customer:checkoutCustomer}),baseEnv);
+    assert.equal(res.status,410);
+    assert.equal((await res.json()).code,"CHECKOUT_EXPIRED");
+    assert.deepEqual(calls.map(x=>x.path),["/rest/v1/rpc/create_razorpay_checkout"]);
+  }finally{globalThis.fetch=oldFetch;}
+});
 test("provider amount mismatch is rejected before database attachment",async()=>{
   const oldFetch=globalThis.fetch,calls=[];
   globalThis.fetch=mockFetch({
