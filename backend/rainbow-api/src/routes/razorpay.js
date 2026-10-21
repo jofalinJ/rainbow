@@ -72,6 +72,12 @@ export async function razorpayRoute(request,env) {
   if(request.method!=="POST") return reply(request,env,methodNotAllowed("POST, OPTIONS"));
   if(!requireOrigin(request,env)) return apiError("Origin is not allowed",403);
   if(!isTestConfigured(env)) return reply(request,env,apiError("Razorpay checkout is not enabled",503));
+  // Origins are not authentication. Require Cloudflare rate limiting before any public checkout call.
+  if(!env.CHECKOUT_RATE_LIMITER || typeof env.CHECKOUT_RATE_LIMITER.limit!=="function")
+    return reply(request,env,apiError("Payment protection is not configured",503));
+  const caller=request.headers.get("CF-Connecting-IP")||"unknown";
+  const limit=await env.CHECKOUT_RATE_LIMITER.limit({key:caller+":"+path});
+  if(!limit.success) return reply(request,env,apiError("Too many payment requests. Try again shortly.",429));
   try {
     if(path==="/api/razorpay/create") return reply(request,env,await prepare(request,env));
     if(path==="/api/razorpay/verify") return reply(request,env,await verify(request,env));
