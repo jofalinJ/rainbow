@@ -1,5 +1,5 @@
 import {INDIAN_STATES,deliveryFeeForState} from "./order-pricing.mjs";
-import {razorpayTestAvailable,beginRazorpayTestPayment} from "./order-razorpay.mjs";
+import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpay.mjs?v=20261021-checkout-v2";
 (() => {
   const CONFIG=window.RAINBOW_SUPABASE_CONFIG||{};
   const SUPABASE_URL=String(CONFIG.supabaseUrl||"").trim();
@@ -15,6 +15,9 @@ import {razorpayTestAvailable,beginRazorpayTestPayment} from "./order-razorpay.m
   let cartVerificationFailed=false;
   let submitting=false;
   let razorpayReady=false;
+  let paymentChoiceTouched=false;
+  let readinessAttempt=0;
+  const selectedPaymentMethod=()=>document.querySelector('input[name="paymentMethod"]:checked')?.value||"upi";
 
   function read(){
     try{
@@ -30,7 +33,10 @@ import {razorpayTestAvailable,beginRazorpayTestPayment} from "./order-razorpay.m
   }
   function updateCount(){
     const el=$("cartCount");
-    if(el)el.textContent=cart.reduce((n,x)=>n+Number(x.quantity||0),0);
+    const count=cart.reduce((n,x)=>n+Number(x.quantity||0),0);
+    if(el)el.textContent=count;
+    const badge=$("bagItemCount");
+    if(badge)badge.textContent=count===0?"Your bag is empty":count+" "+(count===1?"item":"items")+" in your bag";
   }
   function msg(text,kind=""){
     const el=$("orderMsg");
@@ -113,7 +119,12 @@ import {razorpayTestAvailable,beginRazorpayTestPayment} from "./order-razorpay.m
     const shipping=deliveryFeeForState($("state").value);
     const payReady=cart.length>0&&cartVerified&&!cartVerificationFailed&&
       cart.every(cartItemHasStock)&&shipping!==null;
-    const gatewaySelected=$("paymentMethod").value==="razorpay";
+    const gatewaySelected=selectedPaymentMethod()==="razorpay";
+    const manualSelected=!gatewaySelected;
+    const gatewayDetails=$("razorpayDetails");
+    const manualDetails=$("manualPaymentDetails");
+    if(gatewayDetails)gatewayDetails.hidden=!gatewaySelected;
+    if(manualDetails)manualDetails.hidden=!manualSelected;
     const qr=$("checkoutQR");
     const qrMessage=$("qrUnavailable");
     const referenceGroup=$("paymentReferenceGroup");
@@ -207,7 +218,7 @@ import {razorpayTestAvailable,beginRazorpayTestPayment} from "./order-razorpay.m
     const email=$("email").value.trim();
     const pin=$("pin").value.trim();
     const address=$("address").value.trim();
-    const paymentMethod=$("paymentMethod").value;
+    const paymentMethod=selectedPaymentMethod();
     const paymentReference=$("paymentReference").value.trim();
     const shipping=deliveryFeeForState($("state").value);
     const customer={
@@ -283,21 +294,47 @@ import {razorpayTestAvailable,beginRazorpayTestPayment} from "./order-razorpay.m
   $("clearCart").onclick=()=>{cart=[];cartVerified=true;cartVerificationFailed=false;save();render();msg("");};
   $("placeOrder").onclick=placeOrder;
   $("paymentReference").addEventListener("input",updatePlaceOrderState);
-  $("paymentMethod").addEventListener("change",updatePlaceOrderState);
+  document.querySelectorAll('input[name="paymentMethod"]').forEach(input=>input.addEventListener("change",()=>{paymentChoiceTouched=true;updatePlaceOrderState();}));
   const stateField=$("state");
   for(const state of INDIAN_STATES)stateField.add(new Option(state,state));
   stateField.addEventListener("change",()=>{totals();updatePlaceOrderState();});
   read();
   render();
   verifyCart();
-  razorpayTestAvailable().then(ready=>{
-    razorpayReady=ready;
-    const option=$("paymentMethod").querySelector('option[value="razorpay"]');
-    if(option)option.disabled=!ready;
+  async function checkGateway(){
+    const attempt=++readinessAttempt;
+    const connection=$("gatewayConnection");
+    const retry=$("retryGateway");
     const message=$("gatewayStatus");
-    if(message)message.textContent=ready
-      ?"Razorpay TEST checkout is available. Payments are simulated; no real money is deducted."
-      :"Razorpay payment integration is being prepared. Use manual UPI QR for now.";
+    const indicator=$("gatewayIndicator");
+    connection?.classList.remove("is-online","is-offline");
+    if(message)message.textContent="Checking Razorpay payment availability…";
+    if(retry){retry.hidden=true;retry.disabled=true;}
+    const status=await razorpayTestAvailability();
+    if(attempt!==readinessAttempt)return;
+    razorpayReady=status.available;
+    connection?.classList.add(status.available?"is-online":"is-offline");
+    if(message)message.textContent=status.message;
+    if(indicator)indicator.title=status.available?"Connected":"Not connected";
+    if(retry){retry.hidden=status.available;retry.disabled=false;}
+    const gateway=$("payRazorpay");
+    const manual=$("payUpi");
+    if(gateway){
+      gateway.disabled=!status.available;
+      if(status.available && !paymentChoiceTouched && manual?.checked){
+        gateway.checked=true;
+      }else if(!status.available && gateway.checked && manual){
+        manual.checked=true;
+      }
+    }
     updatePlaceOrderState();
-  }).catch(()=>{razorpayReady=false;updatePlaceOrderState();});
+  }
+  $("retryGateway").addEventListener("click",checkGateway);
+  document.addEventListener("visibilitychange",()=>{
+    if(document.visibilityState==="visible" && !razorpayReady)checkGateway();
+  });
+  window.addEventListener("pageshow",event=>{
+    if(event.persisted)checkGateway();
+  });
+  checkGateway();
 })();
