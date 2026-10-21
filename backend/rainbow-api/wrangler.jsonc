@@ -5,8 +5,6 @@
   "compatibility_date": "2026-10-17",
   "workers_dev": true,
   "keep_vars": true,
-  // Development gateway ONLY: the backend also rejects every non-rzp_test_ key.
-  // Change to "false" before a non-test release; PAYMENTS_SUSPENDED is a runtime kill switch.
   "vars": {"PAYMENTS_ENABLED": "true"},
   "ratelimits": [
     {
