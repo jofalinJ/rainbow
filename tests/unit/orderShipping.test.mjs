@@ -39,7 +39,7 @@ describe("gateway readiness and manual UPI",()=>{
     expect(html).toContain('value="razorpay" disabled');
     expect(html).toContain('id="gatewayStatus"');
     expect(html).toContain('src="payment-config.js"');
-    expect(read("payment-config.js")).toContain('apiBaseUrl:""');
+    expect(read("payment-config.js")).toContain('apiBaseUrl:"https://rainbow-api.jofalin2005.workers.dev"');
     expect(js).toContain("razorpayTestAvailable().then(ready");
     expect(js).toContain("if(option)option.disabled=!ready");
     expect(js).not.toContain("paymentConfirmed");
