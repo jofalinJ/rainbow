@@ -1,0 +1,47 @@
+name: Razorpay live readiness smoke
+
+on:
+  pull_request:
+    paths:
+      - 'order-razorpay.mjs'
+      - 'order.js'
+      - 'order.html'
+      - 'backend/rainbow-api/src/routes/razorpay.js'
+      - 'tests/unit/paymentAvailability.test.mjs'
+      - '.github/workflows/razorpay-live-smoke.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  readiness:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe payment API with storefront Origin
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          const base='https://rainbow-api.jofalin2005.workers.dev/api/razorpay/config';
+          for(let i=0;i<4;i++){
+            const url=i%2?base+'?check='+Date.now()+'-'+i:base;
+            const res=await fetch(url,{headers:{Origin:'https://rainbowgoldcovering.com',Accept:'application/json'},cache:'no-store'});
+            const body=await res.json().catch(()=>({}));
+            console.log(JSON.stringify({probe:i,http:res.status,enabled:body.enabled,
+              mode:body.mode,keyFormat:/^rzp_test_[A-Za-z0-9]+$/.test(body.keyId||''),
+              allowedOrigin:res.headers.get('access-control-allow-origin'),
+              cache:res.headers.get('cache-control')}));
+            await new Promise(resolve=>setTimeout(resolve,600));
+          }
+          NODE
+      - name: Verify deployed checkout assets exist
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          for(const path of ['/order.html','/payment-config.js','/order-razorpay.mjs','/order.js']){
+            const res=await fetch('https://rainbowgoldcovering.com'+path,{cache:'no-store'});
+            const body=await res.text();
+            console.log(JSON.stringify({asset:path,http:res.status,bytes:body.length,
+              hasGateway:body.includes('razorpayTestAvailability')||body.includes('rainbow-api.jofalin2005.workers.dev')}));
+          }
+          NODE
