@@ -23,6 +23,9 @@ function deliveryAddress(o){
   const customer=relationOne(o.customers);
   return [o.shipping_address||customer.address,customer.city,customer.state,customer.pin_code].filter(Boolean).join(", ");
 }
+function needsPaymentReconciliation(o){
+  return ["cancelled","refunded"].includes(o.status) && o.payment_status==="paid";
+}
 function manualStatusChoices(o){
   const current=String(o.status||"pending");
   if(o.payment_status!=="paid"||["delivered","cancelled","refunded"].includes(current))return [current];
@@ -109,10 +112,13 @@ function render(){
     const orderLabel=o.order_number||("Order "+String(o.id||"").slice(0,8).toUpperCase());
     const itemCount=Array.isArray(o.order_items)?o.order_items.length:0;
     const verificationDisabled=currentRole!=="admin"||!bestPayment(o).transaction_reference||["cancelled","refunded"].includes(o.status);
-    const action=o.payment_status==="paid"
+    const reviewNeeded=needsPaymentReconciliation(o);
+    const action=reviewNeeded
+      ?"<span class='order-detail-warning'>Review captured payment / refund</span>"
+      :o.payment_status==="paid"
       ?"<button type='button' class='wa' data-wa='"+esc(o.id)+"'>Send full WhatsApp alert</button>"
       :"<button type='button' data-verify='"+esc(o.id)+"' "+(verificationDisabled?"disabled":"")+">Verify payment</button>";
-    const shipmentAction=currentRole==="admin"?"<button type='button' class='shipment-action' data-shipment='"+esc(o.id)+"'>Manage Shipment</button>":"";
+    const shipmentAction=currentRole==="admin"&&!reviewNeeded?"<button type='button' class='shipment-action' data-shipment='"+esc(o.id)+"'>Manage Shipment</button>":"";
     return "<tr><td><b>"+esc(orderLabel)+"</b><small>"+esc(dateLabel(o.created_at))+"</small></td>"+
       "<td><b>"+esc(c.name||"—")+"</b><small>"+esc(c.whatsapp_number||c.email||"—")+"</small></td>"+
       "<td>"+esc(address||"—")+"</td>"+
@@ -147,7 +153,8 @@ function openOrder(id){
   }).join("")||"<p>No item details were returned for this order.</p>";
   const canVerify=currentRole==="admin"&&o.payment_status!=="paid"&&
     !["cancelled","refunded"].includes(o.status)&&Boolean(payment.transaction_reference);
-  const paymentAction=o.payment_status==="paid"
+  const reviewNeeded=needsPaymentReconciliation(o);
+  const paymentAction=reviewNeeded?"":o.payment_status==="paid"
     ?"<button type='button' class='wa' data-modal-wa='"+esc(o.id)+"'>Send full WhatsApp alert</button>"
     :"<button type='button' data-modal-verify='"+esc(o.id)+"' "+(!canVerify?"disabled":"")+">Verify payment</button>";
   const choices=manualStatusChoices(o),canUpdate=currentRole==="admin"&&choices.length>1;
@@ -160,6 +167,7 @@ function openOrder(id){
     ["SGST",o.sgst_amount],["Delivery",o.delivery_fee],["Order total",o.total_amount]]
     .map(([name,value])=>"<div><span>"+esc(name)+"</span><strong>"+money(value)+"</strong></div>").join("");
   document.querySelector("#mBody").innerHTML=
+    (reviewNeeded?"<p class='order-detail-warning'>⚠ Cancelled or refunded order shows captured payment. Do not ship or send a paid-order notification. Investigate and refund when required.</p>":"")+
     (mismatch?"<p class='order-detail-warning'>⚠ Delivered order has no verified payment. Check the original receipt before taking action.</p>":"")+
     (amountMismatch?"<p class='order-detail-warning'>⚠ Stored total differs from the recorded tax, discount, subtotal and delivery figures. Existing data was not changed.</p>":"")+
     "<div class='detail-grid'>"+
@@ -178,7 +186,7 @@ function openOrder(id){
     "<h3 class='order-detail-heading'>Ordered items</h3><div class='items'>"+itemRows+"</div>"+
     "<h3 class='order-detail-heading'>Billing breakdown</h3><div class='order-amount-breakdown'>"+amounts+"</div>"+
     "<div class='modal-actions'>"+(address?"<a class='button' href='"+esc(map)+"' target='_blank' rel='noopener noreferrer'>Open delivery location ↗</a>":"")+
-       paymentAction+(currentRole==="admin"?"<button type='button' id='manageOrderShipment'>Manage Shipment</button>":"")+"</div>"+
+       paymentAction+(currentRole==="admin"&&!reviewNeeded?"<button type='button' id='manageOrderShipment'>Manage Shipment</button>":"")+"</div>"+
     "<div class='order-status-editor'><label for='mStatus'>Manual order status</label>"+
       "<div class='modal-actions'><select id='mStatus' "+(!canUpdate?"disabled":"")+">"+selectOptions+"</select>"+
       "<button type='button' data-save-status "+(!canUpdate?"disabled":"")+">Save status</button></div>"+
@@ -251,7 +259,9 @@ async function updateStatus(id){
 }
 async function sendAlert(id){
   const order=allOrders.find(item=>String(item.id)===String(id));
-  if(!order||order.payment_status!=="paid"){alert("Verify payment before sending full order details.");return;}
+  if(!order||order.payment_status!=="paid"||needsPaymentReconciliation(order)){
+    alert("This order needs payment or refund review before sending a paid-order notification.");return;
+  }
   try{
     const session=await requireSession();
     const r=await fetch(SUPABASE_URL+"/functions/v1/send-order-alert",{
