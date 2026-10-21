@@ -25,7 +25,11 @@ async function api(path,body){
     body:JSON.stringify(body),cache:"no-store"
   });
   const data=await res.json().catch(()=>({}));
-  if(!res.ok || data.success===false)throw new Error(data.error||"Payment service is unavailable");
+  if(!res.ok || data.success===false){
+    const error=new Error(data.error||"Payment service is unavailable");
+    if(res.status===410 && data.code==="CHECKOUT_EXPIRED")error.code="CHECKOUT_EXPIRED";
+    throw error;
+  }
   return data;
 }
 async function checkoutFingerprint(items,customer){
@@ -82,8 +86,18 @@ export async function razorpayTestAvailable(){
   return (await razorpayTestAvailability()).available;
 }
 export async function beginRazorpayTestPayment({items,customer,displayTotal}){
-  const checkout_id=await getCheckoutToken(items,customer);
-  const gateway=await api("/api/razorpay/create",{checkout_id,items,customer});
+  let checkout_id=await getCheckoutToken(items,customer);
+  let gateway;
+  try{
+    gateway=await api("/api/razorpay/create",{checkout_id,items,customer});
+  }catch(error){
+    if(error.code!=="CHECKOUT_EXPIRED")throw error;
+    // Retry ONLY after the server confirms the old reservation was expired
+    // and its inventory was restored. Never bypass a 'creating' reservation.
+    sessionStorage.removeItem("rainbow_razorpay_pending_v1");
+    checkout_id=await getCheckoutToken(items,customer);
+    gateway=await api("/api/razorpay/create",{checkout_id,items,customer});
+  }
   if(!gateway.success || !/^rzp_test_/.test(gateway.keyId||"") ||
     !Number.isSafeInteger(gateway.amount) || gateway.amount<=0 ||
     gateway.currency!=="INR" || !gateway.gatewayOrderId)
