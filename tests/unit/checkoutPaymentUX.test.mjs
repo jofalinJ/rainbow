@@ -13,7 +13,7 @@ describe("Rainbow secure checkout release",()=>{
     expect(build).toContain('"payment-config.js","order-razorpay.mjs"');
     expect(build).toContain('"order.js"');
     expect(page).toContain('src="payment-config.js?v=20261021-checkout-v2"');
-    expect(script).toContain('order-razorpay.mjs?v=20261021-checkout-v2');
+    expect(script).toContain('order-razorpay.mjs?v=20261021-payment-health-v3');
   });
   it("offers only supported choices and updates the order amount alongside the payment selector",()=>{
     expect(page).toContain('id="payRazorpay"');
@@ -36,6 +36,10 @@ describe("Rainbow secure checkout release",()=>{
     expect(gateway).toContain('data.enabled===true && data.mode==="test"');
     expect(gateway).toContain('cache:"no-store"');
     expect(gateway).toContain("Could not connect to the secure payment service");
+    expect(gateway).toContain("/api/razorpay/provider-check?check=");
+    expect(gateway).toContain('result.provider==="credentials_rejected"');
+    expect(gateway).toContain('data.code==="CHECKOUT_EXPIRED"');
+    expect(gateway).toContain('error.code!=="CHECKOUT_EXPIRED"');
   });
   it("preserves manual UPI verification and clarifies it can transfer actual money",()=>{
     expect(page).toContain('id="checkoutQR"');
