@@ -118,6 +118,12 @@ async function prepare(request,env){
   const held=await callDb(env,"create_razorpay_checkout",{
     p_checkout_id:body.checkout_id,p_items:body.items,p_customer:body.customer
   });
+  // Customer consent is voluntary and attached to the same reserved checkout.
+  // Only the server can update it; never send a message before verified capture.
+  if(body.customer.whatsapp_opt_in===true)
+    await callDb(env,"set_razorpay_whatsapp_opt_in",{
+      p_checkout_id:body.checkout_id,p_opt_in:true
+    });
   if(held.state==="ready" && validId(held.gateway_order_id,"order_"))
     return json({success:true,keyId:env.RAZORPAY_KEY_ID,
       gatewayOrderId:held.gateway_order_id,orderNumber:held.order_number,
@@ -184,8 +190,20 @@ async function verify(request,env) {
     p_gateway_order_id:checkout.gateway_order_id,p_payment_id:payment.id,
     p_amount_paise:payment.amount,p_event_id:null
   });
+  let receipt=null;
+  if(settled.paid===true){
+    try{
+      receipt=await callDb(env,"get_paid_razorpay_receipt",{
+        p_checkout_id:body.checkout_id,p_gateway_order_id:checkout.gateway_order_id
+      });
+    }catch(error){
+      console.error("Paid order receipt lookup failed",error.message);
+      // Do not turn a CAPTURED, settled payment into a misleading checkout failure.
+    }
+  }
   return json({success:true,paid:settled.paid===true,
-    status:settled.state,orderNumber:settled.order_number});
+    status:settled.state,orderNumber:settled.order_number,
+    ...(receipt?.invoice_url?{invoiceUrl:receipt.invoice_url,invoiceNumber:receipt.invoice_number}:{})});
 }
 async function webhook(request,env){
   if(request.method!=="POST") return methodNotAllowed("POST");
