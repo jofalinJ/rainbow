@@ -105,6 +105,21 @@ begin
   end if;
   select stock_quantity into qty from public.product_variants where id='bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb';
   if qty<>3 then raise exception 'Manual retry deducted stock twice: %',qty; end if;
+  -- Reusing the UPI transaction reference with a different checkout UUID
+  -- must NOT create another order or reserve stock.
+  denied:=false;
+  begin
+    perform public.create_online_order(
+      '[{"variant_id":"bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb","quantity":1}]'::jsonb,
+      '{"name":"Another Guest","whatsapp_number":"8888888888",
+        "address":"Another address","city":"Test","state":"Tamil Nadu",
+        "checkout_id":"33333333-3333-4333-8333-333333333333",
+        "payment_method":"upi","payment_reference":"UTRABC123456"}'::jsonb);
+  exception when unique_violation then denied:=true;
+  end;
+  if not denied then raise exception 'UPI transaction reference was reused for a second order'; end if;
+  select stock_quantity into qty from public.product_variants where id='bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb';
+  if qty<>3 then raise exception 'Rejected UPI reference changed stock'; end if;
   if (select name from public.customers where id='cccccccc-cccc-4ccc-cccc-cccccccccccc')<>'Original Customer' or
      (select address from public.customers where id='cccccccc-cccc-4ccc-cccc-cccccccccccc')<>'Saved original address' then
     raise exception 'Guest changed saved customer details using a phone number';
