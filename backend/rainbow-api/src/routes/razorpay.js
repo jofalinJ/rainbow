@@ -8,7 +8,7 @@ const validUUID=x=>typeof x==="string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f
 const validId=(x,prefix)=>typeof x==="string" && x.startsWith(prefix) && /^[A-Za-z0-9_]{8,80}$/.test(x);
 const apiError=(message,status=400)=>json({success:false,error:message},status);
 function origins(env) {
-  return new Set(String(env.ALLOWED_ORIGINS || "https://jofalinj.github.io").split(",").map(x=>x.trim()).filter(Boolean));
+  return new Set(String(env.ALLOWED_ORIGINS || "https://rainbowgoldcovering.com,https://www.rainbowgoldcovering.com,https://jofalinj.github.io").split(",").map(x=>x.trim()).filter(Boolean));
 }
 function withCors(request,env,response){
   const origin=request.headers.get("Origin");
