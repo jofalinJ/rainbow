@@ -25,6 +25,7 @@ const publicRootFiles=[
   "analytics.js","bill-pdf.js","business-live.js","config.js",
   "content.css","content.js","invoice-template.css","invoice-template.js",
   "invoice.js","order-pricing.mjs","order.css","order.js",
+  "payment-config.js","order-razorpay.mjs",
   "product-page.css","product-page.js","shop-catalogue.js",
   "shop-discovery.js"
 ];
@@ -56,7 +57,8 @@ for(const hidden of ["backend","supabase","tests","docs","scripts",".github",
 
 for(const required of [
   "index.html","admin/login.html","admin/manifest.webmanifest",
-  "admin/service-worker.js","src/domain/productRules.mjs"
+  "admin/service-worker.js","src/domain/productRules.mjs",
+  "payment-config.js","order-razorpay.mjs","order.js"
 ]){
   await fs.access(path.join(output,required));
 }
