@@ -246,7 +246,11 @@ test("captured payment requires matching order, INR amount and verified HMAC",as
     ["/v1/payments/"+rPayment]:{
       id:rPayment,order_id:rOrder,amount:50050,currency:"INR",status:"captured"
     },
-    "/rest/v1/rpc/complete_razorpay_checkout":{paid:true,state:"paid",order_number:"RG-TEST123"}
+    "/rest/v1/rpc/complete_razorpay_checkout":{paid:true,state:"paid",order_number:"RG-TEST123"},
+    "/rest/v1/rpc/get_paid_razorpay_receipt":{
+      order_number:"RG-TEST123",invoice_number:"RGC-INV-TEST",
+      invoice_url:"https://rainbowgoldcovering.com/invoice.html?token=00000000-0000-4000-8000-000000000001"
+    }
   },calls);
   try{
     const sig=await hmacHex(baseEnv.RAZORPAY_KEY_SECRET,rOrder+"|"+rPayment);
@@ -255,8 +259,10 @@ test("captured payment requires matching order, INR amount and verified HMAC",as
       razorpay_payment_id:rPayment,razorpay_signature:sig
     }),baseEnv);
     assert.equal(res.status,200);
-    assert.equal((await res.json()).paid,true);
-    assert.equal(calls.length,3);
+    const receipt=await res.json();
+    assert.equal(receipt.paid,true);
+    assert.match(receipt.invoiceUrl,/invoice\.html\?token=/);
+    assert.equal(calls.length,4);
   }finally{globalThis.fetch=oldFetch;}
 });
 test("webhook rejects invalid signature before querying provider",async()=>{

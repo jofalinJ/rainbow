@@ -1,5 +1,5 @@
 import {INDIAN_STATES,deliveryFeeForState} from "./order-pricing.mjs";
-import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpay.mjs?v=20261021-payment-health-v3";
+import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpay.mjs?v=20261021-paid-confirmation-v4";
 (() => {
   const CONFIG=window.RAINBOW_SUPABASE_CONFIG||{};
   const SUPABASE_URL=String(CONFIG.supabaseUrl||"").trim();
@@ -229,6 +229,7 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
       city:$("city").value.trim(),
       state:$("state").value.trim(),
       address,
+      whatsapp_opt_in:paymentMethod==="razorpay" && $("whatsappReceiptConsent")?.checked===true,
       payment_method:paymentMethod,
       payment_reference:paymentReference
     };
@@ -256,9 +257,22 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
           cart=[];save();
           $("orderLayout").hidden=true;
           $("orderSuccess").hidden=false;
-          $("orderSuccess").innerHTML="<h2>Test payment verified.</h2><p>Your order number is <strong>"+
-            esc(result.orderNumber||"—")+"</strong>.</p><p>This was a Razorpay TEST payment. No real money was deducted.</p>"+
-            "<a class='btn btn-dark' href='index.html#products'>Continue shopping</a>";
+          const safeBill=(()=>{
+            try{
+              const url=new URL(result.invoiceUrl||"");
+              return url.origin==="https://rainbowgoldcovering.com" &&
+                url.pathname==="/invoice.html" &&
+                /^[0-9a-f-]{36}$/i.test(url.searchParams.get("token")||"") ? url.href : null;
+            }catch{return null;}
+          })();
+          $("orderSuccess").innerHTML="<h2>Order placed — payment verified!</h2>"+
+            "<p>Your Rainbow Gold Covering test order <strong>"+esc(result.orderNumber||"—")+
+            "</strong> is confirmed and ready for staff processing.</p>"+
+            "<p>This was a Razorpay TEST payment. No real money was deducted.</p>"+
+            (safeBill?"<p><a class='btn btn-dark' target='_blank' rel='noopener noreferrer' href='"+esc(safeBill)+
+              "'>View / Print Invoice →</a></p>":"<p>Your invoice is being prepared. Contact the shop with the order number if it does not appear.</p>")+
+            "<p>WhatsApp confirmation is sent only when you opt in and shop messaging is configured.</p>"+
+            "<a class='btn btn-light' href='index.html#products'>Continue shopping</a>";
           msg("");
         }else if(result.status==="pending"){
           msg("Payment is awaiting confirmation. Do not pay again; contact the shop with your order number if it remains pending.","error");
@@ -280,7 +294,7 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
       save();
       $("orderLayout").hidden=true;
       $("orderSuccess").hidden=false;
-      $("orderSuccess").innerHTML="<h2>UPI reference submitted.</h2><p>Your order number is <strong>"+esc(data.order_number)+"</strong>.</p><p>Order total including delivery: <strong>"+money(data.total_amount)+"</strong>.</p><p>Keep your UPI transaction receipt until the shop confirms payment.</p><a class='btn btn-dark' href='index.html#products'>Continue shopping</a>";
+      $("orderSuccess").innerHTML="<h2>UPI reference received — not yet placed.</h2><p>Pending payment reference is <strong>"+esc(data.order_number)+"</strong>.</p><p>Order total including delivery: <strong>"+money(data.total_amount)+"</strong>.</p><p>Keep your UPI transaction receipt until the shop confirms payment.</p><a class='btn btn-dark' href='index.html#products'>Continue shopping</a>";
       msg("");
     }catch(error){
       console.error("Order creation failed.",error);
