@@ -13,13 +13,18 @@ describe("Rainbow secure checkout release",()=>{
     expect(build).toContain('"payment-config.js","order-razorpay.mjs"');
     expect(build).toContain('"order.js"');
     expect(page).toContain('src="payment-config.js?v=20261021-checkout-v2"');
-    expect(script).toContain('order-razorpay.mjs?v=20261021-payment-health-v3');
+    expect(script).toContain('order-razorpay.mjs?v=20261021-paid-confirmation-v4');
   });
   it("offers only supported choices and updates the order amount alongside the payment selector",()=>{
     expect(page).toContain('id="payRazorpay"');
     expect(page).toContain('id="payUpi"');
     expect(page).toContain('id="manualPaymentDetails"');
     expect(page).toContain('id="razorpayDetails"');
+    expect(page).toContain('id="whatsappReceiptConsent"');
+    expect(script).toContain('Order placed — payment verified!');
+    expect(script).toContain('View / Print Invoice');
+    expect(script).toContain('whatsapp_opt_in:paymentMethod==="razorpay"');
+    expect(gateway).toContain('invoiceUrl:result.invoiceUrl||null');
     expect(page).toContain('id="summaryHeading"');
     expect(page).toContain('id="placeOrder"');
     expect(page).not.toMatch(/name="paymentMethod"[^>]*value="cod"/i);
