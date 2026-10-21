@@ -1,6 +1,7 @@
 import { methodNotAllowed, notFound } from "./http.js";
 import { health } from "./routes/health.js";
 import { razorpayRoute, expireRazorpayReservations } from "./routes/razorpay.js";
+import { sendPaidInvoiceWhatsApp } from "./whatsapp.js";
 
 export default {
   async fetch(request, env = {}) {
@@ -14,5 +15,6 @@ export default {
   },
   async scheduled(event, env = {}) {
     await expireRazorpayReservations(env);
+    try{await sendPaidInvoiceWhatsApp(env);}catch(error){console.error("Invoice WhatsApp dispatch failed",error.message);}
   }
 };
