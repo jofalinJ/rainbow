@@ -35,22 +35,22 @@ describe("state-based shipping preview",()=>{
   });
 });
 describe("gateway readiness and manual UPI",()=>{
-  it("does not activate payment methods without merchant setup",()=>{
-    expect(html).toContain("Razorpay gateway · activation pending");
-    for(const value of ["razorpay_upi","razorpay_card","razorpay_netbanking","razorpay_wallet"]){
-      expect(html).toContain('value="'+value+'" disabled');
-    }
-    expect(html).not.toContain('id="paymentConfirmed"');
-    expect(html).not.toContain('id="deliveryNote"');
-    expect(html).not.toContain("Your order stays pending until an admin verifies");
+  it("keeps the new Razorpay option gated until TEST server setup",()=>{
+    expect(html).toContain('value="razorpay" disabled');
+    expect(html).toContain('id="gatewayStatus"');
+    expect(html).toContain('src="payment-config.js"');
+    expect(read("payment-config.js")).toContain('apiBaseUrl:""');
+    expect(js).toContain("razorpayTestAvailable().then(ready");
+    expect(js).toContain("if(option)option.disabled=!ready");
+    expect(js).not.toContain("paymentConfirmed");
   });
-  it("requires a verified cart, a shipping state, and a UPI transaction reference",()=>{
+  it("still requires verified stock, shipping and a UPI reference for manual UPI",()=>{
     expect(js).toContain("shipping!==null");
     expect(js).toContain("cart.every(cartItemHasStock)");
-    expect(js).toContain('$("paymentMethod").value!=="upi"');
+    expect(js).toContain('paymentMethod==="upi"');
+    expect(js).toContain('/^[A-Za-z0-9-]{8,64}$/.test(paymentReference)');
     expect(js).toContain('rpc("create_online_order"');
-    expect(js).not.toContain("paymentConfirmed");
     expect(html).toContain('id="checkoutQR"');
-    expect(html).toContain("hidden");
+    expect(html).toContain('id="paymentReferenceGroup"');
   });
 });
