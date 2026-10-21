@@ -45,6 +45,7 @@ test("HMAC verifies signatures and rejects altered data",async()=>{
 test("default is fail-closed, including accidental live keys",async()=>{
   assert.equal(isTestConfigured({}),false);
   assert.equal(isTestConfigured({...baseEnv,RAZORPAY_KEY_ID:"rzp_live_Example123"}),false);
+  assert.equal(isTestConfigured({...baseEnv,PAYMENTS_SUSPENDED:"true"}),false);
   let res=await worker.fetch(request("/api/razorpay/config",undefined,"GET"),{});
   assert.equal((await res.json()).enabled,false);
   res=await worker.fetch(request("/api/razorpay/create",{checkout_id:checkoutId,items,customer:checkoutCustomer}),{});
