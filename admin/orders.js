@@ -64,7 +64,7 @@ async function loadOrders({quiet=false}={}){
   let timeoutId;
   try{
     const request=ordersClient.from("orders")
-      .select("id,order_number,source,status,payment_status,subtotal,discount_amount,cgst_amount,sgst_amount,delivery_fee,total_amount,shipping_address,created_at,updated_at,customers:customers!orders_customer_id_fkey(name,whatsapp_number,email,address,city,state,pin_code),order_items:order_items!order_items_order_id_fkey(product_code,product_name,quantity,unit_price,line_total,variant_color,variant_size,length_cm,thickness,discount_amount),payments:payments!payments_order_id_fkey(id,method,status,transaction_reference,amount,paid_at,verified_at)")
+      .select("id,order_number,source,status,payment_status,subtotal,discount_amount,cgst_amount,sgst_amount,delivery_fee,total_amount,shipping_address,created_at,updated_at,customers:customers!orders_customer_id_fkey(name,whatsapp_number,email,address,city,state,pin_code),order_items:order_items!order_items_order_id_fkey(product_code,product_name,quantity,unit_price,line_total,variant_color,variant_size,length_cm,thickness,discount_amount),payments:payments!payments_order_id_fkey(id,method,status,transaction_reference,amount,paid_at,verified_at),invoices:invoices!invoices_order_id_fkey(invoice_number,public_token)")
       .eq("source","online")
       .order("created_at",{ascending:false})
       .abortSignal(controller.signal);
@@ -123,7 +123,7 @@ function render(){
       "<td><b>"+esc(c.name||"—")+"</b><small>"+esc(c.whatsapp_number||c.email||"—")+"</small></td>"+
       "<td>"+esc(address||"—")+"</td>"+
       "<td><b>"+money(o.total_amount)+"</b><small>"+esc(o.payment_status||"—")+"</small></td>"+
-      "<td><span class='order-status'>"+esc(o.status||"pending")+"</span></td>"+
+      "<td><span class='order-status'>"+esc(o.payment_status!=="paid"?"Awaiting payment · Not placed":o.status||"pending")+"</span></td>"+
       "<td><div class='action-row'><button type='button' data-view='"+esc(o.id)+"'>View"+(itemCount?" ("+itemCount+")":"")+"</button>"+action+shipmentAction+"</div></td></tr>";
   }).join("")||"<tr><td colspan='6'>"+esc(emptyMessage)+"</td></tr>";
   document.querySelectorAll("[data-view]").forEach(b=>b.onclick=()=>openOrder(b.dataset.view));
@@ -134,6 +134,12 @@ function render(){
 function openOrder(id){
   const o=allOrders.find(x=>String(x.id)===String(id));if(!o)return;
   const c=relationOne(o.customers),payment=bestPayment(o);
+  const invoice=relationOne(o.invoices);
+  const invoiceToken=String(invoice.public_token||"");
+  const billUrl=o.payment_status==="paid"&&
+    ["confirmed","processing","shipped","delivered"].includes(o.status)&&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(invoiceToken)
+    ?"../invoice.html?token="+encodeURIComponent(invoiceToken):null;
   const address=deliveryAddress(o);
   const map="https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(address);
   openOrderId=String(id);
@@ -185,7 +191,8 @@ function openOrder(id){
     "<div class='detail-box'><span>Last updated</span><strong>"+esc(dateLabel(o.updated_at))+"</strong></div></div>"+
     "<h3 class='order-detail-heading'>Ordered items</h3><div class='items'>"+itemRows+"</div>"+
     "<h3 class='order-detail-heading'>Billing breakdown</h3><div class='order-amount-breakdown'>"+amounts+"</div>"+
-    "<div class='modal-actions'>"+(address?"<a class='button' href='"+esc(map)+"' target='_blank' rel='noopener noreferrer'>Open delivery location ↗</a>":"")+
+    "<div class='modal-actions'>"+(billUrl?
+      "<a class='button' target='_blank' rel='noopener noreferrer' href='"+esc(billUrl)+"'>View / Print Invoice ↗</a>":"")+(address?"<a class='button' href='"+esc(map)+"' target='_blank' rel='noopener noreferrer'>Open delivery location ↗</a>":"")+
        paymentAction+(currentRole==="admin"&&!reviewNeeded?"<button type='button' id='manageOrderShipment'>Manage Shipment</button>":"")+"</div>"+
     "<div class='order-status-editor'><label for='mStatus'>Manual order status</label>"+
       "<div class='modal-actions'><select id='mStatus' "+(!canUpdate?"disabled":"")+">"+selectOptions+"</select>"+
