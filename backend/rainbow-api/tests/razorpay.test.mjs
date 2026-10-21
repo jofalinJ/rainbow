@@ -63,7 +63,7 @@ test("CORS blocks unknown origins without exposing payment secrets",async()=>{
   const config=await worker.fetch(request("/api/razorpay/config",undefined,"GET"),baseEnv);
   const body=await config.json();
   assert.equal(body.enabled,true);
-  assert.equal(body.release,"testgate-20261021-v3");
+  assert.equal(body.release,"paid-invoice-20261021-v4");
   assert.equal(body.keyId,baseEnv.RAZORPAY_KEY_ID);
   assert.equal(JSON.stringify(body).includes(baseEnv.RAZORPAY_KEY_SECRET),false);
   assert.equal(config.headers.get("Access-Control-Allow-Origin"),"https://jofalinj.github.io");
