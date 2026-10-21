@@ -9,6 +9,13 @@ const opts=file("backend/rainbow-api/src/payment-crypto.js");
 const publicConfig=file("payment-config.js");
 
 describe("payment security release gates",()=>{
+  it("preserves dashboard-only payment enablement across Worker deployments",()=>{
+    const config=JSON.parse(file("backend/rainbow-api/wrangler.jsonc"));
+    expect(config.keep_vars).toBe(true);
+    expect(config.name).toBe("rainbow-api");
+    expect(config.vars?.PAYMENTS_ENABLED).toBeUndefined();
+    expect(config.ratelimits?.[0]?.name).toBe("CHECKOUT_RATE_LIMITER");
+  });
   it("refuses new Razorpay payments until explicitly enabled with TEST keys",()=>{
     expect(opts).toContain('env.PAYMENTS_ENABLED === "true"');
     expect(opts).toContain("rzp_test_");
