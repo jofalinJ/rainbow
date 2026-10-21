@@ -24,7 +24,10 @@ describe("complete online order review",()=>{
     }
     expect(styles).toContain(".order-detail-warning");
     expect(styles).toContain(".orders-table{min-width:900px");
-    expect(page).toContain("orders.js?v=20261015-full-order-v3");
+    expect(page).toContain("orders.js?v=20261021-refund-review-v1");
+    expect(orders).toContain("needsPaymentReconciliation(o)");
+    expect(orders).toContain("Review captured payment / refund");
+    expect(orders).toContain("Do not ship or send a paid-order notification");
   });
   it("never changes order status directly from the browser",()=>{
     expect(orders).toContain('rpc("update_online_order_status"');
