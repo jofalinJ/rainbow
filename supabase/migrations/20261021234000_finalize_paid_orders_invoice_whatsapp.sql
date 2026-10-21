@@ -176,7 +176,7 @@ revoke all on function public.get_public_invoice(uuid) from public;
 grant execute on function public.get_public_invoice(uuid) to anon,authenticated,service_role;
 
 -- WhatsApp outbox can be claimed only by the backend, only after payment.
-create or replace function public.claim_paid_invoice_whatsapp(p_limit integer default 5)
+create or replace function public.claim_paid_invoice_whatsapp(p_limit integer default 5,p_allowed_numbers text[] default null)
 returns jsonb language plpgsql security definer set search_path=pg_catalog,public as $$
 declare v_result jsonb;
 begin
@@ -188,6 +188,7 @@ begin
     join public.razorpay_checkouts rc on rc.order_id=o.id
     where n.notification_type='payment_receipt' and n.status='pending'
       and n.send_started_at is null
+      and (p_allowed_numbers is null or regexp_replace(n.recipient_number,'[^0-9]','','g')=any(p_allowed_numbers))
       and o.payment_status='paid' and rc.status='paid' and rc.whatsapp_opt_in
     order by n.created_at limit p_limit for update of n skip locked
   ), claimed as (
@@ -204,8 +205,8 @@ begin
   join public.customers c on c.id=o.customer_id;
   return v_result;
 end $$;
-revoke all on function public.claim_paid_invoice_whatsapp(integer) from public,anon,authenticated;
-grant execute on function public.claim_paid_invoice_whatsapp(integer) to service_role;
+revoke all on function public.claim_paid_invoice_whatsapp(integer,text[]) from public,anon,authenticated;
+grant execute on function public.claim_paid_invoice_whatsapp(integer,text[]) to service_role;
 
 create or replace function public.finish_paid_invoice_whatsapp(
  p_notification_id uuid,p_provider_id text,p_error text default null
