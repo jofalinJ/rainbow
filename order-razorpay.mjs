@@ -45,15 +45,30 @@ async function getCheckoutToken(items,customer){
   sessionStorage.setItem(key,JSON.stringify({fingerprint,id}));
   return id;
 }
-export async function razorpayTestAvailable(){
+// Report a useful readiness reason; do not silently leave a payment option disabled.
+export async function razorpayTestAvailability(){
   const base=getBase();
-  if(!base)return false;
+  if(!base)return {available:false,message:"Payment configuration did not load. Please refresh checkout."};
   try{
-    const res=await fetch(base+"/api/razorpay/config",{cache:"no-store"});
-    if(!res.ok)return false;
+    const res=await fetch(base+"/api/razorpay/config?check="+Date.now(),{
+      method:"GET",mode:"cors",cache:"no-store",
+      headers:{"Accept":"application/json"}
+    });
+    if(!res.ok){
+      return {available:false,message:"Secure checkout service is temporarily unavailable (HTTP "+res.status+"). Try again."};
+    }
     const data=await res.json();
-    return data.enabled===true && data.mode==="test" && /^rzp_test_/.test(data.keyId||"");
-  }catch{return false;}
+    if(data.enabled===true && data.mode==="test" && /^rzp_test_[A-Za-z0-9]+$/.test(data.keyId||"")){
+      return {available:true,message:"Razorpay test checkout is connected. No real money is deducted through Razorpay Test Mode."};
+    }
+    return {available:false,message:"Razorpay test checkout is not enabled on the payment server. Manual UPI remains available."};
+  }catch(error){
+    console.warn("Razorpay availability request failed",error);
+    return {available:false,message:"Could not connect to the secure payment service from this browser. Check your connection or retry."};
+  }
+}
+export async function razorpayTestAvailable(){
+  return (await razorpayTestAvailability()).available;
 }
 export async function beginRazorpayTestPayment({items,customer,displayTotal}){
   const checkout_id=await getCheckoutToken(items,customer);
