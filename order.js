@@ -1,4 +1,5 @@
 import {INDIAN_STATES,deliveryFeeForState} from "./order-pricing.mjs";
+import {razorpayTestAvailable,beginRazorpayTestPayment} from "./order-razorpay.mjs";
 (() => {
   const CONFIG=window.RAINBOW_SUPABASE_CONFIG||{};
   const SUPABASE_URL=String(CONFIG.supabaseUrl||"").trim();
@@ -13,6 +14,7 @@ import {INDIAN_STATES,deliveryFeeForState} from "./order-pricing.mjs";
   let cartVerified=false;
   let cartVerificationFailed=false;
   let submitting=false;
+  let razorpayReady=false;
 
   function read(){
     try{
@@ -111,17 +113,21 @@ import {INDIAN_STATES,deliveryFeeForState} from "./order-pricing.mjs";
     const shipping=deliveryFeeForState($("state").value);
     const payReady=cart.length>0&&cartVerified&&!cartVerificationFailed&&
       cart.every(cartItemHasStock)&&shipping!==null;
+    const gatewaySelected=$("paymentMethod").value==="razorpay";
     const qr=$("checkoutQR");
     const qrMessage=$("qrUnavailable");
-    if(qr)qr.hidden=!payReady;
+    const referenceGroup=$("paymentReferenceGroup");
+    if(qr)qr.hidden=gatewaySelected||!payReady;
     if(qrMessage){
-      qrMessage.hidden=payReady;
+      qrMessage.hidden=gatewaySelected||payReady;
       qrMessage.textContent=!cart.length?"Add jewellery to your bag before making a payment."
         :shipping===null?"Choose your delivery state to calculate the complete amount."
         :"Verifying current prices and stock before showing the UPI QR…";
     }
-    button.disabled=submitting||!payReady||$("paymentMethod").value!=="upi"||
-      !/^[A-Za-z0-9-]{8,64}$/.test(reference);
+    if(referenceGroup)referenceGroup.hidden=gatewaySelected;
+    button.textContent=submitting?"Processing…":gatewaySelected?"Pay securely with Razorpay →":"Submit for payment verification →";
+    button.disabled=submitting||!payReady||
+      (gatewaySelected?!razorpayReady:!/^[A-Za-z0-9-]{8,64}$/.test(reference));
   }
     async function verifyCart(){
     if(!cart.length){cartVerified=true;render();return;}
@@ -219,13 +225,37 @@ import {INDIAN_STATES,deliveryFeeForState} from "./order-pricing.mjs";
     if(!phoneLooksValid(phone)){msg("Enter a valid WhatsApp number, including country code if needed.","error");return;}
     if(pin&&!/^\d{6}$/.test(pin)){msg("Enter a valid 6-digit PIN code.","error");return;}
     if(shipping===null){msg("Choose a valid Indian state or union territory for delivery.","error");return;}
-    if(paymentMethod!=="upi"){msg("Razorpay payment methods are not active yet. Please use manual UPI QR.","error");return;}
-    if(!/^[A-Za-z0-9-]{8,64}$/.test(paymentReference)){msg("Pay with the QR code and enter the UPI transaction reference (8–64 letters or digits).","error");return;}
+    if(paymentMethod!=="upi" && (paymentMethod!=="razorpay" || !razorpayReady)){
+      msg("This payment method is not available. Choose manual UPI instead.","error");return;
+    }
+    if(paymentMethod==="upi"&&!/^[A-Za-z0-9-]{8,64}$/.test(paymentReference)){
+      msg("Pay with the QR code and enter the UPI transaction reference (8–64 letters or digits).","error");return;
+    }
     submitting=true;
-    $("placeOrder").textContent="Submitting for verification…";
     updatePlaceOrderState();
-    msg("Submitting your payment reference for verification…");
+    msg(paymentMethod==="razorpay"?"Starting a secure test checkout…":"Submitting your payment reference for verification…");
     try{
+      if(paymentMethod==="razorpay"){
+        const result=await beginRazorpayTestPayment({
+          items:cart.map(item=>({variant_id:item.variant_id,quantity:Number(item.quantity)})),
+          customer,
+          displayTotal:totals().total
+        });
+        if(result.status==="paid"){
+          cart=[];save();
+          $("orderLayout").hidden=true;
+          $("orderSuccess").hidden=false;
+          $("orderSuccess").innerHTML="<h2>Test payment verified.</h2><p>Your order number is <strong>"+
+            esc(result.orderNumber||"—")+"</strong>.</p><p>This was a Razorpay TEST payment. No real money was deducted.</p>"+
+            "<a class='btn btn-dark' href='index.html#products'>Continue shopping</a>";
+          msg("");
+        }else if(result.status==="pending"){
+          msg("Payment is awaiting confirmation. Do not pay again; contact the shop with your order number if it remains pending.","error");
+        }else{
+          msg("Payment window closed. Your order was not confirmed. Check your Razorpay payment status before retrying.");
+        }
+        return;
+      }
       const {data,error}=await sb.rpc("create_online_order",{
         p_items:cart.map(item=>({variant_id:item.variant_id,quantity:Number(item.quantity)})),
         p_customer:customer
@@ -246,7 +276,6 @@ import {INDIAN_STATES,deliveryFeeForState} from "./order-pricing.mjs";
       msg(error.message||"We could not submit the payment details. Please check the information and try again.","error");
     }finally{
       submitting=false;
-      $("placeOrder").textContent="Submit for payment verification →";
       updatePlaceOrderState();
     }
   }
@@ -261,4 +290,14 @@ import {INDIAN_STATES,deliveryFeeForState} from "./order-pricing.mjs";
   read();
   render();
   verifyCart();
+  razorpayTestAvailable().then(ready=>{
+    razorpayReady=ready;
+    const option=$("paymentMethod").querySelector('option[value="razorpay"]');
+    if(option)option.disabled=!ready;
+    const message=$("gatewayStatus");
+    if(message)message.textContent=ready
+      ?"Razorpay TEST checkout is available. Payments are simulated; no real money is deducted."
+      :"Razorpay payment integration is being prepared. Use manual UPI QR for now.";
+    updatePlaceOrderState();
+  }).catch(()=>{razorpayReady=false;updatePlaceOrderState();});
 })();
