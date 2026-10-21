@@ -1,0 +1,52 @@
+name: Payment SQL in disposable PostgreSQL
+
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/20261021*'
+      - 'tests/sql/**'
+      - '.github/workflows/payment-sql-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  payment-sql:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: rainbow_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d rainbow_test"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    env:
+      PGHOST: localhost
+      PGPORT: "5432"
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: rainbow_test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Confirm PostgreSQL client
+        run: |
+          if ! command -v psql >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+      - name: Load disposable payment schema
+        run: psql -v ON_ERROR_STOP=1 -f tests/sql/payment-fixture.sql
+      - name: Install proposed TEST-mode gateway migration
+        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261021194000_razorpay_test_reservation_checkout.sql
+      - name: Install proposed manual UPI safety migration
+        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261021202500_manual_upi_guest_idempotency.sql
+      - name: Verify retry, inventory, expiry, privacy and captured payment rules
+        run: psql -v ON_ERROR_STOP=1 -f tests/sql/payment-behavior.sql
