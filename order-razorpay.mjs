@@ -1,6 +1,6 @@
 // Test-mode only until the audited server-side checkout is deliberately enabled.
 const getBase=()=>{
-  const value=String(window.RAINBOW_PAYMENT_CONFIG?.apiBaseUrl||"").replace(/\\/$/,"");
+  const value=String(window.RAINBOW_PAYMENT_CONFIG?.apiBaseUrl||"").trim();
   try{const url=new URL(value); return url.protocol==="https:" ? url.origin : "";}catch{return "";}
 };
 let gatewayScriptPromise;
