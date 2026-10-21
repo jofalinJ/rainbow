@@ -18,6 +18,13 @@ jobs:
   readiness:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install --legacy-peer-deps
+      - name: Verify real browser payment selection
+        run: node --test tests/e2e/selenium/tests/payment-readiness.test.mjs
       - name: Probe payment API with storefront Origin
         shell: bash
         run: |
@@ -25,12 +32,15 @@ jobs:
           const base='https://rainbow-api.jofalin2005.workers.dev/api/razorpay/config';
           for(let i=0;i<4;i++){
             const url=i%2?base+'?check='+Date.now()+'-'+i:base;
-            const res=await fetch(url,{headers:{Origin:'https://rainbowgoldcovering.com',Accept:'application/json'},cache:'no-store'});
+            const origin=i<2?'https://rainbowgoldcovering.com':null;
+            const headers=origin?{Origin:origin,Accept:'application/json'}:{Accept:'application/json'};
+            const res=await fetch(url,{headers,cache:'no-store'});
             const body=await res.json().catch(()=>({}));
-            console.log(JSON.stringify({probe:i,http:res.status,enabled:body.enabled,
-              mode:body.mode,keyFormat:/^rzp_test_[A-Za-z0-9]+$/.test(body.keyId||''),
+            console.log(JSON.stringify({probe:i,withOrigin:Boolean(origin),http:res.status,
+              enabled:body.enabled,mode:body.mode,release:body.release??'old-build',
+              keyFormat:/^rzp_test_[A-Za-z0-9]+$/.test(body.keyId||''),
               allowedOrigin:res.headers.get('access-control-allow-origin'),
-              cache:res.headers.get('cache-control')}));
+              cache:res.headers.get('cache-control'),cfRayPrefix:(res.headers.get('cf-ray')||'').split('-').pop()}));
             await new Promise(resolve=>setTimeout(resolve,600));
           }
           NODE

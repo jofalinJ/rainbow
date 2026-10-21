@@ -64,7 +64,7 @@ export async function razorpayRoute(request,env) {
     if(request.method==="OPTIONS") return reply(request,env,new Response(null,{status:204}));
     if(request.method!=="GET") return methodNotAllowed("GET, OPTIONS");
     return reply(request,env,json({
-      enabled:isTestConfigured(env),mode:"test",
+      enabled:isTestConfigured(env),mode:"test",release:"testgate-20261021-v3",
       ...(isTestConfigured(env)?{keyId:env.RAZORPAY_KEY_ID}: {})
     }));
   }
