@@ -33,7 +33,7 @@ async function readBody(request) {
   return parsed;
 }
 async function callDb(env,fn,payload) {
-  const res=await fetch(new URL("/rest/v1/rpc/"+fn,String(env.SUPABASE_URL).replace(/\\/$/,"")),{
+  const res=await fetch(new URL("/rest/v1/rpc/"+fn, String(env.SUPABASE_URL)),{
     method:"POST",
     headers:{"apikey":env.SUPABASE_SERVICE_ROLE_KEY,
       "Authorization":"Bearer "+env.SUPABASE_SERVICE_ROLE_KEY,
