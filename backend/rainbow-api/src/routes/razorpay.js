@@ -144,7 +144,9 @@ async function prepare(request,env){
       gatewayOrderId:gateway.id,orderNumber:held.order_number,
       amount:held.amount_paise,currency:"INR",expiresAt:held.expires_at});
   }
-  if(held.state!=="new") return apiError("This checkout has already been processed or expired. Contact the shop before retrying.",409);
+  if(held.state==="expired") return json({success:false,code:"CHECKOUT_EXPIRED",
+    error:"Your previous test reservation expired. Please review the cart and retry."},410);
+  if(held.state!=="new") return apiError("This checkout has already been processed. Contact the shop before retrying.",409);
   if(!Number.isSafeInteger(held.amount_paise)||held.amount_paise<=0)
     throw new Error("Invalid authoritative amount");
   // A failed/uncertain provider call leaves the reservation held for timeout cleanup;
