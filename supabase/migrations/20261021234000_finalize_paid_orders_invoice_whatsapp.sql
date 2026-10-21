@@ -76,12 +76,42 @@ begin
 end $$;
 revoke all on function app_private.finalize_paid_razorpay(uuid) from public,anon,authenticated;
 
+-- Manual UPI is placed ONLY after an authenticated shop admin has verified
+-- its transaction reference using verify_online_order_payment().
+create or replace function app_private.finalize_paid_manual_upi(p_order_id uuid)
+returns void language plpgsql security definer set search_path=pg_catalog,public as $
+declare v_verified boolean;
+begin
+  select exists(
+    select 1 from public.orders o join public.payments p on p.order_id=o.id
+    where o.id=p_order_id and o.source='online' and o.payment_status='paid'
+      and p.method='upi' and p.status='paid' and p.verified_by is not null
+      and p.verified_at is not null
+      and not exists(select 1 from public.razorpay_checkouts rc where rc.order_id=o.id)
+  ) into v_verified;
+  if not v_verified then return; end if;
+  update public.orders set status='confirmed',updated_at=now()
+    where id=p_order_id and status='pending';
+  insert into public.invoices(order_id,invoice_number)
+    values(p_order_id,'RGC-INV-'||to_char(now(),'YYYYMMDD')||'-'||
+      lpad(nextval('public.online_invoice_number_seq')::text,6,'0'))
+    on conflict (order_id) do nothing;
+  insert into public.inventory_transactions(
+    variant_id,transaction_type,quantity,quantity_delta,reference_order_id,reason)
+  select oi.variant_id,'sale_online'::public.inventory_tx_type,
+    oi.quantity,-oi.quantity,oi.order_id,'Shop verified manual UPI transfer'
+    from public.order_items oi where oi.order_id=p_order_id
+    on conflict do nothing;
+end $;
+revoke all on function app_private.finalize_paid_manual_upi(uuid) from public,anon,authenticated;
+
 create or replace function app_private.on_verified_razorpay_order()
 returns trigger language plpgsql security definer set search_path=pg_catalog,public as $$
 begin
   if new.source='online' and new.payment_status='paid'
     and old.payment_status is distinct from 'paid' then
     perform app_private.finalize_paid_razorpay(new.id);
+    perform app_private.finalize_paid_manual_upi(new.id);
   end if;
   return new;
 end $$;
@@ -169,8 +199,11 @@ returns jsonb language sql security definer set search_path=pg_catalog,public as
     and (o.source='local_store'
       or (o.source='online' and o.payment_status='paid'
         and o.status in ('confirmed','processing','shipped','delivered')
-        and exists(select 1 from public.razorpay_checkouts rc
-          where rc.order_id=o.id and rc.status='paid')));
+        and (exists(select 1 from public.razorpay_checkouts rc
+          where rc.order_id=o.id and rc.status='paid')
+          or exists(select 1 from public.payments p
+             where p.order_id=o.id and p.method='upi' and p.status='paid'
+               and p.verified_by is not null and p.verified_at is not null))));
 $$;
 revoke all on function public.get_public_invoice(uuid) from public;
 grant execute on function public.get_public_invoice(uuid) to anon,authenticated,service_role;
