@@ -68,6 +68,27 @@ export async function razorpayRoute(request,env) {
       ...(isTestConfigured(env)?{keyId:env.RAZORPAY_KEY_ID}: {})
     }));
   }
+  // Explicit, rate-limited non-mutating provider credential probe for TEST onboarding.
+  // Never return Razorpay order/customer records or any key material.
+  if(path==="/api/razorpay/provider-check"){
+    if(request.method!=="GET") return reply(request,env,methodNotAllowed("GET"));
+    if(!requireOrigin(request,env)) return apiError("Origin is not allowed",403);
+    if(!isTestConfigured(env)) return reply(request,env,json({provider:"disabled"}));
+    if(!env.CHECKOUT_RATE_LIMITER || typeof env.CHECKOUT_RATE_LIMITER.limit!=="function")
+      return reply(request,env,apiError("Payment protection is not configured",503));
+    const caller=request.headers.get("CF-Connecting-IP")||"unknown";
+    const result=await env.CHECKOUT_RATE_LIMITER.limit({key:caller+":provider-check"});
+    if(!result.success) return reply(request,env,apiError("Too many requests",429));
+    try {
+      const provider=await fetch(GATEWAY+"/orders?count=1",{
+        headers:{"Authorization":"Basic "+btoa(env.RAZORPAY_KEY_ID+":"+env.RAZORPAY_KEY_SECRET)}
+      });
+      return reply(request,env,json({provider:provider.ok?"connected":
+        (provider.status===401||provider.status===403||provider.status===400)?"credentials_rejected":"unavailable"}));
+    } catch {
+      return reply(request,env,json({provider:"unavailable"}));
+    }
+  }
   if(request.method==="OPTIONS") return reply(request,env,new Response(null,{status:204}));
   if(request.method!=="POST") return reply(request,env,methodNotAllowed("POST, OPTIONS"));
   if(!requireOrigin(request,env)) return apiError("Origin is not allowed",403);
@@ -101,7 +122,29 @@ async function prepare(request,env){
     return json({success:true,keyId:env.RAZORPAY_KEY_ID,
       gatewayOrderId:held.gateway_order_id,orderNumber:held.order_number,
       amount:held.amount_paise,currency:"INR",expiresAt:held.expires_at});
-  if(held.state!=="new") return apiError("Checkout is already being prepared. Please wait before retrying.",409);
+  if(held.state==="creating"){
+    // Recover an order created at Razorpay when the initial response or DB attach
+    // was lost. NEVER create another provider order for the same receipt.
+    if(new Date(held.expires_at).getTime()<=Date.now())
+      return apiError("This checkout reservation has expired. Refresh your cart and try after stock is released.",409);
+    const receipt=body.checkout_id.replace(/-/g,"");
+    const result=await callRazorpay(env,"/orders?receipt="+encodeURIComponent(receipt)+"&count=10");
+    const matches=(Array.isArray(result.items)?result.items:[]).filter(order=>
+      order.receipt===receipt && order.amount===held.amount_paise &&
+      order.currency==="INR" && validId(order.id,"order_"));
+    if(matches.length!==1 || matches[0].status!=="created")
+      return apiError("Your payment is still being prepared. Please wait; your order is reserved. Contact the shop if this persists.",409);
+    const gateway=matches[0];
+    const saved=await callDb(env,"attach_razorpay_order",{
+      p_checkout_id:body.checkout_id,p_gateway_order_id:gateway.id,p_amount_paise:gateway.amount
+    });
+    if(saved.state!=="ready" || saved.gateway_order_id!==gateway.id)
+      throw new Error("Recovered provider order could not be attached");
+    return json({success:true,keyId:env.RAZORPAY_KEY_ID,
+      gatewayOrderId:gateway.id,orderNumber:held.order_number,
+      amount:held.amount_paise,currency:"INR",expiresAt:held.expires_at});
+  }
+  if(held.state!=="new") return apiError("This checkout has already been processed or expired. Contact the shop before retrying.",409);
   if(!Number.isSafeInteger(held.amount_paise)||held.amount_paise<=0)
     throw new Error("Invalid authoritative amount");
   // A failed/uncertain provider call leaves the reservation held for timeout cleanup;
