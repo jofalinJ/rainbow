@@ -128,7 +128,8 @@ export async function beginRazorpayTestPayment({items,customer,displayTotal}){
             });
             if(result.paid===true){
               sessionStorage.removeItem("rainbow_razorpay_pending_v1");
-              resolve({status:"paid",orderNumber:result.orderNumber});
+              resolve({status:"paid",orderNumber:result.orderNumber,
+                invoiceUrl:result.invoiceUrl||null,invoiceNumber:result.invoiceNumber||null});
             }else{
               resolve({status:"pending",orderNumber:result.orderNumber});
             }
