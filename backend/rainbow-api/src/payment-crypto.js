@@ -15,9 +15,11 @@ export function safeHexEqual(expected, actual) {
 export async function verifyHmac(secret, message, signature) {
   return safeHexEqual(await hmacHex(secret,message),signature);
 }
-export function isTestConfigured(env={}) {
-  return env.PAYMENTS_ENABLED === "true" &&
-    /^rzp_test_[a-zA-Z0-9]+$/.test(String(env.RAZORPAY_KEY_ID||"")) &&
+export function isTestSecretsConfigured(env={}) {
+  return /^rzp_test_[a-zA-Z0-9]+$/.test(String(env.RAZORPAY_KEY_ID||"")) &&
     Boolean(env.RAZORPAY_KEY_SECRET && env.RAZORPAY_WEBHOOK_SECRET &&
       env.SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY);
+}
+export function isTestConfigured(env={}) {
+  return env.PAYMENTS_ENABLED === "true" && isTestSecretsConfigured(env);
 }
