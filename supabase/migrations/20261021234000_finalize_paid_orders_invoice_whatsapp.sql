@@ -102,7 +102,7 @@ begin
     oi.quantity,-oi.quantity,oi.order_id,'Shop verified manual UPI transfer'
     from public.order_items oi where oi.order_id=p_order_id
     on conflict do nothing;
-end $;
+end $$;
 revoke all on function app_private.finalize_paid_manual_upi(uuid) from public,anon,authenticated;
 
 create or replace function app_private.on_verified_razorpay_order()
