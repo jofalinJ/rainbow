@@ -47,8 +47,7 @@ Worker public variables:
 - `PAYMENTS_ENABLED` = leave **unset / false** until all of the release gates pass;
   even when enabled this code refuses a `rzp_live_` Key ID.
 
-Storefront `payment-config.js`: insert only the deployed **HTTPS public Worker URL**
-in `apiBaseUrl`. It is not a secret. The default blank value leaves Razorpay disabled.
+Storefront `payment-config.js` now points to the existing public HTTPS `rainbow-api` Worker URL. The URL itself is not a secret. This does **not** enable checkout: the Worker still requires `PAYMENTS_ENABLED=true`, test credentials, its database connection, rate limiting, and a verified webhook setup.
 
 Razorpay Dashboard → Account & Settings → Webhooks → Test Mode:
 add the deployed Worker endpoint `https://YOUR-VERIFIED-WORKER/api/razorpay/webhook`
@@ -61,8 +60,7 @@ after successful database settlement; failed settlement must retry.
 1. Apply the migration in an **isolated test database** and verify the complete SQL,
    permissions, RLS, and customer/order/inventory constraints. Do not use real customer data.
 2. Run `cd backend/rainbow-api && npm run check && npm test`; run the root repository CI.
-3. Add Cloudflare WAF/rate limits and bot protection to create and verify endpoints.
-   An Origin/CORS allowlist is **not authentication** and can be forged by scripts.
+3. The Worker now requires the `CHECKOUT_RATE_LIMITER` binding (12 requests/minute per route and client IP within each Cloudflare location) and rejects checkout calls when it is missing. Verify this binding after deployment, and consider additional account-level Cloudflare WAF/bot protection. An Origin/CORS allowlist is **not authentication** and can be forged by scripts.
 4. Implement an admin queue and manual refund runbook for `refund_required`,
    plus an alert for delayed/missing webhooks and captured payment mismatches.
 5. Verify gateway payment-capture settings and perform genuine Razorpay **test-mode**
@@ -73,7 +71,7 @@ after successful database settlement; failed settlement must retry.
 7. Fix the **existing manual UPI** checkout independently: the public
    `create_online_order` RPC currently has no idempotency and updates customer records
    based on phone number. Its old flow is NOT repaired by this payment branch.
-8. Finance review: interstate IGST vs CGST/SGST and actual checkout pricing.
+8. Finance review: interstate IGST vs CGST/SGST and actual checkout pricing. The public website still displays a manual UPI QR that must not be mistaken for Razorpay payment verification.
 9. Keep production checkout on **manual UPI** until the release passes review.
    No live Razorpay payments are supported by this patch.
 
@@ -132,3 +130,5 @@ The GitHub Actions workflow `Payment SQL in disposable PostgreSQL` runs
 temporary PostgreSQL 17 service, so migrations can be syntax and behavior tested
 without writing to the production Supabase instance. Because its schema fixture
 is a focused copy, it **does not replace** a full isolated Supabase staging test.
+
+The connected production storefront domain is `rainbowgoldcovering.com` (GitHub CNAME). The default Worker allowed origins include `https://rainbowgoldcovering.com`, `https://www.rainbowgoldcovering.com` and the legacy GitHub Pages origin. Confirm the actual deployed hostname when enabling the gateway.
