@@ -1,5 +1,5 @@
 import {INDIAN_STATES,deliveryFeeForState} from "./order-pricing.mjs";
-import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpay.mjs?v=20261021-payment-health-v3"";
+import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpay.mjs?v=20261021-payment-health-v3";
 (() => {
   const CONFIG=window.RAINBOW_SUPABASE_CONFIG||{};
   const SUPABASE_URL=String(CONFIG.supabaseUrl||"").trim();
