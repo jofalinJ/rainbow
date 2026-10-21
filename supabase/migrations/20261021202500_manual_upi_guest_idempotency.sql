@@ -6,6 +6,11 @@ create table if not exists public.manual_upi_checkout_requests (
   created_at timestamptz not null default now()
 );
 alter table public.manual_upi_checkout_requests enable row level security;
+-- Stop two otherwise different guest sessions from claiming the same UPI reference.
+-- Existing manual UPI references must be audited for duplicates before migration.
+create unique index if not exists idx_payments_unique_manual_upi_reference
+  on public.payments (lower(transaction_reference))
+  where method='upi'::public.payment_method and transaction_reference is not null;
 revoke all on public.manual_upi_checkout_requests from public, anon, authenticated;
 -- SECURITY DEFINER function owner uses the table, while anonymous users cannot browse it.
 
