@@ -1,5 +1,5 @@
 import {json, methodNotAllowed} from "../http.js";
-import {verifyHmac,isTestConfigured} from "../payment-crypto.js";
+import {verifyHmac,isTestConfigured,isTestSecretsConfigured} from "../payment-crypto.js";
 
 const METHODS="GET, POST, OPTIONS";
 const MAX_BODY=14000;
@@ -138,7 +138,7 @@ async function verify(request,env) {
 }
 async function webhook(request,env){
   if(request.method!=="POST") return methodNotAllowed("POST");
-  if(!isTestConfigured(env)) return apiError("Webhook is unavailable",503);
+  if(!isTestSecretsConfigured(env)) return apiError("Webhook is unavailable",503);
   const raw=await request.text();
   if(raw.length>200000) return apiError("Webhook too large",413);
   const signature=request.headers.get("x-razorpay-signature");
