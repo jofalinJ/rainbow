@@ -7,7 +7,8 @@ const baseEnv={
   PAYMENTS_ENABLED:"true",RAZORPAY_KEY_ID:"rzp_test_Example123",
   RAZORPAY_KEY_SECRET:"test-secret",RAZORPAY_WEBHOOK_SECRET:"test-webhook",
   SUPABASE_URL:"https://example.supabase.co",SUPABASE_SERVICE_ROLE_KEY:"fake-service",
-  ALLOWED_ORIGINS:"https://jofalinj.github.io"
+  ALLOWED_ORIGINS:"https://jofalinj.github.io",
+  CHECKOUT_RATE_LIMITER:{limit:async()=>({success:true})}
 };
 const checkoutId="4d43dc4b-f8e4-4629-972b-7979f3abcdf7";
 const rOrder="order_example12345",rPayment="pay_example1234567";
@@ -64,6 +65,26 @@ test("CORS blocks unknown origins without exposing payment secrets",async()=>{
   assert.equal(body.keyId,baseEnv.RAZORPAY_KEY_ID);
   assert.equal(JSON.stringify(body).includes(baseEnv.RAZORPAY_KEY_SECRET),false);
   assert.equal(config.headers.get("Access-Control-Allow-Origin"),"https://jofalinj.github.io");
+});
+test("payment requests fail closed without a rate limiter",async()=>{
+  const env={...baseEnv,CHECKOUT_RATE_LIMITER:undefined};
+  const res=await worker.fetch(request("/api/razorpay/create",{
+    checkout_id:checkoutId,items,customer:checkoutCustomer
+  }),env);
+  assert.equal(res.status,503);
+  assert.match((await res.json()).error,/protection/);
+});
+test("rate-limited requests return HTTP 429 without creating orders",async()=>{
+  const env={...baseEnv,CHECKOUT_RATE_LIMITER:{
+    limit:async({key})=>{
+      assert.match(key,/\/api\/razorpay\/create$/);
+      return {success:false};
+    }
+  }};
+  const res=await worker.fetch(request("/api/razorpay/create",{
+    checkout_id:checkoutId,items,customer:checkoutCustomer
+  }),env);
+  assert.equal(res.status,429);
 });
 test("rejected browser request never creates orders",async()=>{
   const res=await worker.fetch(request("/api/razorpay/create",
