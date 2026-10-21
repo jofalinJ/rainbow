@@ -79,7 +79,7 @@ revoke all on function app_private.finalize_paid_razorpay(uuid) from public,anon
 -- Manual UPI is placed ONLY after an authenticated shop admin has verified
 -- its transaction reference using verify_online_order_payment().
 create or replace function app_private.finalize_paid_manual_upi(p_order_id uuid)
-returns void language plpgsql security definer set search_path=pg_catalog,public as $
+returns void language plpgsql security definer set search_path=pg_catalog,public as $$
 declare v_verified boolean;
 begin
   select exists(
