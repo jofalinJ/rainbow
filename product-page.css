@@ -1,3 +1,4 @@
+[hidden]{display:none!important}
 .detail-page{padding-top:30px;padding-bottom:90px}.product-crumb{font-size:13px;margin:12px 0 26px;color:var(--muted)}
 .product-crumb a{text-decoration:underline}.detail-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:48px}
 .detail-main-image{aspect-ratio:1/1;border-radius:22px;overflow:hidden;background:#f7f0e7}
