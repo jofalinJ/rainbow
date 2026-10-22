@@ -21,7 +21,7 @@ const publicRootFiles=[
   "index.html","order.html","product.html","invoice.html",
   "privacy-policy.html","returns-and-refunds.html",
   "shipping-policy.html","terms-and-conditions.html",
-  "sitemap.html","sitemap.xml",
+  "sitemap.html","sitemap.xml","robots.txt",
   "analytics.js","bill-pdf.js","business-live.js","config.js",
   "content.css","content.js","invoice-template.css","invoice-template.js",
   "invoice.js","order-pricing.mjs","order.css","order.js",
@@ -29,7 +29,7 @@ const publicRootFiles=[
   "product-page.css","product-page.js","shop-catalogue.js",
   "shop-discovery.js"
 ];
-const publicDirectories=["admin","assets","src/domain"];
+const publicDirectories=["admin","staff","assets","src/domain"];
 
 await fs.rm(output,{recursive:true,force:true});
 await fs.mkdir(output,{recursive:true});
@@ -56,7 +56,7 @@ for(const hidden of ["backend","supabase","tests","docs","scripts",".github",
 }
 
 for(const required of [
-  "index.html","admin/login.html","admin/manifest.webmanifest",
+  "index.html","staff/index.html","admin/login.html","admin/manifest.webmanifest",
   "admin/service-worker.js","src/domain/productRules.mjs",
   "payment-config.js","order-razorpay.mjs","order.js"
 ]){

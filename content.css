@@ -1206,7 +1206,7 @@ body.modal-open{overflow:hidden}
 .category-tile-copy strong{font-size:16px}
 .category-tile-copy small{color:var(--muted);font-size:11px;white-space:nowrap}
 .product-grid .category-tile:hover{border-color:#d2b67e;transform:translateY(-2px);box-shadow:0 12px 28px rgba(50,25,10,.08)}
-.footer{align-items:center;text-align:center}
+.footer{align-items:center;text-align:center;flex-wrap:wrap}
 .footer>*{flex:1 1 0}
 .footer-brand{justify-content:center}
 @media(max-width:1200px){

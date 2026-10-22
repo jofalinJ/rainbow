@@ -45,6 +45,30 @@ test("customer product catalogue resolves to a usable state", async () => {
   });
 });
 
+test("standalone product link loads current catalogue data", async context => {
+  await runWithDriver("standalone-product", async driver => {
+    await driver.get(BASE_URL + "/");
+    const config=await driver.executeScript("return window.RAINBOW_SUPABASE_CONFIG");
+    assert.ok(config?.supabaseUrl&&config?.supabasePublishableKey);
+    const response=await fetch(config.supabaseUrl+"/rest/v1/products?select=product_code&active=eq.true&limit=1",{
+      headers:{apikey:config.supabasePublishableKey}
+    });
+    assert.equal(response.ok,true,"Public catalogue should be readable");
+    const products=await response.json();
+    if(!products.length){context.skip("No active product is published.");return;}
+    const sku=products[0].product_code;
+    await driver.get(BASE_URL+"/product.html");
+    assert.equal(await driver.findElement(By.css("#productError")).isDisplayed(),true);
+    assert.equal(await driver.findElement(By.css("#productDetail")).isDisplayed(),false);
+    await driver.get(BASE_URL+"/product.html?sku="+encodeURIComponent(sku));
+    await driver.wait(async()=>!(await driver.findElement(By.css("#productLoading")).isDisplayed()),15000);
+    assert.equal(await driver.findElement(By.css("#productError")).isDisplayed(),false);
+    assert.equal(await driver.findElement(By.css("#productDetail")).isDisplayed(),true);
+    assert.equal(await driver.findElement(By.css("#detailSku")).getText(),sku);
+    assert.ok((await driver.findElement(By.css("#detailName")).getText()).trim().length>0);
+  });
+});
+
 test("customer navigation does not expose the staff portal", async () => {
   await runWithDriver("customer-no-staff-link", async (driver) => {
     await driver.get(BASE_URL + "/");
@@ -55,7 +79,7 @@ test("customer navigation does not expose the staff portal", async () => {
 
 test("customer mobile navigation opens and closes with accessible state", async () => {
   await runWithDriver("customer-navigation", async (driver) => {
-    await driver.manage().window().setRect({ width: 390, height: 844 });
+    await driver.sendDevToolsCommand("Emulation.setDeviceMetricsOverride",{width:390,height:844,deviceScaleFactor:1,mobile:true});
     await driver.get(BASE_URL + "/");
     assert.match(await driver.findElement(By.css(".skip-link")).getAttribute("href"), /#mainContent$/);
     const toggle = await driver.findElement(By.css("#menuToggle"));
@@ -115,7 +139,7 @@ test("homepage editorial content and contact links match storefront feedback", a
   });
 });
 
-test("checkout shows state delivery options and keeps future gateway modes disabled", async () => {
+test("checkout shows state delivery options and blocks an empty cart", async () => {
   await runWithDriver("checkout-shipping-and-methods", async (driver) => {
     await driver.get(BASE_URL + "/order.html");
     const state = await driver.findElement(By.css("#state"));
@@ -124,14 +148,21 @@ test("checkout shows state delivery options and keeps future gateway modes disab
     assert.equal(await checkout.isDisplayed(), false);
     assert.equal((await driver.findElements(By.css("#paymentConfirmed"))).length, 0);
     assert.equal((await driver.findElements(By.css("#deliveryNote"))).length, 0);
-    assert.equal((await driver.findElements(By.css("#paymentMethod option[disabled]"))).length, 4);
+    assert.equal((await driver.findElements(By.css('input[name="paymentMethod"]'))).length, 2);
+    const manual=await driver.findElement(By.css("#payUpi"));
+    const manualChoice=await driver.findElement(By.css("#manualUpiChoice"));
+    await driver.executeScript(element=>element.scrollIntoView({block:"center",behavior:"instant"}),manualChoice);
+    await manualChoice.click();
+    assert.equal(await manual.isSelected(), true);
+    assert.equal(await driver.findElement(By.css("#paymentReferenceGroup")).isDisplayed(), true);
+    assert.equal(await driver.findElement(By.css("#whatsappReceiptConsent")).isSelected(), false);
     assert.equal(await driver.findElement(By.css("#placeOrder")).isEnabled(), false);
   });
 });
 
 test("mobile storefront puts cart beside account and displays photo categories when available", async()=>{
   await runWithDriver("mobile-storefront-navigation-images",async driver=>{
-    await driver.manage().window().setRect({width:390,height:844});
+    await driver.sendDevToolsCommand("Emulation.setDeviceMetricsOverride",{width:390,height:844,deviceScaleFactor:1,mobile:true});
     await driver.get(BASE_URL+"/");
     const header=await driver.findElement(By.css(".storefront-header-actions"));
     const account=await header.findElement(By.css("#accountOpen"));
@@ -140,13 +171,16 @@ test("mobile storefront puts cart beside account and displays photo categories w
     assert.ok(b.x>=a.x,"Cart should follow account");
     assert.equal((await driver.findElements(By.css("#orderTrackOpen"))).length,0);
     await driver.findElement(By.css("#menuToggle")).click();
+    const drawer=await driver.findElement(By.css("#shopDrawer"));
+    await driver.wait(async()=>driver.executeScript(element=>Math.abs(element.getBoundingClientRect().left)<1,drawer),5000);
     const status=await driver.findElement(By.css("#productStatus"));
     await driver.wait(async()=> (await status.getText()).trim()!=="Loading products…",15000);
-    const links=await driver.findElements(By.css("#drawerCategories .drawer-type-link"));
-    for(const link of links){
-      const thumbs=await link.findElements(By.css("img.drawer-type-thumb"));
-      const fallback=await link.findElements(By.css(".drawer-type-fallback"));
-      assert.equal(thumbs.length+fallback.length,1);
+    // Catalogue refreshes may replace links; inspect one consistent DOM snapshot.
+    const categories=await driver.findElement(By.css("#drawerCategories"));
+    const imageCounts=await driver.executeScript(element=>Array.from(element.querySelectorAll(".drawer-type-link"),link=>
+      link.querySelectorAll("img.drawer-type-thumb, .drawer-type-fallback").length),categories);
+    for(const count of imageCounts){
+      assert.equal(count,1);
     }
     await driver.findElement(By.css("#drawerClose")).click();
   });
@@ -154,7 +188,7 @@ test("mobile storefront puts cart beside account and displays photo categories w
 
 test("checkout top navigation and logo do not overlap at phone width",async()=>{
   await runWithDriver("checkout-mobile-topbar",async driver=>{
-    await driver.manage().window().setRect({width:390,height:844});
+    await driver.sendDevToolsCommand("Emulation.setDeviceMetricsOverride",{width:390,height:844,deviceScaleFactor:1,mobile:true});
     await driver.get(BASE_URL+"/order.html");
     const logo=await driver.findElement(By.css(".topbar .logo"));
     const links=await driver.findElement(By.css(".topbar .navlinks"));

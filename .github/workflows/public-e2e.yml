@@ -10,16 +10,31 @@ permissions:
 jobs:
   smoke:
     name: Customer Selenium smoke tests
-    if: github.event_name == 'workflow_dispatch' || (github.event.deployment_status.state == 'success' && (startsWith(github.event.deployment_status.environment_url, 'https://jofalinj.github.io/rainbow') || startsWith(github.event.deployment_status.target_url, 'https://jofalinj.github.io/rainbow')))
+    if: github.event_name == 'workflow_dispatch' || (github.event.deployment_status.state == 'success' && contains(fromJSON('["https://rainbowgoldcovering.com","https://rainbowgoldcovering.com/","https://www.rainbowgoldcovering.com","https://www.rainbowgoldcovering.com/","http://rainbowgoldcovering.com","http://rainbowgoldcovering.com/","http://www.rainbowgoldcovering.com","http://www.rainbowgoldcovering.com/","https://jofalinj.github.io/rainbow","https://jofalinj.github.io/rainbow/"]'), github.event.deployment_status.environment_url || github.event.deployment_status.target_url))
     runs-on: ubuntu-latest
     env:
-      E2E_BASE_URL: ${{ github.event.deployment_status.environment_url || github.event.deployment_status.target_url || 'https://jofalinj.github.io/rainbow' }}
+      E2E_BASE_URL: ${{ github.event.deployment_status.environment_url || github.event.deployment_status.target_url || 'https://rainbowgoldcovering.com' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm install --legacy-peer-deps
+      - name: Validate storefront deployment URL
+        run: |
+          node --input-type=module <<'NODE'
+          import {appendFileSync} from 'node:fs';
+          const url=new URL(process.env.E2E_BASE_URL);
+          // Pages can advertise HTTP until its HTTPS setting is enabled.
+          if(url.protocol==='http:' && ['rainbowgoldcovering.com','www.rainbowgoldcovering.com'].includes(url.hostname))
+            url.protocol='https:';
+          const approved=(url.origin==='https://rainbowgoldcovering.com' && url.pathname==='/') ||
+            (url.origin==='https://www.rainbowgoldcovering.com' && url.pathname==='/') ||
+            (url.origin==='https://jofalinj.github.io' && ['/rainbow','/rainbow/'].includes(url.pathname));
+          if(!approved || url.username || url.password || url.search || url.hash)
+            throw new Error('Unapproved storefront deployment URL.');
+          appendFileSync(process.env.GITHUB_ENV,'E2E_BASE_URL='+url.href.replace(/\/$/,'')+'\n');
+          NODE
+      - run: npm ci --legacy-peer-deps
       - name: Confirm published storefront responds
         run: |
           for attempt in $(seq 1 12); do

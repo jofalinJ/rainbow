@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /staff/
+Disallow: /invoice.html
+
+Sitemap: https://rainbowgoldcovering.com/sitemap.xml

@@ -17,12 +17,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm install --legacy-peer-deps
+      - run: npm ci --legacy-peer-deps
       - run: npm run lint
       - run: npm run test:unit
       - run: npm run build
       - run: npm run build:pages
-      - run: test -f dist-pages/index.html && test -f dist-pages/admin/login.html && test ! -e dist-pages/backend && test ! -e dist-pages/supabase && test ! -e dist-pages/tests
+      - run: test -f dist-pages/index.html && test -f dist-pages/staff/index.html && test -f dist-pages/admin/login.html && test ! -e dist-pages/backend && test ! -e dist-pages/supabase && test ! -e dist-pages/tests
       - run: npm run security
 
   integration:
@@ -39,7 +39,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm install --legacy-peer-deps
+      - run: npm ci --legacy-peer-deps
       - name: Verify isolated test environment
         run: |
           test -n "$SUPABASE_TEST_URL"
@@ -70,7 +70,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm install --legacy-peer-deps
+      - run: npm ci --legacy-peer-deps
       - name: Verify isolated E2E environment
         run: |
           test -n "$SUPABASE_TEST_URL"
