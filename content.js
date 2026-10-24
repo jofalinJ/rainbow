@@ -241,6 +241,8 @@
       button.setAttribute("aria-pressed",String(selected));
     });
     section.hidden=false;
+    const seeAll=document.getElementById("mobileCategorySeeAll");
+    if(seeAll){seeAll.disabled=prepared.length===0;seeAll.setAttribute("aria-disabled",String(prepared.length===0));}
     const empty=document.getElementById("mobileCategoryEmpty");
     if(empty)empty.hidden=prepared.length>0;
   }
@@ -1164,6 +1166,7 @@
       if(!manual)paging.autoPages++;
       syncShopFilters();
       render();renderPromotion();
+      if(activeSearch)showSearchFeedback(""); // The live result count below replaces the temporary search message.
     }catch(error){
       if(epoch!==paging.epoch)return;
       console.warn("Catalogue page failed",error);
@@ -1232,6 +1235,8 @@
     }catch(error){
       console.warn("Catalogue metadata unavailable",error);
       if(status)status.textContent="Products are temporarily unavailable. Please try again.";
+      const categoryLoading=document.querySelector("#mobileCategoryTrack .mobile-category-loading");
+      if(categoryLoading)categoryLoading.textContent="Collections are temporarily unavailable. Refresh to try again.";
     }finally{metadataLoading=false;}
   }
   function startRealtime(){
@@ -1272,7 +1277,13 @@
       document.querySelector(button.dataset.scroll)?.scrollIntoView({behavior:scrollBehavior});
     }));
     const year=document.getElementById("year");if(year)year.textContent=new Date().getFullYear();
-    if(!window.supabase?.createClient||!SUPABASE_URL||!SUPABASE_PUBLISHABLE_KEY){const status=document.getElementById("productStatus");if(status)status.textContent="The product catalogue is temporarily unavailable.";return;}
+    if(!window.supabase?.createClient||!SUPABASE_URL||!SUPABASE_PUBLISHABLE_KEY){
+      const status=document.getElementById("productStatus");
+      if(status)status.textContent="The product catalogue is temporarily unavailable.";
+      const categoryLoading=document.querySelector("#mobileCategoryTrack .mobile-category-loading");
+      if(categoryLoading)categoryLoading.textContent="Collections are temporarily unavailable. Refresh to try again.";
+      return;
+    }
     client=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
     await loadProducts();
     startRealtime();
