@@ -7,10 +7,10 @@ const shopJs=read("content.js"),mobileJs=read("mobile-storefront.js");
 const productJs=read("product-page.js"),checkoutJs=read("order.js");
 const css=read("mobile-storefront.css");
 const dist=read("scripts/build-cloudflare.mjs");
-const ids=html=>[...html.matchAll(/\\bid="([^"]+)"/g)].map(match=>match[1]);
+const ids=html=>[...html.matchAll(/id="([^"]+)"/g)].map(match=>match[1]);
 
 describe("Rainbow mobile storefront wiring",()=>{
-  it("loads the isolated mobile stylesheet on customer pages, not staff or admin pages",()=>{
+  it("loads the isolated mobile stylesheet on customer pages",()=>{
     for(const page of [home,checkout,product])expect(page).toContain('href="mobile-storefront.css?');
     expect(css).toContain("@media(max-width:767px)");
     expect(css).toContain(".mobile-category-section{display:none}");
