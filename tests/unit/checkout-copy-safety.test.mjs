@@ -32,7 +32,7 @@ describe("customer checkout compact UX safety",()=>{
     expect(orderJs).toContain("is pending shop verification. It is not confirmed yet.");
     expect(orderJs).toContain("TEST payment verified");
     expect(orderJs).toContain("No real money was deducted.");
-    expect(mobileCss).not.toMatch(/\\.checkout-test-notice\\s*\\{[^}]*display\\s*:\\s*none/);
+    expect(mobileCss).not.toMatch(/\.checkout-test-notice\s*\{[^}]*display\s*:\s*none/);
   });
   it("keeps all existing tax and delivery identifiers and computed totals",()=>{
     for(const id of ["subtotal","discount","cgst","sgst","delivery","total","state","placeOrder","orderMsg"]){
