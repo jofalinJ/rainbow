@@ -370,3 +370,77 @@ test("webhook can reconcile captured live payment while checkout is suspended",a
     assert.equal(calls.length,2);
   } finally {globalThis.fetch=oldFetch;}
 });
+
+test("malformed or oversized JSON is rejected as client input, without database mutation",async()=>{
+  const original=globalThis.fetch,calls=[];
+  globalThis.fetch=mockFetch({},calls);
+  try {
+    const bad=await worker.fetch(request("/api/razorpay/create","{not valid JSON"),baseEnv);
+    assert.equal(bad.status,400);
+    assert.match((await bad.json()).error,/Malformed checkout/);
+    const oversized=await worker.fetch(request("/api/razorpay/create","x".repeat(14001)),baseEnv);
+    assert.equal(oversized.status,413);
+    assert.equal(calls.length,0);
+  }finally{globalThis.fetch=original;}
+});
+test("Razorpay create order refuses less than 100 paise based on database amount",async()=>{
+  const original=globalThis.fetch,calls=[];
+  const checkout={checkout_id:checkoutId,items,customer:checkoutCustomer};
+  globalThis.fetch=mockFetch({
+    "/rest/v1/rpc/create_razorpay_checkout":{state:"new",order_number:"RG-SMALL",amount_paise:99}
+  },calls);
+  try{
+    const res=await worker.fetch(request("/api/razorpay/create",checkout),baseEnv);
+    assert.equal(res.status,422);
+    assert.match((await res.json()).error,/minimum/);
+    assert.deepEqual(calls.map(c=>c.path),["/rest/v1/rpc/create_razorpay_checkout"]);
+  }finally{globalThis.fetch=original;}
+});
+test("Razorpay create order accepts exact 100 paise server total, never a browser amount",async()=>{
+  const original=globalThis.fetch,calls=[];
+  globalThis.fetch=mockFetch({
+    "/rest/v1/rpc/create_razorpay_checkout":{
+      state:"new",order_number:"RG-MIN",amount_paise:100,expires_at:"2099-01-01T00:00:00Z"
+    },
+    "/v1/orders":opts=>{
+      const posted=JSON.parse(opts.body);
+      assert.equal(posted.amount,100);
+      assert.equal(posted.currency,"INR");
+      assert.equal(posted.receipt,checkoutId.replace(/-/g,""));
+      assert.equal(posted.partial_payment,false);
+      return mockReply({id:rOrder,amount:100,currency:"INR"});
+    },
+    "/rest/v1/rpc/attach_razorpay_order":{state:"ready",gateway_order_id:rOrder}
+  },calls);
+  try {
+    const res=await worker.fetch(request("/api/razorpay/create",{
+      checkout_id:checkoutId,items,customer:checkoutCustomer,amount:9999999
+    }),baseEnv);
+    assert.equal(res.status,200);
+    const json=await res.json();
+    assert.equal(json.amount,100);
+    assert.equal(json.gatewayOrderId,rOrder);
+    assert.deepEqual(calls.map(c=>c.path),[
+      "/rest/v1/rpc/create_razorpay_checkout","/v1/orders","/rest/v1/rpc/attach_razorpay_order"
+    ]);
+  }finally{globalThis.fetch=original;}
+});
+test("upstream Razorpay authentication errors never reveal merchant credentials to buyers",async()=>{
+  const original=globalThis.fetch,calls=[];
+  globalThis.fetch=mockFetch({
+    "/rest/v1/rpc/create_razorpay_checkout":{
+      state:"new",order_number:"RG-PROVIDER",amount_paise:100,
+      expires_at:"2099-01-01T00:00:00Z"
+    },
+    "/v1/orders":()=>mockReply({error:{description:"private provider diagnostic"}},401)
+  },calls);
+  try{
+    const res=await worker.fetch(request("/api/razorpay/create",{
+      checkout_id:checkoutId,items,customer:checkoutCustomer
+    }),baseEnv);
+    assert.equal(res.status,503);
+    const body=await res.text();
+    assert.ok(!body.includes("private provider diagnostic"));
+    assert.ok(!body.includes(baseEnv.RAZORPAY_KEY_SECRET));
+  }finally{globalThis.fetch=original;}
+});
