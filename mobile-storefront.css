@@ -940,3 +940,13 @@
     background:#8f1520;border-color:#8f1520;box-shadow:0 0 0 2px #fff
   }
 }
+
+
+/* UX-11: explicit category-lookup failure without exposing empty categories. */
+@media(max-width:767px){
+  .mobile-category-count-error{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+    min-height:72px;font-size:13px;color:#625249}
+  .mobile-category-count-error button{min-width:74px;min-height:44px;
+    padding:9px 16px;border:1px solid #8f1520;border-radius:999px;
+    background:#fffdfa;color:#8f1520;font-size:13px;font-weight:750;cursor:pointer}
+}
