@@ -11,3 +11,6 @@ backups/
 *.pgcustom
 *.pgcustom.age
 *.dump
+
+# Supabase CLI local metadata.
+supabase/.temp/

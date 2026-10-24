@@ -20,6 +20,16 @@ jobs:
       - run: npm ci --legacy-peer-deps
       - run: npm run lint
       - run: npm run test:unit
+      - name: Verify payment recovery in a browser with isolated fixtures
+        run: |
+          node scripts/static-server.mjs > fixture-server.log 2>&1 &
+          fixture_pid=$!
+          trap 'kill "$fixture_pid"' EXIT
+          for attempt in $(seq 1 20); do
+            if curl --fail --silent http://127.0.0.1:4173/order.html >/dev/null; then break; fi
+            sleep 1
+          done
+          E2E_BASE_URL=http://127.0.0.1:4173 node --test tests/e2e/selenium/tests/checkout-recovery.test.mjs
       - run: npm run build
       - run: npm run build:pages
       - run: test -f dist-pages/index.html && test -f dist-pages/staff/index.html && test -f dist-pages/admin/login.html && test ! -e dist-pages/backend && test ! -e dist-pages/supabase && test ! -e dist-pages/tests

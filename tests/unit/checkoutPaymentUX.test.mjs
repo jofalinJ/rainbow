@@ -13,7 +13,7 @@ describe("Rainbow secure checkout release",()=>{
     expect(build).toContain('"payment-config.js","order-razorpay.mjs"');
     expect(build).toContain('"order.js"');
     expect(page).toContain('src="payment-config.js?v=20261021-checkout-v2"');
-    expect(script).toContain('order-razorpay.mjs?v=20261021-paid-confirmation-v4');
+    expect(script).toContain('order-razorpay.mjs?v=20261021-checkout-recovery-v5');
   });
   it("offers only supported choices and updates the order amount alongside the payment selector",()=>{
     expect(page).toContain('id="payRazorpay"');
@@ -50,7 +50,8 @@ describe("Rainbow secure checkout release",()=>{
     expect(page).toContain('id="checkoutQR"');
     expect(page).toContain('id="paymentReference"');
     expect(page).toContain('Manual UPI transfer is separate and can move real funds.');
-    expect(script).toContain('rpc("create_online_order"');
+    expect(script).toContain("submitManualUpiReference({");
+    expect(gateway).toContain('/api/razorpay/manual-upi');
     expect(script).toContain('/^[A-Za-z0-9-]{8,64}$/.test(paymentReference)');
   });
 });

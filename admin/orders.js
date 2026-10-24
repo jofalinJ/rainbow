@@ -1,3 +1,4 @@
+import {requiresPaymentReview,canVerifyManualUpi} from "./payment-review.mjs";
 import {setupShipmentManagement} from "./shipment-management.mjs";
 const ordersClient=bootSupabase();
 let allOrders=[];
@@ -24,7 +25,7 @@ function deliveryAddress(o){
   return [o.shipping_address||customer.address,customer.city,customer.state,customer.pin_code].filter(Boolean).join(", ");
 }
 function needsPaymentReconciliation(o){
-  return ["cancelled","refunded"].includes(o.status) && o.payment_status==="paid";
+  return requiresPaymentReview(o);
 }
 function manualStatusChoices(o){
   const current=String(o.status||"pending");
@@ -77,7 +78,10 @@ async function loadOrders({quiet=false}={}){
     const {data,error}=await Promise.race([request,timeout]);
     if(error){console.error("Orders fetch error:",error);throw error;}
     console.log("Orders data:",{count:Array.isArray(data)?data.length:0});
-    allOrders=Array.isArray(data)?data.filter(row=>row.source==="online"):[];
+    const review=currentRole==="admin"?await ordersClient.rpc("get_razorpay_payment_review").abortSignal(controller.signal):{data:[]};
+    if(review.error)throw new Error("Could not load payment review. Refresh before fulfilling orders.");
+    const reviewByOrder=new Map((Array.isArray(review.data)?review.data:[]).map(item=>[item.order_id,item]));
+    allOrders=Array.isArray(data)?data.filter(row=>row.source==="online").map(row=>({...row,payment_review:reviewByOrder.get(row.id)})):[];
     render();
     setOrdersMessage(allOrders.length
       ?allOrders.length+" order"+(allOrders.length===1?"":"s")+" loaded · refreshed "+new Date().toLocaleTimeString("en-IN")
@@ -98,27 +102,30 @@ async function loadOrders({quiet=false}={}){
 function filtered(){
   const search=document.querySelector("#search"),status=document.querySelector("#status");
   const q=String(search?.value||"").toLowerCase().trim(),s=status?.value||"all";
-  return allOrders.filter(o=>(s==="all"||o.status===s)&&(!q||[
+  return allOrders.filter(o=>(s==="all"||(s==="payment_review"?needsPaymentReconciliation(o):o.status===s))&&(!q||[
     o.order_number,relationOne(o.customers).name,relationOne(o.customers).whatsapp_number
   ].some(v=>String(v??"").toLowerCase().includes(q))));
 }
 function render(){
   const rows=document.querySelector("#rows");if(!rows)return;
   const visibleOrders=filtered();
+  const summary=document.querySelector("#paymentReviewSummary");
+  const reviewCount=allOrders.filter(needsPaymentReconciliation).length;
+  if(summary){summary.hidden=!reviewCount;summary.textContent=reviewCount+" order(s) need payment or refund review. Select Payment review in the status filter. Do not dispatch these orders.";}
   const emptyMessage=allOrders.length?"No orders match these filters.":"No customer orders found.";
   rows.innerHTML=visibleOrders.map(o=>{
     const c=relationOne(o.customers);
     const address=deliveryAddress(o);
     const orderLabel=o.order_number||("Order "+String(o.id||"").slice(0,8).toUpperCase());
     const itemCount=Array.isArray(o.order_items)?o.order_items.length:0;
-    const verificationDisabled=currentRole!=="admin"||!bestPayment(o).transaction_reference||["cancelled","refunded"].includes(o.status);
+    const verificationDisabled=!canVerifyManualUpi(o,currentRole);
     const reviewNeeded=needsPaymentReconciliation(o);
     const action=reviewNeeded
       ?"<span class='order-detail-warning'>Review captured payment / refund</span>"
       :o.payment_status==="paid"
-      ?"<button type='button' class='wa' data-wa='"+esc(o.id)+"'>Send full WhatsApp alert</button>"
+      ?"<span class='muted'>WhatsApp API disabled</span>"
       :"<button type='button' data-verify='"+esc(o.id)+"' "+(verificationDisabled?"disabled":"")+">Verify payment</button>";
-    const shipmentAction=currentRole==="admin"&&!reviewNeeded?"<button type='button' class='shipment-action' data-shipment='"+esc(o.id)+"'>Manage Shipment</button>":"";
+    const shipmentAction=currentRole==="admin"&&!reviewNeeded&&o.payment_status==="paid"?"<button type='button' class='shipment-action' data-shipment='"+esc(o.id)+"'>Manage Shipment</button>":"";
     return "<tr><td><b>"+esc(orderLabel)+"</b><small>"+esc(dateLabel(o.created_at))+"</small></td>"+
       "<td><b>"+esc(c.name||"—")+"</b><small>"+esc(c.whatsapp_number||c.email||"—")+"</small></td>"+
       "<td>"+esc(address||"—")+"</td>"+
@@ -127,7 +134,6 @@ function render(){
       "<td><div class='action-row'><button type='button' data-view='"+esc(o.id)+"'>View"+(itemCount?" ("+itemCount+")":"")+"</button>"+action+shipmentAction+"</div></td></tr>";
   }).join("")||"<tr><td colspan='6'>"+esc(emptyMessage)+"</td></tr>";
   document.querySelectorAll("[data-view]").forEach(b=>b.onclick=()=>openOrder(b.dataset.view));
-  document.querySelectorAll("[data-wa]").forEach(b=>b.onclick=()=>sendAlert(b.dataset.wa));
   document.querySelectorAll("[data-verify]").forEach(b=>b.onclick=()=>verifyPayment(b.dataset.verify));
   document.querySelectorAll("[data-shipment]").forEach(b=>b.onclick=()=>shipmentManager?.open(b.dataset.shipment,b));
 }
@@ -157,11 +163,10 @@ function openOrder(id){
       (Number(i.discount_amount)>0?" · discount "+money(i.discount_amount):"")+"</small></span>"+
       "<strong>"+money(i.line_total)+"</strong></div>";
   }).join("")||"<p>No item details were returned for this order.</p>";
-  const canVerify=currentRole==="admin"&&o.payment_status!=="paid"&&
-    !["cancelled","refunded"].includes(o.status)&&Boolean(payment.transaction_reference);
+  const canVerify=canVerifyManualUpi(o,currentRole);
   const reviewNeeded=needsPaymentReconciliation(o);
   const paymentAction=reviewNeeded?"":o.payment_status==="paid"
-    ?"<button type='button' class='wa' data-modal-wa='"+esc(o.id)+"'>Send full WhatsApp alert</button>"
+    ?"<span class='muted'>WhatsApp API disabled</span>"
     :"<button type='button' data-modal-verify='"+esc(o.id)+"' "+(!canVerify?"disabled":"")+">Verify payment</button>";
   const choices=manualStatusChoices(o),canUpdate=currentRole==="admin"&&choices.length>1;
   const selectOptions=choices.map(status=>"<option value='"+esc(status)+"'"+(status===o.status?" selected":"")+">"+esc(status)+"</option>").join("");
@@ -173,11 +178,12 @@ function openOrder(id){
     ["SGST",o.sgst_amount],["Delivery",o.delivery_fee],["Order total",o.total_amount]]
     .map(([name,value])=>"<div><span>"+esc(name)+"</span><strong>"+money(value)+"</strong></div>").join("");
   document.querySelector("#mBody").innerHTML=
-    (reviewNeeded?"<p class='order-detail-warning'>⚠ Cancelled or refunded order shows captured payment. Do not ship or send a paid-order notification. Investigate and refund when required.</p>":"")+
+    (reviewNeeded?"<p class='order-detail-warning'>⚠ Review captured payment / refund. Do not ship or send a paid-order notification. Match the provider record and reconcile before taking further action.</p>":"")+
+    (o.payment_review?"<section class='order-detail-warning'><strong>Razorpay TEST reconciliation</strong><p>State: "+esc(o.payment_review.checkout_status)+" · Captured total: "+money(Number(o.payment_review.amount_paise)/100)+" · Refunded: "+money(Number(o.payment_review.amount_refunded_paise)/100)+"</p><p>Provider order: "+esc(o.payment_review.gateway_order_id||"—")+"<br>Payment: "+esc(o.payment_review.gateway_payment_id||"—")+"<br>Refund: "+esc(o.payment_review.last_refund_id||"—")+"</p><p>Review these IDs in the Razorpay Test dashboard. A late capture requires a refund review. Refunds never automatically return sold stock; inspect returned goods before adjusting inventory.</p></section>":"")+
     (mismatch?"<p class='order-detail-warning'>⚠ Delivered order has no verified payment. Check the original receipt before taking action.</p>":"")+
     (amountMismatch?"<p class='order-detail-warning'>⚠ Stored total differs from the recorded tax, discount, subtotal and delivery figures. Existing data was not changed.</p>":"")+
     "<div class='detail-grid'>"+
-    "<div class='detail-box'><span>Placed</span><strong>"+esc(dateLabel(o.created_at))+"</strong></div>"+
+    "<div class='detail-box'><span>"+(o.payment_status==="paid"?"Order received":"Checkout submitted")+"</span><strong>"+esc(dateLabel(o.created_at))+"</strong></div>"+
     "<div class='detail-box'><span>Status</span><strong>"+esc(o.status||"pending")+"</strong></div>"+
     "<div class='detail-box'><span>Customer</span><strong>"+esc(c.name||"—")+"</strong></div>"+
     "<div class='detail-box'><span>WhatsApp</span><strong>"+esc(c.whatsapp_number||"—")+"</strong></div>"+
@@ -193,14 +199,13 @@ function openOrder(id){
     "<h3 class='order-detail-heading'>Billing breakdown</h3><div class='order-amount-breakdown'>"+amounts+"</div>"+
     "<div class='modal-actions'>"+(billUrl?
       "<a class='button' target='_blank' rel='noopener noreferrer' href='"+esc(billUrl)+"'>View / Print Invoice ↗</a>":"")+(address?"<a class='button' href='"+esc(map)+"' target='_blank' rel='noopener noreferrer'>Open delivery location ↗</a>":"")+
-       paymentAction+(currentRole==="admin"&&!reviewNeeded?"<button type='button' id='manageOrderShipment'>Manage Shipment</button>":"")+"</div>"+
+       paymentAction+(currentRole==="admin"&&!reviewNeeded&&o.payment_status==="paid"?"<button type='button' id='manageOrderShipment'>Manage Shipment</button>":"")+"</div>"+
     "<div class='order-status-editor'><label for='mStatus'>Manual order status</label>"+
       "<div class='modal-actions'><select id='mStatus' "+(!canUpdate?"disabled":"")+">"+selectOptions+"</select>"+
       "<button type='button' data-save-status "+(!canUpdate?"disabled":"")+">Save status</button></div>"+
       "<small>Verify payment first. Use Manage Shipment to record dispatch and delivery. Cancellation or refunds require a dedicated workflow.</small></div>"+
     "<section class='order-audit'><h3>Shipment and status history</h3><div id='orderHistory' role='status' aria-live='polite'>Loading history…</div></section>";
   document.querySelector("#mStatus").value=o.status||"pending";
-  document.querySelector("[data-modal-wa]")?.addEventListener("click",()=>sendAlert(o.id));
   document.querySelector("[data-modal-verify]")?.addEventListener("click",()=>verifyPayment(o.id));
   document.querySelector("[data-save-status]").onclick=()=>updateStatus(o.id);
   if(currentRole==="admin")loadOrderAudit(o.id);
@@ -219,7 +224,7 @@ async function verifyPayment(id){
     document.querySelector("#modal").setAttribute("aria-hidden","true");
     await loadOrders();
     if(data?.already_paid)alert("This payment was already verified.");
-    await sendAlert(id);
+    if(!data?.already_paid)alert("UPI payment verified. Review the confirmed order and invoice before sending any optional notification.");
   }catch(e){alert("Could not verify payment: "+(e?.message||"Unknown error"));}
 }
 async function loadOrderAudit(id){
@@ -263,23 +268,6 @@ async function updateStatus(id){
     openOrderId="";
     await loadOrders();
   }catch(error){alert("Could not update order status: "+(error?.message||"Unknown error"));}
-}
-async function sendAlert(id){
-  const order=allOrders.find(item=>String(item.id)===String(id));
-  if(!order||order.payment_status!=="paid"||needsPaymentReconciliation(order)){
-    alert("This order needs payment or refund review before sending a paid-order notification.");return;
-  }
-  try{
-    const session=await requireSession();
-    const r=await fetch(SUPABASE_URL+"/functions/v1/send-order-alert",{
-      method:"POST",
-      headers:{apikey:SUPABASE_ANON_KEY,Authorization:"Bearer "+session.access_token,"Content-Type":"application/json"},
-      body:JSON.stringify({order_id:id})
-    });
-    const d=await r.json().catch(()=>({}));
-    if(!r.ok)throw new Error(d.error||"WhatsApp alert failed");
-    alert(d.already_sent?"The WhatsApp order alert was already sent to "+(d.recipient_number||"the store"):"Full order details sent to "+(d.recipient_number||"the store")+".");
-  }catch(e){alert(e.message||"WhatsApp alert failed");}
 }
 function startOrdersLiveUpdates(){
   if(ordersPollTimer)return;
