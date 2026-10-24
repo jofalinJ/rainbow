@@ -963,7 +963,7 @@
         '<div class="modal-price-row"><div class="modal-price">'+formatINR(product.selling_price)+'</div><span class="product-stock '+(stockOf(selectedVariant)===0?"out":"in")+'" data-variant-status>'+(stockOf(selectedVariant)===0?"Out of stock":"In stock")+'</span></div>'+
         choiceControls+genericVariantPicker+
         '<div class="product-quantity-row"><span>Quantity</span><div class="quantity-picker"><button type="button" data-qty-minus aria-label="Decrease quantity">−</button><span data-qty>1</span><button type="button" data-qty-plus aria-label="Increase quantity">＋</button></div></div>'+
-        '<div class="product-buy-actions"><button class="btn btn-dark" type="button" data-add-cart>Add to Cart</button><button class="btn btn-light" type="button" data-buy-now>Buy Now →</button></div>'+
+        '<div class="product-buy-actions"><button class="btn btn-dark" type="button" data-add-cart>Add to bag</button><button class="btn btn-light" type="button" data-buy-now>Buy Now →</button></div>'+
         '<button class="modal-wishlist-button'+(savedInWishlist?' is-saved':'')+'" type="button" data-modal-wishlist aria-pressed="'+savedInWishlist+'"><span aria-hidden="true">'+(savedInWishlist?'♥':'♡')+'</span><span>'+(savedInWishlist?'Saved to wishlist':'Save to wishlist')+'</span></button>'+
         detailsPanel+lengthGuide+
         '<div class="product-support-card"><span>Need help?</span><p>Ask us about this design, sizing, or delivery options.</p><button type="button" data-contact-store>Contact Rainbow on WhatsApp <span aria-hidden="true">↗</span></button></div>'+
@@ -1096,13 +1096,13 @@
       }
       const existing=cart.find(item=>String(item.variant_id)===String(selectedVariant.id));
       const oldQty=Number(existing?.quantity||0);
-      if(oldQty>=stock){if(status)status.textContent="The cart already contains all available stock for this option.";return;}
+      if(oldQty>=stock){if(status)status.textContent="Your bag already has all available stock for this option.";return;}
       const next=Math.min(stock,oldQty+selectedQty);
       if(existing){existing.quantity=next;existing.variant_label=labelForVariant(selectedVariant);existing.product=makeCartItem(next).product;}
       else cart.push(makeCartItem(next));
       saveCart(cart);track("add_to_cart",{item_id:product.product_code||product.id,quantity:selectedQty});
       document.dispatchEvent(new CustomEvent("rainbow:mobile-toast",{detail:{message:"Added to your bag"}}));
-      if(status)status.textContent="Added to cart.";
+      if(status)status.textContent="Added to bag.";
       closeProductModal();
     };
     addButton.onclick=()=>addSelectedToCart(false);
