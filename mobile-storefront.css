@@ -714,3 +714,131 @@
   #mobileCategorySeeAll:disabled{opacity:.52;cursor:default}
   .mobile-category-loading{margin:11px 0 18px;line-height:1.55}
 }
+
+
+/* Checkout clarity pass · keep the existing arrangement and red/gold identity.
+   Compact only on phones, with payment-state, tax and safety information retained. */
+@media (max-width:767px){
+  /* Preserve the sections' physical order; reduce repetitive captions instead. */
+  .order-page .order-head{margin-bottom:12px!important;gap:8px!important}
+  .order-page .order-head h1{font-size:clamp(29px,7.7vw,36px)!important;
+    margin:4px 0 5px!important;line-height:1.13!important}
+  .order-page .order-head p{margin:4px 0 0!important;font-size:12px!important;
+    line-height:1.45!important;max-width:30rem}
+  .checkout-progress{margin:0 0 15px!important;padding:10px 12px!important;
+    border-radius:14px!important}
+  .checkout-progress .checkout-step{font-size:11px!important;font-weight:700!important;
+    line-height:1.2!important;gap:6px!important}
+  .checkout-progress .checkout-step b{width:23px!important;height:23px!important;
+    flex:0 0 23px!important;font-size:10px!important}
+  .checkout-main{gap:13px!important}
+  .checkout-layout{gap:14px!important}
+  .checkout-layout .order-card{border-radius:17px!important;padding:17px 16px!important}
+  .checkout-layout .order-card h2{font-size:clamp(21px,5.5vw,25px)!important;
+    margin:0!important;line-height:1.26!important}
+  .checkout-layout .checkout-panel>.checkout-subtitle,
+  .checkout-layout .checkout-panel>.checkout-section-title+.checkout-subtitle{
+    display:none!important
+  }
+  .checkout-panel .checkout-eyebrow{display:none!important}
+  .checkout-layout .order-card-head{gap:10px;align-items:center!important}
+  .checkout-layout .order-card-head button{
+    min-height:38px!important;padding:8px 10px!important;
+    font-size:11px!important;white-space:nowrap
+  }
+  .checkout-panel #orderItems{margin-top:11px}
+  .checkout-layout .order-form{margin-top:15px;gap:11px!important}
+  .checkout-layout .order-form label{display:grid;gap:5px;
+    font-size:12px!important;font-weight:700!important}
+  .checkout-layout .order-form input,
+  .checkout-layout .order-form select,
+  .checkout-layout .order-form textarea{
+    min-height:46px!important;padding:11px 12px!important;font-size:16px!important;
+    line-height:1.4!important;border-radius:12px!important
+  }
+  .checkout-layout .order-form textarea{min-height:79px!important;resize:vertical}
+  .payment-methods{margin:14px 0 9px!important;gap:9px!important}
+  .payment-choice{
+    display:flex;align-items:center;gap:10px!important;
+    padding:13px 12px!important;border-radius:14px!important
+  }
+  .payment-choice-body{gap:3px!important}
+  .payment-choice-top{gap:6px!important;flex-wrap:wrap}
+  .payment-choice-top strong{font-size:13px!important;font-weight:800;line-height:1.35!important}
+  .payment-choice-description{font-size:12px!important;line-height:1.4!important}
+  .payment-choice-note{font-size:11px!important;line-height:1.35!important}
+  .checkout-mode,.manual-label{font-size:9px!important;padding:4px 6px!important;
+    letter-spacing:.035em!important;line-height:1.15!important}
+  .payment-choice-dot{width:18px;height:18px;flex-basis:18px}
+  /* One TEST warning near the bottom is enough; keep manual UPI's pending status. */
+  #razorpayChoice .payment-choice-note{display:none!important}
+  .gateway-connection{
+    margin:9px 0!important;gap:7px!important;padding:9px 11px!important;
+    border-radius:11px!important
+  }
+  .gateway-connection.is-online{display:none!important}
+  .gateway-connection .gateway-status{font-size:11px!important;line-height:1.4!important;
+    min-width:0!important}
+  .payment-method-detail{border:none!important;box-shadow:none!important;
+    border-radius:0!important;padding:3px 0 0!important;margin:6px 0 0!important;
+    background:transparent!important}
+  .payment-method-detail>strong{display:none!important}
+  #razorpayDetails .payment-safety{display:none!important}
+  .payment-method-detail>p{margin:5px 0!important;font-size:12px!important;
+    line-height:1.45!important}
+  #manualPaymentDetails #qrUnavailable{margin:4px 0 9px!important;
+    font-size:11px!important;line-height:1.45!important}
+  #checkoutQR{margin:8px 0 10px!important;padding:12px!important;
+    border:1px solid #eee0d5!important;border-radius:13px!important;background:#fffdf9}
+  #checkoutQR img{display:block;max-width:150px!important;max-height:150px!important;
+    width:min(39vw,150px)!important;height:auto!important;aspect-ratio:1!important}
+  #checkoutQR>div{min-width:0}
+  #checkoutQR strong{font-size:13px!important;line-height:1.4}
+  #checkoutQR p{margin:5px 0!important;font-size:11px!important;line-height:1.45!important}
+  #checkoutQR .payment-total{margin:9px 0 0!important;font-size:12px!important}
+  #checkoutQR .payment-total b{margin-top:1px!important;font-size:22px!important;
+    line-height:1.25!important;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+  .payment-reference-label{margin:12px 0 0!important;gap:7px!important;
+    font-size:12px!important;font-weight:750!important;line-height:1.4!important}
+  .payment-reference-label input{font-size:16px!important;min-height:48px!important;
+    border-radius:12px!important;padding:11px 12px!important}
+  .checkout-whatsapp-consent{padding:11px!important;margin-top:10px!important;
+    font-size:11px!important;line-height:1.5!important;border-radius:12px!important}
+  .checkout-whatsapp-consent input{width:19px!important;height:19px!important;
+    margin:1px 0 0!important;flex:0 0 19px}
+  .checkout-summary-card>.checkout-eyebrow{display:none!important}
+  .checkout-summary-card>.checkout-subtitle{margin:5px 0 0!important;
+    font-size:12px!important;line-height:1.4!important}
+  .checkout-summary-card .order-summary{margin-top:13px!important;padding-top:12px!important}
+  .checkout-summary-card .order-summary>div{gap:10px!important;
+    padding-block:5px!important;font-size:12px!important}
+  .checkout-summary-card .order-summary>div strong{
+    text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;
+  }
+  .checkout-summary-card .order-summary .grand{margin-top:5px!important;
+    padding-top:13px!important}
+  .checkout-summary-card .order-summary .grand span{font-size:14px!important;
+    font-weight:750!important}
+  .checkout-summary-card .order-summary .grand strong{font-size:23px!important}
+  .checkout-summary-card .place-order{margin-top:14px!important;
+    min-height:52px!important;font-size:14px!important;line-height:1.35!important;
+    letter-spacing:0;padding:12px!important;white-space:normal}
+  .checkout-summary-card .order-msg:empty{display:none!important}
+  .checkout-summary-card .order-msg:not(:empty){margin:10px 0 0!important;
+    font-size:12px!important;line-height:1.5!important}
+  .checkout-test-notice{
+    margin:13px 0 0!important;padding:10px 12px!important;
+    font-size:11px!important;line-height:1.5!important;border-radius:10px!important
+  }
+  .checkout-test-notice strong{font-weight:800}
+  .checkout-assurance{display:none!important}
+  .order-success{padding:21px 17px!important}
+  .order-success h2{font-size:clamp(23px,6vw,29px)!important}
+  .order-success p{font-size:13px!important;line-height:1.6!important}
+  .order-success .btn{min-height:44px;line-height:1.4}
+}
+@media(max-width:355px){
+  .payment-choice{padding:12px 10px!important;gap:8px!important}
+  .checkout-mode,.manual-label{font-size:8px!important}
+  .checkout-layout .order-card{padding:15px 13px!important}
+}
