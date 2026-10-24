@@ -46,7 +46,7 @@ In Razorpay **Test Mode**, the webhook URL is `https://rainbow-api.jofalin2005.w
 
 ## Deployment and verification
 
-Cloudflare Workers Builds is connected to this repository: production branch `main`, root `backend/rainbow-api`, build `npm run check && npm test`, deploy `npx wrangler deploy`. GitHub's Cloudflare workflow performs checks only. A green GitHub job is not proof of a deployed Worker.
+Cloudflare Workers Builds is connected to this repository: production branch `main`, root `backend/rainbow-api`, build `npm run check && npm test`, deploy `npx wrangler deploy`. The separate **Previews Base** build settings must use the same `backend/rainbow-api` root and `npm run check && npm test` build command, with `npx wrangler preview` as the preview command. Retrying a build preserves its original build-settings snapshot; trigger a new branch build after correcting settings. GitHub's Cloudflare workflow performs checks only. A green GitHub job is not proof of a deployed Worker.
 
 After merging tested changes, check the Cloudflare build commit/version. If production does not advance, use the **existing** `rainbow-main-deploy` deploy hook for `main`; treat its URL as a secret and do not commit or log it. Retrying an old build redeploys that old commit.
 
