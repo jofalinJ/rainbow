@@ -16,6 +16,8 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
   let submitting=false;
   let razorpayReady=false;
   let paymentChoiceTouched=false;
+  const testHost=!["rainbowgoldcovering.com","www.rainbowgoldcovering.com"].includes(location.hostname);
+  const razorpayTestAllowed=testHost||new URLSearchParams(location.search).get("test")==="1";
   const touchedFields=new Set();
   let showAllErrors=false;
   let readinessAttempt=0;
@@ -490,23 +492,25 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
     if(indicator)indicator.title=status.available?"Connected":"Not connected";
     if(retry){retry.hidden=status.available;retry.disabled=false;}
     const gateway=$("payRazorpay");
-    const manual=$("payUpi");
     if(gateway){
-      gateway.disabled=!status.available;
-      if(status.available && !paymentChoiceTouched && manual?.checked){
-        gateway.checked=true;
-      }else if(!status.available && gateway.checked && manual){
-        manual.checked=true;
-      }
+      gateway.disabled=!status.available||!razorpayTestAllowed;
+      // Availability never changes the customer's chosen payment method.
+      // Even a failed provider probe cannot silently select manual UPI.
     }
     updatePlaceOrderState();
   }
-  $("retryGateway").addEventListener("click",checkGateway);
+  $("retryGateway").addEventListener("click",()=>{if(razorpayTestAllowed)checkGateway();});
   document.addEventListener("visibilitychange",()=>{
-    if(document.visibilityState==="visible" && !razorpayReady)checkGateway();
+    if(razorpayTestAllowed&&document.visibilityState==="visible" && !razorpayReady)checkGateway();
   });
   window.addEventListener("pageshow",event=>{
-    if(event.persisted)checkGateway();
+    if(razorpayTestAllowed&&event.persisted)checkGateway();
   });
-  checkGateway();
+  const testChoice=$("razorpayChoice");
+  if(testChoice){testChoice.hidden=!razorpayTestAllowed;testChoice.style.display=razorpayTestAllowed?"":"none";}
+  if(!razorpayTestAllowed){
+    const connection=$("gatewayConnection");
+    if(connection){connection.hidden=true;connection.style.display="none";}
+    $("payRazorpay").disabled=true;
+  }else checkGateway();
 })();
