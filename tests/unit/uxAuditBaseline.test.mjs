@@ -59,7 +59,7 @@ describe("QA audit Phase 0 — failing source baselines, no network",()=>{
     expect(shop).not.toMatch(/card\.addEventListener\("click"/);
   });
   it("UX-18 Image counter cannot read 1 \/ 0",()=>{
-    expect(shop).not.toContain("'1 / '+images.length");
+    expect(shop).not.toMatch(/data-gallery-count>1 \/ '\+images\.length/);
   });
   it("UX-19 A shared price formatter is used across pages",()=>{
     expect(shop).toContain("formatINR(");
