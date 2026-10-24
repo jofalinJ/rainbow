@@ -420,7 +420,7 @@
         const product=bucket.products.find(item=>getImage(item))||bucket.products[0];
         const image=product?getThumb(product):"";
         return "<button type='button' class='category-tile' data-category-tile='"+esc(bucket.label)+"' aria-label='Browse "+esc(bucket.label)+"'>"+
-          "<span class='category-tile-image'>"+(image?"<img src='"+esc(image)+"' alt='' loading='lazy'>":"<span class='placeholder'>RG</span>")+"</span>"+
+          "<span class='category-tile-image'>"+(image?"<img src='"+esc(image)+"' alt='' loading='lazy'>":catalogue.photoUnavailableMarkup())+"</span>"+
           "<span class='category-tile-copy'><strong>"+esc(bucket.label)+"</strong><small>View collection</small></span></button>";
       }).join(""):"<div class='product-empty'>Product categories will appear here when in-stock designs are added.</div>";
       grid.querySelectorAll("[data-category-tile]").forEach(tile=>tile.addEventListener("click",()=>{
@@ -446,7 +446,7 @@
       const saved=wishlistIds.has(String(p.id));
       return "<article class='product-card' data-product-id='"+esc(p.id)+"'>"+
         "<button type='button' class='product-card-quick-view' data-product-open aria-label='Quick view: "+esc(p.product_name)+"'></button>"+
-        "<div class='product-image'>"+(image?"<img src='"+esc(image)+"'"+responsiveSource(p)+" alt='"+esc(p.product_name)+"' width='320' height='320' loading='lazy' decoding='async'>":"<div class='placeholder'>RG</div>")+
+        "<div class='product-image'>"+(image?"<img src='"+esc(image)+"'"+responsiveSource(p)+" alt='"+esc(p.product_name)+"' width='320' height='320' loading='lazy' decoding='async'>":catalogue.photoUnavailableMarkup())+
         "<button type='button' class='product-wishlist-button"+(saved?" is-saved":"")+"' data-wishlist-product='"+esc(p.id)+"' aria-label='"+(saved?"Remove ":"Add ")+esc(p.product_name)+(saved?" from":" to")+" wishlist' aria-pressed='"+saved+"'>"+(saved?"♥":"♡")+"</button></div>"+
         "<div class='product-body'><h3 class='product-name'>"+esc(p.product_name)+"</h3><div class='product-type'>"+esc(categoryFor(p))+"</div>"+
         "<div class='product-meta'><strong class='product-price'>"+money(p.selling_price)+"</strong><span class='product-stock "+stockClass+"'>"+stockText+"</span></div><div class='product-card-actions'><a href='product.html?sku="+encodeURIComponent(p.product_code||"")+"'>Details ↗</a></div></div></article>";
@@ -941,8 +941,8 @@
     ].filter(item=>item[1]!==null&&item[1]!==undefined&&String(item[1]).trim()!=="");
     let activeImageIndex=0;
     const galleryHtml='<div class="product-gallery">'+
-      '<div class="product-detail-main">'+(main?'<img data-gallery-main src="'+esc(main)+'" alt="'+esc(product.product_name)+'">':'<div class="placeholder">RG</div>')+
-        '<span class="gallery-count" data-gallery-count>1 / '+images.length+' photo'+(images.length===1?'':'s')+'</span></div>'+
+      '<div class="product-detail-main">'+(main?'<img data-gallery-main src="'+esc(main)+'" alt="'+esc(product.product_name)+'">':catalogue.photoUnavailableMarkup())+
+        (images.length?'<span class="gallery-count" data-gallery-count>1 / '+images.length+' photo'+(images.length===1?'':'s')+'</span>':'')+'</div>'+
       (images.length>1?'<div class="product-detail-thumbs">'+images.map((image,i)=>'<button type="button" class="product-detail-thumb'+(i===0?' active':'')+'" data-gallery-src="'+esc(image.public_url)+'" data-gallery-index="'+i+'" data-gallery-alt="'+esc(product.product_name+' — image '+(i+1))+'" aria-label="View product image '+(i+1)+'" aria-current="'+(i===0?'true':'false')+'"><img src="'+esc(image.public_url)+'" alt="" loading="lazy"></button>').join("")+'</div>':"")+
       '</div>';
     const lengthGuide=lengthOptions.length
