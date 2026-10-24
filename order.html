@@ -12,6 +12,22 @@
   <span class="checkout-step is-active" id="addressStep"><b>2</b> Delivery</span>
   <span class="checkout-step" id="paymentStep"><b>3</b> Pay</span>
 </nav>
+<section id="pendingCheckoutBanner" class="pending-checkout-banner" aria-labelledby="pendingCheckoutTitle" hidden>
+  <h2 id="pendingCheckoutTitle">Payment verification pending</h2>
+  <p id="pendingCheckoutMessage" role="status" aria-live="polite"></p>
+  <div class="pending-checkout-actions">
+    <button id="pendingCheckoutStatus" type="button">View status</button>
+    <button id="pendingCheckoutCorrect" type="button">Correct payment reference</button>
+    <button id="pendingCheckoutReturn" type="button" hidden>Return to bag</button>
+  </div>
+  <div id="pendingCheckoutCorrection" hidden>
+    <label for="pendingCheckoutUtr">Correct UPI reference (UTR)</label>
+    <input id="pendingCheckoutUtr" type="text" inputmode="text" autocomplete="off" maxlength="64" aria-describedby="pendingCheckoutCorrectionHelp">
+    <p id="pendingCheckoutCorrectionHelp">Your payment remains pending until the shop verifies it.</p>
+    <button id="pendingCheckoutSaveUtr" type="button">Save corrected reference</button>
+    <button id="pendingCheckoutCancelUtr" type="button">Cancel</button>
+  </div>
+</section>
 <div id="orderSuccess" class="order-success" role="status" aria-live="polite" hidden></div>
 <div id="orderLayout" class="order-layout checkout-layout">
   <div class="checkout-main">
