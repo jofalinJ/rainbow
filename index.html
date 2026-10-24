@@ -57,17 +57,17 @@
   <button class="utility-backdrop" type="button" data-close-utility aria-label="Close order tracking"></button>
   <section class="utility-panel tracking-panel" role="dialog" aria-modal="true" aria-labelledby="trackingTitle">
     <div class="utility-panel-head"><div><span class="section-kicker">ORDER SUPPORT</span><h2 id="trackingTitle">Track your order</h2></div><button class="icon-button utility-close" type="button" data-close-utility aria-label="Close order tracking"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
-    <p class="utility-intro">Check the latest order status with the product code and the phone number used for your order notification.</p>
+    <p class="utility-intro">Enter your product code and order phone number.</p>
     <div id="trackingAutoOrders" class="tracking-auto-orders" hidden></div>
-    <form id="trackingForm" class="tracking-form"><label>Ordered product code<input id="trackingProductCode" name="product_code" autocomplete="off" required maxlength="64" placeholder="e.g. RG-001"></label><label>Phone number used for order notifications<input id="trackingPhone" name="phone" type="tel" inputmode="tel" autocomplete="tel" required minlength="10" maxlength="18" placeholder="Enter the same phone number"></label><button class="btn btn-dark" type="submit">Find my order →</button></form>
-    <p id="trackingMessage" class="tracking-message" role="status" aria-live="polite"></p><div id="trackingResults" class="tracking-results"></div><p class="tracking-privacy">For privacy, the lookup only returns orders that match both details.</p>
+    <form id="trackingForm" class="tracking-form"><label>Product code<input id="trackingProductCode" name="product_code" autocomplete="off" required maxlength="64" placeholder="e.g. RG-001"></label><label>Order phone number<input id="trackingPhone" name="phone" type="tel" inputmode="tel" autocomplete="tel" required minlength="10" maxlength="18" placeholder="Same number used at checkout"></label><button class="btn btn-dark" type="submit">Find order →</button></form>
+    <p id="trackingMessage" class="tracking-message" role="status" aria-live="polite"></p><div id="trackingResults" class="tracking-results"></div><p class="tracking-privacy">Both details must match to protect your order.</p>
   </section>
 </div>
 <div id="accountOverlay" class="utility-overlay" aria-hidden="true" hidden>
   <button class="utility-backdrop" type="button" data-close-utility aria-label="Close account panel"></button>
   <section class="utility-panel account-panel" role="dialog" aria-modal="true" aria-labelledby="accountTitle">
     <div class="utility-panel-head"><div><span class="section-kicker">YOUR RAINBOW</span><h2 id="accountTitle">Account & orders</h2></div><button class="icon-button utility-close" type="button" data-close-utility aria-label="Close account panel"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
-    <p id="accountIdentity" class="utility-intro">Sign in or create an account to keep your details and view your orders.</p>
+    <p id="accountIdentity" class="utility-intro">Sign in to see your orders.</p>
     <div id="accountAuthForms" class="account-auth">
       <div class="account-auth-tabs" role="group" aria-label="Account access">
         <button type="button" class="account-auth-tab is-active" data-account-mode="signin" aria-pressed="true">Sign in</button>
@@ -85,7 +85,7 @@
         <label>Password<input id="accountSignUpPassword" name="password" type="password" autocomplete="new-password" required minlength="8" placeholder="At least 8 characters"></label>
         <button class="btn btn-dark" type="submit">Create account</button>
       </form>
-      <p class="account-auth-note">Your name, email, and phone are saved to Rainbow's customer directory to manage your account and orders.</p>
+      <p class="account-auth-note">We save your name, email and phone to manage your account and orders.</p>
       <p id="accountAuthMessage" class="account-auth-message" role="status" aria-live="polite"></p>
     </div>
     <div id="accountSignedIn" class="account-signed-in" hidden>
@@ -93,7 +93,7 @@
       <span id="accountSignedInEmail"></span>
       <button type="button" id="accountSignOut" class="btn btn-light">Sign out</button>
     </div>
-    <div id="accountOrders" class="tracking-auto-orders"><p class="muted">Sign in to view orders linked to your account.</p></div>
+    <div id="accountOrders" class="tracking-auto-orders"><p class="muted">Sign in to view your orders.</p></div>
     <a id="accountTrackOrder" class="btn btn-light account-track-button" href="https://www.tpcindia.com/" target="_blank" rel="noopener noreferrer">Track an order with TPC India ↗</a>
   </section>
 </div>
@@ -144,7 +144,7 @@
       <div class="catalog-main" id="collections">
         <div class="section-head">
           <div><span class="section-kicker">SHOP</span><h2 id="productHeading">Shop by category.</h2></div>
-          <button id="browseAllProducts" class="btn btn-light" type="button">Browse all jewellery →</button>
+          <button id="browseAllProducts" class="btn btn-light" type="button">View all jewellery →</button>
         </div>
         <div class="product-toolbar">
           <div id="productStatus" class="product-status" aria-live="polite">Loading products…</div>
