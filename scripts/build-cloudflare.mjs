@@ -30,6 +30,7 @@ const publicRootFiles=[
   "shop-discovery.js"
 ];
 const publicDirectories=["admin","staff","assets","src/domain"];
+const optionalGeneratedDirectories=["categories","products"];
 
 await fs.rm(output,{recursive:true,force:true});
 await fs.mkdir(output,{recursive:true});
@@ -41,6 +42,11 @@ for(const file of publicRootFiles){
   await fs.copyFile(sourcePath,path.join(output,file));
 }
 for(const dir of publicDirectories){
+  await fs.cp(path.join(repo,dir),path.join(output,dir),{recursive:true});
+}
+for(const dir of optionalGeneratedDirectories){
+  try{await fs.access(path.join(repo,dir));}
+  catch(error){if(error.code==="ENOENT")continue;throw error;}
   await fs.cp(path.join(repo,dir),path.join(output,dir),{recursive:true});
 }
 
