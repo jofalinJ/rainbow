@@ -16,13 +16,15 @@ const item=(code,name)=>({variant_id:variant,quantity:1,
   product:{id:productId,product_code:code,product_name:name,
     selling_price:1000,description:"Isolated product",image:""}});
 async function mockCheckout(page,{buyNow=false,quoteTotal=1049.10}={}){
-  let prepares=0,submits=0;
+  let prepares=0,submits=0,corrections=0,statusReads=0,statusState="pending";
   const bag=[item("ISOLATED-A","Isolated Bangle")];
   if(buyNow)bag.push({...item("ISOLATED-C","Isolated Necklace"),
     variant_id:"55555555-5555-4555-8555-555555555555",
     product:{...bag[0].product,id:"66666666-6666-4666-8666-666666666666",
       product_name:"Isolated Necklace",product_code:"ISOLATED-C"}});
   await page.addInitScript(({bag,buyNow})=>{
+    if(localStorage.getItem("__phase1_seeded"))return;
+    localStorage.setItem("__phase1_seeded","true");
     localStorage.setItem("rainbow_cart_v1",JSON.stringify(bag));
     const selected={
       ...bag[0],variant_id:"33333333-3333-4333-8333-333333333333",
@@ -67,7 +69,9 @@ async function mockCheckout(page,{buyNow=false,quoteTotal=1049.10}={}){
     return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({
       checkout_id:body.checkout_id,state:"awaiting_payment",order_number:"ISOLATED-0001",
       subtotal:1000,discount_amount:30,cgst_amount:14.55,sgst_amount:14.55,
-      delivery_fee:50,total_amount:quoteTotal
+      delivery_fee:50,total_amount:quoteTotal,
+      expires_at:new Date(Date.now()+15*60*1000).toISOString(),
+      recovery_token:"test_isolated_recovery_token_1234567890abcdef"
     })});
   });
   await page.route("**/api/upi/submit",async route=>{
@@ -75,7 +79,23 @@ async function mockCheckout(page,{buyNow=false,quoteTotal=1049.10}={}){
     return route.fulfill({status:200,contentType:"application/json",
       body:'{"order_number":"ISOLATED-0001","payment_status":"pending","total_amount":1049.10}'});
   });
-  return {stats:()=>({prepares,submits})};
+  await page.route("**/api/upi/status",async route=>{
+    statusReads++;
+    return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({
+      order_number:"ISOLATED-0001",state:statusState,
+      payment_status:statusState==="verified"?"paid":"pending"
+    })});
+  });
+  await page.route("**/api/upi/correct",async route=>{
+    corrections++;
+    const body=JSON.parse(route.request().postData()||"{}");
+    if(!body.recovery_token||!body.request_id)throw new Error("Missing correction capability");
+    return route.fulfill({status:200,contentType:"application/json",
+      body:'{"order_number":"ISOLATED-0001","payment_status":"pending"}'});
+  });
+  return {stats:()=>({prepares,submits,corrections,statusReads}),
+    setStatus:value=>{statusState=value}};
+
 }
 async function fillValid(page){
   await page.locator("#name").fill("Test Buyer");
