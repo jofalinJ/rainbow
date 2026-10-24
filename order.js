@@ -424,6 +424,10 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
     const manualDetails=$("manualPaymentDetails");
     if(gatewayDetails)gatewayDetails.hidden=!gatewaySelected;
     if(manualDetails)manualDetails.hidden=!manualSelected;
+    // The provider probe may continue in the background, but its full
+    // connection panel is relevant only to customers selecting Razorpay TEST.
+    const providerPanel=$("gatewayConnection");
+    if(providerPanel)providerPanel.hidden=!razorpayTestAllowed||!gatewaySelected;
     const qr=$("checkoutQR"),qrMessage=$("qrUnavailable"),referenceGroup=$("paymentReferenceGroup");
     const signature=snapshot();
     if(signature!==pendingFingerprint){pendingFingerprint=signature;clearPending();}
@@ -822,12 +826,15 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
     const indicator=$("gatewayIndicator");
     connection?.classList.remove("is-online","is-offline");
     if(message)message.textContent="Checking online payment…";
+    const inline=$("razorpayInlineStatus");
+    if(inline)inline.textContent="Checking availability…";
     if(retry){retry.hidden=true;retry.disabled=true;}
     const status=await razorpayTestAvailability();
     if(attempt!==readinessAttempt)return;
     razorpayReady=status.available;
     connection?.classList.add(status.available?"is-online":"is-offline");
     if(message)message.textContent=status.message;
+    if(inline)inline.textContent=status.available?"Available · TEST only":"Unavailable right now";
     if(indicator)indicator.title=status.available?"Connected":"Not connected";
     if(retry){retry.hidden=status.available;retry.disabled=false;}
     const gateway=$("payRazorpay");
@@ -849,7 +856,7 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
   if(testChoice){testChoice.hidden=!razorpayTestAllowed;testChoice.style.display=razorpayTestAllowed?"":"none";}
   if(!razorpayTestAllowed){
     const connection=$("gatewayConnection");
-    if(connection){connection.hidden=true;connection.style.display="none";}
+    if(connection)connection.hidden=true;
     $("payRazorpay").disabled=true;
   }else checkGateway();
 })();
