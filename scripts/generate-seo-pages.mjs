@@ -26,6 +26,7 @@ const safeImage = value => {
 const validPrice = value => value !== null && value !== "" && Number.isFinite(Number(value))
   && Number(value) >= 0;
 const lastmod = value => {
+  if (!value) return "";
   const date = new Date(value);
   return Number.isFinite(date.getTime()) ? date.toISOString().slice(0, 10) : "";
 };
