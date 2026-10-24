@@ -20,13 +20,23 @@ async function mockCheckout(page,{buyNow=false,quoteTotal=1049.10}={}){
   const bag=[item("ISOLATED-A","Isolated Bangle")];
   await page.addInitScript(({bag,buyNow})=>{
     localStorage.setItem("rainbow_cart_v1",JSON.stringify(bag));
-    if(buyNow)sessionStorage.setItem("rainbow_buy_now_v1",JSON.stringify({
-      ...bag[0],product:{...bag[0].product,product_name:"Buy now selected design",product_code:"ISOLATED-B"}
-    }));
+    const selected={
+      ...bag[0],variant_id:"33333333-3333-4333-8333-333333333333",
+      product:{...bag[0].product,id:"44444444-4444-4444-8444-444444444444",
+        product_name:"Buy now selected design",product_code:"ISOLATED-B"}
+    };
+    if(buyNow)sessionStorage.setItem("rainbow_buy_now_v1",JSON.stringify(selected));
     const mockRows={
-      product_variants:[{id:bag[0].variant_id,product_id:bag[0].product.id,stock_quantity:9,active:true,color:"",size:""}],
-      products:[{id:bag[0].product.id,product_code:"ISOLATED-A",product_name:"Isolated Bangle",
-        type:"Bangle",selling_price:1000,description:"Fixture",active:true,product_images:[]}]
+      product_variants:[
+        {id:bag[0].variant_id,product_id:bag[0].product.id,stock_quantity:9,active:true,color:"",size:""},
+        {id:selected.variant_id,product_id:selected.product.id,stock_quantity:9,active:true,color:"",size:""}
+      ],
+      products:[
+        {id:bag[0].product.id,product_code:"ISOLATED-A",product_name:"Isolated Bangle",
+          type:"Bangle",selling_price:1000,description:"Fixture",active:true,product_images:[]},
+        {id:selected.product.id,product_code:"ISOLATED-B",product_name:"Buy now selected design",
+          type:"Ring",selling_price:1000,description:"Fixture",active:true,product_images:[]}
+      ]
     };
     Object.defineProperty(window,"supabase",{value:{createClient:()=>({
       from:table=>({select:()=>({in:async()=>({data:mockRows[table]||[],error:null})})})
