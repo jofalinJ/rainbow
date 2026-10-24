@@ -212,6 +212,8 @@
   const mobileCategoryImageCache=new Map();
   const mobileCategoryStockCounts=new Map();
   let mobileCategoryCountsReady=false;
+  let mobileCategoryCountError=false;
+  let mobileCategoryCountVersion=0;
   let mobileCategorySignature="";
   function withCatalogueTimeout(task){
     let timer;
@@ -222,7 +224,9 @@
   }
   // Server-side exact counts: never infer category emptiness from a paginated page.
   async function loadCategoryStockCounts(){
+    const version=++mobileCategoryCountVersion;
     mobileCategoryCountsReady=false;
+    mobileCategoryCountError=false;
     mobileCategoryStockCounts.clear();
     const counted=await Promise.all(catalogueCategories.filter(c=>c.show_in_storefront!==false).map(async c=>{
       const result=await client.from("product_variants")
@@ -232,6 +236,7 @@
       if(result.error)throw result.error;
       return [normalizeCategory(c.name),Number(result.count||0)];
     }));
+    if(version!==mobileCategoryCountVersion)return;
     counted.forEach(([name,count])=>mobileCategoryStockCounts.set(name,count));
     mobileCategoryCountsReady=true;
   }
@@ -244,7 +249,9 @@
     const track=document.getElementById("mobileCategoryTrack");
     if(!section||!track)return;
     if(!mobileCategoryCountsReady){
-      track.innerHTML='<span class="mobile-category-loading" role="status">Loading collections…</span>';
+      track.innerHTML=mobileCategoryCountError
+        ?'<div class="mobile-category-count-error" role="alert">Collections unavailable. <button type="button" id="mobileCategoryRetry">Retry</button></div>'
+        :'<span class="mobile-category-loading" role="status">Loading collections…</span>';
       section.hidden=false;
       return;
     }
@@ -459,6 +466,7 @@
   function bindCollectionFilters(){
     const mobileTrack=document.getElementById("mobileCategoryTrack");
     mobileTrack?.addEventListener("click",event=>{
+      if(event.target.closest("#mobileCategoryRetry")){void loadProducts();return;}
       const button=event.target.closest("[data-mobile-category]");
       if(!button)return;
       const targetCategory=button.dataset.mobileCategory||"";
@@ -1282,8 +1290,14 @@
       ]));
       if(categoriesResult.error)throw categoriesResult.error;
       catalogueCategories=categoriesResult.data||[];
-      // Await authoritative counts before drawing the mobile rail: no empty flash.
-      await withCatalogueTimeout(loadCategoryStockCounts());
+      // Counts are independent metadata. Failure must never take down product
+      // listings or show potentially empty categories as stocked.
+      try{await withCatalogueTimeout(loadCategoryStockCounts());}
+      catch(error){
+        console.warn("Category counts unavailable",error);
+        mobileCategoryCountVersion++;mobileCategoryCountsReady=false;
+        mobileCategoryCountError=true;
+      }
       promotionProductIds=promotionResult.error?[]:(promotionResult.data||[]).map(p=>String(p.product_id));
       const [latestResult,promotionResultPage]=await withCatalogueTimeout(Promise.all([
         catalogue.page(client,{sort:"newest",limit:4}),
