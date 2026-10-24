@@ -82,7 +82,7 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
   const sb=window.supabase?.createClient&&SUPABASE_URL&&KEY
     ?window.supabase.createClient(SUPABASE_URL,KEY):null;
   const esc=x=>String(x??"").replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
-  const money=x=>"₹"+Number(x||0).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2});
+  const formatINR=window.RainbowCatalogue.formatINR;
   let cart=[];
   let buyNowActive=false;
   let cartVerified=false;
@@ -190,7 +190,7 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
     reference.textContent="Order "+pending.order_number;
     const price=document.createElement("p");price.className="payment-total";
     const total=document.createElement("b");total.id="paymentDueTotal";
-    total.textContent=money(amounts.total_amount);price.append("Pay ",total);
+    total.textContent=formatINR(amounts.total_amount);price.append("Pay ",total);
     info.append(heading,recipient,reference,price);qr.append(img,info);qr.hidden=false;
   }
   async function preparePending(){
@@ -307,12 +307,12 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
     // UX-07: one display model drives the existing sidebar and the mobile
     // inline breakdown; the preview is never presented as server-authoritative.
     const display={
-      subtotal:money(locked?.subtotal??subtotal),
-      discount:"−"+money(locked?.discount_amount??discount),
-      cgst:money(locked?.cgst_amount??cgst),
-      sgst:money(locked?.sgst_amount??sgst),
-      delivery:shipping===null?"Select state":money(locked?.delivery_fee??shipping),
-      total:total===null?"—":money(locked?.total_amount??total)
+      subtotal:formatINR(locked?.subtotal??subtotal),
+      discount:"−"+formatINR(locked?.discount_amount??discount),
+      cgst:formatINR(locked?.cgst_amount??cgst),
+      sgst:formatINR(locked?.sgst_amount??sgst),
+      delivery:shipping===null?"Select state":formatINR(locked?.delivery_fee??shipping),
+      total:total===null?"—":formatINR(locked?.total_amount??total)
     };
     for(const [key,ids] of Object.entries({
       subtotal:["subtotal","paymentMiniSubtotal"],
@@ -358,10 +358,10 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
       const variant=item.variant_label?" • "+esc(item.variant_label):"";
       return '<div class="order-item">'+
         (item.product.image?'<img src="'+esc(item.product.image)+'" alt="" loading="lazy" width="72" height="72">':'<div class="order-item-placeholder"></div>')+
-        '<div><h3>'+esc(item.product.product_name)+'</h3><small>'+variant.replace(/^ • /,"")+(variant?" • ":"")+money(item.product.selling_price)+'</small>'+
+        '<div><h3>'+esc(item.product.product_name)+'</h3><small>'+variant.replace(/^ • /,"")+(variant?" • ":"")+formatINR(item.product.selling_price)+'</small>'+
         '<div class="order-qty"><button type="button" data-dec="'+index+'" aria-label="Decrease quantity" '+(Number(item.quantity)<=1?'disabled':'')+'>−</button><span>'+Number(item.quantity)+'</span><button type="button" data-inc="'+index+'" aria-label="Increase quantity" '+(!stockKnown||Number(item.quantity)>=Number(item.current_stock)?'disabled':'')+'>＋</button><button type="button" data-remove="'+index+'" aria-label="Remove '+esc(item.product.product_name)+'">Remove</button></div>'+
         (stockMessage?'<small class="cart-warning">'+esc(stockMessage)+'</small>':'')+
-        '</div><div class="order-price">'+money(Number(item.product.selling_price)*Number(item.quantity))+'</div></div>';
+        '</div><div class="order-price">'+formatINR(Number(item.product.selling_price)*Number(item.quantity))+'</div></div>';
     }).join("");
     document.querySelectorAll("[data-inc]").forEach(button=>button.onclick=()=>change(Number(button.dataset.inc),1));
     document.querySelectorAll("[data-dec]").forEach(button=>button.onclick=()=>change(Number(button.dataset.dec),-1));
@@ -637,7 +637,7 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
       save();
       $("orderLayout").hidden=true;
       $("orderSuccess").hidden=false;
-      $("orderSuccess").innerHTML="<h2>UPI reference submitted</h2><p>Order <strong>"+esc(data.order_number)+"</strong> is pending shop verification. It is not confirmed yet.</p><p>Total: <strong>"+money(data.total_amount)+"</strong>. Keep your UPI receipt until payment is verified.</p><a class='btn btn-dark' href='index.html#products'>Continue shopping</a>";
+      $("orderSuccess").innerHTML="<h2>UPI reference submitted</h2><p>Order <strong>"+esc(data.order_number)+"</strong> is pending shop verification. It is not confirmed yet.</p><p>Total: <strong>"+formatINR(data.total_amount)+"</strong>. Keep your UPI receipt until payment is verified.</p><a class='btn btn-dark' href='index.html#products'>Continue shopping</a>";
       msg("");
     }catch(error){
       console.error("Order creation failed.",error);
