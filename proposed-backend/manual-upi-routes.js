@@ -43,7 +43,7 @@ async function dbRpc(env,name,args){
 }
 export async function manualUpiRoute(request,env){
   const route=new URL(request.url).pathname;
-  if(route!=="/api/upi/prepare"&&route!=="/api/upi/submit")
+  if(!["/api/upi/prepare","/api/upi/submit","/api/upi/status","/api/upi/correct"].includes(route))
     return json({error:"Not found"},404);
   const origin=request.headers.get("Origin");
   const allowed=String(env.ALLOWED_ORIGINS||"").split(",").map(x=>x.trim()).filter(Boolean);
@@ -77,13 +77,47 @@ export async function manualUpiRoute(request,env){
       });
       const cols=["subtotal","discount_amount","cgst_amount","sgst_amount","delivery_fee","total_amount"];
       if(!result||result.checkout_id!==data.checkout_id||result.state!=="awaiting_payment"||
-        !result.order_number||!cols.every(col=>Number.isFinite(Number(result[col]))))
+        !result.order_number||!/^[A-Za-z0-9_-]{32,128}$/.test(String(result.recovery_token||""))||
+        !cols.every(col=>Number.isFinite(Number(result[col]))))
         throw new Error("invalid_authoritative_quote");
       return reply(Object.fromEntries([
         ["checkout_id",result.checkout_id],["state","awaiting_payment"],
         ["order_number",result.order_number],["expires_at",result.expires_at],
+        ["recovery_token",result.recovery_token],
         ...cols.map(col=>[col,Number(result[col])])
       ]),200);
+    }
+    if(route==="/api/upi/status"||route==="/api/upi/correct"){
+      // A checkout UUID alone must never authorize status or correction.
+      // The proposed service-only DB RPC verifies a 24h capability token hash.
+      const token=String(data.recovery_token||"");
+      if(!/^[A-Za-z0-9_-]{32,128}$/.test(token))
+        return reply({error:"Recovery verification required"},403);
+      if(route==="/api/upi/status"){
+        const result=await dbRpc(env,"get_manual_upi_checkout_status",{
+          p_checkout_id:data.checkout_id,p_recovery_token:token
+        });
+        const validStates=["awaiting_payment","pending","verified","declined","cancelled","uncertain"];
+        if(!result||typeof result.order_number!=="string"||
+          !validStates.includes(result.state)||
+          !["pending","paid"].includes(result.payment_status)||
+          (result.payment_status==="paid"&&result.state!=="verified"))
+          throw new Error("invalid_pending_state");
+        return reply({
+          order_number:result.order_number,state:result.state,
+          payment_status:result.payment_status
+        },200);
+      }
+      const reference=String(data.transaction_reference||"").trim();
+      if(!uuid(data.request_id)||!/^[A-Za-z0-9-]{8,64}$/.test(reference))
+        return reply({error:"Invalid UPI reference"},400);
+      const result=await dbRpc(env,"correct_manual_upi_reference",{
+        p_checkout_id:data.checkout_id,p_recovery_token:token,
+        p_request_id:data.request_id,p_transaction_reference:reference
+      });
+      if(!result||!result.order_number||result.payment_status!=="pending")
+        throw new Error("invalid_corrected_reference");
+      return reply({order_number:result.order_number,payment_status:"pending"},200);
     }
     const reference=String(data.transaction_reference||"").trim();
     if(!uuid(data.request_id)||!/^[A-Za-z0-9-]{8,64}$/.test(reference))
