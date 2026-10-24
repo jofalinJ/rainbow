@@ -60,7 +60,7 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
     $("sgst").textContent=money(sgst);
     $("delivery").textContent=shipping===null?"Choose state":money(shipping);
     $("total").textContent=total===null?"—":money(total);
-    $("totalLabel").textContent="Total including delivery";
+    $("totalLabel").textContent="Total";
     const payTotal=$("paymentDueTotal");if(payTotal)payTotal.textContent=total===null?"—":money(total);
     return {subtotal,discount,cgst,sgst,shipping,total};
   }
@@ -132,11 +132,11 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
     if(qrMessage){
       qrMessage.hidden=gatewaySelected||payReady;
       qrMessage.textContent=!cart.length?"Add jewellery to your bag before making a payment."
-        :shipping===null?"Choose your delivery state to calculate the complete amount."
-        :"Verifying current prices and stock before showing the UPI QR…";
+         :shipping===null?"Select your delivery state to see the total."
+        :"Checking price and stock before showing the UPI QR…";
     }
     if(referenceGroup)referenceGroup.hidden=gatewaySelected;
-    button.textContent=submitting?"Processing…":gatewaySelected?"Pay securely with Razorpay →":"Submit for payment verification →";
+    button.textContent=submitting?"Processing…":gatewaySelected?"Pay securely · TEST →":"Submit UPI reference →";
     button.disabled=submitting||!payReady||
       (gatewaySelected?!razorpayReady:!/^[A-Za-z0-9-]{8,64}$/.test(reference));
   }
@@ -148,7 +148,7 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
       render();
       return;
     }
-    msg("Checking current product prices and stock…");
+    msg("Checking price and stock…");
     try{
       const variantIds=[...new Set(cart.map(item=>String(item.variant_id)))];
       const {data:variants,error:variantError}=await sb.from("product_variants")
@@ -265,13 +265,13 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
                 /^[0-9a-f-]{36}$/i.test(url.searchParams.get("token")||"") ? url.href : null;
             }catch{return null;}
           })();
-          $("orderSuccess").innerHTML="<h2>Order placed — payment verified!</h2>"+
-            "<p>Your Rainbow Gold Covering test order <strong>"+esc(result.orderNumber||"—")+
-            "</strong> is confirmed and ready for staff processing.</p>"+
-            "<p>This was a Razorpay TEST payment. No real money was deducted.</p>"+
+          $("orderSuccess").innerHTML="<h2>TEST payment verified</h2>"+
+            "<p>Test order <strong>"+esc(result.orderNumber||"—")+
+            "</strong> is confirmed.</p>"+
+            "<p>No real money was deducted.</p>"+
             (safeBill?"<p><a class='btn btn-dark' target='_blank' rel='noopener noreferrer' href='"+esc(safeBill)+
               "'>View / Print Invoice →</a></p>":"<p>Your invoice is being prepared. Contact the shop with the order number if it does not appear.</p>")+
-            "<p>WhatsApp confirmation is sent only when you opt in and shop messaging is configured.</p>"+
+            "<p>WhatsApp updates are sent only if you opted in and messaging is available.</p>"+
             "<a class='btn btn-light' href='index.html#products'>Continue shopping</a>";
           msg("");
         }else if(result.status==="pending"){
@@ -294,7 +294,7 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
       save();
       $("orderLayout").hidden=true;
       $("orderSuccess").hidden=false;
-      $("orderSuccess").innerHTML="<h2>UPI reference received — not yet placed.</h2><p>Pending payment reference is <strong>"+esc(data.order_number)+"</strong>.</p><p>Order total including delivery: <strong>"+money(data.total_amount)+"</strong>.</p><p>Keep your UPI transaction receipt until the shop confirms payment.</p><a class='btn btn-dark' href='index.html#products'>Continue shopping</a>";
+      $("orderSuccess").innerHTML="<h2>UPI reference submitted</h2><p>Order <strong>"+esc(data.order_number)+"</strong> is pending shop verification. It is not confirmed yet.</p><p>Total: <strong>"+money(data.total_amount)+"</strong>. Keep your UPI receipt until payment is verified.</p><a class='btn btn-dark' href='index.html#products'>Continue shopping</a>";
       msg("");
     }catch(error){
       console.error("Order creation failed.",error);
@@ -322,7 +322,7 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
     const message=$("gatewayStatus");
     const indicator=$("gatewayIndicator");
     connection?.classList.remove("is-online","is-offline");
-    if(message)message.textContent="Checking Razorpay payment availability…";
+    if(message)message.textContent="Checking online payment…";
     if(retry){retry.hidden=true;retry.disabled=true;}
     const status=await razorpayTestAvailability();
     if(attempt!==readinessAttempt)return;
