@@ -3,10 +3,6 @@ name: Publish SEO catalogue (GitHub Pages)
 on:
   push:
     branches: [main]
-    paths:
-      - "scripts/generate-seo-pages.mjs"
-      - "scripts/build-cloudflare.mjs"
-      - ".github/workflows/seo-pages.yml"
   schedule:
     - cron: "23 */6 * * *"
   workflow_dispatch:
