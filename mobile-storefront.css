@@ -898,3 +898,12 @@
   input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
   select,textarea {font-size:16px!important}
 }
+
+
+/* UX-14: darken only small, low-contrast text on mobile while preserving hue. */
+@media(max-width:767px){
+  .payment-choice-note{color:#625249!important}
+  .account-auth-note{color:#625953!important}
+  .checkout-progress .checkout-step:not(.is-active):not(.is-complete){color:#615852!important}
+  .catalog-layout .product-type{color:#63554d!important}
+}
