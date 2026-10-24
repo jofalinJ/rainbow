@@ -375,6 +375,30 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
     render();
     if(!cart.length)msg("");
   }
+  function updateCheckoutProgress(){
+    const submitted=$("orderLayout")?.hidden===true&&Boolean(pendingRecord?.status==="pending");
+    const deliveryValid=Object.keys(deliveryErrors()).length===0;
+    const stockReady=cart.length>0&&cartVerified&&!cartVerificationFailed&&cart.every(cartItemHasStock);
+    const paymentReady=deliveryValid&&stockReady&&
+      (selectedPaymentMethod()==="razorpay"?razorpayReady:Boolean(lockedAmounts()));
+    const index=!stockReady?0:!deliveryValid?1:2;
+    const steps=[["bagStep","Bag"],["addressStep","Delivery"],["paymentStep","Pay"]];
+    for(let i=0;i<steps.length;i++){
+      const [id,label]=steps[i],node=$(id);if(!node)continue;
+      const complete=submitted||i<index;
+      const current=!submitted&&i===index;
+      node.classList.toggle("is-complete",complete);
+      node.classList.toggle("is-active",current);
+      if(current)node.setAttribute("aria-current","step");
+      else node.removeAttribute("aria-current");
+      const marker=node.querySelector("b");
+      if(marker)marker.textContent=complete?"✓":String(i+1);
+      const announcement=node.querySelector("[data-step-announcement]");
+      if(announcement)announcement.textContent="Step "+(i+1)+" of 3: "+label+
+        (complete?", complete":current?", current":", upcoming")+
+        (i===2&&!submitted&&!paymentReady?", payment not yet ready":"");
+    }
+  }
   function updatePlaceOrderState(){
     const button=$("placeOrder");
     if(!button)return;
@@ -414,6 +438,7 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
     button.disabled=false; // Keep reachable so invalid submission can focus its field.
     button.setAttribute("aria-disabled",String(!actionReady));
     button.dataset.checkoutReady=String(actionReady);
+    updateCheckoutProgress();
   }
     async function verifyCart(){
     if(!cart.length){cartVerified=true;render();return;}
