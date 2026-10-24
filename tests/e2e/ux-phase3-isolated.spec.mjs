@@ -95,7 +95,7 @@ for(const [width,height] of [[320,568],[360,800],[390,844],[430,932]]){
       await page.goto(base+"/index.html");
       await expect(page.locator("#catalogueRetry")).toBeVisible();
       await expect(page.locator("#productGrid")).not.toContainText("No jewellery listed yet");
-      await expect(page.locator("#catalogueRetry")).toHaveJSProperty("offsetHeight",44);
+      expect(await page.locator("#catalogueRetry").evaluate(el=>el.getBoundingClientRect().height)).toBeGreaterThanOrEqual(44);
     });
     test("UX-12/13: product Back and 16px field controls",async({page})=>{
       await fixture(page);
@@ -112,6 +112,21 @@ for(const [width,height] of [[320,568],[360,800],[390,844],[430,932]]){
     });
   });
 }
+test("UX-13: account, product and checkout text fields use 16px at 390px",async({page})=>{
+  await page.setViewportSize({width:390,height:844});
+  await fixture(page);
+  for(const url of ["index.html","product.html?sku=ISOLATED-RING","order.html"]){
+    await page.goto(base+"/"+url);
+    if(url==="index.html")await page.locator("#accountOpen").click();
+    const fields=await page.locator(
+      'input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not([type="file"]),select,textarea'
+    ).evaluateAll(nodes=>nodes.filter(node=>{
+      const rect=node.getBoundingClientRect();
+      return rect.width>0&&rect.height>0&&getComputedStyle(node).visibility!=="hidden";
+    }).map(node=>({id:node.id,fontSize:parseFloat(getComputedStyle(node).fontSize)})));
+    expect(fields.every(item=>item.fontSize>=16),url+" "+JSON.stringify(fields)).toBe(true);
+  }
+});
 test("UX-14: axe-core WCAG AA scan on isolated customer screens at 390px",async({page})=>{
   await page.setViewportSize({width:390,height:844});
   await fixture(page);
