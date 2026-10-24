@@ -51,7 +51,9 @@ describe("gateway readiness and manual UPI",()=>{
     expect(js).toContain("cart.every(cartItemHasStock)");
     expect(js).toContain('paymentMethod==="upi"');
     expect(js).toContain('/^[A-Za-z0-9-]{8,64}$/.test(paymentReference)');
-    expect(js).toContain('rpc("create_online_order"');
+    expect(js).toContain('pendingApi("/api/upi/prepare"');
+    expect(js).toContain('pendingApi("/api/upi/submit"');
+    expect(js).not.toContain('rpc("create_online_order"');
     expect(html).toContain('id="checkoutQR"');
     expect(html).toContain('id="paymentReferenceGroup"');
   });
