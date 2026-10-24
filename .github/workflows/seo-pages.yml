@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   build:
-    if: github.repository == 'jofalinJ/rainbow'
+    if: github.repository == 'jofalinJ/rainbow' && vars.RAINBOW_SEO_CATALOGUE_APPROVED == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -45,7 +45,7 @@ jobs:
 
   deploy:
     needs: build
-    if: github.repository == 'jofalinJ/rainbow'
+    if: github.repository == 'jofalinJ/rainbow' && vars.RAINBOW_SEO_CATALOGUE_APPROVED == 'true'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
