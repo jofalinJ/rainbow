@@ -16,6 +16,8 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
   let submitting=false;
   let razorpayReady=false;
   let paymentChoiceTouched=false;
+  const touchedFields=new Set();
+  let showAllErrors=false;
   let readinessAttempt=0;
   const selectedPaymentMethod=()=>document.querySelector('input[name="paymentMethod"]:checked')?.value||"upi";
 
@@ -43,8 +45,55 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
     if(el){el.textContent=text;el.className="order-msg "+kind;}
   }
   function phoneLooksValid(phone){
-    const digits=String(phone||"").replace(/\D/g,"");
-    return digits.length>=10&&digits.length<=13;
+    const cleaned=String(phone||"").replace(/[\\s-]/g,"").replace(/^\\+91/,"").replace(/^91(?=[6-9]\\d{9}$)/,"").replace(/^0(?=[6-9]\\d{9}$)/,"");
+    return /^[6-9]\\d{9}$/.test(cleaned);
+  }
+  // Same validation result is used for payment readiness, inline errors and submit.
+  const deliveryFields=["name","phone","email","pin","city","state","address"];
+  function deliveryErrors(){
+    const val=id=>String($(id)?.value||"").trim();
+    const errors={};
+    if(val("name").length<2)errors.name="Enter at least 2 characters.";
+    if(!phoneLooksValid(val("phone")))errors.phone="Enter a valid 10-digit Indian mobile number.";
+    if(val("email")&&!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(val("email")))errors.email="Enter a valid email or leave it blank.";
+    if(val("pin")&&!/^\\d{6}$/.test(val("pin")))errors.pin="Enter a 6-digit PIN.";
+    if(!deliveryFeeForState(val("state"))&&deliveryFeeForState(val("state"))!==0)errors.state="Select your delivery state.";
+    if(val("address").length<10)errors.address="Enter at least 10 characters for your address.";
+    return errors;
+  }
+  function paintDeliveryErrors(errors,force=false){
+    for(const id of deliveryFields){
+      const input=$(id);
+      if(!input)continue;
+      const visible=(showAllErrors||force||touchedFields.has(id))&&Boolean(errors[id]);
+      const errorId=id+"CheckoutError";
+      let note=$(errorId);
+      if(visible&&!note){
+        note=document.createElement("small");
+        note.id=errorId;note.className="checkout-inline-error";
+        note.style.cssText="display:block;color:#97232c;font-size:12px;line-height:1.45;margin-top:4px";
+        input.insertAdjacentElement("afterend",note);
+      }
+      if(note){
+        note.textContent=visible?errors[id]:"";
+        note.hidden=!visible;
+      }
+      if(visible){input.setAttribute("aria-invalid","true");input.setAttribute("aria-describedby",errorId);}
+      else {input.removeAttribute("aria-invalid");if(input.getAttribute("aria-describedby")===errorId)input.removeAttribute("aria-describedby");}
+    }
+  }
+  function focusDeliveryError(errors){
+    showAllErrors=true;paintDeliveryErrors(errors,true);
+    const ids=Object.keys(errors);
+    if(!ids.length)return false;
+    const first=$(ids[0]);
+    msg("Fix "+ids.length+" "+(ids.length===1?"field":"fields")+" to continue.","error");
+    if(first){
+      first.style.scrollMarginTop="110px";
+      first.scrollIntoView({behavior:"smooth",block:"center"});
+      first.focus({preventScroll:true});
+    }
+    return true;
   }
     function totals(){
     const subtotal=roundMoney(cart.reduce((sum,item)=>sum+Number(item.product.selling_price||0)*Number(item.quantity||0),0));
@@ -117,8 +166,11 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
     if(!button)return;
     const reference=String($("paymentReference")?.value||"").trim();
     const shipping=deliveryFeeForState($("state").value);
+    const errors=deliveryErrors();
+    paintDeliveryErrors(errors);
+    const validDelivery=Object.keys(errors).length===0;
     const payReady=cart.length>0&&cartVerified&&!cartVerificationFailed&&
-      cart.every(cartItemHasStock)&&shipping!==null;
+      cart.every(cartItemHasStock)&&shipping!==null&&validDelivery;
     const gatewaySelected=selectedPaymentMethod()==="razorpay";
     const manualSelected=!gatewaySelected;
     const gatewayDetails=$("razorpayDetails");
@@ -137,8 +189,11 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
     }
     if(referenceGroup)referenceGroup.hidden=gatewaySelected;
     button.textContent=submitting?"Processing…":gatewaySelected?"Pay securely · TEST →":"Submit UPI reference →";
-    button.disabled=submitting||!payReady||
-      (gatewaySelected?!razorpayReady:!/^[A-Za-z0-9-]{8,64}$/.test(reference));
+    const actionReady=!submitting&&payReady&&
+      (gatewaySelected?razorpayReady:/^[A-Za-z0-9-]{8,64}$/.test(reference));
+    button.disabled=false; // Keep reachable so invalid submission can focus its field.
+    button.setAttribute("aria-disabled",String(!actionReady));
+    button.dataset.checkoutReady=String(actionReady);
   }
     async function verifyCart(){
     if(!cart.length){cartVerified=true;render();return;}
@@ -209,7 +264,13 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
     }
   }
     async function placeOrder(){
-    if(submitting||!cart.length)return;
+    if(submitting)return;
+    const errors=deliveryErrors();
+    if(focusDeliveryError(errors))return;
+    if($("placeOrder")?.dataset.checkoutReady!=="true"){
+      msg(!cart.length?"Add jewellery to your bag first.":"Complete payment setup and verify stock before submitting.","error");
+      return;
+    }
     if(!sb){msg("Checkout is temporarily unavailable. Please try again later.","error");return;}
     if(!cartVerified||cartVerificationFailed){msg("Current prices and stock have not been verified. Reload checkout and try again.","error");return;}
     if(cart.some(item=>!cartItemHasStock(item))){msg("Please remove unavailable items or reduce quantities to the available stock.","error");render();return;}
@@ -233,7 +294,7 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
       payment_method:paymentMethod,
       payment_reference:paymentReference
     };
-    if(!name||!phone||!address){msg("Name, WhatsApp number and delivery address are required.","error");return;}
+    if(Object.keys(deliveryErrors()).length){focusDeliveryError(deliveryErrors());return;}
     if(!phoneLooksValid(phone)){msg("Enter a valid WhatsApp number, including country code if needed.","error");return;}
     if(pin&&!/^\d{6}$/.test(pin)){msg("Enter a valid 6-digit PIN code.","error");return;}
     if(shipping===null){msg("Choose a valid Indian state or union territory for delivery.","error");return;}
@@ -308,6 +369,16 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
   $("clearCart").onclick=()=>{cart=[];cartVerified=true;cartVerificationFailed=false;save();render();msg("");};
   $("placeOrder").onclick=placeOrder;
   $("paymentReference").addEventListener("input",updatePlaceOrderState);
+  for(const id of deliveryFields){
+    const field=$(id);if(!field)continue;
+    field.addEventListener("blur",()=>{
+      touchedFields.add(id);
+      paintDeliveryErrors(deliveryErrors());
+      updatePlaceOrderState();
+    });
+    field.addEventListener("input",()=>updatePlaceOrderState());
+    field.addEventListener("change",()=>updatePlaceOrderState());
+  }
   document.querySelectorAll('input[name="paymentMethod"]').forEach(input=>input.addEventListener("change",()=>{paymentChoiceTouched=true;updatePlaceOrderState();}));
   const stateField=$("state");
   for(const state of INDIAN_STATES)stateField.add(new Option(state,state));
