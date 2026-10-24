@@ -655,6 +655,103 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
     clearDialog.showModal();
     keepBag.focus();
   };
+  // UX-09: status/correction ONLY use a server-authorized operation on the
+  // original checkout. No client-side claim of paid and no second order creation.
+  function restoreDeclinedBag(record){
+    try{
+      const saved=JSON.parse(localStorage.getItem(CART_KEY)||"[]");
+      const list=Array.isArray(saved)?saved.filter(i=>i?.variant_id&&i?.product):[];
+      for(const item of record.items||[]){
+        if(!item?.variant_id||!item?.product||!Number.isInteger(Number(item.quantity)))continue;
+        const match=list.find(i=>String(i.variant_id)===String(item.variant_id));
+        if(match)match.quantity=Math.max(Number(match.quantity)||1,Number(item.quantity));
+        else list.push(item);
+      }
+      localStorage.setItem(CART_KEY,JSON.stringify(list.slice(0,50)));
+      return true;
+    }catch{return false;}
+  }
+  function showPendingTerminal(message,returnBag){
+    removePendingRecord();
+    const box=$("pendingCheckoutBanner");if(box)box.hidden=false;
+    $("pendingCheckoutMessage").textContent=message;
+    $("pendingCheckoutStatus").hidden=true;
+    $("pendingCheckoutCorrect").hidden=true;
+    $("pendingCheckoutCorrection").hidden=true;
+    $("pendingCheckoutReturn").hidden=!returnBag;
+  }
+  $("pendingCheckoutStatus")?.addEventListener("click",async()=>{
+    const record=pendingRecord;if(!record)return;
+    if(!record.recovery_token){
+      renderPendingBanner("Order "+record.order_number+" is pending. Contact the shop with this order number to verify status.");
+      return;
+    }
+    const button=$("pendingCheckoutStatus");button.disabled=true;
+    try{
+      const data=await pendingApi("/api/upi/status",{
+        checkout_id:record.checkout_id,recovery_token:record.recovery_token
+      });
+      if(!data||data.order_number!==record.order_number)
+        throw new Error("Could not verify this order's status.");
+      if(data.state==="verified"&&data.payment_status==="paid"){
+        showPendingTerminal("Order "+record.order_number+" payment verified by the shop.",false);
+      }else if(["declined","cancelled"].includes(data.state)){
+        const restored=restoreDeclinedBag(record);
+        showPendingTerminal("Order "+record.order_number+" was "+data.state+
+          (restored?". Your bag was restored.":". Contact the shop before ordering again."),restored);
+      }else if(["pending","awaiting_payment"].includes(data.state)){
+        record.status=data.state;
+        writePendingRecord(record);renderPendingBanner();
+      }else renderPendingBanner("Status needs shop review. Do not send another payment.");
+    }catch{
+      renderPendingBanner("Cannot verify the status right now. Keep order "+record.order_number+
+        " and contact the shop; please do not pay again.");
+    }finally{button.disabled=false;}
+  });
+  $("pendingCheckoutCorrect")?.addEventListener("click",()=>{
+    if(!pendingRecord)return;
+    $("pendingCheckoutCorrection").hidden=false;
+    $("pendingCheckoutUtr").focus();
+  });
+  $("pendingCheckoutCancelUtr")?.addEventListener("click",()=>{
+    $("pendingCheckoutCorrection").hidden=true;
+    $("pendingCheckoutCorrect")?.focus();
+  });
+  let correctionRequestId="",correctionValue="";
+  $("pendingCheckoutUtr")?.addEventListener("input",()=>{
+    if($("pendingCheckoutUtr").value.trim()!==correctionValue)correctionRequestId="";
+  });
+  $("pendingCheckoutSaveUtr")?.addEventListener("click",async()=>{
+    const record=pendingRecord;if(!record)return;
+    const utr=$("pendingCheckoutUtr").value.trim();
+    if(!/^[A-Za-z0-9-]{8,64}$/.test(utr)){
+      $("pendingCheckoutMessage").textContent="Enter an 8–64 character UPI reference.";
+      $("pendingCheckoutUtr").focus();return;
+    }
+    if(!record.recovery_token){
+      renderPendingBanner("Correcting this order requires shop verification. Contact the shop with order "+record.order_number+".");
+      return;
+    }
+    correctionRequestId=correctionRequestId||crypto.randomUUID();
+    correctionValue=utr;
+    const button=$("pendingCheckoutSaveUtr");button.disabled=true;
+    try{
+      const data=await pendingApi("/api/upi/correct",{
+        checkout_id:record.checkout_id,recovery_token:record.recovery_token,
+        request_id:correctionRequestId,transaction_reference:utr
+      });
+      if(!data||data.order_number!==record.order_number||data.payment_status!=="pending")
+        throw new Error("Correction was not confirmed.");
+      record.status="pending";
+      writePendingRecord(record);
+      $("pendingCheckoutCorrection").hidden=true;
+      renderPendingBanner("Reference updated for order "+record.order_number+
+        ". Payment remains pending shop verification.");
+    }catch{
+      renderPendingBanner("Could not update the reference. Retry this correction or contact the shop; no new order was created.");
+    }finally{button.disabled=false;}
+  });
+  $("pendingCheckoutReturn")?.addEventListener("click",()=>{location.href="order.html?bag=1";});
   $("placeOrder").onclick=placeOrder;
   $("paymentReference").addEventListener("input",()=>{
     const input=$("paymentReference");
