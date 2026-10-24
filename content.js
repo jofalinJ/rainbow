@@ -404,7 +404,7 @@
     grid.querySelectorAll("[data-wishlist-product]:not([data-wishlist-bound])").forEach(button=>{button.dataset.wishlistBound="true";button.addEventListener("click",event=>{
       event.preventDefault();event.stopPropagation();const id=String(button.dataset.wishlistProduct);
       if(wishlistIds.has(id))wishlistIds.delete(id);else wishlistIds.add(id);
-      saveWishlist();render();
+      saveWishlist();document.dispatchEvent(new CustomEvent("rainbow:mobile-toast",{detail:{message:wishlistIds.has(id)?"Added to saved designs":"Removed from saved designs"}}));render();
     });});
   }
 
@@ -1037,6 +1037,7 @@
       if(existing){existing.quantity=next;existing.variant_label=labelForVariant(selectedVariant);existing.product=makeCartItem(next).product;}
       else cart.push(makeCartItem(next));
       saveCart(cart);track("add_to_cart",{item_id:product.product_code||product.id,quantity:selectedQty});
+      document.dispatchEvent(new CustomEvent("rainbow:mobile-toast",{detail:{message:"Added to your bag"}}));
       if(status)status.textContent="Added to cart.";
       closeProductModal();
     };
@@ -1048,6 +1049,7 @@
       if(wishlistIds.has(id))wishlistIds.delete(id);else wishlistIds.add(id);
       saveWishlist();
       const saved=wishlistIds.has(id);
+      document.dispatchEvent(new CustomEvent("rainbow:mobile-toast",{detail:{message:saved?"Added to saved designs":"Removed from saved designs"}}));
       modalWishlistButton.classList.toggle("is-saved",saved);
       modalWishlistButton.setAttribute("aria-pressed",String(saved));
       const icon=modalWishlistButton.querySelector("span[aria-hidden]");
