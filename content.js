@@ -1031,7 +1031,12 @@
       const stock=stockOf(selectedVariant);
       if(!selectedVariant||stock<=0){if(status)status.textContent="This option is out of stock.";return;}
       const cart=getCart();
-      if(replace){saveCart([makeCartItem(Math.min(selectedQty,stock))]);location.href="order.html";return;}
+      if(replace){
+        if(!window.RainbowCatalogue?.startBuyNow(makeCartItem(Math.min(selectedQty,stock)))){
+          if(status)status.textContent="Could not start Buy now. Try again.";return;
+        }
+        location.href="order.html";return;
+      }
       const existing=cart.find(item=>String(item.variant_id)===String(selectedVariant.id));
       const oldQty=Number(existing?.quantity||0);
       if(oldQty>=stock){if(status)status.textContent="The cart already contains all available stock for this option.";return;}
