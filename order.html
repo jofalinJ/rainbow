@@ -27,10 +27,10 @@
       <div class="checkout-section-title"><span class="checkout-eyebrow">STEP 02 / DELIVERY</span><h2 id="deliveryHeading">Delivery details</h2></div>
       <p class="checkout-subtitle">Delivery fee updates with your state.</p>
       <div class="order-form">
-        <label>Full name <span class="required-mark">*</span><input id="name" required autocomplete="name" placeholder="Name for delivery"></label>
-        <label>WhatsApp number <span class="required-mark">*</span><input id="phone" required inputmode="tel" autocomplete="tel" placeholder="10-digit number"></label>
+        <label>Full name <span class="required-mark">*</span><input id="name" type="text" required autocomplete="name" placeholder="Name for delivery"></label>
+        <label>WhatsApp number <span class="required-mark">*</span><input id="phone" type="tel" required inputmode="tel" autocomplete="tel" placeholder="10-digit number"></label>
         <label>Email (optional)<input id="email" type="email" autocomplete="email" placeholder="you@example.com"></label>
-        <label>PIN code<input id="pin" inputmode="numeric" autocomplete="postal-code" placeholder="6 digits"></label>
+        <label>PIN code<input id="pin" type="text" inputmode="numeric" maxlength="6" autocomplete="postal-code" placeholder="6 digits"></label>
         <label>City<input id="city" autocomplete="address-level2" placeholder="City / town"></label>
         <label>State / UT <span class="required-mark">*</span><select id="state" required autocomplete="address-level1"><option value="">Select state</option></select></label>
         <label class="full">Delivery address <span class="required-mark">*</span><textarea id="address" rows="3" required autocomplete="street-address" placeholder="House, street, area"></textarea></label>
