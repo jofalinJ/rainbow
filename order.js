@@ -254,7 +254,8 @@ import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=
           items:cart.map(item=>({variant_id:item.variant_id,quantity:Number(item.quantity)})),
           customer,
           displayTotal:totals().total,
-          expectedMode:razorpayMode
+          expectedMode:razorpayMode,
+          onPaymentFailed:reason=>msg("Payment failed: "+reason+" You can retry in Razorpay or close checkout.","error")
         });
         if(result.status==="paid"){
           cart=[];save();
