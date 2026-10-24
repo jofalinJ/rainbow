@@ -253,7 +253,8 @@ import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=
         const result=await beginRazorpayPayment({
           items:cart.map(item=>({variant_id:item.variant_id,quantity:Number(item.quantity)})),
           customer,
-          displayTotal:totals().total
+          displayTotal:totals().total,
+          expectedMode:razorpayMode
         });
         if(result.status==="paid"){
           cart=[];save();
