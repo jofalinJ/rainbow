@@ -351,6 +351,7 @@
     });
     const wishlistButton=document.getElementById("wishlistToggle");
     if(wishlistButton){wishlistButton.setAttribute("aria-pressed",String(wishlistOnly));wishlistButton.classList.toggle("is-selected",wishlistOnly);}
+    document.body.classList.toggle("mobile-wishlist-view",wishlistOnly);
 
     if(categoryLanding){
       renderPager(true);
@@ -1108,8 +1109,9 @@
     });
     let touchStartX=null;
     const modal=document.getElementById("productModal");
-    modal?.addEventListener("touchstart",event=>{touchStartX=event.changedTouches?.[0]?.clientX??null;},{passive:true});
+    modal?.addEventListener("touchstart",event=>{if(window.matchMedia("(max-width:767px)").matches)return;touchStartX=event.changedTouches?.[0]?.clientX??null;},{passive:true});
     modal?.addEventListener("touchend",event=>{
+      if(window.matchMedia("(max-width:767px)").matches)return; // Gallery handles photo swipes on phones.
       const end=event.changedTouches?.[0]?.clientX;
       if(touchStartX===null||end===undefined)return;
       const delta=end-touchStartX;
