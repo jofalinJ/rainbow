@@ -65,7 +65,9 @@ describe("customer checkout compact UX safety",()=>{
   });
   it("keeps mobile-only compact styles and preserves desktop styling",()=>{
     expect(mobileCss).toContain('@media (max-width:767px)');
-    expect(mobileCss).toContain('.gateway-connection.is-online{display:none!important}');
+    expect(mobileCss).toContain('.gateway-connection[hidden]{display:none!important}');
+    expect(orderJs).toContain('providerPanel.hidden=!razorpayTestAllowed||!gatewaySelected');
+    expect(order).toContain('id="razorpayInlineStatus"');
     for(const page of [home,order,product])expect(page).toContain('mobile-storefront.css?');
   });
 });
