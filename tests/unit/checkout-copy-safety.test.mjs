@@ -23,7 +23,9 @@ describe("customer checkout compact UX safety",()=>{
     expect(order).toContain('value="upi"');
     expect(order).toContain('name="paymentMethod"');
     expect(orderJs).toContain('beginRazorpayTestPayment(');
-    expect(orderJs).toContain('sb.rpc("create_online_order"');
+    expect(orderJs).toContain('pendingApi("/api/upi/prepare"');
+    expect(orderJs).toContain('pendingApi("/api/upi/submit"');
+    expect(orderJs).not.toContain('sb.rpc("create_online_order"');
   });
   it("never hides the real-money warning or claims manual UPI is verified",()=>{
     expect(order).toContain("Manual UPI transfers real money and requires shop verification.");
