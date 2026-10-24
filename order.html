@@ -4,88 +4,86 @@
 <header class="topbar"><nav class="nav container"><div class="navlinks"><a href="index.html#products">Shop</a><a href="index.html#products">Shop by Type</a><a href="index.html#contact">Contact</a></div><a class="logo" href="index.html"><img class="brand-logo" src="assets/brand/rainbow-logo.png" alt="Rainbow Gold Covering logo" width="42" height="42"><span><strong>RAINBOW</strong><small>GOLD COVERING</small></span></a><div class="nav-actions"><a class="instagram-top" href="https://www.instagram.com/rainbow_kollam_gold_covering/" target="_blank" rel="noopener noreferrer">Instagram ↗</a><a class="cart-top" href="order.html">Cart <span id="cartCount">0</span></a></div></nav></header>
 <main class="order-page"><div class="container">
 <div class="order-head">
-  <div><span class="section-kicker">SECURE CHECKOUT</span><h1>Almost yours.</h1><p>Review your jewellery, add a delivery address and choose how you want to pay.</p></div>
+  <div><span class="section-kicker">SECURE CHECKOUT</span><h1>Almost yours.</h1><p>Review your bag, address and payment.</p></div>
   <a class="btn btn-light checkout-back" href="index.html#products">← Continue shopping</a>
 </div>
 <nav class="checkout-progress" aria-label="Checkout progress">
-  <span class="checkout-step is-complete"><b>1</b> My bag</span>
-  <span class="checkout-step is-active" id="addressStep"><b>2</b> Address</span>
-  <span class="checkout-step" id="paymentStep"><b>3</b> Payment</span>
+  <span class="checkout-step is-complete"><b>1</b> Bag</span>
+  <span class="checkout-step is-active" id="addressStep"><b>2</b> Delivery</span>
+  <span class="checkout-step" id="paymentStep"><b>3</b> Pay</span>
 </nav>
 <div id="orderSuccess" class="order-success" role="status" aria-live="polite" hidden></div>
 <div id="orderLayout" class="order-layout checkout-layout">
   <div class="checkout-main">
     <section class="order-card checkout-panel" aria-labelledby="bagHeading">
       <div class="order-card-head">
-        <div><span class="checkout-eyebrow">STEP 01 / YOUR BAG</span><h2 id="bagHeading">Your jewellery</h2></div>
+        <div><span class="checkout-eyebrow">STEP 01 / YOUR BAG</span><h2 id="bagHeading">Your bag</h2></div>
         <button id="clearCart" type="button">Clear bag</button>
       </div>
-      <p class="checkout-subtitle">Prices and available stock are checked before you place an order.</p>
+      <p class="checkout-subtitle checkout-essential-note">Prices and stock are verified before payment.</p>
       <div id="orderItems"></div>
     </section>
     <section class="order-card checkout-panel" aria-labelledby="deliveryHeading">
       <div class="checkout-section-title"><span class="checkout-eyebrow">STEP 02 / DELIVERY</span><h2 id="deliveryHeading">Delivery details</h2></div>
-      <p class="checkout-subtitle">Delivery charges depend on your selected state.</p>
+      <p class="checkout-subtitle">Delivery fee updates with your state.</p>
       <div class="order-form">
-        <label>Full name <span class="required-mark">*</span><input id="name" required autocomplete="name" placeholder="Full name"></label>
-        <label>WhatsApp number <span class="required-mark">*</span><input id="phone" required inputmode="tel" autocomplete="tel" placeholder="10-digit mobile number"></label>
+        <label>Full name <span class="required-mark">*</span><input id="name" required autocomplete="name" placeholder="Name for delivery"></label>
+        <label>WhatsApp number <span class="required-mark">*</span><input id="phone" required inputmode="tel" autocomplete="tel" placeholder="10-digit number"></label>
         <label>Email (optional)<input id="email" type="email" autocomplete="email" placeholder="you@example.com"></label>
-        <label>PIN code<input id="pin" inputmode="numeric" autocomplete="postal-code" placeholder="6-digit PIN"></label>
-        <label>City<input id="city" autocomplete="address-level2" placeholder="Your city"></label>
-        <label>State / union territory <span class="required-mark">*</span><select id="state" required autocomplete="address-level1"><option value="">Choose delivery state</option></select></label>
-        <label class="full">Delivery address <span class="required-mark">*</span><textarea id="address" rows="3" required autocomplete="street-address" placeholder="House / building, street and locality"></textarea></label>
+        <label>PIN code<input id="pin" inputmode="numeric" autocomplete="postal-code" placeholder="6 digits"></label>
+        <label>City<input id="city" autocomplete="address-level2" placeholder="City / town"></label>
+        <label>State / UT <span class="required-mark">*</span><select id="state" required autocomplete="address-level1"><option value="">Select state</option></select></label>
+        <label class="full">Delivery address <span class="required-mark">*</span><textarea id="address" rows="3" required autocomplete="street-address" placeholder="House, street, area"></textarea></label>
       </div>
     </section>
     <section class="order-card checkout-panel" aria-labelledby="paymentHeading">
-      <div class="checkout-section-title"><span class="checkout-eyebrow">STEP 03 / PAYMENT</span><h2 id="paymentHeading">Choose a payment method</h2></div>
-      <p class="checkout-subtitle">Select a method below. The amount will be checked again by our server.</p>
+      <div class="checkout-section-title"><span class="checkout-eyebrow">STEP 03 / PAYMENT</span><h2 id="paymentHeading">Payment method</h2></div>
+      <p class="checkout-subtitle checkout-payment-intro">Choose how to pay. The final amount is verified securely.</p>
       <div class="payment-methods" role="radiogroup" aria-label="Payment method">
         <label class="payment-choice" id="razorpayChoice">
           <input id="payRazorpay" type="radio" name="paymentMethod" value="razorpay" disabled>
           <span class="payment-choice-body">
-            <span class="payment-choice-top"><strong>Pay online securely</strong><span class="checkout-mode">TEST MODE</span></span>
-            <span class="payment-choice-description">UPI, debit &amp; credit cards, netbanking and wallets through Razorpay</span>
-            <span class="payment-choice-note">Your available payment options appear in the secure Razorpay window.</span>
+            <span class="payment-choice-top"><strong>Pay online</strong><span class="checkout-mode">TEST MODE</span></span>
+            <span class="payment-choice-description">Razorpay · UPI, cards &amp; more</span>
+            <span class="payment-choice-note">Test only — no real charge.</span>
           </span>
           <span class="payment-choice-dot" aria-hidden="true"></span>
         </label>
         <label class="payment-choice" id="manualUpiChoice">
           <input id="payUpi" type="radio" name="paymentMethod" value="upi" checked>
           <span class="payment-choice-body">
-            <span class="payment-choice-top"><strong>Manual UPI transfer</strong><span class="manual-label">Shop verification</span></span>
-            <span class="payment-choice-description">Scan our shop QR code, then enter your UPI reference.</span>
-            <span class="payment-choice-note">Your order remains pending until staff verify your payment.</span>
+            <span class="payment-choice-top"><strong>UPI transfer</strong><span class="manual-label">Manual</span></span>
+            <span class="payment-choice-description">Scan QR · Enter UPI reference</span>
+            <span class="payment-choice-note">Real payment · Pending until verified.</span>
           </span>
           <span class="payment-choice-dot" aria-hidden="true"></span>
         </label>
       </div>
       <div id="gatewayConnection" class="gateway-connection" role="status" aria-live="polite">
         <span class="connection-indicator" id="gatewayIndicator" aria-hidden="true"></span>
-        <p id="gatewayStatus" class="gateway-status">Checking secure payment availability…</p>
+        <p id="gatewayStatus" class="gateway-status">Checking online payment…</p>
         <button id="retryGateway" type="button" class="payment-retry" hidden>Retry connection ↗</button>
       </div>
       <div id="razorpayDetails" class="payment-method-detail" hidden>
-        <strong>Razorpay secure checkout</strong>
-        <p>Click “Pay securely” to open Razorpay. This is a test transaction, so no real money is deducted.</p>
-        <p class="payment-safety">We verify payment signatures and the final order amount on our server.</p>
-        <label class="checkout-whatsapp-consent"><input id="whatsappReceiptConsent" type="checkbox"> <span>Send my paid-order confirmation and secure invoice link through WhatsApp after payment is verified. Optional; I agree to receive this transaction message.</span></label>
+        <p class="payment-safety">Razorpay TEST: no money is deducted. Payment is verified by our server.</p>
+        <label class="checkout-whatsapp-consent"><input id="whatsappReceiptConsent" type="checkbox"> <span>Yes, WhatsApp me my confirmation and invoice link after payment verification (optional).</span></label>
       </div>
       <div id="manualPaymentDetails" class="payment-method-detail">
-        <p id="qrUnavailable" class="gateway-status">Choose your delivery state and verify the cart to view the payable amount.</p>
+        <p id="qrUnavailable" class="gateway-status">Select a state to see the payable amount.</p>
         <div id="checkoutQR" class="payment-qr-card checkout-qr" hidden>
           <img src="assets/brand/pay.png" alt="Shop UPI QR code. Verify recipient name before paying." width="176" height="176">
-          <div><strong>Scan to pay</strong><p>Check the receiver name and exact amount in your UPI app before transferring money.</p><p class="payment-total">Amount to pay <b id="paymentDueTotal">—</b></p></div>
+          <div><strong>Scan to pay</strong><p>Confirm the recipient and amount in your UPI app.</p><p class="payment-total">Pay <b id="paymentDueTotal">—</b></p></div>
         </div>
-        <label id="paymentReferenceGroup" class="payment-reference-label">UPI transaction reference / UTR
-          <input id="paymentReference" autocomplete="off" inputmode="text" maxlength="64" placeholder="Enter reference after making payment">
+        <label id="paymentReferenceGroup" class="payment-reference-label">UPI reference (UTR)
+          <input id="paymentReference" autocomplete="off" inputmode="text" maxlength="64" placeholder="Enter after payment">
         </label>
       </div>
     </section>
   </div>
   <aside class="checkout-aside" aria-labelledby="summaryHeading">
     <section class="order-card checkout-summary-card">
-      <span class="checkout-eyebrow">YOUR ORDER</span><h2 id="summaryHeading">Price summary</h2>
-      <p class="checkout-subtitle" id="bagItemCount">Review your bag before paying</p>
+      <span class="checkout-eyebrow">YOUR ORDER</span><h2 id="summaryHeading">Order total</h2>
+      <p class="checkout-subtitle" id="bagItemCount">Review items before paying</p>
       <div class="order-summary">
         <div><span>Subtotal</span><strong id="subtotal">₹0.00</strong></div>
         <div class="summary-saving"><span>Discount (3%)</span><strong id="discount">₹0.00</strong></div>
@@ -96,11 +94,8 @@
       </div>
       <button id="placeOrder" class="btn btn-dark place-order" type="button" disabled>Continue to payment →</button>
       <p id="orderMsg" class="order-msg" role="status" aria-live="polite"></p>
-      <div class="checkout-assurance">
-        <p><span aria-hidden="true">◈</span> Secure server-side amount verification</p>
-        <p><span aria-hidden="true">◈</span> Shop support available for order questions</p>
-      </div>
-      <p class="checkout-test-notice">Razorpay is currently in Test Mode. No real money is taken through Razorpay test checkout. Manual UPI transfer is separate and can move real funds.</p>
+      
+      <p class="checkout-test-notice"><strong>Payment note:</strong> Razorpay TEST does not charge real money. Manual UPI transfers real money and requires shop verification.</p>
     </section>
   </aside>
 </div></div></main>
