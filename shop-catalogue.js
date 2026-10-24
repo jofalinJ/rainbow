@@ -86,6 +86,20 @@
      '<span class="photo-unavailable-icon" aria-hidden="true">◇</span>'+
      '<span class="photo-unavailable-label" aria-hidden="true">Photo unavailable</span></span>';
  }
+ // Formatting works in integer paise. Existing API/pricing contracts supply
+ // rupees; conversion is presentation-only and never changes server totals.
+ function formatPaise(amountPaise){
+   const paise=Number.isFinite(Number(amountPaise))?Math.round(Number(amountPaise)):0;
+   const negative=paise<0?"−":"";
+   const absolute=Math.abs(paise);
+   const rupees=Math.floor(absolute/100).toLocaleString("en-IN");
+   const fraction=absolute%100;
+   return negative+"₹"+rupees+(fraction?"."+String(fraction).padStart(2,"0"):"");
+ }
+ function formatINR(amountRupees){
+   const rupees=Number(amountRupees);
+   return formatPaise(Math.round((Number.isFinite(rupees)?rupees:0)*100));
+ }
  const BUY_NOW_KEY="rainbow_buy_now_v1";
  const validSelection=item=>item&&typeof item==="object"&&typeof item.variant_id==="string"&&
    item.product&&Number.isInteger(Number(item.quantity))&&Number(item.quantity)>=1&&Number(item.quantity)<=100;
@@ -99,5 +113,5 @@
  }
  function clearBuyNow(){try{sessionStorage.removeItem(BUY_NOW_KEY);}catch{}}
  root.RainbowCatalogue={PAGE_SIZE,MAX_PAGE_SIZE,buildQuery,page,thumbnailUrl,cleanSearch,
-   startBuyNow,readBuyNow,clearBuyNow,photoUnavailableMarkup};
+   startBuyNow,readBuyNow,clearBuyNow,photoUnavailableMarkup,formatINR,formatPaise};
 })(typeof window==="undefined"?globalThis:window);
