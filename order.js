@@ -73,6 +73,22 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
     fields:["name","phone","email","pin","city","state","address"].map(id=>String($(id)?.value||"").trim())
   });
   const paise=x=>Math.round(Number(x)*100);
+  async function pendingApi(route,body){
+    // Proposed Cloudflare route owns privileged DB writes, origin checks and
+    // rate limits. The browser NEVER invokes a service-role RPC directly.
+    const raw=String(window.RAINBOW_PAYMENT_CONFIG?.apiBaseUrl||"").trim();
+    if(!raw)throw new Error("Secure checkout is not configured.");
+    const base=new URL(raw);
+    if(base.protocol!=="https:")throw new Error("Secure checkout needs HTTPS.");
+    const timeout=AbortSignal.timeout(10000);
+    const response=await fetch(base.origin+route,{
+      method:"POST",mode:"cors",cache:"no-store",signal:timeout,
+      headers:{"Content-Type":"application/json","Accept":"application/json"},
+      body:JSON.stringify(body)
+    });
+    if(!response.ok)throw new Error("Secure UPI checkout is unavailable. Please retry.");
+    return response.json();
+  }
   function clearPending(){
     pendingVersion++;if(pendingTimer!==null)clearTimeout(pendingTimer);
     pendingTimer=null;pending=null;pendingKey="";pendingError="";pendingBusy=false;
@@ -109,9 +125,9 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
     const generation=pendingVersion,key=pendingKey||(pendingKey=crypto.randomUUID());
     updatePlaceOrderState();
     try{
-      const {data,error}=await sb.rpc("prepare_manual_upi_checkout",{
-        p_checkout_id:key,p_items:cart.map(i=>({variant_id:i.variant_id,quantity:Number(i.quantity)})),
-        p_customer:{
+      const data=await pendingApi("/api/upi/prepare",{
+        checkout_id:key,items:cart.map(i=>({variant_id:i.variant_id,quantity:Number(i.quantity)})),
+        customer:{
           name:$("name").value.trim(),whatsapp_number:$("phone").value.trim(),
           email:$("email").value.trim(),pin_code:$("pin").value.trim(),
           city:$("city").value.trim(),state:$("state").value.trim(),
@@ -119,7 +135,6 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
         }
       });
       if(generation!==pendingVersion||signature!==snapshot())return;
-      if(error)throw new Error("Server-priced UPI checkout is unavailable.");
       const names=["subtotal","discount_amount","cgst_amount","sgst_amount","delivery_fee","total_amount"];
       if(!data||data.checkout_id!==key||data.state!=="awaiting_payment"||!data.order_number||
         !names.every(name=>Number.isFinite(Number(data[name]))))
@@ -443,12 +458,11 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
         return;
       }
       if(!pending||!lockedAmounts()){msg("A verified pending checkout is required.","error");return;}
-      const {data,error}=await sb.rpc("submit_manual_upi_reference",{
-        p_checkout_id:pending.checkout_id,
-        p_request_id:pendingSubmitKey||(pendingSubmitKey=crypto.randomUUID()),
-        p_transaction_reference:paymentReference
+      const data=await pendingApi("/api/upi/submit",{
+        checkout_id:pending.checkout_id,
+        request_id:pendingSubmitKey||(pendingSubmitKey=crypto.randomUUID()),
+        transaction_reference:paymentReference
       });
-      if(error)throw new Error("UPI reference could not be submitted. Retry with the same order.");
       if(!data||data.order_number!==pending.order_number||data.payment_status!=="pending")
         throw new Error("The pending payment status could not be verified.");
       const paymentStep=document.getElementById("paymentStep");
