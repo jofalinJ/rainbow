@@ -130,7 +130,7 @@ async function prepare(request,env){
       p_checkout_id:body.checkout_id,p_opt_in:true
     });
   if(held.state==="ready" && validId(held.gateway_order_id,"order_"))
-    return json({success:true,keyId:gatewayCredentials(env).keyId,
+    return json({success:true,mode:paymentMode(env),keyId:gatewayCredentials(env).keyId,
       gatewayOrderId:held.gateway_order_id,orderNumber:held.order_number,
       amount:held.amount_paise,currency:"INR",expiresAt:held.expires_at});
   if(held.state==="creating"){
@@ -151,7 +151,7 @@ async function prepare(request,env){
     });
     if(saved.state!=="ready" || saved.gateway_order_id!==gateway.id)
       throw new Error("Recovered provider order could not be attached");
-    return json({success:true,keyId:gatewayCredentials(env).keyId,
+    return json({success:true,mode:paymentMode(env),keyId:gatewayCredentials(env).keyId,
       gatewayOrderId:gateway.id,orderNumber:held.order_number,
       amount:held.amount_paise,currency:"INR",expiresAt:held.expires_at});
   }
@@ -172,7 +172,7 @@ async function prepare(request,env){
     p_checkout_id:body.checkout_id,p_gateway_order_id:gateway.id,p_amount_paise:gateway.amount
   });
   if(saved.state!=="ready" || saved.gateway_order_id!==gateway.id) throw new Error("Could not attach provider order");
-  return json({success:true,keyId:gatewayCredentials(env).keyId,
+  return json({success:true,mode:paymentMode(env),keyId:gatewayCredentials(env).keyId,
     gatewayOrderId:gateway.id,orderNumber:held.order_number,
     amount:gateway.amount,currency:"INR",expiresAt:held.expires_at});
 }
