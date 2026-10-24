@@ -2,6 +2,17 @@
 (async function(){
  "use strict";
  const $=id=>document.getElementById(id);
+ // A product opened from the storefront returns to the same catalogue scroll
+ // position; shared or external links fall back to the normal jewellery URL.
+ document.querySelector(".detail-back-link")?.addEventListener("click",event=>{
+   try{
+     const previous=new URL(document.referrer);
+     const shopPath=/\/(?:index\.html)?$/.test(previous.pathname);
+     if(previous.origin===location.origin&&shopPath&&history.length>1){
+       event.preventDefault();history.back();
+     }
+   }catch{/* Direct visits use the ordinary href. */}
+ });
  const safeUrl=new URL(location.href),sku=(safeUrl.searchParams.get("sku")||"").trim();
  const cfg=window.RAINBOW_SUPABASE_CONFIG||{};
  const money=n=>"₹"+Number(n||0).toLocaleString("en-IN",{maximumFractionDigits:2});
