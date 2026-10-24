@@ -57,14 +57,27 @@
     // A badge echoes the genuine cart count; it never maintains separate cart state.
     const cartCount=document.getElementById("cartCount");
     const bagBadge=document.getElementById("mobileBagCount");
+    const bagLink=nav.querySelector('a[href="order.html"]');
     const syncBag=()=>{
       if(!bagBadge||!cartCount)return;
       const count=Math.max(0,Number.parseInt(cartCount.textContent||"0",10)||0);
       bagBadge.hidden=count===0;
       bagBadge.textContent=count>99?"99+":String(count);
+      if(bagLink)bagLink.setAttribute("aria-label",count===0?"View shopping bag":`View shopping bag, ${count} ${count===1?"item":"items"}`);
     };
     if(cartCount)new MutationObserver(syncBag).observe(cartCount,{childList:true,characterData:true,subtree:true});
     syncBag();
+
+    // A short mobile hint fits alongside existing voice, photo and search controls.
+    // The desktop placeholder is retained at all larger widths.
+    const searchField=document.getElementById("siteSearch");
+    const originalPlaceholder=searchField?.getAttribute("placeholder")||"Search designs and categories";
+    const narrowScreen=window.matchMedia("(max-width:767px)");
+    const syncSearchLabel=()=>{
+      if(searchField)searchField.placeholder=narrowScreen.matches?"Search jewellery":originalPlaceholder;
+    };
+    syncSearchLabel();
+    narrowScreen.addEventListener?.("change",syncSearchLabel);
 
     // Keep the bottom navigation away from focused form fields/mobile keyboards.
     const editable=element=>element?.matches?.("input,textarea,select,[contenteditable='true']");
