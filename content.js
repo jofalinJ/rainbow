@@ -192,7 +192,8 @@
   function renderCategorySidebar(){
     const sidebar=document.getElementById("drawerCategories");
     if(!sidebar)return;
-    const buckets=categoryBuckets();
+    const buckets=window.matchMedia("(max-width:767px)").matches
+      ?storefrontMobileBuckets():categoryBuckets();
     const typeButtons=buckets.map(bucket=>{
       const cover=bucket.products.find(p=>getImage(p))||null;
       const url=cover?getThumb(cover):"";
@@ -209,12 +210,38 @@
   // Category-first mobile browsing uses the same real category metadata and product
   // photographs as the desktop catalogue. No duplicate backend requests.
   const mobileCategoryImageCache=new Map();
+  const mobileCategoryStockCounts=new Map();
+  let mobileCategoryCountsReady=false;
   let mobileCategorySignature="";
+  // Server-side exact counts: never infer category emptiness from a paginated page.
+  async function loadCategoryStockCounts(){
+    mobileCategoryCountsReady=false;
+    mobileCategoryStockCounts.clear();
+    const counted=await Promise.all(catalogueCategories.filter(c=>c.show_in_storefront!==false).map(async c=>{
+      const result=await client.from("product_variants")
+        .select("id,products!inner(category_id,active)",{count:"exact",head:true})
+        .eq("active",true).gt("stock_quantity",0)
+        .eq("products.active",true).eq("products.category_id",c.id);
+      if(result.error)throw result.error;
+      return [normalizeCategory(c.name),Number(result.count||0)];
+    }));
+    counted.forEach(([name,count])=>mobileCategoryStockCounts.set(name,count));
+    mobileCategoryCountsReady=true;
+  }
+  function storefrontMobileBuckets(){
+    if(!mobileCategoryCountsReady)return [];
+    return categoryBuckets().filter(bucket=>mobileCategoryStockCounts.get(normalizeCategory(bucket.label))>0);
+  }
   function renderMobileCategories(){
     const section=document.getElementById("mobileCategorySection");
     const track=document.getElementById("mobileCategoryTrack");
     if(!section||!track)return;
-    const buckets=categoryBuckets();
+    if(!mobileCategoryCountsReady){
+      track.innerHTML='<span class="mobile-category-loading" role="status">Loading collections…</span>';
+      section.hidden=false;
+      return;
+    }
+    const buckets=storefrontMobileBuckets();
     const prepared=buckets.map(bucket=>{
       const key=normalizeCategory(bucket.label);
       const photographed=bucket.products.find(product=>getImage(product));
@@ -1225,6 +1252,8 @@
       ]);
       if(categoriesResult.error)throw categoriesResult.error;
       catalogueCategories=categoriesResult.data||[];
+      // Await authoritative counts before drawing the mobile rail: no empty flash.
+      await loadCategoryStockCounts();
       promotionProductIds=promotionResult.error?[]:(promotionResult.data||[]).map(p=>String(p.product_id));
       const [latestResult,promotionResultPage]=await Promise.all([
         catalogue.page(client,{sort:"newest",limit:4}),
