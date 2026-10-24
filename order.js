@@ -213,14 +213,36 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
     const shipping=cart.length?deliveryFeeForState($("state").value):null;
     const total=shipping===null?null:roundMoney(taxable+cgst+sgst+shipping);
     const locked=lockedAmounts();
-    $("subtotal").textContent=money(locked?.subtotal??subtotal);
-    $("discount").textContent="−"+money(locked?.discount_amount??discount);
-    $("cgst").textContent=money(locked?.cgst_amount??cgst);
-    $("sgst").textContent=money(locked?.sgst_amount??sgst);
-    $("delivery").textContent=shipping===null?"Choose state":money(locked?.delivery_fee??shipping);
-    $("total").textContent=total===null?"—":money(locked?.total_amount??total);
+    // UX-07: one display model drives the existing sidebar and the mobile
+    // inline breakdown; the preview is never presented as server-authoritative.
+    const display={
+      subtotal:money(locked?.subtotal??subtotal),
+      discount:"−"+money(locked?.discount_amount??discount),
+      cgst:money(locked?.cgst_amount??cgst),
+      sgst:money(locked?.sgst_amount??sgst),
+      delivery:shipping===null?"Select state":money(locked?.delivery_fee??shipping),
+      total:total===null?"—":money(locked?.total_amount??total)
+    };
+    for(const [key,ids] of Object.entries({
+      subtotal:["subtotal","paymentMiniSubtotal"],
+      discount:["discount","paymentMiniDiscount"],
+      cgst:["cgst","paymentMiniCgst"],
+      sgst:["sgst","paymentMiniSgst"],
+      delivery:["delivery","paymentMiniDelivery"],
+      total:["total","paymentMiniTotal"]
+    })){
+      for(const id of ids){const node=$(id);if(node)node.textContent=display[key];}
+    }
     $("totalLabel").textContent="Total";
-    const payTotal=$("paymentDueTotal");if(payTotal)payTotal.textContent=total===null?"—":money(total);
+    const payTotal=$("paymentDueTotal");
+    if(payTotal)payTotal.textContent=display.total;
+    const headline=$("paymentPriceHeadline");
+    if(headline)headline.textContent=total===null?"Select state to see total":
+      locked?"Pay "+display.total:"Estimated "+display.total;
+    const source=$("paymentPriceSource");
+    if(source)source.textContent=locked?"Server-verified amount · Order "+pending.order_number:
+      "Estimated total. Confirmed amount is shown before payment.";
+
     return {subtotal,discount,cgst,sgst,shipping,total};
   }
     function roundMoney(value){return Math.round((Number(value)+Number.EPSILON)*100)/100;}
