@@ -27,5 +27,12 @@
   },
   "observability": {
     "enabled": true
+  },
+  "previews": {
+    "vars": {
+      "PAYMENTS_ENABLED": "false",
+      "WHATSAPP_SEND_ENABLED": "false",
+      "WHATSAPP_TEMPLATE_APPROVED": "false"
+    }
   }
 }
