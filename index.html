@@ -98,6 +98,18 @@
   </section>
 </div>
 <main id="mainContent" tabindex="-1">
+<section id="mobileCategorySection" class="mobile-category-section" aria-labelledby="mobileCategoryHeading">
+  <div class="container">
+    <div class="mobile-category-heading">
+      <div><span class="mobile-category-eyebrow">EXPLORE RAINBOW</span><h2 id="mobileCategoryHeading">Shop by category<span aria-hidden="true">.</span></h2></div>
+      <button id="mobileCategorySeeAll" type="button" aria-expanded="false" aria-controls="mobileCategoryTrack">See all</button>
+    </div>
+    <div id="mobileCategoryTrack" class="mobile-category-track" role="group" aria-label="Choose a jewellery category">
+      <p class="mobile-category-loading" role="status">Discovering collections…</p>
+    </div>
+    <p id="mobileCategoryEmpty" class="mobile-category-empty" hidden>More collections will appear here as they become available.</p>
+  </div>
+</section>
 <section class="mobile-shop-intro" aria-label="Discover Rainbow jewellery"><div class="container"><span class="mobile-eyebrow">CURATED FOR YOU</span><h1>Little details. <em>Beautiful moments.</em></h1><p>Find a design that feels like yours.</p></div></section>
 <section class="hero">
 <div class="container hero-grid">
@@ -193,7 +205,7 @@
 </main>
 <nav class="mobile-shop-nav" aria-label="Mobile shopping navigation">
   <a href="#mainContent" class="is-current" aria-current="page" data-mobile-home aria-label="Home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v10H3z"/><path d="M9 20v-6h6v6"/></svg><span>Home</span></a>
-  <a href="#collections" data-mobile-categories aria-label="Browse categories"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg><span>Explore</span></a>
+  <a href="#mobileCategorySection" data-mobile-categories aria-label="Browse categories"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg><span>Explore</span></a>
   <button type="button" data-mobile-wishlist aria-label="Show wishlist"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 8.5c0 4.1-8.5 10.3-8.5 10.3S3.5 12.6 3.5 8.5a4.7 4.7 0 0 1 8.5-2.7 4.7 4.7 0 0 1 8.5 2.7Z"/></svg><span>Saved</span></button>
   <a href="order.html" aria-label="View shopping bag"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l-1 13H6z"/><path d="M9 9V6a3 3 0 0 1 6 0v3"/></svg><span>Bag</span></a>
   <button type="button" data-mobile-account aria-label="Account and orders"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.3"/><path d="M4.5 20c.5-4 3.1-6 7.5-6s7 2 7.5 6"/></svg><span>Account</span></button>
