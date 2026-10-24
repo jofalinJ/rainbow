@@ -94,6 +94,7 @@ export async function beginRazorpayPayment({items,customer,displayTotal,expected
   const status=await razorpayAvailability();
   if(!status.available)throw new Error(status.message);
   const mode=status.mode;
+  if(mode!==expectedMode)throw new Error("Payment mode has changed. Refresh checkout and review the payment method before paying.");
   const key=mode==="live"?"rainbow_razorpay_live_pending_v1":"rainbow_razorpay_pending_v1";
   let checkout_id=await getCheckoutToken(items,customer,mode);
   let gateway;
