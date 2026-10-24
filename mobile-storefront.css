@@ -455,3 +455,40 @@
 @media(max-width:767px) and (prefers-reduced-motion:reduce){
   .mobile-category-picture,.mobile-shop-nav :is(a,button){transition:none!important}
 }
+
+/* v2.1 — thumb reach and feedback, scoped to phones only. */
+.mobile-shop-toast{display:none}
+@media(max-width:767px){
+  body.mobile-editing .mobile-shop-nav{display:none!important}
+  .mobile-shop-nav :is(a,button){position:relative}
+  .mobile-bag-count:not([hidden]){
+    position:absolute;top:0;right:calc(50% - 23px);min-width:17px;height:17px;
+    display:grid;place-items:center;border:2px solid #291b21;border-radius:999px;
+    padding:0 2px;background:var(--gold);color:#25171b;font:800 9px/1 -apple-system,Arial,sans-serif;
+  }
+  .mobile-shop-toast:not([hidden]){
+    position:fixed;display:block;z-index:1010;left:50%;bottom:calc(93px + env(safe-area-inset-bottom));
+    transform:translateX(-50%);max-width:calc(100vw - 40px);width:max-content;
+    border:1px solid #d8bb83;border-radius:999px;padding:12px 20px;
+    color:#fff;background:#34262b;font-size:12px;font-weight:700;text-align:center;
+    box-shadow:0 12px 35px rgba(23,10,13,.25);pointer-events:none;
+    animation:mobile-toast-enter .18s ease-out;
+  }
+  @keyframes mobile-toast-enter{
+    from{opacity:0;transform:translate(-50%,8px)}
+    to{opacity:1;transform:translate(-50%,0)}
+  }
+  /* Always-reachable purchase actions; photo gallery owns horizontal swipe gestures. */
+  .product-modal.open .product-detail-info{padding-bottom:125px!important}
+  .product-modal.open .product-buy-actions{
+    position:fixed!important;left:0!important;right:0!important;bottom:0!important;
+    width:100vw!important;margin:0!important;z-index:8!important;
+    padding:12px 17px calc(13px + env(safe-area-inset-bottom))!important;
+    border-top:1px solid #eee5db!important;border-radius:18px 18px 0 0;
+    box-shadow:0 -10px 25px rgba(35,15,16,.065);
+  }
+  .product-modal.open .product-modal-nav{display:none!important}
+}
+@media(max-width:767px) and (prefers-reduced-motion:reduce){
+  .mobile-shop-toast:not([hidden]){animation:none}
+}
