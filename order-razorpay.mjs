@@ -89,7 +89,7 @@ export async function razorpayAvailability(){
 export async function razorpayAvailable(){
   return (await razorpayAvailability()).available;
 }
-export async function beginRazorpayPayment({items,customer,displayTotal}){
+export async function beginRazorpayPayment({items,customer,displayTotal,expectedMode}){
   // Refresh provider readiness at purchase time; never silently switch to real money.
   const status=await razorpayAvailability();
   if(!status.available)throw new Error(status.message);
