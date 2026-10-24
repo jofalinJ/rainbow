@@ -19,6 +19,8 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
   const touchedFields=new Set();
   let showAllErrors=false;
   let readinessAttempt=0;
+  let pending=null,pendingFingerprint='',pendingKey='',pendingError='',pendingTimer=null,pendingBusy=false,pendingAttempted=false,pendingVersion=0,pendingSubmitKey='';
+
   const selectedPaymentMethod=()=>document.querySelector('input[name="paymentMethod"]:checked')?.value||"upi";
 
   function read(){
@@ -43,6 +45,77 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
   function msg(text,kind=""){
     const el=$("orderMsg");
     if(el){el.textContent=text;el.className="order-msg "+kind;}
+  }
+  // UX-02: fail closed until the proposed A2 server contract returns a priced,
+  // stock-checked awaiting_payment order. Never fall back to legacy create_online_order.
+  const snapshot=()=>JSON.stringify({
+    items:cart.map(item=>[String(item.variant_id),Number(item.quantity)]),
+    fields:["name","phone","email","pin","city","state","address"].map(id=>String($(id)?.value||"").trim())
+  });
+  const paise=x=>Math.round(Number(x)*100);
+  function clearPending(){
+    pendingVersion++;if(pendingTimer!==null)clearTimeout(pendingTimer);
+    pendingTimer=null;pending=null;pendingKey="";pendingError="";pendingBusy=false;
+    pendingAttempted=false;pendingSubmitKey="";
+    const qr=$("checkoutQR");if(qr){qr.replaceChildren();qr.hidden=true;}
+  }
+  function lockedAmounts(){
+    return pending&&pendingFingerprint===snapshot()&&selectedPaymentMethod()==="upi"?pending.amounts:null;
+  }
+  function paintQR(){
+    const qr=$("checkoutQR");if(!qr)return;
+    qr.replaceChildren();qr.hidden=true;
+    const amounts=lockedAmounts();if(!amounts||!pending)return;
+    const img=document.createElement("img");img.src="assets/brand/pay.png";
+    img.alt="Shop UPI QR. Verify the recipient name before transferring money.";
+    img.width=176;img.height=176;
+    const info=document.createElement("div");
+    const heading=document.createElement("strong");heading.textContent="Scan to pay";
+    const recipient=document.createElement("p");recipient.textContent="Verify recipient and amount before paying.";
+    const reference=document.createElement("p");reference.className="checkout-locked-ref";
+    reference.textContent="Order "+pending.order_number;
+    const price=document.createElement("p");price.className="payment-total";
+    const total=document.createElement("b");total.id="paymentDueTotal";
+    total.textContent=money(amounts.total_amount);price.append("Pay ",total);
+    info.append(heading,recipient,reference,price);qr.append(img,info);qr.hidden=false;
+  }
+  async function preparePending(){
+    pendingTimer=null;
+    if(pendingBusy||pendingAttempted||!sb||selectedPaymentMethod()!=="upi")return;
+    if(!cartVerified||cartVerificationFailed||!cart.length||!cart.every(cartItemHasStock)||
+       Object.keys(deliveryErrors()).length)return;
+    const signature=snapshot();if(signature!==pendingFingerprint)return;
+    pendingAttempted=true;pendingBusy=true;pendingError="";
+    const generation=pendingVersion,key=pendingKey||(pendingKey=crypto.randomUUID());
+    updatePlaceOrderState();
+    try{
+      const {data,error}=await sb.rpc("prepare_manual_upi_checkout",{
+        p_checkout_id:key,p_items:cart.map(i=>({variant_id:i.variant_id,quantity:Number(i.quantity)})),
+        p_customer:{
+          name:$("name").value.trim(),whatsapp_number:$("phone").value.trim(),
+          email:$("email").value.trim(),pin_code:$("pin").value.trim(),
+          city:$("city").value.trim(),state:$("state").value.trim(),
+          address:$("address").value.trim()
+        }
+      });
+      if(generation!==pendingVersion||signature!==snapshot())return;
+      if(error)throw new Error("Server-priced UPI checkout is unavailable.");
+      const names=["subtotal","discount_amount","cgst_amount","sgst_amount","delivery_fee","total_amount"];
+      if(!data||data.checkout_id!==key||data.state!=="awaiting_payment"||!data.order_number||
+        !names.every(name=>Number.isFinite(Number(data[name]))))
+        throw new Error("Pending checkout could not be verified.");
+      if(paise(data.total_amount)!==paise(totals().total)){
+        pendingError="Prices changed, please review your bag.";return;
+      }
+      pending={checkout_id:key,order_number:String(data.order_number),
+        amounts:Object.fromEntries(names.map(name=>[name,Number(data[name])]))};
+      paintQR();
+    }catch(e){if(generation===pendingVersion)pendingError=e.message||"Could not prepare UPI checkout.";}
+    finally{if(generation===pendingVersion){pendingBusy=false;totals();updatePlaceOrderState();}}
+  }
+  function queuePending(){
+    if(pendingTimer!==null||pendingAttempted||pendingBusy||pending)return;
+    pendingTimer=setTimeout(()=>{void preparePending();},220);
   }
   function phoneLooksValid(phone){
     const cleaned=String(phone||"").replace(/[\\s-]/g,"").replace(/^\\+91/,"").replace(/^91(?=[6-9]\\d{9}$)/,"").replace(/^0(?=[6-9]\\d{9}$)/,"");
@@ -103,12 +176,13 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
     const sgst=roundMoney(taxable*.015);
     const shipping=cart.length?deliveryFeeForState($("state").value):null;
     const total=shipping===null?null:roundMoney(taxable+cgst+sgst+shipping);
-    $("subtotal").textContent=money(subtotal);
-    $("discount").textContent=money(discount);
-    $("cgst").textContent=money(cgst);
-    $("sgst").textContent=money(sgst);
-    $("delivery").textContent=shipping===null?"Choose state":money(shipping);
-    $("total").textContent=total===null?"—":money(total);
+    const locked=lockedAmounts();
+    $("subtotal").textContent=money(locked?.subtotal??subtotal);
+    $("discount").textContent=money(locked?.discount_amount??discount);
+    $("cgst").textContent=money(locked?.cgst_amount??cgst);
+    $("sgst").textContent=money(locked?.sgst_amount??sgst);
+    $("delivery").textContent=shipping===null?"Choose state":money(locked?.delivery_fee??shipping);
+    $("total").textContent=total===null?"—":money(locked?.total_amount??total);
     $("totalLabel").textContent="Total";
     const payTotal=$("paymentDueTotal");if(payTotal)payTotal.textContent=total===null?"—":money(total);
     return {subtotal,discount,cgst,sgst,shipping,total};
@@ -177,20 +251,26 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
     const manualDetails=$("manualPaymentDetails");
     if(gatewayDetails)gatewayDetails.hidden=!gatewaySelected;
     if(manualDetails)manualDetails.hidden=!manualSelected;
-    const qr=$("checkoutQR");
-    const qrMessage=$("qrUnavailable");
-    const referenceGroup=$("paymentReferenceGroup");
-    if(qr)qr.hidden=gatewaySelected||!payReady;
+    const qr=$("checkoutQR"),qrMessage=$("qrUnavailable"),referenceGroup=$("paymentReferenceGroup");
+    const signature=snapshot();
+    if(signature!==pendingFingerprint){pendingFingerprint=signature;clearPending();}
+    const quoteReady=!gatewaySelected&&payReady&&Boolean(lockedAmounts());
+    if(qr){if(!quoteReady){qr.replaceChildren();qr.hidden=true;}else if(qr.hidden)paintQR();}
     if(qrMessage){
-      qrMessage.hidden=gatewaySelected||payReady;
-      qrMessage.textContent=!cart.length?"Add jewellery to your bag before making a payment."
-         :shipping===null?"Select your delivery state to see the total."
-        :"Checking price and stock before showing the UPI QR…";
+      qrMessage.hidden=gatewaySelected||quoteReady;
+      qrMessage.textContent=!cart.length?"Add jewellery to your bag."
+        :!validDelivery?"Complete your delivery details to unlock payment."
+        :!cartVerified||cartVerificationFailed?"Verifying stock and prices…"
+        :pendingError?pendingError
+        :pendingBusy?"Preparing secure order…":"Preparing your payable amount…";
     }
-    if(referenceGroup)referenceGroup.hidden=gatewaySelected;
+    const retry=$("retryPendingCheckout");
+    if(retry)retry.hidden=gatewaySelected||!pendingError;
+    if(referenceGroup)referenceGroup.hidden=gatewaySelected||!quoteReady;
+    if(!gatewaySelected&&payReady&&!pending&&!pendingBusy&&!pendingError)queuePending();
     button.textContent=submitting?"Processing…":gatewaySelected?"Pay securely · TEST →":"Submit UPI reference →";
     const actionReady=!submitting&&payReady&&
-      (gatewaySelected?razorpayReady:/^[A-Za-z0-9-]{8,64}$/.test(reference));
+      (gatewaySelected?razorpayReady:quoteReady&&/^[A-Za-z0-9-]{8,64}$/.test(reference));
     button.disabled=false; // Keep reachable so invalid submission can focus its field.
     button.setAttribute("aria-disabled",String(!actionReady));
     button.dataset.checkoutReady=String(actionReady);
@@ -342,11 +422,15 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
         }
         return;
       }
-      const {data,error}=await sb.rpc("create_online_order",{
-        p_items:cart.map(item=>({variant_id:item.variant_id,quantity:Number(item.quantity)})),
-        p_customer:customer
+      if(!pending||!lockedAmounts()){msg("A verified pending checkout is required.","error");return;}
+      const {data,error}=await sb.rpc("submit_manual_upi_reference",{
+        p_checkout_id:pending.checkout_id,
+        p_request_id:pendingSubmitKey||(pendingSubmitKey=crypto.randomUUID()),
+        p_transaction_reference:paymentReference
       });
-      if(error)throw error;
+      if(error)throw new Error("UPI reference could not be submitted. Retry with the same order.");
+      if(!data||data.order_number!==pending.order_number||data.payment_status!=="pending")
+        throw new Error("The pending payment status could not be verified.");
       const paymentStep=document.getElementById("paymentStep");
       const addressStep=document.getElementById("addressStep");
       if(paymentStep)paymentStep.classList.add("is-active");
@@ -369,6 +453,9 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
   $("clearCart").onclick=()=>{cart=[];cartVerified=true;cartVerificationFailed=false;save();render();msg("");};
   $("placeOrder").onclick=placeOrder;
   $("paymentReference").addEventListener("input",updatePlaceOrderState);
+  $("retryPendingCheckout")?.addEventListener("click",()=>{
+    pendingError="";pendingAttempted=false;updatePlaceOrderState();
+  });
   for(const id of deliveryFields){
     const field=$(id);if(!field)continue;
     field.addEventListener("blur",()=>{
