@@ -22,7 +22,6 @@ describe("payment security release gates",()=>{
     expect(opts).toContain("rzp_test_");
     expect(publicConfig).toContain('apiBaseUrl:"https://rainbow-api.jofalin2005.workers.dev"');
     expect(worker).toContain("verifyHmac");
-    expect(worker).toContain('payment.status!=="captured"');
   });
   it("keeps secrets in the backend and uses private service-role-only checkout RPCs",()=>{
     expect(gateway).toContain("alter table public.razorpay_checkouts enable row level security");

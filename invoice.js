@@ -2,7 +2,9 @@ const $inv=id=>document.getElementById(id);
 function getToken(){return new URLSearchParams(location.search).get("token");}
 async function loadInvoice(){
   const token=getToken();
-  if(!token){$inv("invoice").innerHTML="<div class='error'>Missing bill link.</div>";return;}
+  if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(token||"")){
+    $inv("invoice").innerHTML="<div class='error'>Missing or invalid secure bill link.</div>";return;
+  }
   try{
     const cfg=window.RAINBOW_SUPABASE_CONFIG||{};
     if(!window.RainbowInvoice||!window.supabase?.createClient)throw new Error("Invoice dependencies did not load.");
@@ -11,10 +13,11 @@ async function loadInvoice(){
     if(error)throw error;
     if(!data){$inv("invoice").innerHTML="<div class='error'>Bill not found or no longer available.</div>";return;}
     RainbowInvoice.render(data,$inv("invoice"));
+    $inv("printBtn").disabled=false;
     $inv("printBtn").onclick=()=>window.print();
     const phone=String(data.customer_phone||"").replace(/\D/g,"");
     const wa=$inv("waBtn");
-    if(phone){
+    if(/^[0-9]{10,15}$/.test(phone)){
       const number=phone.length===10?"91"+phone:phone;
       wa.style.display="inline-block";
       wa.onclick=()=>window.open(
@@ -26,7 +29,7 @@ async function loadInvoice(){
     if(new URLSearchParams(location.search).get("print")==="1")setTimeout(()=>window.print(),350);
   }catch(e){
     console.error(e);
-    $inv("invoice").innerHTML="<div class='error'>Could not load this bill. Please return to Bills and try again.</div>";
+    $inv("invoice").innerHTML="<div class='error'>Could not load this bill. Keep this secure link and refresh to try again.</div>";
   }
 }
 loadInvoice();

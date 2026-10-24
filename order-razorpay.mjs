@@ -3,6 +3,50 @@ const getBase=()=>{
   const value=String(window.RAINBOW_PAYMENT_CONFIG?.apiBaseUrl||"").trim();
   try{const url=new URL(value); return url.protocol==="https:" ? url.origin : "";}catch{return "";}
 };
+const PENDING_KEY="rainbow_razorpay_pending_v1";
+const VERIFICATION_KEY="rainbow_razorpay_verification_v1";
+const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// Persist a server-issued recovery capability before opening the gateway, so a
+// reload can reconcile payment even when the provider callback never arrives.
+// The signed callback remains supported for checkouts started by older clients.
+// Neither a capability nor a cached result is locally trusted proof of payment.
+export function getRazorpayRecovery(){
+  try{
+    const saved=JSON.parse(sessionStorage.getItem(VERIFICATION_KEY)||"null");
+    const p=saved?.payload;
+    const c=saved?.capability;
+    const payload=p && UUID.test(p.checkout_id||"") && /^order_[A-Za-z0-9]+$/.test(p.razorpay_order_id||"") &&
+      /^pay_[A-Za-z0-9]+$/.test(p.razorpay_payment_id||"") && /^[a-f0-9]{64}$/i.test(p.razorpay_signature||"") ? p : null;
+    const capability=c && UUID.test(c.checkout_id||"") && /^order_[A-Za-z0-9]+$/.test(c.gateway_order_id||"") &&
+      /^[a-f0-9]{64}$/i.test(c.recovery_token||"") ? c : null;
+    if(payload || capability)return {payload,capability,paid:saved.paid===true};
+  }catch{ /* no usable saved verification */ }
+  return null;
+}
+export function clearRazorpayRecovery({clearPending=false}={}){
+  sessionStorage.removeItem(VERIFICATION_KEY);
+  if(clearPending)sessionStorage.removeItem(PENDING_KEY);
+}
+function paymentResult(result){
+  if(result.paid===true){
+    if(typeof result.orderNumber!=="string" || !result.orderNumber.trim())
+      throw new Error("Payment was received, but the order receipt could not be verified. Recheck payment status; do not pay again.");
+    sessionStorage.removeItem(PENDING_KEY);
+    const saved=getRazorpayRecovery();
+    if(saved)sessionStorage.setItem(VERIFICATION_KEY,JSON.stringify({...saved,paid:true}));
+    return {status:"paid",orderNumber:result.orderNumber,
+      invoiceUrl:result.invoiceUrl||null,invoiceNumber:result.invoiceNumber||null};
+  }
+  const saved=getRazorpayRecovery();
+  if(saved)sessionStorage.setItem(VERIFICATION_KEY,JSON.stringify({...saved,paid:false}));
+  const status=["payment_failed","refund_required","refunded","checkout_expired"].includes(result.status)?result.status:"pending";
+  return {status,orderNumber:result.orderNumber||null};
+}
+export async function retryRazorpayTestVerification(){
+  const saved=getRazorpayRecovery();
+  if(!saved)throw new Error("No saved payment verification was found. Contact the shop with your payment receipt before paying again.");
+  return paymentResult(await api(saved.capability?"/api/razorpay/status":"/api/razorpay/verify",saved.capability||saved.payload));
+}
 let gatewayScriptPromise;
 function loadGatewayScript(){
   if(window.Razorpay)return Promise.resolve();
@@ -12,7 +56,7 @@ function loadGatewayScript(){
     script.src="https://checkout.razorpay.com/v1/checkout.js";
     script.async=true;
     script.onload=()=>window.Razorpay?resolve():reject(new Error("Gateway failed to load"));
-    script.onerror=()=>reject(new Error("Gateway failed to load"));
+    script.onerror=()=>{gatewayScriptPromise=null;script.remove();reject(new Error("Gateway failed to load. Check your connection and try again."));};
     document.head.append(script);
   });
   return gatewayScriptPromise;
@@ -32,6 +76,10 @@ async function api(path,body){
   }
   return data;
 }
+export async function submitManualUpiReference({items,customer}){
+  const checkout_id=await getCheckoutToken(items,customer);
+  return api("/api/razorpay/manual-upi",{items,customer:{...customer,checkout_id}});
+}
 async function checkoutFingerprint(items,customer){
   const encoded=new TextEncoder().encode(JSON.stringify({items,customer}));
   const hash=await crypto.subtle.digest("SHA-256",encoded);
@@ -39,10 +87,10 @@ async function checkoutFingerprint(items,customer){
 }
 async function getCheckoutToken(items,customer){
   const fingerprint=await checkoutFingerprint(items,customer);
-  const key="rainbow_razorpay_pending_v1";
+  const key=PENDING_KEY;
   try{
     const previous=JSON.parse(sessionStorage.getItem(key)||"null");
-    if(previous?.fingerprint===fingerprint && /^[0-9a-f-]{36}$/i.test(previous.id))
+    if(previous?.fingerprint===fingerprint && UUID.test(previous.id))
       return previous.id;
   }catch{ /* stale session */ }
   const id=crypto.randomUUID();
@@ -86,6 +134,8 @@ export async function razorpayTestAvailable(){
   return (await razorpayTestAvailability()).available;
 }
 export async function beginRazorpayTestPayment({items,customer,displayTotal}){
+  // Cart or address changes cannot bypass an unresolved previous payment.
+  if(getRazorpayRecovery()?.paid===false)return retryRazorpayTestVerification();
   let checkout_id=await getCheckoutToken(items,customer);
   let gateway;
   try{
@@ -94,18 +144,23 @@ export async function beginRazorpayTestPayment({items,customer,displayTotal}){
     if(error.code!=="CHECKOUT_EXPIRED")throw error;
     // Retry ONLY after the server confirms the old reservation was expired
     // and its inventory was restored. Never bypass a 'creating' reservation.
-    sessionStorage.removeItem("rainbow_razorpay_pending_v1");
+    sessionStorage.removeItem(PENDING_KEY);
     checkout_id=await getCheckoutToken(items,customer);
     gateway=await api("/api/razorpay/create",{checkout_id,items,customer});
   }
-  if(!gateway.success || !/^rzp_test_/.test(gateway.keyId||"") ||
+  if(!gateway.success || !/^rzp_test_[A-Za-z0-9]+$/.test(gateway.keyId||"") ||
     !Number.isSafeInteger(gateway.amount) || gateway.amount<=0 ||
-    gateway.currency!=="INR" || !gateway.gatewayOrderId)
+    gateway.currency!=="INR" || !/^order_[A-Za-z0-9]+$/.test(gateway.gatewayOrderId||"") ||
+    !/^[a-f0-9]{64}$/i.test(gateway.recoveryToken||""))
     throw new Error("Invalid payment provider response");
+  const capability={checkout_id,gateway_order_id:gateway.gatewayOrderId,recovery_token:gateway.recoveryToken};
+  // Save BEFORE loading or opening the provider. Storage failure must prevent
+  // the payment window opening when this browser cannot safely recover it.
+  sessionStorage.setItem(VERIFICATION_KEY,JSON.stringify({capability,paid:false}));
   // Never silently charge a different amount from the visible review summary.
   if(Math.abs(gateway.amount/100-displayTotal)>0.01)
     throw new Error("The verified price changed. Please reload and review your cart before paying.");
-  if(new Date(gateway.expiresAt).getTime()<=Date.now())
+  if(!Number.isFinite(Date.parse(gateway.expiresAt)) || Date.parse(gateway.expiresAt)<=Date.now())
     throw new Error("This checkout has expired. Contact the shop if payment was attempted.");
   await loadGatewayScript();
   return new Promise((resolve,reject)=>{
@@ -121,21 +176,18 @@ export async function beginRazorpayTestPayment({items,customer,displayTotal}){
           if(handled)return;
           handled=true;
           try{
-            const result=await api("/api/razorpay/verify",{
+            const payload={
               checkout_id,razorpay_order_id:response.razorpay_order_id,
               razorpay_payment_id:response.razorpay_payment_id,
               razorpay_signature:response.razorpay_signature
-            });
-            if(result.paid===true){
-              sessionStorage.removeItem("rainbow_razorpay_pending_v1");
-              resolve({status:"paid",orderNumber:result.orderNumber,
-                invoiceUrl:result.invoiceUrl||null,invoiceNumber:result.invoiceNumber||null});
-            }else{
-              resolve({status:"pending",orderNumber:result.orderNumber});
-            }
+            };
+            // Persist before the request: an interrupted connection must resume
+            // verification of the same payment instead of opening another one.
+            sessionStorage.setItem(VERIFICATION_KEY,JSON.stringify({capability,payload,paid:false}));
+            resolve(await retryRazorpayTestVerification());
           }catch(error){reject(error);}
         },
-        modal:{ondismiss:()=>{if(!handled){handled=true;resolve({status:"dismissed"});}}}
+        modal:{ondismiss:()=>{if(!handled){handled=true;resolve({status:"pending"});}}}
       });
       checkout.open();
     }catch(error){reject(error);}

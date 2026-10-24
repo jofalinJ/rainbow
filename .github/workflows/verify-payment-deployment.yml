@@ -1,0 +1,20 @@
+name: Verify published payment release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Compare live Worker and storefront with main (read-only)
+        run: node scripts/verify-payment-deployment.mjs

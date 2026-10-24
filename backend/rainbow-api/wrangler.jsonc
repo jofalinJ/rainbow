@@ -5,16 +5,34 @@
   "compatibility_date": "2026-10-17",
   "workers_dev": true,
   "keep_vars": true,
-  "vars": {"PAYMENTS_ENABLED": "true"},
+  "vars": {
+    "PAYMENTS_ENABLED": "true",
+    "WHATSAPP_SEND_ENABLED": "false",
+    "WHATSAPP_TEMPLATE_APPROVED": "false"
+  },
   "ratelimits": [
     {
       "name": "CHECKOUT_RATE_LIMITER",
       "namespace_id": "20261021",
-      "simple": { "limit": 12, "period": 60 }
+      "simple": {
+        "limit": 12,
+        "period": 60
+      }
     }
   ],
-  "triggers": {"crons": ["*/5 * * * *"]},
+  "triggers": {
+    "crons": [
+      "*/5 * * * *"
+    ]
+  },
   "observability": {
     "enabled": true
+  },
+  "previews": {
+    "vars": {
+      "PAYMENTS_ENABLED": "false",
+      "WHATSAPP_SEND_ENABLED": "false",
+      "WHATSAPP_TEMPLATE_APPROVED": "false"
+    }
   }
 }

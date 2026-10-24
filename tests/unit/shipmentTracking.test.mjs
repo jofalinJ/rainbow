@@ -80,7 +80,8 @@ describe("shipment status UI and secured storage",()=>{
     expect(sql).toContain("on conflict(shipment_id,awb_snapshot) do nothing");
     expect(admin).toContain('setupShipmentManagement');
     expect(tracking).toContain('client.rpc("track_my_order_shipments")');
-    expect(tracking).toContain('client.rpc("track_guest_order_shipments"');
+    expect(tracking).toContain("/api/razorpay/track");
+    expect(tracking).not.toContain('client.rpc("track_guest_order_shipments"');
     expect(tracking).toContain("Not a live courier update.");
   });
 });

@@ -1,142 +1,71 @@
-# Razorpay TEST-mode implementation and release gate
+# TEST checkout release and reconciliation runbook
 
-> STATUS: **DEVELOPMENT BRANCH ONLY**. Never enter live credentials, merge to production,
-> deploy the Worker, or enable new checkout before the checklist below passes.
+## Approved resources
 
-## Architecture
+- GitHub: `jofalinJ/rainbow`, branch `main`.
+- Storefront: `https://rainbowgoldcovering.com` (GitHub Pages custom domain).
+- Existing Cloudflare Worker: `rainbow-api`, `https://rainbow-api.jofalin2005.workers.dev`.
+- Supabase: `ajnicsvtymvvkgepjmmk`.
+- Public release: `paid-invoice-20261021-v4`.
 
-- Browser: `order-razorpay.mjs` loads Standard Checkout only after
-  `GET /api/razorpay/config` returns `enabled:true, mode:test`.
-- Backend: `backend/rainbow-api/src/routes/razorpay.js` runs inside Cloudflare,
-  uses the server-side Razorpay secret, and verifies callback HMAC signatures.
-- Supabase: `20261021194000_razorpay_test_reservation_checkout.sql`
-  **proposes** five service-role-only RPCs and a private checkout reservation table.
-  None of these migrations have been applied to the current live Supabase instance.
-- Stock is reserved atomically before gateway order creation. The client sends
-  variant IDs, quantities and delivery address, never its claimed price.
-- Retry UUID is serialized with `pg_advisory_xact_lock` and is UNIQUE; a concurrent
-  retry cannot create another Razorpay order.
-- Guest checkout inserts a new contact snapshot. It never updates an existing
-  customer's saved details merely because they entered that phone number.
-- Only a captured Razorpay payment with matching order ID, amount in INR paise,
-  and verified signature becomes paid. A browser callback is not proof of capture.
-- A signed `payment.captured` webhook also fetches the current payment from Razorpay
-  before settlement, supporting browser closure and retries.
-- The Worker cron reconciles expired reservations every five minutes.
-  Reservations expire after 25 minutes plus a 10-minute grace interval.
-  Late captures are marked **refund_required** and must be reviewed by staff;
-  expired stock must never be silently re-allocated to an old paid order.
+Do not deploy this code to a similarly named test Worker or replace runtime secrets. `keep_vars:true` preserves dashboard variables; Wrangler explicitly controls TEST checkout enablement and keeps WhatsApp sending and template approval false.
 
-## Required secrets and public configuration
+## Order invariant and recovery
 
-Cloudflare Worker **runtime secrets** (Settings → Variables and Secrets):
+1. Browser supplies variant IDs, quantities and contact/delivery details. PostgreSQL calculates the amount and reserves stock atomically using a unique checkout UUID.
+2. Worker creates or recovers the matching TEST Razorpay order. Retrying an ambiguous creation never creates another provider order.
+3. Browser success is only a request to verify. Worker verifies the callback HMAC, fetches the provider payment and requires the correct order ID, positive integer INR amount, `status=captured`, `captured=true`, no refund and exact database amount.
+4. A signed capture webhook independently fetches current provider state, then uses the same settlement transaction. Webhook database failures return non-2xx for retry.
+5. Settlement confirms the order, creates one invoice, and records one sale ledger per variant. Stock was reserved earlier and is not deducted again.
+6. Browser recovery rechecks the backend before displaying a placed order. A saved callback or issued recovery capability never authorizes a second payment by itself. Dismissed or failed attempts stay locked for reconciliation until the server confirms both released stock and no payable provider attempt; customers can then return to checkout. Losing browser session storage requires support using the provider receipt.
+7. Invoice links are private UUID bearer links. The viewer uses no-referrer/noindex, validates token format and only enables printing after the server returns an eligible invoice. Do not log or share tokens.
 
-- `RAZORPAY_KEY_ID` = Razorpay **TEST** Key ID.
-- `RAZORPAY_KEY_SECRET` = corresponding TEST secret.
-- `RAZORPAY_WEBHOOK_SECRET` = separate secret entered in Razorpay's
-  **Test Mode** webhook setup. Never use the API Key Secret as the webhook secret.
-- `SUPABASE_URL` = official project API URL (plain text is acceptable).
-- `SUPABASE_SERVICE_ROLE_KEY` = privileged Supabase secret; server-only, never GitHub,
-  frontend code, screenshots, analytics or logs.
+Manual UPI is submitted through `/api/razorpay/manual-upi`. An active administrator must verify the receipt against the receiving bank, including amount and reference, before calling the protected verification RPC. Razorpay records cannot be verified with that staff action. Neither cashiers nor direct browser writes may manufacture online paid evidence.
 
-Worker public variables:
+Guest tracking goes through `/api/razorpay/track`; the underlying RPC is service-only. Account tracking remains authenticated and restricted to the account's order ownership. Guest output excludes customer identity, contact/address and invoice tokens.
 
-- `ALLOWED_ORIGINS` = exact comma-separated origins, e.g.
-  `https://jofalinj.github.io,https://your-verified-shop-domain.example`
-  (replace the example with the actual verified domain).
-- `PAYMENTS_ENABLED` = leave **unset / false** until all of the release gates pass;
-  even when enabled this code refuses a `rzp_live_` Key ID.
+## Required server configuration
 
-Storefront `payment-config.js` now points to the existing public HTTPS `rainbow-api` Worker URL. The URL itself is not a secret. This does **not** enable checkout: the Worker still requires `PAYMENTS_ENABLED=true`, test credentials, its database connection, rate limiting, and a verified webhook setup.
+Existing encrypted Worker secrets: `RAZORPAY_KEY_ID` (TEST), `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`. Never print or overwrite these while deploying. The webhook secret must be independent of the API secret.
 
-Razorpay Dashboard → Account & Settings → Webhooks → Test Mode:
-add the deployed Worker endpoint `https://YOUR-VERIFIED-WORKER/api/razorpay/webhook`
-and subscribe to **payment.captured**. Configure an independent webhook secret
-on both the Dashboard and Cloudflare. Webhook deliveries must return HTTP 2xx only
-after successful database settlement; failed settlement must retry.
+Wrangler binds `CHECKOUT_RATE_LIMITER` (12 requests/minute per route/client IP within each Cloudflare location), enables a five-minute cron and preserves variables. A missing, failing or malformed limiter binding fails closed. Origin allowlisting is a browser protection, not authentication. Consider account-level bot/WAF controls before real commerce.
 
-## Blockers before enabling test checkout
+Set `PAYMENTS_SUSPENDED=true` as an encrypted emergency runtime flag to pause TEST gateway checkout. Manual UPI and tracking still require their own DB connection and limiter, independent of Razorpay readiness.
 
-1. Apply the migration in an **isolated test database** and verify the complete SQL,
-   permissions, RLS, and customer/order/inventory constraints. Do not use real customer data.
-2. Run `cd backend/rainbow-api && npm run check && npm test`; run the root repository CI.
-3. The Worker now requires the `CHECKOUT_RATE_LIMITER` binding (12 requests/minute per route and client IP within each Cloudflare location) and rejects checkout calls when it is missing. Verify this binding after deployment, and consider additional account-level Cloudflare WAF/bot protection. An Origin/CORS allowlist is **not authentication** and can be forged by scripts.
-4. Implement an admin queue and manual refund runbook for `refund_required`,
-   plus an alert for delayed/missing webhooks and captured payment mismatches.
-5. Verify gateway payment-capture settings and perform genuine Razorpay **test-mode**
-   success, failure, double-click, cancellation, browser close, timeout, late webhook,
-   amount tampering, UPI, card and mobile scenarios.
-6. Verify stock is restored **once** on expiry, never restored after paid settlement,
-   and never deducted twice for the same checkout UUID.
-7. Fix the **existing manual UPI** checkout independently: the public
-   `create_online_order` RPC currently has no idempotency and updates customer records
-   based on phone number. Its old flow is NOT repaired by this payment branch.
-8. Finance review: interstate IGST vs CGST/SGST and actual checkout pricing. The public website still displays a manual UPI QR that must not be mistaken for Razorpay payment verification.
-9. Keep production checkout on **manual UPI** until the release passes review.
-   No live Razorpay payments are supported by this patch.
+In Razorpay **Test Mode**, the webhook URL is `https://rainbow-api.jofalin2005.workers.dev/api/razorpay/webhook`. Subscribe to `payment.captured` and refund events (`refund.processed` / `payment.refunded`). A configured secret alone does not prove the dashboard subscriptions or delivery health; inspect the Razorpay delivery log.
 
-## Test-only API contract
+## Expiry, late captures and refunds
 
-`GET /api/razorpay/config` → `{enabled:false,mode:"test"}` by default.
+- Gateway reservations last 25 minutes; cron cleanup allows a further ten-minute grace period. The settlement path releases a reservation itself if capture arrives after expiry, so it cannot strand stock while changing to `refund_required`.
+- Late capture never confirms or reallocates previously released stock. It becomes a cancelled order with verified captured money requiring staff review.
+- Pending manual UPI reservations are released once after 24 hours. Staff must reconcile late transfers rather than confirm an expired checkout.
+- Refund webhooks fetch the current provider payment. Cumulative refunded amounts only increase; delayed capture events cannot undo a refund. Partial refunds stop fulfillment and enter review. Full refunds hide paid invoices and stop pending notifications.
+- Sold stock is not automatically returned after a provider refund. Inspect returned goods and use the authorized stock-adjustment workflow. The original sale ledger remains auditable.
+- Admin → Orders → **Payment review** shows provider order/payment/refund IDs and amounts. Match those records in the **Test** dashboard and inspect the original receipt before any action. No Worker endpoint initiates a charge or refund. Duplicate/mismatched provider payments require manual investigation.
+- One historical delivered online order was found without paid evidence. Preserve it and reconcile its original bank record; do not invent a payment or rewrite business history.
 
-`POST /api/razorpay/create`:
-```json
-{
-  "checkout_id": "unique-uuid-v4",
-  "items": [{"variant_id": "product-variant-uuid", "quantity": 1}],
-  "customer": {
-    "name": "Example", "whatsapp_number": "9999999999",
-    "address": "Example address", "state": "Tamil Nadu"
-  }
-}
+## Deployment and verification
+
+Cloudflare Workers Builds is connected to this repository: production branch `main`, root `backend/rainbow-api`, build `npm run check && npm test`, deploy `npx wrangler deploy`. The separate **Previews Base** build settings must use the same `backend/rainbow-api` root and `npm run check && npm test` build command, with `npx wrangler preview` as the preview command. Retrying a build preserves its original build-settings snapshot; trigger a new branch build after correcting settings. GitHub's Cloudflare workflow performs checks only. A green GitHub job is not proof of a deployed Worker.
+
+After merging tested changes, check the Cloudflare build commit/version. If production does not advance, use the **existing** `rainbow-main-deploy` deploy hook for `main`; treat its URL as a secret and do not commit or log it. Retrying an old build redeploys that old commit.
+
+Apply the reviewed settlement migration before the Worker/frontend use its new RPCs. Preserve runtime secrets. Keep `WHATSAPP_SEND_ENABLED=false` and `WHATSAPP_TEMPLATE_APPROVED=false`.
+
+Run:
+
+```sh
+npm ci --legacy-peer-deps
+npm run lint
+npm test
+npm run build:pages
+npm run security
+(cd backend/rainbow-api && npm run check && npm test)
+node scripts/verify-payment-deployment.mjs
+E2E_BASE_URL=https://rainbowgoldcovering.com npm run test:e2e:public
+node --test tests/e2e/selenium/tests/payment-readiness.test.mjs
 ```
-Server responds with public Key ID, Razorpay order ID, signed authoritative paise amount,
-order number and reservation expiry. No secret keys are returned.
 
-`POST /api/razorpay/verify`:
-`checkout_id`, `razorpay_order_id`, `razorpay_payment_id`,
-`razorpay_signature`. The worker verifies HMAC, fetches payment details and then
-settles only a captured payment via a privileged database RPC.
+CI also runs real PostgreSQL 17 against the payment fixture, **all** gateway/finalization/hardening migrations, and payment behavior/post-settlement assertions. The browser recovery fixture intercepts payment requests; it cannot charge or send WhatsApp. Isolated Supabase integration and authenticated staff E2E need a separate configured test project and credentials. A skipped suite is not a pass.
 
-## Deployment safety
-
-This branch is **not** connected to Cloudflare Builds and should be opened as a
-draft pull request first. Confirm the existing Worker is deployed from
-`backend/rainbow-api`, not the repository root. Worker test keys already configured
-in Cloudflare do not enable payments without `PAYMENTS_ENABLED=true` and the
-remaining required settings. The `main` branch should not be advanced until
-the test database, webhook, rates, CI, staff refunds and regression checks pass.
-
-See [Razorpay Standard Checkout official guide](https://razorpay.com/docs/payments/payment-gateway/web-integration/standard/integration-steps/)
-and [Razorpay webhook verification documentation](https://razorpay.com/docs/webhooks/validate-test/).
-
-## Additional staged manual UPI fix
-
-A separate, unapplied migration `20261021202500_manual_upi_guest_idempotency.sql`
-protects the existing public `create_online_order` RPC:
-- Locks and remembers each manual UPI checkout key, returning the same order on retries.
-- Derives a stable legacy key from phone + UPI reference when older cached pages
-  do not send a client checkout UUID.
-- Creates a new order contact record instead of overwriting an existing customer's
-  saved name/address using only their phone number.
-
-This is **staged only**. Before deploying, audit genuine UPI references across
-devices and add verified gateway/bank-side reconciliation to prevent reuse of a
-single transaction reference in otherwise different checkout sessions. The manually
-entered UTR is not proof that the money arrived.
-
-The GitHub Actions workflow `Payment SQL in disposable PostgreSQL` runs
-`tests/sql/payment-fixture.sql` and `tests/sql/payment-behavior.sql` on a
-temporary PostgreSQL 17 service, so migrations can be syntax and behavior tested
-without writing to the production Supabase instance. Because its schema fixture
-is a focused copy, it **does not replace** a full isolated Supabase staging test.
-
-The connected production storefront domain is `rainbowgoldcovering.com` (GitHub CNAME). The default Worker allowed origins include `https://rainbowgoldcovering.com`, `https://www.rainbowgoldcovering.com` and the legacy GitHub Pages origin. Confirm the actual deployed hostname when enabling the gateway.
-
-### Cloudflare Worker deployment state (October 2026)
-
-The production-named `rainbow-api` is currently a **TEST-only** gateway (its server rejects any Razorpay key that does not begin `rzp_test_`). Cloudflare Workers Builds repeatedly reset dashboard-managed `PAYMENTS_ENABLED` during automatic GitHub deployments. The source-of-truth Wrangler configuration now explicitly sets `vars.PAYMENTS_ENABLED: "true"`, with `keep_vars: true` preserving dashboard-managed secrets and other variables. **This does not enable real payments; do not introduce live API keys into this Worker.**
-
-To suspend checkout immediately, set an encrypted runtime secret `PAYMENTS_SUSPENDED=true` in Cloudflare and deploy that setting. The Worker refuses checkout even if `PAYMENTS_ENABLED` remains true. Remove/rotate this secret only after verifying the gateway is safe again. To stop TEST checkout in source permanently, change the Wrangler variable to `"false"` and deploy. Real payment onboarding must use a separately reviewed live-specific configuration and full financial controls.
-
-An automated GitHub Actions workflow `Razorpay live readiness smoke` probes the public endpoint with Origin `https://rainbowgoldcovering.com` and checks published static assets without revealing payment secrets. It reports the actual live flags, which must match the page's availability state.
+The deployment verification script compares published assets byte-for-byte with checked-out source and requires the actual Worker release, TEST mode, CORS and provider readiness. It performs no checkout creation, charge, refund or message send.

@@ -739,13 +739,20 @@
       return;
     }
     try{
-      if(!client)throw new Error("Tracking is temporarily unavailable.");
-      const [{data,error},helpers]=await Promise.all([
-        client.rpc("track_guest_order_shipments",{p_product_code:code,p_phone:phone}),
+      // Guest lookups pass through the Worker's shared rate limiter. The
+      // anonymous database RPC is private so scripts cannot bypass that limit.
+      const [lookup,helpers]=await Promise.all([
+        fetch("https://rainbow-api.jofalin2005.workers.dev/api/razorpay/track",{
+          method:"POST",headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({product_code:code,phone}),cache:"no-store",
+          signal:AbortSignal.timeout(15000)
+        }).then(async response=>{
+          if(!response.ok)throw new Error("Tracking is temporarily unavailable.");
+          return response.json();
+        }),
         import("./admin/shipment-utils.mjs")
       ]);
-      if(error)throw error;
-      const orders=Array.isArray(data)?data:[];
+      const orders=Array.isArray(lookup.orders)?lookup.orders:[];
       if(!orders.length){if(message)message.textContent="No matching online order was found.";return;}
       if(message)message.textContent=orders.length+" matching order"+(orders.length===1?"":"s")+" found.";
       if(results)results.innerHTML=orders.map(order=>shipmentCardMarkup(order,helpers)).join("");
