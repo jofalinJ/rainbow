@@ -38,7 +38,36 @@ jobs:
             const body=await res.json().catch(()=>({}));
             console.log(JSON.stringify({probe:i,withOrigin:Boolean(origin),http:res.status,
               enabled:body.enabled,mode:body.mode,release:body.release??'old-build',
-              keyFormat:/^rzp_test_[A-Za-z0-9]+$/.test(body.keyId||''),
+              keyFormat:new RegExp('^rzp_'+body.mode+'_[A-Za-z0-9]+,
+              allowedOrigin:res.headers.get('access-control-allow-origin'),
+              cache:res.headers.get('cache-control'),cfRayPrefix:(res.headers.get('cf-ray')||'').split('-').pop()}));
+            await new Promise(resolve=>setTimeout(resolve,600));
+          }
+          NODE
+      - name: Diagnose configured Razorpay API credentials without exposing keys
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          const res=await fetch('https://rainbow-api.jofalin2005.workers.dev/api/razorpay/provider-check',{
+            method:'GET',cache:'no-store',
+            headers:{Origin:'https://rainbowgoldcovering.com',Accept:'application/json'}
+          });
+          const json=await res.json().catch(()=>({}));
+          console.log(JSON.stringify({check:'razorpay-provider',http:res.status,provider:json.provider||'not-deployed',
+            allowedOrigin:res.headers.get('access-control-allow-origin')}));
+          NODE
+      - name: Verify deployed checkout assets exist
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          for(const path of ['/order.html','/payment-config.js','/order-razorpay.mjs','/order.js']){
+            const res=await fetch('https://rainbowgoldcovering.com'+path,{cache:'no-store'});
+            const body=await res.text();
+            console.log(JSON.stringify({asset:path,http:res.status,bytes:body.length,
+              hasGateway:body.includes('razorpayAvailability')||body.includes('rainbow-api.jofalin2005.workers.dev')}));
+          }
+          NODE
+).test(body.keyId||''),
               allowedOrigin:res.headers.get('access-control-allow-origin'),
               cache:res.headers.get('cache-control'),cfRayPrefix:(res.headers.get('cf-ray')||'').split('-').pop()}));
             await new Promise(resolve=>setTimeout(resolve,600));
