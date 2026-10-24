@@ -428,10 +428,11 @@
       const stock=getStock(p),stockClass=stock===0?"out":"in",stockText=stock===0?"Out of stock":"In stock",image=getThumb(p);
       const saved=wishlistIds.has(String(p.id));
       return "<article class='product-card' data-product-id='"+esc(p.id)+"'>"+
+        "<button type='button' class='product-card-quick-view' data-product-open aria-label='Quick view: "+esc(p.product_name)+"'></button>"+
         "<div class='product-image'>"+(image?"<img src='"+esc(image)+"'"+responsiveSource(p)+" alt='"+esc(p.product_name)+"' width='320' height='320' loading='lazy' decoding='async'>":"<div class='placeholder'>RG</div>")+
         "<button type='button' class='product-wishlist-button"+(saved?" is-saved":"")+"' data-wishlist-product='"+esc(p.id)+"' aria-label='"+(saved?"Remove ":"Add ")+esc(p.product_name)+(saved?" from":" to")+" wishlist' aria-pressed='"+saved+"'>"+(saved?"♥":"♡")+"</button></div>"+
         "<div class='product-body'><h3 class='product-name'>"+esc(p.product_name)+"</h3><div class='product-type'>"+esc(categoryFor(p))+"</div>"+
-        "<div class='product-meta'><strong class='product-price'>"+money(p.selling_price)+"</strong><span class='product-stock "+stockClass+"'>"+stockText+"</span></div><div class='product-card-actions'><button type='button' data-product-open>Quick view</button><a href='product.html?sku="+encodeURIComponent(p.product_code||"")+"'>Details ↗</a></div></div></article>";
+        "<div class='product-meta'><strong class='product-price'>"+money(p.selling_price)+"</strong><span class='product-stock "+stockClass+"'>"+stockText+"</span></div><div class='product-card-actions'><a href='product.html?sku="+encodeURIComponent(p.product_code||"")+"'>Details ↗</a></div></div></article>";
     }).join(""):"<div class='product-empty'>"+(wishlistOnly?"Nothing saved yet. Tap a heart to save a design.":activeSearch?"No matches. Try another search or category.":visualSearchSignature?"No visual matches could be ranked for this image. Try a clearer photo or search by name.":activeCategory?"No "+esc(activeCategory.toLowerCase())+" products are currently in stock.":"No jewellery listed yet.")+"</div>";
     renderPager(false);
     if(appendOnly)grid.insertAdjacentHTML("beforeend",rendered);
@@ -439,8 +440,7 @@
     grid.querySelectorAll("[data-product-id]:not([data-shop-bound])").forEach(card=>{
       card.dataset.shopBound="true";
       const open=()=>openProductModal(catalogueProducts.find(p=>String(p.id)===String(card.dataset.productId)));
-      card.addEventListener("click",event=>{if(event.target.closest("[data-wishlist-product],a[href]"))return;open();});
-      card.querySelector("[data-product-open]")?.addEventListener("keydown",event=>{if(event.key===" "){event.preventDefault();open();}});
+      card.querySelector("[data-product-open]")?.addEventListener("click",open);
     });
     grid.querySelectorAll("[data-wishlist-product]:not([data-wishlist-bound])").forEach(button=>{button.dataset.wishlistBound="true";button.addEventListener("click",event=>{
       event.preventDefault();event.stopPropagation();const id=String(button.dataset.wishlistProduct);
