@@ -78,5 +78,19 @@
    if(!path.endsWith("-optimized.webp")||!url.includes("/storage/v1/object/public/product-images/"))return url;
    return url.replace(/-optimized\.webp(?=\?|$)/,"-thumb.webp");
  }
- root.RainbowCatalogue={PAGE_SIZE,MAX_PAGE_SIZE,buildQuery,page,thumbnailUrl,cleanSearch};
+ // Single-item Buy now lives only in this tab; ordinary localStorage bag is untouched.
+ const BUY_NOW_KEY="rainbow_buy_now_v1";
+ const validSelection=item=>item&&typeof item==="object"&&typeof item.variant_id==="string"&&
+   item.product&&Number.isInteger(Number(item.quantity))&&Number(item.quantity)>=1&&Number(item.quantity)<=100;
+ function startBuyNow(item){
+   if(!validSelection(item))return false;
+   try{sessionStorage.setItem(BUY_NOW_KEY,JSON.stringify(item));return true;}catch{return false;}
+ }
+ function readBuyNow(){
+   try{const item=JSON.parse(sessionStorage.getItem(BUY_NOW_KEY)||"null");return validSelection(item)?item:null;}
+   catch{return null;}
+ }
+ function clearBuyNow(){try{sessionStorage.removeItem(BUY_NOW_KEY);}catch{}}
+ root.RainbowCatalogue={PAGE_SIZE,MAX_PAGE_SIZE,buildQuery,page,thumbnailUrl,cleanSearch,
+   startBuyNow,readBuyNow,clearBuyNow};
 })(typeof window==="undefined"?globalThis:window);
