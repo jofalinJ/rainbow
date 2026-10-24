@@ -68,11 +68,41 @@
    if(images.length){img.src=images[0].public_url;img.alt=product.product_name;}
    else img.hidden=true;
    const thumbs=$("detailThumbnails");thumbs.replaceChildren();
+   let activePhoto=0;
+   const photoButtons=[];
+   const showPhoto=index=>{
+     if(images.length===0)return;
+     activePhoto=(index+images.length)%images.length;
+     const entry=images[activePhoto];
+     img.src=entry.public_url;
+     img.alt=product.product_name+" — photo "+(activePhoto+1)+" of "+images.length;
+     photoButtons.forEach((button,i)=>{
+       const current=i===activePhoto;
+       button.classList.toggle("is-active",current);
+       button.setAttribute("aria-current",String(current));
+     });
+   };
    images.forEach((entry,index)=>{
      const b=document.createElement("button");b.type="button";b.setAttribute("aria-label","View image "+(index+1));
      const t=document.createElement("img");t.src=window.RainbowCatalogue?.thumbnailUrl(entry)||entry.public_url;t.onerror=()=>{t.onerror=null;t.src=entry.public_url;};t.alt="";t.width=80;t.height=80;t.loading="lazy";b.append(t);
-     b.addEventListener("click",()=>{img.src=entry.public_url;img.alt=product.product_name+" image "+(index+1);});thumbs.append(b);
+     b.addEventListener("click",()=>showPhoto(index));photoButtons.push(b);thumbs.append(b);
    });
+   if(images.length)showPhoto(0);
+   if(images.length>1){
+     // Native-style horizontal photo swipe; let vertical page scrolling pass through.
+     const photoSurface=img.closest(".detail-main-image");
+     let start=null;
+     photoSurface?.addEventListener("touchstart",event=>{
+       const touch=event.changedTouches?.[0];
+       if(touch)start={x:touch.clientX,y:touch.clientY};
+     },{passive:true});
+     photoSurface?.addEventListener("touchend",event=>{
+       const touch=event.changedTouches?.[0];if(!touch||!start)return;
+       const dx=touch.clientX-start.x,dy=touch.clientY-start.y;start=null;
+       if(Math.abs(dx)>45&&Math.abs(dx)>Math.abs(dy)*1.3)showPhoto(activePhoto+(dx<0?1:-1));
+     },{passive:true});
+     photoSurface?.setAttribute("aria-label","Product photo. Swipe horizontally to view the next image.");
+   }
    const specs=[["Thickness",product.thickness],["Length",product.length_cm!=null?product.length_cm+" cm":null],["Gold amount (as recorded)",product.gold_amount_g!=null?product.gold_amount_g+" g":null]];
    for(const [label,value] of specs){if(value==null||value==="")continue;const dt=document.createElement("dt"),dd=document.createElement("dd");dt.textContent=label;dd.textContent=value;$("detailSpecs").append(dt,dd);}
    const select=$("detailVariant");select.replaceChildren();
