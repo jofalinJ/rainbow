@@ -130,3 +130,41 @@ customer must visually verify the merchant and the locked total.
 The Worker route and database operations above **do not exist in production**.
 The branch UI calls these endpoint names but shows an unavailable/retry state
 if they respond 404/503. That is intentional until isolated backend tests pass.
+
+
+## UX-09 proposed recovery extension (NOT DEPLOYED)
+
+The pending-checkout server response must return a **cryptographically random,
+high-entropy recovery_token**, scoped to that checkout, with a maximum 24-hour
+lifetime. Store only a salted, slow or cryptographic hash of the token server-side;
+reject missing/expired tokens and rate-limit and audit all recovery attempts
+without logging token values. The browser's minimal local record contains only
+checkout UUID, order reference, creation time, item snapshots, server-calculated
+totals, pending status, last four phone digits, the recovery token and an
+idempotency request ID. It must contain **no complete address or phone**.
+
+`POST /api/upi/status` with `{checkout_id,recovery_token}` must validate
+token ownership server-side, and only then return the same order reference with
+one of `awaiting_payment`, `pending`, `verified`, `declined`,
+`cancelled`, or `uncertain`, plus a separate authoritative
+`payment_status` of `paid` or `pending`. **Only**
+`state="verified", payment_status="paid"` can become a verified UI
+confirmation. A client-local pending banner is not proof of payment.
+
+`POST /api/upi/correct` with
+`{checkout_id,recovery_token,request_id,transaction_reference}` must
+lock the SAME pending order/payment, validate UTR format/uniqueness, reject
+changes to a paid, cancelled, expired or refunded payment, and idempotently
+replace a pending UTR or attach the first UTR. Repeated UUID and identical
+input returns the prior result; same UUID with changed input returns 409.
+No new order, stock reservation or payment row may be created.
+
+The UI must preserve the pending banner across reloads; if status is
+`declined` or `cancelled` with server proof, only then restore items
+from its local minimal snapshot, merge by variant to avoid duplication, and
+remove the pending record. A verified order deletes the pending record.
+Pending/uncertain replies never trigger an automatic new payment.
+
+**Rollback:** Disable new recovery and correction routes and retain existing
+pending orders and UTRs for manual reconciliation. Do not clear the outbox,
+automatically release uncertain stock, or delete transaction history.
