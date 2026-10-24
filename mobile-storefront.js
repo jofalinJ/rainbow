@@ -1,17 +1,19 @@
-/* Mobile-only view navigation; delegates to the existing storefront controllers.
-   No cloned customer data, cart operations or authentication logic. */
+/* Rainbow Gold Covering: mobile navigation and UI feedback.
+   Reuses the existing catalogue, auth, wishlist and cart controllers. */
 (() => {
-  function init() {
+  function init(){
     const nav=document.querySelector(".mobile-shop-nav");
     if(!nav)return;
     const wishlist=document.getElementById("wishlistToggle");
     const account=document.getElementById("accountOpen");
-    const home=nav.querySelector('[data-mobile-home]');
-    const categories=nav.querySelector('[data-mobile-categories]');
-    const saved=nav.querySelector('[data-mobile-wishlist]');
-    const profile=nav.querySelector('[data-mobile-account]');
+    const accountOverlay=document.getElementById("accountOverlay");
+    const home=nav.querySelector("[data-mobile-home]");
+    const categories=nav.querySelector("[data-mobile-categories]");
+    const saved=nav.querySelector("[data-mobile-wishlist]");
+    const profile=nav.querySelector("[data-mobile-account]");
     const tabs=[home,categories,saved,profile].filter(Boolean);
-    const setTab=tab => {
+    let previousTab=home;
+    const setTab=tab=>{
       for(const item of tabs){
         const current=item===tab;
         item.classList.toggle("is-current",current);
@@ -19,10 +21,11 @@
         else item.removeAttribute("aria-current");
       }
     };
+    const activeTab=()=>tabs.find(item=>item.classList.contains("is-current"))||home;
+    const wishlistActive=()=>wishlist?.getAttribute("aria-pressed")==="true";
     const syncWishlist=()=>{
-      const active=wishlist?.getAttribute("aria-pressed")==="true";
-      if(active)setTab(saved);
-      else if(saved?.classList.contains("is-current"))setTab(categories);
+      if(wishlistActive())setTab(saved);
+      else if(activeTab()===saved)setTab(categories);
     };
     saved?.addEventListener("click",()=>{
       wishlist?.click();
@@ -30,12 +33,63 @@
         block:"start",behavior:window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"
       });
     });
-    profile?.addEventListener("click",()=>account?.click());
+    profile?.addEventListener("click",()=>{
+      previousTab=activeTab();
+      setTab(profile);
+      account?.click();
+    });
     home?.addEventListener("click",()=>setTab(home));
     categories?.addEventListener("click",()=>setTab(categories));
+    document.getElementById("mobileCategoryTrack")?.addEventListener("click",event=>{
+      if(event.target.closest("[data-mobile-category]"))setTab(categories);
+    });
     wishlist?.addEventListener("click",()=>queueMicrotask(syncWishlist));
     if(wishlist)new MutationObserver(syncWishlist).observe(wishlist,{attributes:true,attributeFilter:["aria-pressed"]});
-    window.addEventListener("pageshow",syncWishlist);
+    if(accountOverlay){
+      new MutationObserver(()=>{
+        if(accountOverlay.hidden||accountOverlay.getAttribute("aria-hidden")==="true"){
+          if(activeTab()===profile)setTab(wishlistActive()?saved:previousTab);
+        }
+      }).observe(accountOverlay,{attributes:true,attributeFilter:["hidden","aria-hidden"]});
+    }
+
+    // A badge echoes the genuine cart count; it never maintains separate cart state.
+    const cartCount=document.getElementById("cartCount");
+    const bagBadge=document.getElementById("mobileBagCount");
+    const syncBag=()=>{
+      if(!bagBadge||!cartCount)return;
+      const count=Math.max(0,Number.parseInt(cartCount.textContent||"0",10)||0);
+      bagBadge.hidden=count===0;
+      bagBadge.textContent=count>99?"99+":String(count);
+    };
+    if(cartCount)new MutationObserver(syncBag).observe(cartCount,{childList:true,characterData:true,subtree:true});
+    syncBag();
+
+    // Keep the bottom navigation away from focused form fields/mobile keyboards.
+    const editable=element=>element?.matches?.("input,textarea,select,[contenteditable='true']");
+    document.addEventListener("focusin",event=>{
+      if(editable(event.target))document.body.classList.add("mobile-editing");
+    });
+    document.addEventListener("focusout",()=>{
+      requestAnimationFrame(()=>{
+        if(!editable(document.activeElement))document.body.classList.remove("mobile-editing");
+      });
+    });
+
+    // Non-blocking feedback for genuine wishlist and cart operations.
+    const toast=document.getElementById("mobileShopToast");
+    let hideToastTimer=null;
+    document.addEventListener("rainbow:mobile-toast",event=>{
+      if(!toast||!window.matchMedia("(max-width:767px)").matches)return;
+      const message=String(event.detail?.message||"").trim();
+      if(!message)return;
+      toast.textContent=message;
+      toast.hidden=false;
+      if(hideToastTimer!==null)clearTimeout(hideToastTimer);
+      hideToastTimer=setTimeout(()=>{toast.hidden=true;hideToastTimer=null;},2300);
+    });
+    window.addEventListener("pagehide",()=>{if(hideToastTimer!==null)clearTimeout(hideToastTimer);},{once:true});
+    window.addEventListener("pageshow",()=>{syncWishlist();syncBag();});
     syncWishlist();
   }
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init,{once:true});
