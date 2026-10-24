@@ -470,7 +470,44 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
     }
   }
 
-  $("clearCart").onclick=()=>{cart=[];cartVerified=true;cartVerificationFailed=false;save();render();msg("");};
+  // UX-03: native modal confirmation; nothing is mutated until confirmed.
+  const clearTrigger=$("clearCart");
+  const clearDialog=document.createElement("dialog");
+  clearDialog.id="clearBagConfirm";clearDialog.className="checkout-clear-dialog";
+  clearDialog.setAttribute("aria-labelledby","clearBagDialogTitle");
+  clearDialog.style.cssText="width:min(92vw,390px);max-width:390px;max-height:90dvh;margin:auto;border:1px solid #eadacb;border-radius:20px;background:#fffdfa;color:#352827;padding:22px;box-shadow:0 24px 70px #0004";
+  const clearHeading=document.createElement("h2");
+  clearHeading.id="clearBagDialogTitle";clearHeading.style.cssText="font:600 23px/1.2 Georgia,serif;margin:0 0 18px";
+  const clearActions=document.createElement("div");
+  clearActions.style.cssText="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap";
+  const keepBag=document.createElement("button"),confirmClear=document.createElement("button");
+  for(const control of [keepBag,confirmClear]){
+    control.type="button";control.style.cssText="min-height:48px;padding:10px 16px;border-radius:999px;font-size:14px;font-weight:700;cursor:pointer";
+  }
+  keepBag.textContent="Keep bag";keepBag.style.border="1px solid #bda99b";keepBag.style.background="#fff";
+  confirmClear.textContent="Clear bag";confirmClear.style.border="1px solid #8f1520";
+  confirmClear.style.background="#8f1520";confirmClear.style.color="#fff";
+  clearActions.append(keepBag,confirmClear);clearDialog.append(clearHeading,clearActions);
+  document.body.append(clearDialog);
+  const backdropStyle=document.createElement("style");
+  backdropStyle.textContent=".checkout-clear-dialog::backdrop{background:rgba(30,16,18,.58)}";
+  document.head.append(backdropStyle);
+  keepBag.addEventListener("click",()=>clearDialog.close());
+  clearDialog.addEventListener("click",event=>{
+    if(event.target===clearDialog)clearDialog.close();
+  });
+  clearDialog.addEventListener("close",()=>clearTrigger?.focus({preventScroll:true}));
+  confirmClear.addEventListener("click",()=>{
+    cart=[];cartVerified=true;cartVerificationFailed=false;
+    save();render();msg("");clearDialog.close();
+  });
+  clearTrigger.onclick=()=>{
+    const count=cart.reduce((n,item)=>n+Number(item.quantity||0),0);
+    if(count<1)return;
+    clearHeading.textContent="Remove all "+count+" "+(count===1?"item":"items")+" from your bag?";
+    clearDialog.showModal();
+    keepBag.focus();
+  };
   $("placeOrder").onclick=placeOrder;
   $("paymentReference").addEventListener("input",updatePlaceOrderState);
   $("retryPendingCheckout")?.addEventListener("click",()=>{
