@@ -23,7 +23,7 @@ const publicRootFiles=[
   "shipping-policy.html","terms-and-conditions.html",
   "sitemap.html","sitemap.xml","robots.txt",
   "analytics.js","bill-pdf.js","business-live.js","config.js",
-  "content.css","content.js","invoice-template.css","invoice-template.js",
+  "content.css","content.js","mobile-storefront.css","mobile-storefront.js","invoice-template.css","invoice-template.js",
   "invoice.js","order-pricing.mjs","order.css","order.js",
   "payment-config.js","order-razorpay.mjs",
   "product-page.css","product-page.js","shop-catalogue.js",
