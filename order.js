@@ -214,7 +214,7 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
     const total=shipping===null?null:roundMoney(taxable+cgst+sgst+shipping);
     const locked=lockedAmounts();
     $("subtotal").textContent=money(locked?.subtotal??subtotal);
-    $("discount").textContent=money(locked?.discount_amount??discount);
+    $("discount").textContent="−"+money(locked?.discount_amount??discount);
     $("cgst").textContent=money(locked?.cgst_amount??cgst);
     $("sgst").textContent=money(locked?.sgst_amount??sgst);
     $("delivery").textContent=shipping===null?"Choose state":money(locked?.delivery_fee??shipping);
