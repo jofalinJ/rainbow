@@ -89,7 +89,7 @@ export async function razorpayAvailability(){
 export async function razorpayAvailable(){
   return (await razorpayAvailability()).available;
 }
-export async function beginRazorpayPayment({items,customer,displayTotal,expectedMode}){
+export async function beginRazorpayPayment({items,customer,displayTotal,expectedMode,onPaymentFailed}){
   // Refresh provider readiness at purchase time; never silently switch to real money.
   const status=await razorpayAvailability();
   if(!status.available)throw new Error(status.message);
@@ -110,7 +110,7 @@ export async function beginRazorpayPayment({items,customer,displayTotal,expected
   }
   if(!gateway.success || gateway.mode!==mode ||
     !new RegExp("^rzp_"+mode+"_[A-Za-z0-9]+$").test(gateway.keyId||"") ||
-    !Number.isSafeInteger(gateway.amount) || gateway.amount<=0 ||
+    !Number.isSafeInteger(gateway.amount) || gateway.amount<100 ||
     gateway.currency!=="INR" || !gateway.gatewayOrderId)
     throw new Error("Invalid payment provider response");
   // Never silently charge a different amount from the visible review summary.
@@ -147,6 +147,15 @@ export async function beginRazorpayPayment({items,customer,displayTotal,expected
           }catch(error){reject(error);}
         },
         modal:{ondismiss:()=>{if(!handled){handled=true;resolve({status:"dismissed",mode});}}}
+      });
+      // Failed attempts may be retried within Razorpay's own modal. Do not
+      // settle, clear the cart, or create a second provider order here.
+      checkout.on("payment.failed", event=>{
+        if(handled)return;
+        const raw=event?.error?.description;
+        const note=typeof raw==="string" && raw.trim() && raw.length<=200
+          ? raw.trim() : "Payment failed. Try another method or close checkout.";
+        if(typeof onPaymentFailed==="function")onPaymentFailed(note);
       });
       checkout.open();
     }catch(error){reject(error);}
