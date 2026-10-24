@@ -502,3 +502,209 @@
   }
   .detail-thumbnails button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 }
+
+
+/* v3 — typographic consistency and collision prevention.
+   ONLY text rhythm, line wrapping, and occupied space inside existing components
+   are changed. Visual placement and mobile category-first order stay identical. */
+@media(max-width:767px){
+  html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+  body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",sans-serif}
+  :where(.mobile-category-section,.live-products,.latest-arrivals,.product-modal,.detail-page,.order-page)
+    :is(h1,h2,h3,p,span,strong,small){overflow-wrap:break-word}
+  :where(.mobile-category-section,.live-products,.latest-arrivals,.detail-page,.order-page)
+    :is(h1,h2,h3){text-rendering:optimizeLegibility}
+  /* Override older !important rules that made the 48px search row render in 40px. */
+  .storefront-header-row{
+    grid-template-columns:46px minmax(0,1fr) 96px!important;
+    grid-template-rows:52px 48px!important;
+    gap:8px 4px!important;
+    min-height:108px!important;
+    align-items:center!important;
+  }
+  .storefront-header-row .logo{min-width:0!important;max-width:100%!important}
+  .storefront-header-row .logo>span{display:block;min-width:0;max-width:100%;line-height:1.05}
+  .storefront-header-row .logo strong{
+    display:block;font-size:clamp(11px,3.25vw,13px)!important;
+    font-weight:850;letter-spacing:.035em!important;line-height:1.08!important
+  }
+  .storefront-header-row .logo small{
+    display:block;font-size:clamp(6px,1.85vw,7.5px)!important;
+    letter-spacing:.1em!important;line-height:1.25!important;margin-top:3px!important
+  }
+  .storefront-header-actions{grid-column:3!important;grid-row:1!important;min-width:0!important}
+  .storefront-search-form,.storefront-header-right .storefront-search-form{
+    grid-column:1/-1!important;grid-row:2!important;
+    width:100%!important;min-width:0!important;max-width:none!important;
+    height:48px!important;min-height:48px!important;margin:0!important;
+    display:flex!important;align-items:center!important;gap:3px!important
+  }
+  .storefront-search-form input[type="search"]{
+    flex:1 1 0;min-width:0!important;font-size:16px!important;line-height:1.4
+  }
+  .storefront-search-form .search-tool-button,
+  .storefront-search-form .search-submit{flex-shrink:0}
+  .storefront-topbar .search-feedback{
+    margin:7px 0 0;padding:6px 2px;font-size:12px;line-height:1.5;
+  }
+  /* Category names have exactly two natural lines, even for long types. */
+  .mobile-category-heading{align-items:center}
+  .mobile-category-eyebrow{font-size:10px;line-height:1.45;letter-spacing:.14em}
+  .mobile-category-heading h2{
+    font-size:clamp(23px,6.3vw,28px);
+    line-height:1.2;letter-spacing:-.035em;
+  }
+  #mobileCategorySeeAll{font-size:12px;font-weight:750;line-height:1.25;white-space:nowrap}
+  .mobile-category-card{min-width:0;gap:8px;align-content:start}
+  .mobile-category-name{
+    width:100%;max-width:100%;min-height:2.7em;
+    font-size:clamp(11px,3vw,12px)!important;font-weight:700;line-height:1.35;
+    letter-spacing:0;word-break:normal;overflow-wrap:break-word;hyphens:auto;
+    text-align:center;
+  }
+  .mobile-category-loading,.mobile-category-empty{font-size:13px;line-height:1.5}
+  /* Section headings and trailing controls remain in the original positions. */
+  .live-products .section-head,.latest-arrivals .section-head{min-width:0}
+  .live-products .section-head>div,.latest-arrivals .section-head>div{min-width:0;flex:1 1 auto}
+  .live-products .section-head #productHeading,
+  .catalog-filter-sidebar #productHeading{
+    font-size:clamp(23px,6.2vw,29px)!important;
+    line-height:1.22!important;letter-spacing:-.035em!important;
+    font-weight:650!important;
+    margin:4px 0 0!important;overflow-wrap:break-word;
+  }
+  .live-products #browseAllProducts,.catalog-filter-sidebar #browseAllProducts{
+    flex:0 0 auto;align-self:center;min-height:42px!important;max-width:41%;
+    font-size:11px!important;line-height:1.35!important;
+    font-weight:750;white-space:normal!important;text-align:center;
+    padding:8px 10px!important;
+  }
+  .product-toolbar,.catalog-filter-sidebar .product-toolbar{
+    align-items:center;gap:10px;line-height:1.45;
+  }
+  .product-status{font-size:12px!important;line-height:1.5!important;max-width:100%}
+  .clear-filter{font-size:11px;line-height:1.35;white-space:normal;min-height:40px}
+  .latest-arrivals .section-head h2{font-size:clamp(23px,6vw,27px)!important;line-height:1.22}
+  .latest-item strong{
+    display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;
+    overflow:hidden;min-height:2.8em;line-height:1.4!important;font-size:13px!important
+  }
+  .latest-item span{font-size:15px!important;line-height:1.3}
+  /* Consistent title > type > price > stock > action stack in every grid card. */
+  .catalog-main .product-card,.catalog-layout .product-card{min-width:0;overflow:visible}
+  .catalog-main .product-body,.catalog-layout .product-body{min-width:0;text-align:left}
+  .catalog-main .product-name,.catalog-layout .product-name{
+    display:-webkit-box!important;-webkit-box-orient:vertical;-webkit-line-clamp:2;
+    min-height:2.8em;font-size:clamp(13px,3.55vw,15px)!important;
+    line-height:1.4!important;letter-spacing:-.01em!important;
+    font-weight:700!important;overflow:hidden;text-overflow:ellipsis;
+    margin:0 0 4px!important;word-break:normal;overflow-wrap:break-word;
+  }
+  .catalog-main .product-type,.catalog-layout .product-type{
+    display:block;min-width:0;font-size:11px!important;line-height:1.45!important;
+    min-height:1.45em;color:#796f68;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
+  .catalog-main .product-meta,.catalog-layout .product-meta{
+    display:flex!important;flex-direction:column!important;align-items:flex-start!important;
+    justify-content:flex-start!important;gap:2px!important;
+    margin-top:8px!important;min-width:0!important;
+  }
+  .catalog-main .product-price,.catalog-layout .product-price{
+    display:block;font-size:clamp(15px,4vw,17px)!important;font-weight:800!important;
+    line-height:1.35!important;letter-spacing:-.015em!important;white-space:nowrap;
+  }
+  .catalog-main .product-stock,.catalog-layout .product-stock{
+    display:block;min-width:0;font-size:10px!important;line-height:1.4!important;
+    letter-spacing:.015em!important;white-space:normal!important;
+    text-transform:none;font-weight:750;
+  }
+  .catalog-main .product-card-actions,.catalog-layout .product-card-actions{
+    display:flex;align-items:center;gap:6px;margin-top:8px!important;min-width:0
+  }
+  .product-card-actions a{
+    font-size:12px!important;font-weight:750!important;
+    line-height:1.35!important;min-height:36px!important;
+  }
+  .product-empty{font-size:13px;line-height:1.65;padding:28px 18px;border-radius:17px}
+  .catalogue-pager #cataloguePageStatus{font-size:12px;line-height:1.6}
+  /* Drawer remains exactly in place; long jewellery types are no longer cramped. */
+  .drawer-section-label{font-size:10px!important;line-height:1.5}
+  .drawer-type-grid{gap:9px}
+  .drawer-type-link{
+    display:grid!important;grid-template-columns:40px minmax(0,1fr);
+    align-items:center!important;justify-content:initial!important;
+    column-gap:8px;min-height:60px!important;padding:8px!important;
+  }
+  .drawer-type-link .drawer-type-thumb,
+  .drawer-type-link .drawer-type-fallback{width:40px!important;height:40px!important;min-width:0;flex:none!important}
+  .drawer-type-link>span:last-child{
+    display:block;font-size:12px!important;font-weight:650;line-height:1.4!important;
+    word-break:normal;overflow-wrap:break-word;
+  }
+  .drawer-quicklinks :is(a,button){line-height:1.5!important;font-size:13px!important}
+  /* Product modal's text uses the same rhythm as the dedicated detail page. */
+  .product-breadcrumb{font-size:11px!important;line-height:1.45;flex-wrap:wrap}
+  .product-detail-info h2{font-size:clamp(26px,7vw,33px)!important;line-height:1.18!important}
+  .product-detail-info .modal-product-type{font-size:12px;line-height:1.5}
+  .product-detail-info .modal-price{font-size:25px;line-height:1.35}
+  .product-detail-info .modal-description{font-size:13px!important;line-height:1.7!important}
+  .product-detail-info .variant-picker-label>span{font-size:12px;line-height:1.45}
+  .product-detail-info .variant-picker-label select{font-size:14px;line-height:1.45}
+  .product-detail-info .product-quantity-row{font-size:12px;line-height:1.4}
+  .product-detail-info .product-stock{white-space:normal;line-height:1.35}
+  .product-detail-info .product-details-accordion summary{font-size:13px;line-height:1.45}
+  .product-detail-info .detail-list :is(span,strong){font-size:12px;line-height:1.5}
+  .product-buy-actions .btn{font-size:13px!important;line-height:1.35}
+  .modal-wishlist-button{line-height:1.45}
+  .detail-info h1{font-size:clamp(27px,7.3vw,35px)!important;line-height:1.18}
+  .detail-info .detail-code{font-size:12px;line-height:1.5}
+  .detail-info #detailDescription{font-size:14px;line-height:1.75}
+  .detail-info .detail-picker-label{font-size:13px;line-height:1.45}
+  .detail-info .detail-specs{line-height:1.55}
+  /* Checkout: protect names, payment descriptions and prices from narrow-screen collisions. */
+  .order-page .order-head h1{font-size:clamp(30px,8vw,40px)!important;line-height:1.15}
+  .order-page .order-head p{font-size:13px!important;line-height:1.65!important}
+  .checkout-back{white-space:normal!important;font-size:12px!important;line-height:1.4}
+  .checkout-progress{align-items:center}
+  .checkout-progress .checkout-step{
+    min-width:0;flex:0 1 auto;font-size:10px!important;line-height:1.3!important;
+    white-space:normal!important;overflow-wrap:normal;
+  }
+  .checkout-progress .checkout-step b{flex:none}
+  .checkout-layout .order-card h2{font-size:23px!important;line-height:1.25!important}
+  .checkout-layout .checkout-subtitle{font-size:13px!important;line-height:1.65!important}
+  .checkout-eyebrow{font-size:10px!important;line-height:1.4;letter-spacing:.1em}
+  .checkout-layout .order-item{min-width:0}
+  .checkout-layout .order-item>div{min-width:0}
+  .checkout-layout .order-item h3{font-size:14px!important;line-height:1.45!important;
+    margin:0 0 5px;word-break:normal;overflow-wrap:break-word}
+  .checkout-layout .order-item small{font-size:12px!important;line-height:1.5!important}
+  .checkout-layout .order-price{font-size:15px!important;line-height:1.35}
+  .checkout-layout .order-qty{flex-wrap:wrap}
+  .checkout-layout .order-qty span{font-size:13px;font-variant-numeric:tabular-nums}
+  .checkout-layout .order-form label{font-size:13px!important;line-height:1.5!important}
+  .payment-choice-body{min-width:0!important}
+  .payment-choice-top{align-items:center}
+  .payment-choice-top strong{font-size:14px!important;line-height:1.4}
+  .payment-choice-description{font-size:12px!important;line-height:1.6!important}
+  .payment-choice-note{font-size:11px!important;line-height:1.55!important}
+  .checkout-summary-card .order-summary>div{align-items:baseline;line-height:1.5}
+  .checkout-summary-card .order-summary>div span{min-width:0}
+  .checkout-summary-card .order-summary>div strong{flex:0 0 auto;white-space:nowrap}
+  .checkout-summary-card .place-order{line-height:1.35}
+  .gateway-status,.checkout-test-notice{line-height:1.6}
+  /* Full-width phone navigation is unchanged; only text baselines are unified. */
+  .mobile-shop-nav :is(a,button){font-size:11px!important;line-height:1.2!important;font-weight:650;gap:4px}
+  .mobile-shop-nav :is(a,button) span:not(.mobile-bag-count){display:block;max-width:100%;white-space:nowrap}
+  .mobile-shop-toast:not([hidden]){font-size:13px;line-height:1.45}
+  .footer{line-height:1.6!important;gap:10px!important}
+  .footer :is(a,button,span){font-size:11px;line-height:1.5}
+}
+@media(max-width:355px){
+  .storefront-header-row{grid-template-columns:43px minmax(0,1fr) 92px!important}
+  .storefront-header-row .logo strong{font-size:11px!important}
+  .mobile-category-name{font-size:11px!important}
+  .mobile-shop-nav :is(a,button){font-size:10px!important}
+  .checkout-progress{padding:11px 8px!important}
+  .checkout-progress .checkout-step{font-size:9.5px!important}
+}
