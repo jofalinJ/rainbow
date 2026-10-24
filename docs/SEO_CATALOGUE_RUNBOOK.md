@@ -24,23 +24,24 @@ This change adds a **build-time, read-only** generator:
 
 ## Important approval checks BEFORE publishing
 
-1. **Review active product rows for demo/test records.** An active product in an
+1. **Review active product rows for demo/test records.** The October 24 audit found active placeholder-style names (for example `anklet1` and `coir chchchch`). They must be corrected or deactivated before SEO publication. An active product in an
    active, storefront-visible category that has a public HTTPS image and a valid
    price may appear in Google. The generator also handles out-of-stock active
    products using `OutOfStock` markup. Archive/disable test records before launch.
 2. Confirm the production domain still points to GitHub Pages (four A records
    ending in `185.199.*.153` plus the existing `www` CNAME). No DNS change
    is necessary for the SEO upgrade.
-3. In GitHub **Settings → Pages → Build and deployment → Source**, switch from
+3. After correcting the catalogue, set the GitHub **Actions repository variable** `RAINBOW_SEO_CATALOGUE_APPROVED` to the exact string `true` (Settings → Secrets and variables → Actions → Variables). Until set, the publishing workflow is intentionally skipped for safety.
+4. In GitHub **Settings → Pages → Build and deployment → Source**, switch from
    **Deploy from a branch** to **GitHub Actions**. This is required for the
    generated pages to be part of the published site. Do not change DNS.
-4. Merge the reviewed SEO PR into `main`. The new Actions workflow will run on
+5. Merge the reviewed SEO PR into `main`. The new Actions workflow will run on
    main pushes, every six hours, and manually via **Actions → Publish SEO
    catalogue (GitHub Pages) → Run workflow**.
-5. Confirm the GitHub Pages deployment is successful and that the public
+6. Confirm the GitHub Pages deployment is successful and that the public
    `/categories/`, sample `/products/.../`, and `/sitemap.xml` all respond
    with actual HTML/XML. Check that no private data appears in the pages.
-6. In Search Console, inspect representative category and product URLs and
+7. In Search Console, inspect representative category and product URLs and
    monitor indexing. Crawling/indexing is not guaranteed.
 
 ## How publication updates work
