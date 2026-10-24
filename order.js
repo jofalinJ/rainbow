@@ -221,11 +221,16 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
         !Number.isFinite(Date.parse(data.expires_at))||Date.parse(data.expires_at)<=Date.now()||
         !names.every(name=>Number.isFinite(Number(data[name]))))
         throw new Error("Pending checkout could not be verified.");
-      if(paise(data.total_amount)!==paise(totals().total)){
-        pendingError="Prices changed, please review your bag.";return;
-      }
+      // The server may already have reserved stock by this point. Persist
+      // its reference even when the browser preview disagrees, so the customer
+      // cannot accidentally create another reservation after a price change.
       if(!persistPendingQuote(data,key)){
         pendingError="Cannot safely remember this order. Payment is unavailable.";
+        return;
+      }
+      if(paise(data.total_amount)!==paise(totals().total)){
+        pendingError="Prices changed, please review your bag. This pending order needs shop review.";
+        renderPendingBanner();
         return;
       }
       renderPendingBanner();
