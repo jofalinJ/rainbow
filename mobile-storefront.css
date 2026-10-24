@@ -708,3 +708,9 @@
   .checkout-progress{padding:11px 8px!important}
   .checkout-progress .checkout-step{font-size:9.5px!important}
 }
+
+/* Empty-state feedback never moves the category control or changes the layout. */
+@media(max-width:767px){
+  #mobileCategorySeeAll:disabled{opacity:.52;cursor:default}
+  .mobile-category-loading{margin:11px 0 18px;line-height:1.55}
+}
