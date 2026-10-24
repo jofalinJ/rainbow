@@ -492,3 +492,13 @@
 @media(max-width:767px) and (prefers-reduced-motion:reduce){
   .mobile-shop-toast:not([hidden]){animation:none}
 }
+
+/* Mobile gallery selection, preserving desktop product layouts. */
+@media(max-width:767px){
+  .detail-main-image{touch-action:pan-y}
+  .detail-thumbnails button[aria-current="true"],
+  .detail-thumbnails button.is-active{
+    border:2px solid var(--red);box-shadow:0 0 0 2px #fff inset;
+  }
+  .detail-thumbnails button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+}
