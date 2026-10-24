@@ -341,10 +341,10 @@
     const filtersActive=Object.entries(filterState).some(([key,value])=>key!=="inStock"&&value!=="");
     const categoryLanding=!window.matchMedia("(max-width:767px)").matches&&!showAllProducts&&!activeCategory&&!activeSearch&&!visualSearchSignature&&!wishlistOnly&&!filtersActive&&catalogueSort==="featured";
     if(heading){
-      heading.textContent=wishlistOnly?"Your wishlist":activeSearch?"Search results":visualSearchSignature?"Visual matches":activeCategory?"Explore "+activeCategory.toLowerCase()+".":showAllProducts?"All jewellery.":categoryLanding?(activeSegment==="women"?"Shop women by category.":activeSegment==="men"?"Shop men by category.":"Shop by category."):"Shop jewellery.";
+      heading.textContent=wishlistOnly?"Saved jewellery":activeSearch?"Search results":visualSearchSignature?"Visual matches":activeCategory?"Explore "+activeCategory.toLowerCase()+".":showAllProducts?"All jewellery.":categoryLanding?(activeSegment==="women"?"Shop women by category.":activeSegment==="men"?"Shop men by category.":"Shop by category."):"Shop jewellery.";
     }
     if(clearButton){
-      clearButton.textContent=activeCategory?"Back to product types":"Show all products";
+      clearButton.textContent=activeCategory?"Back to product types":"View all jewellery";
       clearButton.hidden=!(activeCategory||activeSearch||visualSearchSignature||wishlistOnly||activeSegment!=="all"||showAllProducts);
     }
     document.querySelectorAll("[data-segment]").forEach(button=>{
@@ -391,8 +391,8 @@
         "<div class='product-image'>"+(image?"<img src='"+esc(image)+"'"+responsiveSource(p)+" alt='"+esc(p.product_name)+"' width='320' height='320' loading='lazy' decoding='async'>":"<div class='placeholder'>RG</div>")+
         "<button type='button' class='product-wishlist-button"+(saved?" is-saved":"")+"' data-wishlist-product='"+esc(p.id)+"' aria-label='"+(saved?"Remove ":"Add ")+esc(p.product_name)+(saved?" from":" to")+" wishlist' aria-pressed='"+saved+"'>"+(saved?"♥":"♡")+"</button></div>"+
         "<div class='product-body'><h3 class='product-name'>"+esc(p.product_name)+"</h3><div class='product-type'>"+esc(categoryFor(p))+"</div>"+
-        "<div class='product-meta'><strong class='product-price'>"+money(p.selling_price)+"</strong><span class='product-stock "+stockClass+"'>"+stockText+"</span></div><div class='product-card-actions'><button type='button' data-product-open>Quick view</button><a href='product.html?sku="+encodeURIComponent(p.product_code||"")+"'>Full details ↗</a></div></div></article>";
-    }).join(""):"<div class='product-empty'>"+(wishlistOnly?"No saved items yet. Tap the heart on a product to add it to your wishlist.":activeSearch?"No products matched that search. Try another term or browse the categories.":visualSearchSignature?"No visual matches could be ranked for this image. Try a clearer photo or search by name.":activeCategory?"No "+esc(activeCategory.toLowerCase())+" products are currently in stock.":"No products are currently in stock. Please check again soon.")+"</div>";
+        "<div class='product-meta'><strong class='product-price'>"+money(p.selling_price)+"</strong><span class='product-stock "+stockClass+"'>"+stockText+"</span></div><div class='product-card-actions'><button type='button' data-product-open>Quick view</button><a href='product.html?sku="+encodeURIComponent(p.product_code||"")+"'>Details ↗</a></div></div></article>";
+    }).join(""):"<div class='product-empty'>"+(wishlistOnly?"Nothing saved yet. Tap a heart to save a design.":activeSearch?"No matches. Try another search or category.":visualSearchSignature?"No visual matches could be ranked for this image. Try a clearer photo or search by name.":activeCategory?"No "+esc(activeCategory.toLowerCase())+" products are currently in stock.":"No jewellery is available right now.")+"</div>";
     renderPager(false);
     if(appendOnly)grid.insertAdjacentHTML("beforeend",rendered);
     else if(!products.length&&paging.loading)grid.innerHTML='<div class="catalogue-skeleton" aria-label="Loading jewellery"></div>'.repeat(8);
@@ -648,7 +648,7 @@
       if(emailNode)emailNode.textContent=user.email||"";
       if(accountButton){accountButton.setAttribute("aria-label","Your account, signed in");accountButton.title="Your account";}
     }else{
-      if(identity)identity.textContent="Sign in or create an account to keep your details and view your orders.";
+      if(identity)identity.textContent="Sign in to see your orders.";
       if(nameNode)nameNode.textContent="";
       if(emailNode)emailNode.textContent="";
       if(accountButton){accountButton.setAttribute("aria-label","Your account and orders");accountButton.title="Your account";}
