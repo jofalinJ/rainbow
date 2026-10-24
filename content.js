@@ -1269,13 +1269,37 @@
       loaderObserver.observe(sentinel);
     }
   }
+  // UX-11: on deeply paginated mobile screens, refresh category metadata
+  // without resetting the shopper's scroll position or loaded products.
+  let categoryRailRefreshing=false;
+  async function refreshCategoryRailOnly(){
+    if(categoryRailRefreshing||metadataLoading||!client)return;
+    categoryRailRefreshing=true;
+    try{
+      const result=await withCatalogueTimeout(client.from("categories")
+        .select("id,name,storefront_order,show_in_storefront")
+        .eq("active",true).order("storefront_order",{ascending:true}).order("name",{ascending:true}));
+      if(result.error)throw result.error;
+      catalogueCategories=result.data||[];
+      await withCatalogueTimeout(loadCategoryStockCounts());
+      renderCategorySidebar();renderMobileCategories();
+    }catch(error){
+      console.warn("Mobile categories unavailable",error);
+      mobileCategoryCountVersion++;mobileCategoryCountsReady=false;mobileCategoryCountError=true;
+      renderMobileCategories();
+    }finally{categoryRailRefreshing=false;}
+  }
   function scheduleCatalogRefresh(){
     if(document.visibilityState==="hidden")return;
     if(realtimeRefreshTimer)window.clearTimeout(realtimeRefreshTimer);
     realtimeRefreshTimer=window.setTimeout(()=>{
       realtimeRefreshTimer=null;
-      // Keep a scrolled catalogue stable. Checkout always checks the authoritative stock.
-      if(paging.offset>catalogue.PAGE_SIZE)return;
+      // Keep a deeply scrolled catalogue stable; refresh mobile categories
+      // independently so new stocked product types still appear automatically.
+      if(paging.offset>catalogue.PAGE_SIZE){
+        if(window.matchMedia("(max-width:767px)").matches)void refreshCategoryRailOnly();
+        return;
+      }
       loadProducts();
     },400);
   }
