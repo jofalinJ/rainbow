@@ -66,6 +66,7 @@
      const a=document.createElement("a");a.className="detail-related-card";a.href="product.html?sku="+encodeURIComponent(p.product_code);
      const first=imagesOf(p)[0];
      if(first){const img=document.createElement("img");img.src=window.RainbowCatalogue?.thumbnailUrl(first)||first.public_url;img.onerror=()=>{img.onerror=null;img.src=first.public_url;};img.loading="lazy";img.alt=p.product_name;img.width=240;img.height=240;a.append(img);}
+     else a.insertAdjacentHTML("beforeend",window.RainbowCatalogue.photoUnavailableMarkup());
      const label=document.createElement("strong");label.textContent=p.product_name;
      const price=document.createElement("span");price.textContent=money(p.selling_price);a.append(label,price);grid.append(a);
    }
@@ -82,7 +83,13 @@
    document.querySelector('meta[name="description"]').content="Explore "+product.product_name+" from Rainbow Gold Covering. Check current availability and options.";
    const img=$("detailMainImage");
    if(images.length){img.src=images[0].public_url;img.alt=product.product_name;}
-   else img.hidden=true;
+   else{
+     img.hidden=true;
+     const picture=img.parentElement;
+     const placeholder=document.createElement("span");
+     placeholder.innerHTML=window.RainbowCatalogue.photoUnavailableMarkup();
+     picture.append(placeholder.firstElementChild);
+   }
    const thumbs=$("detailThumbnails");thumbs.replaceChildren();
    let activePhoto=0;
    const photoButtons=[];
