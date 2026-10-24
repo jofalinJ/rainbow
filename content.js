@@ -206,6 +206,44 @@
       (typeButtons?"<div class='drawer-type-grid' aria-label='Available product types'>"+typeButtons+"</div>":
         "<div class='drawer-empty'>Product types will appear as in-stock designs are added.</div>");
   }
+  // Category-first mobile browsing uses the same real category metadata and product
+  // photographs as the desktop catalogue. No duplicate backend requests.
+  const mobileCategoryImageCache=new Map();
+  let mobileCategorySignature="";
+  function renderMobileCategories(){
+    const section=document.getElementById("mobileCategorySection");
+    const track=document.getElementById("mobileCategoryTrack");
+    if(!section||!track)return;
+    const buckets=categoryBuckets();
+    const prepared=buckets.map(bucket=>{
+      const key=normalizeCategory(bucket.label);
+      const photographed=bucket.products.find(product=>getImage(product));
+      if(photographed)mobileCategoryImageCache.set(key,getThumb(photographed));
+      return {name:bucket.label,key,image:mobileCategoryImageCache.get(key)||""};
+    });
+    const signature=JSON.stringify(prepared);
+    if(signature!==mobileCategorySignature){
+      const previousScroll=track.scrollLeft;
+      track.innerHTML=
+        "<button type='button' class='mobile-category-card mobile-category-card--all' data-mobile-category='' aria-label='Show all jewellery'>"+
+          "<span class='mobile-category-picture mobile-category-picture--all' aria-hidden='true'>✦</span><span class='mobile-category-name'>All designs</span></button>"+
+        prepared.map(item=>"<button type='button' class='mobile-category-card' data-mobile-category='"+esc(item.name)+"' aria-label='Shop "+esc(item.name)+"'>"+
+          "<span class='mobile-category-picture'>"+(item.image?
+            "<img src='"+esc(item.image)+"' alt='' width='120' height='120' loading='lazy' decoding='async'>":
+            "<span class='mobile-category-fallback' aria-hidden='true'>"+esc(item.name.trim().slice(0,1).toUpperCase())+"</span>")+
+          "</span><span class='mobile-category-name'>"+esc(item.name)+"</span></button>").join("");
+      track.scrollLeft=previousScroll;
+      mobileCategorySignature=signature;
+    }
+    track.querySelectorAll("[data-mobile-category]").forEach(button=>{
+      const selected=(button.dataset.mobileCategory||"")===activeCategory&&!wishlistOnly&&!activeSearch;
+      button.classList.toggle("is-active",selected);
+      button.setAttribute("aria-pressed",String(selected));
+    });
+    section.hidden=false;
+    const empty=document.getElementById("mobileCategoryEmpty");
+    if(empty)empty.hidden=prepared.length>0;
+  }
   function isMenProduct(product){
     return String(product.gender||"women").toLowerCase()==="male";
   }
@@ -292,13 +330,14 @@
     const heading=document.getElementById("productHeading"),clearButton=document.getElementById("clearProductFilter");
     if(!grid)return;
     renderCategorySidebar();
+    renderMobileCategories();
     // Supabase returns already filtered and stably sorted rows; do not re-filter a single page.
     let products=catalogueProducts;
     if(visualSearchSignature)products=products.slice().sort((a,b)=>(visualSearchScores.get(String(b.id))??-1)-(visualSearchScores.get(String(a.id))??-1));
     visibleProducts=products;
 
     const filtersActive=Object.entries(filterState).some(([key,value])=>key!=="inStock"&&value!=="");
-    const categoryLanding=!showAllProducts&&!activeCategory&&!activeSearch&&!visualSearchSignature&&!wishlistOnly&&!filtersActive&&catalogueSort==="featured";
+    const categoryLanding=!window.matchMedia("(max-width:767px)").matches&&!showAllProducts&&!activeCategory&&!activeSearch&&!visualSearchSignature&&!wishlistOnly&&!filtersActive&&catalogueSort==="featured";
     if(heading){
       heading.textContent=wishlistOnly?"Your wishlist":activeSearch?"Search results":visualSearchSignature?"Visual matches":activeCategory?"Explore "+activeCategory.toLowerCase()+".":showAllProducts?"All jewellery.":categoryLanding?(activeSegment==="women"?"Shop women by category.":activeSegment==="men"?"Shop men by category.":"Shop by category."):"Shop jewellery.";
     }
@@ -369,6 +408,31 @@
   }
 
   function bindCollectionFilters(){
+    const mobileTrack=document.getElementById("mobileCategoryTrack");
+    mobileTrack?.addEventListener("click",event=>{
+      const button=event.target.closest("[data-mobile-category]");
+      if(!button)return;
+      const targetCategory=button.dataset.mobileCategory||"";
+      activeCategory=targetCategory;
+      showAllProducts=!targetCategory;
+      activeSearch="";visualSearchSignature=null;visualSearchScores.clear();wishlistOnly=false;activeSegment="all";
+      const search=document.getElementById("siteSearch");if(search)search.value="";
+      showSearchFeedback("");
+      const section=document.getElementById("mobileCategorySection");
+      section?.classList.remove("is-expanded");
+      const seeAll=document.getElementById("mobileCategorySeeAll");
+      if(seeAll){seeAll.setAttribute("aria-expanded","false");seeAll.textContent="See all";}
+      track("select_category",{category:targetCategory||"all",source:"mobile_category_rail"});
+      resetCatalogue();
+      document.getElementById("products")?.scrollIntoView({behavior:scrollBehavior,block:"start"});
+    });
+    document.getElementById("mobileCategorySeeAll")?.addEventListener("click",event=>{
+      const section=document.getElementById("mobileCategorySection");
+      if(!section)return;
+      const expanded=section.classList.toggle("is-expanded");
+      event.currentTarget.setAttribute("aria-expanded",String(expanded));
+      event.currentTarget.textContent=expanded?"Show less":"See all";
+    });
     const drawer=document.getElementById("shopDrawer");
     if(drawer)drawer.addEventListener("click",event=>{
       const category=event.target.closest("[data-filter-type]");
@@ -1157,6 +1221,7 @@
       ]);
       newestProducts=latestResult.items;
       promotionProducts=promotionResultPage.items;
+      renderMobileCategories();
       renderLatestArrivals();
       renderPromotion();
       await resetCatalogue();
