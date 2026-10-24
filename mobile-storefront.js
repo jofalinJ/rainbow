@@ -38,8 +38,9 @@
       setTab(profile);
       account?.click();
     });
-    home?.addEventListener("click",()=>setTab(home));
-    categories?.addEventListener("click",()=>setTab(categories));
+    const exitSaved=()=>{if(wishlistActive())wishlist?.click();};
+    home?.addEventListener("click",()=>{exitSaved();setTab(home);});
+    categories?.addEventListener("click",()=>{exitSaved();setTab(categories);});
     document.getElementById("mobileCategoryTrack")?.addEventListener("click",event=>{
       if(event.target.closest("[data-mobile-category]"))setTab(categories);
     });
