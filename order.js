@@ -11,6 +11,7 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
   const esc=x=>String(x??"").replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
   const money=x=>"₹"+Number(x||0).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2});
   let cart=[];
+  let buyNowActive=false;
   let cartVerified=false;
   let cartVerificationFailed=false;
   let submitting=false;
@@ -27,14 +28,30 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
 
   function read(){
     try{
+      if(new URLSearchParams(location.search).has("bag"))window.RainbowCatalogue?.clearBuyNow();
       const saved=JSON.parse(localStorage.getItem(CART_KEY)||"[]");
-      cart=Array.isArray(saved)?saved.filter(x=>x&&x.variant_id&&x.product&&Number.isInteger(Number(x.quantity))&&Number(x.quantity)>0).slice(0,50):[];
-    }catch{cart=[];}
+      const ordinary=Array.isArray(saved)?saved.filter(x=>x&&x.variant_id&&x.product&&Number.isInteger(Number(x.quantity))&&Number(x.quantity)>0).slice(0,50):[];
+      const selection=window.RainbowCatalogue?.readBuyNow();
+      buyNowActive=Boolean(selection);
+      cart=selection?[selection]:ordinary;
+    }catch{cart=[];buyNowActive=false;}
     updateCount();
+    const existing=$("buyNowBackToBag");
+    if(buyNowActive&&!existing){
+      const link=document.createElement("a");
+      link.id="buyNowBackToBag";link.href="order.html?bag=1";
+      link.className="btn btn-light";link.textContent="← Back to bag";
+      link.style.cssText="display:inline-flex;margin-top:9px;min-height:44px;align-items:center";
+      $("bagHeading")?.insertAdjacentElement("afterend",link);
+    }else if(!buyNowActive&&existing)existing.remove();
   }
   function save(){
-    try{localStorage.setItem(CART_KEY,JSON.stringify(cart));}
-    catch{msg("Your browser could not save the cart. Check available storage and try again.","error");}
+    try{
+      if(buyNowActive){
+        if(cart.length)window.RainbowCatalogue?.startBuyNow(cart[0]);
+        else{window.RainbowCatalogue?.clearBuyNow();buyNowActive=false;}
+      }else localStorage.setItem(CART_KEY,JSON.stringify(cart));
+    }catch{msg("Your browser could not save this selection. Check device storage.","error");}
     updateCount();
   }
   function updateCount(){
@@ -42,7 +59,8 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
     const count=cart.reduce((n,x)=>n+Number(x.quantity||0),0);
     if(el)el.textContent=count;
     const badge=$("bagItemCount");
-    if(badge)badge.textContent=count===0?"Your bag is empty":count+" "+(count===1?"item":"items")+" in your bag";
+    if(badge)badge.textContent=buyNowActive?"Buying now: "+count+" "+(count===1?"item":"items"):
+      count===0?"Your bag is empty":count+" "+(count===1?"item":"items")+" in your bag";
   }
   function msg(text,kind=""){
     const el=$("orderMsg");
