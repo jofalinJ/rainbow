@@ -10,7 +10,7 @@
   const discovery=window.RainbowDiscovery;
   const catalogue=window.RainbowCatalogue;
   const paging={epoch:0,loading:false,hasMore:true,total:0,offset:0,autoPages:0,error:""};
-  let promotionProducts=[],newestProducts=[],metadataLoading=false,loaderObserver=null,showAllProducts=false;
+  let promotionProducts=[],newestProducts=[],metadataLoading=false,metadataError=false,loaderObserver=null,showAllProducts=false;
   const filterState={minPrice:"",maxPrice:"",color:"",size:"",length:"",inStock:true};
   let catalogueSort="featured";
   const track=(name,detail={})=>window.RainbowAnalytics?.track(name,detail);
@@ -364,6 +364,19 @@
     let products=catalogueProducts;
     if(visualSearchSignature)products=products.slice().sort((a,b)=>(visualSearchScores.get(String(b.id))??-1)-(visualSearchScores.get(String(a.id))??-1));
     visibleProducts=products;
+    // Failed requests never masquerade as an empty inventory.
+    if(!products.length&&paging.error){
+      if(status)status.textContent="Catalogue unavailable";
+      grid.innerHTML='<div class="catalogue-error" role="alert">'+
+        '<p>Couldn\'t load jewellery. Check your connection and try again.</p>'+
+        '<button type="button" id="catalogueRetry">Retry</button></div>';
+      renderPager(false);return;
+    }
+    if(!products.length&&paging.loading){
+      if(status)status.textContent="Loading jewellery…";
+      grid.innerHTML='<div class="catalogue-skeleton" aria-label="Loading jewellery"></div>'.repeat(8);
+      renderPager(false);return;
+    }
 
     const filtersActive=Object.entries(filterState).some(([key,value])=>key!=="inStock"&&value!=="");
     const categoryLanding=!window.matchMedia("(max-width:767px)").matches&&!showAllProducts&&!activeCategory&&!activeSearch&&!visualSearchSignature&&!wishlistOnly&&!filtersActive&&catalogueSort==="featured";
@@ -419,10 +432,9 @@
         "<button type='button' class='product-wishlist-button"+(saved?" is-saved":"")+"' data-wishlist-product='"+esc(p.id)+"' aria-label='"+(saved?"Remove ":"Add ")+esc(p.product_name)+(saved?" from":" to")+" wishlist' aria-pressed='"+saved+"'>"+(saved?"♥":"♡")+"</button></div>"+
         "<div class='product-body'><h3 class='product-name'>"+esc(p.product_name)+"</h3><div class='product-type'>"+esc(categoryFor(p))+"</div>"+
         "<div class='product-meta'><strong class='product-price'>"+money(p.selling_price)+"</strong><span class='product-stock "+stockClass+"'>"+stockText+"</span></div><div class='product-card-actions'><button type='button' data-product-open>Quick view</button><a href='product.html?sku="+encodeURIComponent(p.product_code||"")+"'>Details ↗</a></div></div></article>";
-    }).join(""):"<div class='product-empty'>"+(wishlistOnly?"Nothing saved yet. Tap a heart to save a design.":activeSearch?"No matches. Try another search or category.":visualSearchSignature?"No visual matches could be ranked for this image. Try a clearer photo or search by name.":activeCategory?"No "+esc(activeCategory.toLowerCase())+" products are currently in stock.":"No jewellery is available right now.")+"</div>";
+    }).join(""):"<div class='product-empty'>"+(wishlistOnly?"Nothing saved yet. Tap a heart to save a design.":activeSearch?"No matches. Try another search or category.":visualSearchSignature?"No visual matches could be ranked for this image. Try a clearer photo or search by name.":activeCategory?"No "+esc(activeCategory.toLowerCase())+" products are currently in stock.":"No jewellery listed yet.")+"</div>";
     renderPager(false);
     if(appendOnly)grid.insertAdjacentHTML("beforeend",rendered);
-    else if(!products.length&&paging.loading)grid.innerHTML='<div class="catalogue-skeleton" aria-label="Loading jewellery"></div>'.repeat(8);
     else grid.innerHTML=rendered;
     grid.querySelectorAll("[data-product-id]:not([data-shop-bound])").forEach(card=>{
       card.dataset.shopBound="true";
@@ -1184,9 +1196,13 @@
   async function loadMoreProducts(manual=false){
     if(!client||!catalogue||paging.loading||(!paging.hasMore&&!paging.error))return;
     const epoch=paging.epoch;
-    paging.loading=true;paging.error="";renderPager(false);
+    paging.loading=true;paging.error="";render();
+    let deadline=null;
     try{
-      const response=await catalogue.page(client,{...pageFilters(),offset:paging.offset,limit:catalogue.PAGE_SIZE});
+      const response=await Promise.race([
+        catalogue.page(client,{...pageFilters(),offset:paging.offset,limit:catalogue.PAGE_SIZE}),
+        new Promise((_,reject)=>{deadline=setTimeout(()=>reject(new Error("Catalogue request timed out")),10000);})
+      ]);
       if(epoch!==paging.epoch)return;
       const known=new Set(catalogueProducts.map(product=>String(product.id)));
       for(const product of response.items){
@@ -1202,21 +1218,27 @@
     }catch(error){
       if(epoch!==paging.epoch)return;
       console.warn("Catalogue page failed",error);
-      paging.error="Check your connection and retry.";
-      const state=document.getElementById("productStatus");
-      if(state)state.textContent="Could not load jewellery right now.";
+      paging.error="Check your connection and try again.";
     }finally{
-      if(epoch===paging.epoch){paging.loading=false;renderPager(false);}
+      if(deadline!==null)clearTimeout(deadline);
+      if(epoch===paging.epoch){paging.loading=false;render();renderPager(false);}
     }
   }
   function resetCatalogue(){
     paging.epoch++;paging.offset=0;paging.total=0;paging.loading=false;paging.error="";
     paging.hasMore=true;paging.autoPages=0;
-    catalogueProducts=[];visibleProducts=[];render();
+    catalogueProducts=[];visibleProducts=[];
     return loadMoreProducts();
   }
   function bindCataloguePaging(){
     document.getElementById("loadMoreProducts")?.addEventListener("click",()=>loadMoreProducts(true));
+    // Delegation survives skeleton/error/grid replacements without duplicate listeners.
+    document.getElementById("productGrid")?.addEventListener("click",event=>{
+      if(!event.target.closest("#catalogueRetry"))return;
+      if(metadataError){void loadProducts();return;}
+      if(paging.error&&paging.offset>0)void loadMoreProducts(true);
+      else void resetCatalogue();
+    });
     const sentinel=document.getElementById("catalogueSentinel");
     if(sentinel&&"IntersectionObserver" in window){
       loaderObserver=new IntersectionObserver(entries=>{
@@ -1241,7 +1263,8 @@
   }
   async function loadProducts(){
     if(metadataLoading)return;
-    metadataLoading=true;
+    metadataLoading=true;metadataError=false;
+    paging.loading=true;paging.error="";render();
     const status=document.getElementById("productStatus");
     try{
       if(!catalogue)throw new Error("Catalogue discovery module was not loaded.");
@@ -1265,10 +1288,13 @@
       renderMobileCategories();
       renderLatestArrivals();
       renderPromotion();
+      paging.loading=false;
       await resetCatalogue();
     }catch(error){
       console.warn("Catalogue metadata unavailable",error);
-      if(status)status.textContent="Products are temporarily unavailable. Please try again.";
+      metadataError=true;paging.error="Check your connection and try again.";
+      paging.loading=false;render();
+      if(status)status.textContent="Catalogue unavailable";
       const categoryLoading=document.querySelector("#mobileCategoryTrack .mobile-category-loading");
       if(categoryLoading)categoryLoading.textContent="Collections are temporarily unavailable. Refresh to try again.";
     }finally{metadataLoading=false;}
