@@ -304,7 +304,8 @@ test("valid payment.captured webhook rechecks provider and settles",async()=>{
 
 const liveEnv={...baseEnv,PAYMENTS_MODE:"live",
   RAZORPAY_LIVE_KEY_ID:"rzp_live_Example123",RAZORPAY_LIVE_KEY_SECRET:"live-secret",
-  RAZORPAY_LIVE_WEBHOOK_SECRET:"live-webhook",LIVE_PAYMENTS_RELEASED:"true"};
+  RAZORPAY_LIVE_WEBHOOK_SECRET:"live-webhook",LIVE_PAYMENTS_RELEASED:"true",
+  ALLOWED_ORIGINS:"https://rainbowgoldcovering.com,https://jofalinj.github.io"};
 test("live mode requires a separate release flag and dedicated live keys",async()=>{
   assert.equal(isLiveConfigured({...baseEnv,PAYMENTS_MODE:"live"}),false);
   assert.equal(isLiveConfigured({...liveEnv,LIVE_PAYMENTS_RELEASED:"false"}),false);
