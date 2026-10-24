@@ -5,6 +5,79 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
   const SUPABASE_URL=String(CONFIG.supabaseUrl||"").trim();
   const KEY=String(CONFIG.supabasePublishableKey||"").trim();
   const CART_KEY="rainbow_cart_v1";
+  // UX-09: minimal, expiring local receipt. No address or full phone number.
+  const PENDING_KEY="rainbow_pending_upi_v1";
+  const PENDING_TTL=24*60*60*1000;
+  let pendingRecord=null;
+  function readPendingRecord(){
+    try{
+      const data=JSON.parse(localStorage.getItem(PENDING_KEY)||"null");
+      if(!data||!data.checkout_id||!data.order_number||!Number.isFinite(data.created_at)||
+        !Array.isArray(data.items))return null;
+      if(Date.now()-data.created_at>PENDING_TTL){
+        localStorage.removeItem(PENDING_KEY);return null;
+      }
+      return data;
+    }catch{return null;}
+  }
+  function writePendingRecord(value){
+    try{localStorage.setItem(PENDING_KEY,JSON.stringify(value));pendingRecord=value;return true;}
+    catch{msg("Could not save your pending order on this device.","error");return false;}
+  }
+  function removePendingRecord(){
+    try{localStorage.removeItem(PENDING_KEY);}catch{}
+    pendingRecord=null;
+  }
+  function minimalCartSnapshot(){
+    return cart.map(item=>({
+      variant_id:String(item.variant_id),quantity:Number(item.quantity),
+      variant_label:String(item.variant_label||""),
+      product:{
+        id:String(item.product?.id||""),
+        product_code:String(item.product?.product_code||""),
+        product_name:String(item.product?.product_name||""),
+        selling_price:Number(item.product?.selling_price||0),
+        image:String(item.product?.image||"")
+      }
+    }));
+  }
+  function persistPendingQuote(data,checkoutId){
+    const prior=pendingRecord?.checkout_id===checkoutId?pendingRecord:null;
+    return writePendingRecord({
+      checkout_id:checkoutId,order_number:String(data.order_number),
+      created_at:prior?.created_at||Date.now(),
+      items:prior?.items||minimalCartSnapshot(),
+      amounts:{
+        subtotal:Number(data.subtotal),discount_amount:Number(data.discount_amount),
+        cgst_amount:Number(data.cgst_amount),sgst_amount:Number(data.sgst_amount),
+        delivery_fee:Number(data.delivery_fee),total_amount:Number(data.total_amount)
+      },
+      status:prior?.status||"awaiting_payment",
+      phone_last4:String($("phone")?.value||"").replace(/\D/g,"").slice(-4),
+      recovery_token:typeof data.recovery_token==="string"?data.recovery_token:(prior?.recovery_token||""),
+      request_id:prior?.request_id||""
+    });
+  }
+  function renderPendingBanner(message=""){
+    const box=$("pendingCheckoutBanner");
+    if(!box)return;
+    box.hidden=!pendingRecord&&!message;
+    if(box.hidden)return;
+    const record=pendingRecord;
+    const order=record?.order_number||"";
+    const current=record?.status||"pending";
+    const text=message||(current==="awaiting_payment"
+      ?"Order "+order+" is awaiting your UPI reference. Do not create another order."
+      :"Order "+order+" is waiting for payment verification. Please do not pay again.");
+    $("pendingCheckoutMessage").textContent=text;
+    const correct=$("pendingCheckoutCorrect");
+    if(correct)correct.hidden=!record||!["awaiting_payment","pending"].includes(current);
+    const status=$("pendingCheckoutStatus");
+    if(status)status.hidden=!record;
+    const restore=$("pendingCheckoutReturn");
+    if(restore)restore.hidden=current!=="declined"&&current!=="cancelled";
+  }
+
   const $=id=>document.getElementById(id);
   const sb=window.supabase?.createClient&&SUPABASE_URL&&KEY
     ?window.supabase.createClient(SUPABASE_URL,KEY):null;
@@ -27,6 +100,8 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
   const selectedPaymentMethod=()=>document.querySelector('input[name="paymentMethod"]:checked')?.value||"upi";
 
   function read(){
+    pendingRecord=readPendingRecord();
+    renderPendingBanner();
     try{
       if(new URLSearchParams(location.search).has("bag"))window.RainbowCatalogue?.clearBuyNow();
       const saved=JSON.parse(localStorage.getItem(CART_KEY)||"[]");
@@ -119,6 +194,8 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
   async function preparePending(){
     pendingTimer=null;
     if(pendingBusy||pendingAttempted||!sb||selectedPaymentMethod()!=="upi")return;
+    // Prevent a second stock reservation while another local pending order exists.
+    if(pendingRecord){renderPendingBanner();return;}
     if(!cartVerified||cartVerificationFailed||!cart.length||!cart.every(cartItemHasStock)||
        Object.keys(deliveryErrors()).length)return;
     const signature=snapshot();if(signature!==pendingFingerprint)return;
@@ -143,6 +220,11 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
       if(paise(data.total_amount)!==paise(totals().total)){
         pendingError="Prices changed, please review your bag.";return;
       }
+      if(!persistPendingQuote(data,key)){
+        pendingError="Cannot safely remember this order. Payment is unavailable.";
+        return;
+      }
+      renderPendingBanner();
       pending={checkout_id:key,order_number:String(data.order_number),
         amounts:Object.fromEntries(names.map(name=>[name,Number(data[name])]))};
       paintQR();
@@ -505,6 +587,14 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
       });
       if(!data||data.order_number!==pending.order_number||data.payment_status!=="pending")
         throw new Error("The pending payment status could not be verified.");
+      if(pendingRecord?.checkout_id===pending.checkout_id){
+        pendingRecord.status="pending";
+        pendingRecord.request_id=pendingSubmitKey;
+        if(!writePendingRecord(pendingRecord)){
+          msg("Order submitted, but this device could not save your receipt. Keep order "+pending.order_number+".","error");
+        }
+        renderPendingBanner();
+      }
       const paymentStep=document.getElementById("paymentStep");
       const addressStep=document.getElementById("addressStep");
       if(paymentStep)paymentStep.classList.add("is-active");
