@@ -69,11 +69,10 @@
         <label class="checkout-whatsapp-consent"><input id="whatsappReceiptConsent" type="checkbox"> <span>Yes, WhatsApp me my confirmation and invoice link after payment verification (optional).</span></label>
       </div>
       <div id="manualPaymentDetails" class="payment-method-detail">
-        <p id="qrUnavailable" class="gateway-status">Select a state to see the payable amount.</p>
-        <div id="checkoutQR" class="payment-qr-card checkout-qr" hidden>
-          <img src="assets/brand/pay.png" alt="Shop UPI QR code. Verify recipient name before paying." width="176" height="176">
-          <div><strong>Scan to pay</strong><p>Confirm the recipient and amount in your UPI app.</p><p class="payment-total">Pay <b id="paymentDueTotal">—</b></p></div>
-        </div>
+        <p id="qrUnavailable" class="gateway-status" role="status" aria-live="polite">Complete delivery details to unlock UPI payment.</p>
+        <button id="retryPendingCheckout" type="button" class="payment-retry" hidden>Retry secure checkout</button>
+        <!-- No real-money QR image exists in the DOM until the server locks the exact total. -->
+        <div id="checkoutQR" class="payment-qr-card checkout-qr" hidden></div>
         <label id="paymentReferenceGroup" class="payment-reference-label">UPI reference (UTR)
           <input id="paymentReference" autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="text" minlength="8" maxlength="64" placeholder="Enter after payment" title="8–64 letters, numbers or hyphens">
         </label>
