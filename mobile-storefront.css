@@ -233,15 +233,18 @@
   /* Full product detail route — existing variant/stock JS stays unchanged. */
   body:has(.detail-page){background:white}
   body:has(.detail-page) .topbar .nav{
-    display:grid!important;grid-template-columns:1fr auto;align-items:center!important;
-    gap:8px;padding:8px 0!important;min-height:67px!important}
+    display:grid!important;grid-template-columns:44px minmax(0,1fr) auto;align-items:center!important;
+    gap:7px;padding:8px 0!important;min-height:67px!important}
   body:has(.detail-page) .topbar .logo{position:static!important;transform:none!important;
     flex-direction:row;justify-self:start;align-items:center;min-width:0;gap:6px;max-width:100%}
   body:has(.detail-page) .topbar .logo .brand-logo{width:30px;height:30px}
   body:has(.detail-page) .topbar .logo strong{font-size:12px}
   body:has(.detail-page) .topbar .logo small{font-size:6px}
   body:has(.detail-page) .topbar .nav .btn{padding:9px 10px;font-size:10px;min-height:40px}
-  body:has(.detail-page) .topbar .nav > a[href="index.html#products"]{display:none!important}
+  body:has(.detail-page) .topbar .detail-back-link{grid-column:1;grid-row:1;display:flex!important;align-items:center;justify-content:center;width:44px;min-width:44px;height:44px;min-height:44px!important;padding:0!important;font-size:22px!important;border-radius:12px}
+  body:has(.detail-page) .topbar .detail-back-text{display:none!important}
+  body:has(.detail-page) .topbar .logo{grid-column:2;grid-row:1}
+  body:has(.detail-page) .topbar .nav>a[href="order.html"]{grid-column:3;grid-row:1;justify-self:end;min-height:44px!important;display:flex;align-items:center}
   .detail-page{padding-top:13px;padding-bottom:48px}
   .product-crumb{font-size:11px;margin:12px 0 17px}
   .detail-grid{gap:19px}
