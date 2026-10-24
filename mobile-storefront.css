@@ -241,7 +241,7 @@
   body:has(.detail-page) .topbar .logo strong{font-size:12px}
   body:has(.detail-page) .topbar .logo small{font-size:6px}
   body:has(.detail-page) .topbar .nav .btn{padding:9px 10px;font-size:10px;min-height:40px}
-  body:has(.detail-page) .topbar .nav .btn:nth-of-type(1){display:none}
+  body:has(.detail-page) .topbar .nav > a[href="index.html#products"]{display:none!important}
   .detail-page{padding-top:13px;padding-bottom:48px}
   .product-crumb{font-size:11px;margin:12px 0 17px}
   .detail-grid{gap:19px}
