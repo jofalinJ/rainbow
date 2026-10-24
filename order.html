@@ -7,10 +7,12 @@
   <div><span class="section-kicker">SECURE CHECKOUT</span><h1>Almost yours.</h1><p>Review your bag, address and payment.</p></div>
   <a class="btn btn-light checkout-back" href="index.html#products">← Continue shopping</a>
 </div>
-<nav class="checkout-progress" aria-label="Checkout progress">
-  <span class="checkout-step is-complete"><b>1</b> Bag</span>
-  <span class="checkout-step is-active" id="addressStep"><b>2</b> Delivery</span>
-  <span class="checkout-step" id="paymentStep"><b>3</b> Pay</span>
+<nav aria-label="Checkout progress">
+  <ol class="checkout-progress">
+    <li id="bagStep" class="checkout-step is-active" aria-current="step"><b aria-hidden="true">1</b><span>Bag</span><span class="visually-hidden" data-step-announcement>Step 1 of 3: Bag, current</span></li>
+    <li id="addressStep" class="checkout-step"><b aria-hidden="true">2</b><span>Delivery</span><span class="visually-hidden" data-step-announcement>Step 2 of 3: Delivery</span></li>
+    <li id="paymentStep" class="checkout-step"><b aria-hidden="true">3</b><span>Pay</span><span class="visually-hidden" data-step-announcement>Step 3 of 3: Pay</span></li>
+  </ol>
 </nav>
 <section id="pendingCheckoutBanner" class="pending-checkout-banner" aria-labelledby="pendingCheckoutTitle" hidden>
   <h2 id="pendingCheckoutTitle">Payment verification pending</h2>
