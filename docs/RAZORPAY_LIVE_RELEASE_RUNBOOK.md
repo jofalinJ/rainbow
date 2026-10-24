@@ -74,3 +74,19 @@ Merely adding live secrets will **NOT** enable charges.
 Official references:
 - https://razorpay.com/docs/payments/payment-gateway/web-integration/standard/integration-steps/
 - https://razorpay.com/docs/webhooks/
+
+
+## Standard Checkout integration verification (24 October 2026)
+
+This repository already has the three requested integration steps:
+- Backend: `POST /api/razorpay/create` in `backend/rainbow-api/src/routes/razorpay.js` creates a database-priced INR order via the Razorpay Orders HTTPS API, with stock reservation and idempotency. The authoritative checkout amount must be an integer of at least **100 paise**.
+- Frontend: `order.html`, `order.js` and `order-razorpay.mjs` load the Razorpay Standard Checkout SDK from `https://checkout.razorpay.com/v1/checkout.js` and handle cancel, `payment.failed`, and success. A failed attempt never confirms an order; successful callbacks are sent to the backend.
+- Backend: `POST /api/razorpay/verify` HMAC-verifies the signed payment using the **server-side order ID**, fetches Razorpay's payment status, checks amount, currency, order ID, and requires **captured** before settling the order in Supabase. Signed capture webhooks also reconcile completed payments after the buyer closes the browser.
+
+Both routes use the existing `/api/razorpay/` namespace rather than duplicate `/api/create-order` or `/api/verify-payment` endpoints. No Razorpay Node SDK needs installing: Cloudflare Workers uses the provider's documented HTTPS API with native `fetch` and Web Crypto.
+
+Secrets: `.env` is already ignored. Local Wrangler development uses `backend/rainbow-api/.dev.vars`, ignored by Git, created by copying `.dev.vars.example` and filling values **locally**. Production always uses encrypted Cloudflare Worker Secrets. Do not commit any filled secret file.
+
+Error responses: malformed JSON returns HTTP 400, oversized bodies return 413, insufficient verified amount returns 422, invalid signature returns 401, and provider failures fail closed without leaking upstream diagnostics. The merchant's upstream credential problems appear as temporary service unavailability to buyers rather than asking customers to authenticate.
+
+GitHub verification on this branch: **190/190** unit tests passed, **35/35** Cloudflare API tests passed, no detected npm audit vulnerabilities. These CI checks do not substitute for a merchant-authorized LIVE transaction, provider approval or a tax/legal review.
