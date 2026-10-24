@@ -197,7 +197,7 @@ body:has(.order-page) .order-page{padding:44px 0 110px}
 .pending-checkout-banner button{
   min-height:44px;border:1px solid #9c703f;border-radius:999px;
   background:#fffdfa;color:#76232a;padding:9px 14px;
-  font:700 12px/1.4 inherit;cursor:pointer
+  font-family:inherit;font-weight:700;font-size:12px;line-height:1.4;cursor:pointer
 }
 .pending-checkout-banner button:disabled{opacity:.55;cursor:wait}
 .pending-checkout-banner label{display:block;font-size:12px;font-weight:700;margin-top:12px}
