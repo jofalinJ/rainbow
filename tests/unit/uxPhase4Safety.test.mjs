@@ -28,7 +28,7 @@ describe("UX-18 no-photo treatment and photo count",()=>{
   it("never creates a photo counter on an empty gallery",()=>{
     expect(shop).toContain("(images.length?'<span");
     expect(shop).toContain('data-gallery-count');
-    expect(shop).not.toContain(`'<span class="gallery-count" data-gallery-count>1 / '+images.length`);
+    expect(shop).toContain("+'</span>':'')+'</div>'+");
     expect(detail).toContain("img.hidden=true;");
   });
 });
