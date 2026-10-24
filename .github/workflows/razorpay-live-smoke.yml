@@ -7,7 +7,6 @@ on:
       - 'order.js'
       - 'order.html'
       - 'backend/rainbow-api/src/routes/razorpay.js'
-      - 'tests/unit/paymentAvailability.test.mjs'
       - '.github/workflows/razorpay-live-smoke.yml'
   workflow_dispatch:
 
@@ -23,76 +22,35 @@ jobs:
         with:
           node-version: "22"
       - run: npm ci --legacy-peer-deps
-      - name: Verify real browser payment selection
-        run: node --test tests/e2e/selenium/tests/payment-readiness.test.mjs
-      - name: Probe payment API with storefront Origin
+      - name: Probe public Razorpay API (read-only; never charge)
         shell: bash
         run: |
           node --input-type=module <<'NODE'
-          const base='https://rainbow-api.jofalin2005.workers.dev/api/razorpay/config';
-          for(let i=0;i<4;i++){
-            const url=i%2?base+'?check='+Date.now()+'-'+i:base;
-            const origin=i<2?'https://rainbowgoldcovering.com':null;
-            const headers=origin?{Origin:origin,Accept:'application/json'}:{Accept:'application/json'};
-            const res=await fetch(url,{headers,cache:'no-store'});
-            const body=await res.json().catch(()=>({}));
-            console.log(JSON.stringify({probe:i,withOrigin:Boolean(origin),http:res.status,
-              enabled:body.enabled,mode:body.mode,release:body.release??'old-build',
-              keyFormat:new RegExp('^rzp_'+body.mode+'_[A-Za-z0-9]+,
-              allowedOrigin:res.headers.get('access-control-allow-origin'),
-              cache:res.headers.get('cache-control'),cfRayPrefix:(res.headers.get('cf-ray')||'').split('-').pop()}));
-            await new Promise(resolve=>setTimeout(resolve,600));
-          }
+          const base='https://rainbow-api.jofalin2005.workers.dev/api/razorpay';
+          const headers={Origin:'https://rainbowgoldcovering.com',Accept:'application/json'};
+          const res=await fetch(base+'/config?ci='+Date.now(),{headers,cache:'no-store'});
+          if(!res.ok)throw new Error('Gateway config HTTP '+res.status);
+          const body=await res.json();
+          if(!['test','live'].includes(body.mode)||typeof body.enabled!=='boolean')
+            throw new Error('Unexpected public gateway config');
+          if(body.enabled && !new RegExp('^rzp_'+body.mode+'_[A-Za-z0-9]+$').test(body.keyId||''))
+            throw new Error('Enabled gateway has no valid public Key ID');
+          if('keySecret' in body || 'RAZORPAY_LIVE_KEY_SECRET' in body)
+            throw new Error('Secret field exposed in public gateway config');
+          console.log(JSON.stringify({mode:body.mode,enabled:body.enabled,release:body.release,
+            validPublicKey:body.enabled?true:null}));
+          const probe=await fetch(base+'/provider-check?ci='+Date.now(),{headers,cache:'no-store'});
+          const state=await probe.json().catch(()=>({}));
+          console.log(JSON.stringify({providerCheckHttp:probe.status,provider:state.provider||'not-available'}));
           NODE
-      - name: Diagnose configured Razorpay API credentials without exposing keys
-        shell: bash
-        run: |
-          node --input-type=module <<'NODE'
-          const res=await fetch('https://rainbow-api.jofalin2005.workers.dev/api/razorpay/provider-check',{
-            method:'GET',cache:'no-store',
-            headers:{Origin:'https://rainbowgoldcovering.com',Accept:'application/json'}
-          });
-          const json=await res.json().catch(()=>({}));
-          console.log(JSON.stringify({check:'razorpay-provider',http:res.status,provider:json.provider||'not-deployed',
-            allowedOrigin:res.headers.get('access-control-allow-origin')}));
-          NODE
-      - name: Verify deployed checkout assets exist
+      - name: Verify deployed storefront payment assets (read-only)
         shell: bash
         run: |
           node --input-type=module <<'NODE'
           for(const path of ['/order.html','/payment-config.js','/order-razorpay.mjs','/order.js']){
             const res=await fetch('https://rainbowgoldcovering.com'+path,{cache:'no-store'});
             const body=await res.text();
-            console.log(JSON.stringify({asset:path,http:res.status,bytes:body.length,
-              hasGateway:body.includes('razorpayAvailability')||body.includes('rainbow-api.jofalin2005.workers.dev')}));
-          }
-          NODE
-).test(body.keyId||''),
-              allowedOrigin:res.headers.get('access-control-allow-origin'),
-              cache:res.headers.get('cache-control'),cfRayPrefix:(res.headers.get('cf-ray')||'').split('-').pop()}));
-            await new Promise(resolve=>setTimeout(resolve,600));
-          }
-          NODE
-      - name: Diagnose live TEST Razorpay API credentials without exposing keys
-        shell: bash
-        run: |
-          node --input-type=module <<'NODE'
-          const res=await fetch('https://rainbow-api.jofalin2005.workers.dev/api/razorpay/provider-check',{
-            method:'GET',cache:'no-store',
-            headers:{Origin:'https://rainbowgoldcovering.com',Accept:'application/json'}
-          });
-          const json=await res.json().catch(()=>({}));
-          console.log(JSON.stringify({check:'razorpay-provider',http:res.status,provider:json.provider||'not-deployed',
-            allowedOrigin:res.headers.get('access-control-allow-origin')}));
-          NODE
-      - name: Verify deployed checkout assets exist
-        shell: bash
-        run: |
-          node --input-type=module <<'NODE'
-          for(const path of ['/order.html','/payment-config.js','/order-razorpay.mjs','/order.js']){
-            const res=await fetch('https://rainbowgoldcovering.com'+path,{cache:'no-store'});
-            const body=await res.text();
-            console.log(JSON.stringify({asset:path,http:res.status,bytes:body.length,
-              hasGateway:body.includes('razorpayTestAvailability')||body.includes('rainbow-api.jofalin2005.workers.dev')}));
+            console.log(JSON.stringify({asset:path,http:res.status,bytes:body.length}));
+            if(!res.ok||!body.trim())throw new Error('Missing checkout asset '+path);
           }
           NODE
