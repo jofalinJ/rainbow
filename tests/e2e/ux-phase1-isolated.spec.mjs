@@ -18,6 +18,10 @@ const item=(code,name)=>({variant_id:variant,quantity:1,
 async function mockCheckout(page,{buyNow=false,quoteTotal=1049.10}={}){
   let prepares=0,submits=0;
   const bag=[item("ISOLATED-A","Isolated Bangle")];
+  if(buyNow)bag.push({...item("ISOLATED-C","Isolated Necklace"),
+    variant_id:"55555555-5555-4555-8555-555555555555",
+    product:{...bag[0].product,id:"66666666-6666-4666-8666-666666666666",
+      product_name:"Isolated Necklace",product_code:"ISOLATED-C"}});
   await page.addInitScript(({bag,buyNow})=>{
     localStorage.setItem("rainbow_cart_v1",JSON.stringify(bag));
     const selected={
@@ -29,11 +33,13 @@ async function mockCheckout(page,{buyNow=false,quoteTotal=1049.10}={}){
     const mockRows={
       product_variants:[
         {id:bag[0].variant_id,product_id:bag[0].product.id,stock_quantity:9,active:true,color:"",size:""},
+        ...(buyNow?[{id:bag[1].variant_id,product_id:bag[1].product.id,stock_quantity:9,active:true,color:"",size:""}]:[]),
         {id:selected.variant_id,product_id:selected.product.id,stock_quantity:9,active:true,color:"",size:""}
       ],
       products:[
         {id:bag[0].product.id,product_code:"ISOLATED-A",product_name:"Isolated Bangle",
           type:"Bangle",selling_price:1000,description:"Fixture",active:true,product_images:[]},
+        ...(buyNow?[{id:bag[1].product.id,product_code:"ISOLATED-C",product_name:"Isolated Necklace",type:"Necklace",selling_price:1000,description:"Fixture",active:true,product_images:[]}]:[]),
         {id:selected.product.id,product_code:"ISOLATED-B",product_name:"Buy now selected design",
           type:"Ring",selling_price:1000,description:"Fixture",active:true,product_images:[]}
       ]
@@ -104,8 +110,8 @@ test.describe("Phase 1 isolated checkout at 390x844",()=>{
     await page.locator("#buyNowBackToBag").click();
     await expect(page.locator("#orderItems")).toContainText("Isolated Bangle");
     const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem("rainbow_cart_v1")));
-    expect(saved).toHaveLength(1);
-    expect(saved[0].product.product_name).toBe("Isolated Bangle");
+    expect(saved).toHaveLength(2);
+    expect(saved.map(x=>x.product.product_name)).toEqual(["Isolated Bangle","Isolated Necklace"]);
   });
   test("UX-03: Escape cancels and confirmation clears locally",async({page})=>{
     await mockCheckout(page);await page.goto(base+"/order.html");
