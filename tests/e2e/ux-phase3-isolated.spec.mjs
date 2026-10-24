@@ -11,8 +11,8 @@ if(process.env.E2E_ISOLATED_ENV!=="true" ||
    !/^http:\/\/(?:127\.0\.0\.1|localhost):\d+$/.test(base))
   throw new Error("Phase 3 audit refuses nonlocal execution or unapproved network.");
 
-async function fixture(page,{failCatalogue=false}={}){
-  await page.addInitScript(({failCatalogue})=>{
+async function fixture(page,{failCatalogue=false,categoryCountFails=false}={}){
+  await page.addInitScript(({failCatalogue,categoryCountFails})=>{
     const product={id:"11111111-1111-4111-8111-111111111111",product_code:"ISOLATED-RING",
       product_name:"Isolated long jewellery design for keyboard and wrapping test",
       type:"Bangle",gender:"women",category_id:"22222222-2222-4222-8222-222222222222",
@@ -35,7 +35,9 @@ async function fixture(page,{failCatalogue=false}={}){
         if(failCatalogue)return Promise.resolve({data:null,error:{message:"OFFLINE TEST"}}).then(resolve,reject);
         if(this.table==="categories")return Promise.resolve({data:[catA,catB],error:null}).then(resolve,reject);
         if(this.table==="storefront_promotion_items")return Promise.resolve({data:[],error:null}).then(resolve,reject);
-        if(this.table==="product_variants")return Promise.resolve({data:null,error:null,count:this.targetCat===catA.id?1:0}).then(resolve,reject);
+        if(this.table==="product_variants")return Promise.resolve(categoryCountFails?
+          {data:null,error:{message:"Count endpoint unavailable"}}:
+          {data:null,error:null,count:this.targetCat===catA.id?1:0}).then(resolve,reject);
         if(this.table==="products")return Promise.resolve({data:[product],count:1,error:null}).then(resolve,reject);
         return Promise.resolve({data:[],count:0,error:null}).then(resolve,reject);
       }
@@ -47,7 +49,7 @@ async function fixture(page,{failCatalogue=false}={}){
         removeChannel(){return Promise.resolve()}
       })
     }});
-  },{failCatalogue});
+  },{failCatalogue,categoryCountFails});
   await page.route("**/*",route=>{
     const url=new URL(route.request().url());
     if(url.origin===base)return route.continue();
@@ -89,6 +91,14 @@ for(const [width,height] of [[320,568],[360,800],[390,844],[430,932]]){
       await expect(page.locator(".product-card-quick-view").first()).toBeFocused();
       console.log("Touch target sweep",width,await scanTouchTargets(page));
       if(width===390)await page.screenshot({path:"tests/artifacts/ux-phase3/home-390.png",fullPage:true});
+    });
+    test("UX-11: category-count outage leaves catalogue usable and Retry visible",async({page})=>{
+      await fixture(page,{categoryCountFails:true});
+      await page.goto(base+"/index.html");
+      await expect(page.locator("#mobileCategoryRetry")).toBeVisible();
+      await expect(page.locator(".product-card-quick-view")).toHaveCount(1);
+      await expect(page.locator("#mobileCategoryTrack [data-mobile-category='Bracelet']")).toHaveCount(0);
+      await assertWidth(page);
     });
     test("UX-16: offline shows error, never says No jewellery listed yet",async({page})=>{
       await fixture(page,{failCatalogue:true});
