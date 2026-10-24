@@ -883,3 +883,18 @@
   .payment-price-source{margin:5px 0 0;font-size:11px;line-height:1.5;color:#6b584b}
 }
 @media(min-width:768px){.payment-price-breakdown{display:none}}
+
+
+/* UX-13: prevent iOS Safari zoom from undersized customer text fields.
+   This CSS is linked on customer pages only; staff/admin styles unchanged. */
+@media(max-width:767px){
+  .account-auth-form :is(input,select,textarea),
+  .detail-picker,
+  .detail-page :is(input:not([type="checkbox"]),select,textarea),
+  .order-page :is(input:not([type="checkbox"]):not([type="radio"]),select,textarea),
+  .live-products :is(input:not([type="checkbox"]),select,textarea),
+  .storefront-search-form input,
+  .utility-modal :is(input,select,textarea),
+  input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+  select,textarea {font-size:16px!important}
+}
