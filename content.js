@@ -213,6 +213,13 @@
   const mobileCategoryStockCounts=new Map();
   let mobileCategoryCountsReady=false;
   let mobileCategorySignature="";
+  function withCatalogueTimeout(task){
+    let timer;
+    return Promise.race([
+      task,
+      new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error("Catalogue request timed out")),10000);})
+    ]).finally(()=>clearTimeout(timer));
+  }
   // Server-side exact counts: never infer category emptiness from a paginated page.
   async function loadCategoryStockCounts(){
     mobileCategoryCountsReady=false;
@@ -1268,21 +1275,21 @@
     const status=document.getElementById("productStatus");
     try{
       if(!catalogue)throw new Error("Catalogue discovery module was not loaded.");
-      const [categoriesResult,promotionResult]=await Promise.all([
+      const [categoriesResult,promotionResult]=await withCatalogueTimeout(Promise.all([
         client.from("categories").select("id,name,storefront_order,show_in_storefront")
           .eq("active",true).order("storefront_order",{ascending:true}).order("name",{ascending:true}),
         client.from("storefront_promotion_items").select("product_id,display_order").order("display_order",{ascending:true}).limit(8)
-      ]);
+      ]));
       if(categoriesResult.error)throw categoriesResult.error;
       catalogueCategories=categoriesResult.data||[];
       // Await authoritative counts before drawing the mobile rail: no empty flash.
-      await loadCategoryStockCounts();
+      await withCatalogueTimeout(loadCategoryStockCounts());
       promotionProductIds=promotionResult.error?[]:(promotionResult.data||[]).map(p=>String(p.product_id));
-      const [latestResult,promotionResultPage]=await Promise.all([
+      const [latestResult,promotionResultPage]=await withCatalogueTimeout(Promise.all([
         catalogue.page(client,{sort:"newest",limit:4}),
         promotionProductIds.length?catalogue.page(client,{wishlistIds:promotionProductIds,limit:8})
           :Promise.resolve({items:[]})
-      ]);
+      ]));
       newestProducts=latestResult.items;
       promotionProducts=promotionResultPage.items;
       renderMobileCategories();
