@@ -842,3 +842,14 @@
   .checkout-mode,.manual-label{font-size:8px!important}
   .checkout-layout .order-card{padding:15px 13px!important}
 }
+
+/* UX-05 — accessible blocked payment action still receives focus/clicks
+   so checkout can identify and focus the first invalid field. */
+@media(max-width:767px){
+  .checkout-summary-card .place-order[aria-disabled="true"]{
+    opacity:.64;cursor:not-allowed;
+  }
+  .checkout-layout :is(input,select,textarea)[aria-invalid="true"]{
+    border-color:#97232c!important;box-shadow:0 0 0 2px rgba(151,35,44,.13);
+  }
+}
