@@ -383,6 +383,23 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
     const errors=deliveryErrors();
     if(focusDeliveryError(errors))return;
     if($("placeOrder")?.dataset.checkoutReady!=="true"){
+      if(selectedPaymentMethod()==="upi"&&lockedAmounts()&&
+         !/^[A-Za-z0-9-]{8,64}$/.test(String($("paymentReference")?.value||"").trim())){
+        const input=$("paymentReference");
+        input.setAttribute("aria-invalid","true");
+        let hint=$("paymentReferenceError");
+        if(!hint){
+          hint=document.createElement("small");hint.id="paymentReferenceError";
+          hint.style.cssText="display:block;color:#97232c;font-size:12px;line-height:1.45;margin-top:4px";
+          input.insertAdjacentElement("afterend",hint);
+        }
+        hint.textContent="Enter the 8–64 character UPI transaction reference.";
+        input.setAttribute("aria-describedby","paymentReferenceError");
+        input.style.scrollMarginTop="110px";
+        input.scrollIntoView({behavior:"smooth",block:"center"});
+        input.focus({preventScroll:true});
+        msg("Fix 1 field to continue.","error");return;
+      }
       msg(!cart.length?"Add jewellery to your bag first.":"Complete payment setup and verify stock before submitting.","error");
       return;
     }
@@ -523,7 +540,13 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
     keepBag.focus();
   };
   $("placeOrder").onclick=placeOrder;
-  $("paymentReference").addEventListener("input",updatePlaceOrderState);
+  $("paymentReference").addEventListener("input",()=>{
+    const input=$("paymentReference");
+    const valid=/^[A-Za-z0-9-]{8,64}$/.test(String(input.value||"").trim());
+    if(valid){input.removeAttribute("aria-invalid");input.removeAttribute("aria-describedby");
+      const hint=$("paymentReferenceError");if(hint)hint.hidden=true;}
+    updatePlaceOrderState();
+  });
   $("retryPendingCheckout")?.addEventListener("click",()=>{
     pendingError="";pendingAttempted=false;updatePlaceOrderState();
   });
