@@ -853,3 +853,30 @@
     border-color:#97232c!important;box-shadow:0 0 0 2px rgba(151,35,44,.13);
   }
 }
+
+
+/* UX-07: compact breakdown inside the existing payment panel only. */
+@media(max-width:767px){
+  .payment-price-breakdown{
+    margin:12px 0 10px;padding:0;border:1px solid #ebdfd3;
+    border-radius:13px;background:#fffdf9;color:#342925;
+  }
+  .payment-price-breakdown summary{
+    display:flex;justify-content:space-between;align-items:center;gap:10px;
+    min-height:48px;padding:11px 13px;cursor:pointer;
+    font-size:13px;font-weight:800;line-height:1.35;
+  }
+  .payment-price-breakdown summary>span:last-child{color:#8f1520;font-size:18px}
+  .payment-price-breakdown[open] summary>span:last-child{transform:rotate(180deg)}
+  .payment-price-breakdown-rows{padding:0 13px 12px;border-top:1px solid #f2e8db}
+  .payment-price-breakdown-rows>div{
+    display:flex;align-items:baseline;justify-content:space-between;gap:12px;
+    padding:7px 0;font-size:12px;line-height:1.45;
+  }
+  .payment-price-breakdown-rows strong{white-space:nowrap;font-variant-numeric:tabular-nums}
+  .payment-price-breakdown-rows .payment-mini-grand{
+    border-top:1px solid #eadccd;margin-top:3px;font-weight:800;font-size:14px;
+  }
+  .payment-price-source{margin:5px 0 0;font-size:11px;line-height:1.5;color:#6b584b}
+}
+@media(min-width:768px){.payment-price-breakdown{display:none}}
