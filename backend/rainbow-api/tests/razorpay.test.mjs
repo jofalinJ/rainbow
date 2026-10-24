@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import worker from "../src/index.js";
-import {hmacHex,verifyHmac,isTestConfigured} from "../src/payment-crypto.js";
+import {hmacHex,verifyHmac,isTestConfigured,isLiveConfigured,isPaymentsConfigured,gatewayCredentials} from "../src/payment-crypto.js";
 
 const baseEnv={
   PAYMENTS_ENABLED:"true",RAZORPAY_KEY_ID:"rzp_test_Example123",
@@ -300,4 +300,147 @@ test("valid payment.captured webhook rechecks provider and settles",async()=>{
     assert.equal((await res.json()).paid,true);
     assert.equal(calls.length,2);
   }finally{globalThis.fetch=oldFetch;}
+});
+
+const liveEnv={...baseEnv,PAYMENTS_MODE:"live",
+  RAZORPAY_LIVE_KEY_ID:"rzp_live_Example123",RAZORPAY_LIVE_KEY_SECRET:"live-secret",
+  RAZORPAY_LIVE_WEBHOOK_SECRET:"live-webhook",LIVE_PAYMENTS_RELEASED:"true",
+  ALLOWED_ORIGINS:"https://rainbowgoldcovering.com,https://jofalinj.github.io"};
+test("live mode requires a separate release flag and dedicated live keys",async()=>{
+  assert.equal(isLiveConfigured({...baseEnv,PAYMENTS_MODE:"live"}),false);
+  assert.equal(isLiveConfigured({...liveEnv,LIVE_PAYMENTS_RELEASED:"false"}),false);
+  assert.equal(isLiveConfigured({...liveEnv,RAZORPAY_LIVE_KEY_ID:baseEnv.RAZORPAY_KEY_ID}),false);
+  assert.equal(isLiveConfigured({...liveEnv,RAZORPAY_LIVE_KEY_SECRET:null}),false);
+  assert.equal(isLiveConfigured({...liveEnv,PAYMENTS_SUSPENDED:"true"}),false);
+  assert.equal(isLiveConfigured(liveEnv),true);
+  assert.equal(isPaymentsConfigured(liveEnv),true);
+  assert.equal(gatewayCredentials(liveEnv).keySecret,"live-secret");
+  const res=await worker.fetch(request("/api/razorpay/config",undefined,"GET",
+    "https://rainbowgoldcovering.com"),liveEnv);
+  const body=await res.json();
+  assert.equal(body.enabled,true);
+  assert.equal(body.mode,"live");
+  assert.equal(body.keyId,"rzp_live_Example123");
+  assert.ok(!JSON.stringify(body).includes("live-secret"));
+  assert.ok(!JSON.stringify(body).includes("live-webhook"));
+});
+test("live mode denies the GitHub Pages origin and never creates a real order there",async()=>{
+  const res=await worker.fetch(request("/api/razorpay/create",{
+    checkout_id:checkoutId,items,customer:checkoutCustomer
+  }),liveEnv);
+  assert.equal(res.status,403);
+  assert.equal(res.headers.get("Access-Control-Allow-Origin"),null);
+});
+test("live mode accepts a release-authorized production checkout with live public key",async()=>{
+  const oldFetch=globalThis.fetch,calls=[];
+  globalThis.fetch=mockFetch({
+    "/rest/v1/rpc/create_razorpay_checkout":{
+      state:"ready",gateway_order_id:rOrder,order_number:"RG-LIVE",amount_paise:19900,
+      expires_at:"2099-01-01T00:00:00Z"
+    }
+  },calls);
+  try {
+    const res=await worker.fetch(request("/api/razorpay/create",
+      {checkout_id:checkoutId,items,customer:checkoutCustomer},
+      "POST","https://rainbowgoldcovering.com"),liveEnv);
+    assert.equal(res.status,200);
+    assert.deepEqual((await res.json()).mode,"live");
+    assert.equal(calls.length,1);
+  } finally {globalThis.fetch=oldFetch;}
+});
+test("webhook can reconcile captured live payment while checkout is suspended",async()=>{
+  const oldFetch=globalThis.fetch,calls=[];
+  const payload=JSON.stringify({event:"payment.captured",payload:{
+    payment:{entity:{id:rPayment,order_id:rOrder}}}});
+  globalThis.fetch=mockFetch({
+    ["/v1/payments/"+rPayment]:{
+      id:rPayment,order_id:rOrder,amount:2500,currency:"INR",status:"captured"
+    },
+    "/rest/v1/rpc/complete_razorpay_checkout":{paid:true,state:"paid"}
+  },calls);
+  try {
+    const env={...liveEnv,PAYMENTS_SUSPENDED:"true"};
+    assert.equal(isPaymentsConfigured(env),false);
+    const sig=await hmacHex(env.RAZORPAY_LIVE_WEBHOOK_SECRET,payload);
+    const res=await worker.fetch(request("/api/razorpay/webhook",payload,"POST","",{
+      "x-razorpay-signature":sig,"x-razorpay-event-id":"evt_live_123"
+    }),env);
+    assert.equal(res.status,200);
+    assert.equal((await res.json()).paid,true);
+    assert.equal(calls.length,2);
+  } finally {globalThis.fetch=oldFetch;}
+});
+
+test("malformed or oversized JSON is rejected as client input, without database mutation",async()=>{
+  const original=globalThis.fetch,calls=[];
+  globalThis.fetch=mockFetch({},calls);
+  try {
+    const bad=await worker.fetch(request("/api/razorpay/create","{not valid JSON"),baseEnv);
+    assert.equal(bad.status,400);
+    assert.match((await bad.json()).error,/Malformed checkout/);
+    const oversized=await worker.fetch(request("/api/razorpay/create","x".repeat(14001)),baseEnv);
+    assert.equal(oversized.status,413);
+    assert.equal(calls.length,0);
+  }finally{globalThis.fetch=original;}
+});
+test("Razorpay create order refuses less than 100 paise based on database amount",async()=>{
+  const original=globalThis.fetch,calls=[];
+  const checkout={checkout_id:checkoutId,items,customer:checkoutCustomer};
+  globalThis.fetch=mockFetch({
+    "/rest/v1/rpc/create_razorpay_checkout":{state:"new",order_number:"RG-SMALL",amount_paise:99}
+  },calls);
+  try{
+    const res=await worker.fetch(request("/api/razorpay/create",checkout),baseEnv);
+    assert.equal(res.status,422);
+    assert.match((await res.json()).error,/minimum/);
+    assert.deepEqual(calls.map(c=>c.path),["/rest/v1/rpc/create_razorpay_checkout"]);
+  }finally{globalThis.fetch=original;}
+});
+test("Razorpay create order accepts exact 100 paise server total, never a browser amount",async()=>{
+  const original=globalThis.fetch,calls=[];
+  globalThis.fetch=mockFetch({
+    "/rest/v1/rpc/create_razorpay_checkout":{
+      state:"new",order_number:"RG-MIN",amount_paise:100,expires_at:"2099-01-01T00:00:00Z"
+    },
+    "/v1/orders":opts=>{
+      const posted=JSON.parse(opts.body);
+      assert.equal(posted.amount,100);
+      assert.equal(posted.currency,"INR");
+      assert.equal(posted.receipt,checkoutId.replace(/-/g,""));
+      assert.equal(posted.partial_payment,false);
+      return mockReply({id:rOrder,amount:100,currency:"INR"});
+    },
+    "/rest/v1/rpc/attach_razorpay_order":{state:"ready",gateway_order_id:rOrder}
+  },calls);
+  try {
+    const res=await worker.fetch(request("/api/razorpay/create",{
+      checkout_id:checkoutId,items,customer:checkoutCustomer,amount:9999999
+    }),baseEnv);
+    assert.equal(res.status,200);
+    const json=await res.json();
+    assert.equal(json.amount,100);
+    assert.equal(json.gatewayOrderId,rOrder);
+    assert.deepEqual(calls.map(c=>c.path),[
+      "/rest/v1/rpc/create_razorpay_checkout","/v1/orders","/rest/v1/rpc/attach_razorpay_order"
+    ]);
+  }finally{globalThis.fetch=original;}
+});
+test("upstream Razorpay authentication errors never reveal merchant credentials to buyers",async()=>{
+  const original=globalThis.fetch,calls=[];
+  globalThis.fetch=mockFetch({
+    "/rest/v1/rpc/create_razorpay_checkout":{
+      state:"new",order_number:"RG-PROVIDER",amount_paise:100,
+      expires_at:"2099-01-01T00:00:00Z"
+    },
+    "/v1/orders":()=>mockReply({error:{description:"private provider diagnostic"}},401)
+  },calls);
+  try{
+    const res=await worker.fetch(request("/api/razorpay/create",{
+      checkout_id:checkoutId,items,customer:checkoutCustomer
+    }),baseEnv);
+    assert.equal(res.status,503);
+    const body=await res.text();
+    assert.ok(!body.includes("private provider diagnostic"));
+    assert.ok(!body.includes(baseEnv.RAZORPAY_KEY_SECRET));
+  }finally{globalThis.fetch=original;}
 });

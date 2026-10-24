@@ -22,7 +22,7 @@ describe("customer checkout compact UX safety",()=>{
     expect(order).toContain('value="razorpay"');
     expect(order).toContain('value="upi"');
     expect(order).toContain('name="paymentMethod"');
-    expect(orderJs).toContain('beginRazorpayTestPayment(');
+    expect(orderJs).toContain('beginRazorpayPayment(');
     expect(orderJs).toContain('sb.rpc("create_online_order"');
   });
   it("never hides the real-money warning or claims manual UPI is verified",()=>{

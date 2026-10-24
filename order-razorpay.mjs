@@ -1,4 +1,4 @@
-// Test-mode only until the audited server-side checkout is deliberately enabled.
+// Server-gated Razorpay integration: tests and real payments use separate backend credentials.
 const getBase=()=>{
   const value=String(window.RAINBOW_PAYMENT_CONFIG?.apiBaseUrl||"").trim();
   try{const url=new URL(value); return url.protocol==="https:" ? url.origin : "";}catch{return "";}
@@ -37,9 +37,9 @@ async function checkoutFingerprint(items,customer){
   const hash=await crypto.subtle.digest("SHA-256",encoded);
   return [...new Uint8Array(hash)].map(b=>b.toString(16).padStart(2,"0")).join("");
 }
-async function getCheckoutToken(items,customer){
+async function getCheckoutToken(items,customer,mode){
   const fingerprint=await checkoutFingerprint(items,customer);
-  const key="rainbow_razorpay_pending_v1";
+  const key=mode==="live"?"rainbow_razorpay_live_pending_v1":"rainbow_razorpay_pending_v1";
   try{
     const previous=JSON.parse(sessionStorage.getItem(key)||"null");
     if(previous?.fingerprint===fingerprint && /^[0-9a-f-]{36}$/i.test(previous.id))
@@ -50,7 +50,7 @@ async function getCheckoutToken(items,customer){
   return id;
 }
 // Report a useful readiness reason; do not silently leave a payment option disabled.
-export async function razorpayTestAvailability(){
+export async function razorpayAvailability(){
   const base=getBase();
   if(!base)return {available:false,message:"Payment configuration did not load. Please refresh checkout."};
   try{
@@ -62,7 +62,9 @@ export async function razorpayTestAvailability(){
       return {available:false,message:"Secure checkout service is temporarily unavailable (HTTP "+res.status+"). Try again."};
     }
     const data=await res.json();
-    if(data.enabled===true && data.mode==="test" && /^rzp_test_[A-Za-z0-9]+$/.test(data.keyId||"")){
+    const validMode=data.mode==="test" || data.mode==="live";
+    const keyMatches=validMode && new RegExp("^rzp_"+data.mode+"_[A-Za-z0-9]+$").test(data.keyId||"");
+    if(data.enabled===true && keyMatches){
       // The public Key ID format is not proof that Razorpay will accept the
       // matching server-side secret. Probe a read-only provider operation first.
       const probe=await fetch(base+"/api/razorpay/provider-check?check="+Date.now(),{
@@ -71,22 +73,30 @@ export async function razorpayTestAvailability(){
       if(!probe.ok)return {available:false,message:"Payment provider verification is temporarily unavailable. Retry shortly."};
       const result=await probe.json();
       if(result.provider==="connected")
-        return {available:true,message:"Razorpay test checkout is connected. No real money is deducted through Razorpay Test Mode."};
+        return {available:true,mode:data.mode,message:data.mode==="live"
+          ?"Secure Razorpay payments are ready. Your bank or UPI app will make a real charge."
+          :"Razorpay test checkout is connected. No real money is deducted through Razorpay Test Mode."};
       if(result.provider==="credentials_rejected")
-        return {available:false,message:"Razorpay rejected the shop's Test Key ID / Key Secret. Online checkout is paused until the merchant fixes the matching credential pair."};
-      return {available:false,message:"Razorpay could not be verified right now. Please retry later."};
+        return {available:false,mode:data.mode,message:"Razorpay rejected the configured payment credentials. Online checkout is paused until the shop resolves this."};
+      return {available:false,mode:data.mode,message:"Razorpay could not be verified right now. Please retry later."};
     }
-    return {available:false,message:"Razorpay test checkout is not enabled on the payment server. Manual UPI remains available."};
+    return {available:false,mode:validMode?data.mode:"test",message:"Razorpay online payment is not enabled on the payment server. Manual UPI remains available."};
   }catch(error){
     console.warn("Razorpay availability request failed",error);
     return {available:false,message:"Could not connect to the secure payment service from this browser. Check your connection or retry."};
   }
 }
-export async function razorpayTestAvailable(){
-  return (await razorpayTestAvailability()).available;
+export async function razorpayAvailable(){
+  return (await razorpayAvailability()).available;
 }
-export async function beginRazorpayTestPayment({items,customer,displayTotal}){
-  let checkout_id=await getCheckoutToken(items,customer);
+export async function beginRazorpayPayment({items,customer,displayTotal,expectedMode,onPaymentFailed}){
+  // Refresh provider readiness at purchase time; never silently switch to real money.
+  const status=await razorpayAvailability();
+  if(!status.available)throw new Error(status.message);
+  const mode=status.mode;
+  if(mode!==expectedMode)throw new Error("Payment mode has changed. Refresh checkout and review the payment method before paying.");
+  const key=mode==="live"?"rainbow_razorpay_live_pending_v1":"rainbow_razorpay_pending_v1";
+  let checkout_id=await getCheckoutToken(items,customer,mode);
   let gateway;
   try{
     gateway=await api("/api/razorpay/create",{checkout_id,items,customer});
@@ -94,12 +104,13 @@ export async function beginRazorpayTestPayment({items,customer,displayTotal}){
     if(error.code!=="CHECKOUT_EXPIRED")throw error;
     // Retry ONLY after the server confirms the old reservation was expired
     // and its inventory was restored. Never bypass a 'creating' reservation.
-    sessionStorage.removeItem("rainbow_razorpay_pending_v1");
-    checkout_id=await getCheckoutToken(items,customer);
+    sessionStorage.removeItem(key);
+    checkout_id=await getCheckoutToken(items,customer,mode);
     gateway=await api("/api/razorpay/create",{checkout_id,items,customer});
   }
-  if(!gateway.success || !/^rzp_test_/.test(gateway.keyId||"") ||
-    !Number.isSafeInteger(gateway.amount) || gateway.amount<=0 ||
+  if(!gateway.success || gateway.mode!==mode ||
+    !new RegExp("^rzp_"+mode+"_[A-Za-z0-9]+$").test(gateway.keyId||"") ||
+    !Number.isSafeInteger(gateway.amount) || gateway.amount<100 ||
     gateway.currency!=="INR" || !gateway.gatewayOrderId)
     throw new Error("Invalid payment provider response");
   // Never silently charge a different amount from the visible review summary.
@@ -114,7 +125,7 @@ export async function beginRazorpayTestPayment({items,customer,displayTotal}){
       const checkout=new window.Razorpay({
         key:gateway.keyId,amount:gateway.amount,currency:"INR",
         order_id:gateway.gatewayOrderId,
-        name:"Rainbow Gold Covering",description:"Test payment – no real money deducted",
+        name:"Rainbow Gold Covering",description:mode==="live"?"Secure jewellery purchase":"Test payment – no real money deducted",
         prefill:{name:customer.name,email:customer.email||"",contact:customer.whatsapp_number},
         theme:{color:"#8f1520"},
         handler:async response=>{
@@ -127,15 +138,24 @@ export async function beginRazorpayTestPayment({items,customer,displayTotal}){
               razorpay_signature:response.razorpay_signature
             });
             if(result.paid===true){
-              sessionStorage.removeItem("rainbow_razorpay_pending_v1");
-              resolve({status:"paid",orderNumber:result.orderNumber,
+              sessionStorage.removeItem(key);
+              resolve({status:"paid",mode,orderNumber:result.orderNumber,
                 invoiceUrl:result.invoiceUrl||null,invoiceNumber:result.invoiceNumber||null});
             }else{
-              resolve({status:"pending",orderNumber:result.orderNumber});
+              resolve({status:"pending",mode,orderNumber:result.orderNumber});
             }
           }catch(error){reject(error);}
         },
-        modal:{ondismiss:()=>{if(!handled){handled=true;resolve({status:"dismissed"});}}}
+        modal:{ondismiss:()=>{if(!handled){handled=true;resolve({status:"dismissed",mode});}}}
+      });
+      // Failed attempts may be retried within Razorpay's own modal. Do not
+      // settle, clear the cart, or create a second provider order here.
+      checkout.on("payment.failed", event=>{
+        if(handled)return;
+        const raw=event?.error?.description;
+        const note=typeof raw==="string" && raw.trim() && raw.length<=200
+          ? raw.trim() : "Payment failed. Try another method or close checkout.";
+        if(typeof onPaymentFailed==="function")onPaymentFailed(note);
       });
       checkout.open();
     }catch(error){reject(error);}

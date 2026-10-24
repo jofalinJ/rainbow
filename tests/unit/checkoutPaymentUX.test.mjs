@@ -21,7 +21,7 @@ describe("Rainbow secure checkout release",()=>{
     expect(page).toContain('id="manualPaymentDetails"');
     expect(page).toContain('id="razorpayDetails"');
     expect(page).toContain('id="whatsappReceiptConsent"');
-    expect(script).toContain('Order placed — payment verified!');
+    expect(script).toContain('Payment verified</h2>');
     expect(script).toContain('View / Print Invoice');
     expect(script).toContain('whatsapp_opt_in:paymentMethod==="razorpay"');
     expect(gateway).toContain('invoiceUrl:result.invoiceUrl||null');
@@ -37,8 +37,10 @@ describe("Rainbow secure checkout release",()=>{
     expect(script).toContain("gateway.disabled=!status.available");
     expect(script).toContain('manual.checked=true');
     expect(script).toContain('retryGateway');
-    expect(gateway).toContain('razorpayTestAvailability()');
-    expect(gateway).toContain('data.enabled===true && data.mode==="test"');
+    expect(gateway).toContain('razorpayAvailability()');
+    expect(gateway).toContain('data.enabled===true && keyMatches');
+     expect(gateway).toContain('gateway.mode!==mode');
+     expect(gateway).toContain('"rainbow_razorpay_live_pending_v1"');
     expect(gateway).toContain('cache:"no-store"');
     expect(gateway).toContain("Could not connect to the secure payment service");
     expect(gateway).toContain("/api/razorpay/provider-check?check=");
@@ -49,7 +51,7 @@ describe("Rainbow secure checkout release",()=>{
   it("preserves manual UPI verification and clarifies it can transfer actual money",()=>{
     expect(page).toContain('id="checkoutQR"');
     expect(page).toContain('id="paymentReference"');
-    expect(page).toContain('Manual UPI transfer is separate and can move real funds.');
+    expect(page).toContain('Manual UPI transfers real money and requires shop verification.');
     expect(script).toContain('rpc("create_online_order"');
     expect(script).toContain('/^[A-Za-z0-9-]{8,64}$/.test(paymentReference)');
   });

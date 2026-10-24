@@ -1,5 +1,5 @@
 import {json, methodNotAllowed} from "../http.js";
-import {verifyHmac,isTestConfigured,isTestSecretsConfigured} from "../payment-crypto.js";
+import {verifyHmac,isPaymentsConfigured,paymentMode,gatewayCredentials} from "../payment-crypto.js";
 
 const METHODS="GET, POST, OPTIONS";
 const MAX_BODY=14000;
@@ -8,7 +8,10 @@ const validUUID=x=>typeof x==="string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f
 const validId=(x,prefix)=>typeof x==="string" && x.startsWith(prefix) && /^[A-Za-z0-9_]{8,80}$/.test(x);
 const apiError=(message,status=400)=>json({success:false,error:message},status);
 function origins(env) {
-  return new Set(String(env.ALLOWED_ORIGINS || "https://rainbowgoldcovering.com,https://www.rainbowgoldcovering.com,https://jofalinj.github.io").split(",").map(x=>x.trim()).filter(Boolean));
+  const allow=String(env.ALLOWED_ORIGINS || "https://rainbowgoldcovering.com,https://www.rainbowgoldcovering.com,https://jofalinj.github.io").split(",").map(x=>x.trim()).filter(Boolean);
+  // Development/GitHub origins cannot start real-money checkout.
+  const production=new Set(["https://rainbowgoldcovering.com","https://www.rainbowgoldcovering.com"]);
+  return new Set(paymentMode(env)==="live"?allow.filter(origin=>production.has(origin)):allow);
 }
 function withCors(request,env,response){
   const origin=request.headers.get("Origin");
@@ -25,11 +28,17 @@ function requireOrigin(request,env) {
   const origin=request.headers.get("Origin");
   return Boolean(origin && origins(env).has(origin));
 }
+class CheckoutInputError extends Error {
+  constructor(message,status=400){super(message);this.status=status;}
+}
 async function readBody(request) {
   const raw=await request.text();
-  if(raw.length>MAX_BODY) throw new Error("Request is too large");
-  const parsed=JSON.parse(raw);
-  if(!parsed || typeof parsed!=="object" || Array.isArray(parsed)) throw new Error("Invalid request");
+  if(raw.length>MAX_BODY)throw new CheckoutInputError("Request is too large",413);
+  let parsed;
+  try{parsed=JSON.parse(raw);}
+  catch{throw new CheckoutInputError("Malformed checkout request");}
+  if(!parsed || typeof parsed!=="object" || Array.isArray(parsed))
+    throw new CheckoutInputError("Invalid checkout request");
   return parsed;
 }
 async function callDb(env,fn,payload) {
@@ -47,7 +56,9 @@ async function callDb(env,fn,payload) {
   return res.json();
 }
 async function callRazorpay(env,path,body) {
-  const headers={"Authorization":"Basic "+btoa(env.RAZORPAY_KEY_ID+":"+env.RAZORPAY_KEY_SECRET)};
+  const creds=gatewayCredentials(env);
+  if(!creds)throw new Error("Payment provider credentials not configured for this mode");
+  const headers={"Authorization":"Basic "+btoa(creds.keyId+":"+creds.keySecret)};
   if(body!==undefined) headers["Content-Type"]="application/json";
   const response=await fetch(GATEWAY+path,{
     method:body===undefined?"GET":"POST",headers,
@@ -64,8 +75,8 @@ export async function razorpayRoute(request,env) {
     if(request.method==="OPTIONS") return reply(request,env,new Response(null,{status:204}));
     if(request.method!=="GET") return methodNotAllowed("GET, OPTIONS");
     return reply(request,env,json({
-      enabled:isTestConfigured(env),mode:"test",release:"paid-invoice-20261021-v4",
-      ...(isTestConfigured(env)?{keyId:env.RAZORPAY_KEY_ID}: {})
+      enabled:isPaymentsConfigured(env),mode:paymentMode(env),release:"paid-invoice-20261021-v4",
+      ...(isPaymentsConfigured(env)?{keyId:gatewayCredentials(env).keyId}: {})
     }));
   }
   // Explicit, rate-limited non-mutating provider credential probe for TEST onboarding.
@@ -73,7 +84,7 @@ export async function razorpayRoute(request,env) {
   if(path==="/api/razorpay/provider-check"){
     if(request.method!=="GET") return reply(request,env,methodNotAllowed("GET"));
     if(!requireOrigin(request,env)) return apiError("Origin is not allowed",403);
-    if(!isTestConfigured(env)) return reply(request,env,json({provider:"disabled"}));
+    if(!isPaymentsConfigured(env)) return reply(request,env,json({provider:"disabled"}));
     if(!env.CHECKOUT_RATE_LIMITER || typeof env.CHECKOUT_RATE_LIMITER.limit!=="function")
       return reply(request,env,apiError("Payment protection is not configured",503));
     const caller=request.headers.get("CF-Connecting-IP")||"unknown";
@@ -81,7 +92,7 @@ export async function razorpayRoute(request,env) {
     if(!result.success) return reply(request,env,apiError("Too many requests",429));
     try {
       const provider=await fetch(GATEWAY+"/orders?count=1",{
-        headers:{"Authorization":"Basic "+btoa(env.RAZORPAY_KEY_ID+":"+env.RAZORPAY_KEY_SECRET)}
+        headers:{"Authorization":"Basic "+btoa(gatewayCredentials(env).keyId+":"+gatewayCredentials(env).keySecret)}
       });
       return reply(request,env,json({provider:provider.ok?"connected":
         (provider.status===401||provider.status===403||provider.status===400)?"credentials_rejected":"unavailable"}));
@@ -92,7 +103,7 @@ export async function razorpayRoute(request,env) {
   if(request.method==="OPTIONS") return reply(request,env,new Response(null,{status:204}));
   if(request.method!=="POST") return reply(request,env,methodNotAllowed("POST, OPTIONS"));
   if(!requireOrigin(request,env)) return apiError("Origin is not allowed",403);
-  if(!isTestConfigured(env)) return reply(request,env,apiError("Razorpay checkout is not enabled",503));
+  if(!isPaymentsConfigured(env)) return reply(request,env,apiError("Razorpay checkout is not enabled",503));
   // Origins are not authentication. Require Cloudflare rate limiting before any public checkout call.
   if(!env.CHECKOUT_RATE_LIMITER || typeof env.CHECKOUT_RATE_LIMITER.limit!=="function")
     return reply(request,env,apiError("Payment protection is not configured",503));
@@ -104,6 +115,8 @@ export async function razorpayRoute(request,env) {
     if(path==="/api/razorpay/verify") return reply(request,env,await verify(request,env));
     return reply(request,env,apiError("Endpoint not found",404));
   }catch(error){
+    if(error instanceof CheckoutInputError)
+      return reply(request,env,apiError(error.message,error.status));
     console.error("Razorpay route error",error.message);
     return reply(request,env,apiError("Checkout could not be completed. Please retry or contact the shop.",503));
   }
@@ -118,6 +131,11 @@ async function prepare(request,env){
   const held=await callDb(env,"create_razorpay_checkout",{
     p_checkout_id:body.checkout_id,p_items:body.items,p_customer:body.customer
   });
+  // Razorpay's minimum is 100 paise. This amount must come from the database,
+  // not a user-supplied "amount" or the browser's calculated display total.
+  if(["new","ready","creating"].includes(held.state) &&
+    (!Number.isSafeInteger(held.amount_paise) || held.amount_paise<100))
+    return apiError("The verified checkout total is below the minimum ₹1.00. Review your cart.",422);
   // Customer consent is voluntary and attached to the same reserved checkout.
   // Only the server can update it; never send a message before verified capture.
   if(body.customer.whatsapp_opt_in===true)
@@ -125,7 +143,7 @@ async function prepare(request,env){
       p_checkout_id:body.checkout_id,p_opt_in:true
     });
   if(held.state==="ready" && validId(held.gateway_order_id,"order_"))
-    return json({success:true,keyId:env.RAZORPAY_KEY_ID,
+    return json({success:true,mode:paymentMode(env),keyId:gatewayCredentials(env).keyId,
       gatewayOrderId:held.gateway_order_id,orderNumber:held.order_number,
       amount:held.amount_paise,currency:"INR",expiresAt:held.expires_at});
   if(held.state==="creating"){
@@ -146,14 +164,14 @@ async function prepare(request,env){
     });
     if(saved.state!=="ready" || saved.gateway_order_id!==gateway.id)
       throw new Error("Recovered provider order could not be attached");
-    return json({success:true,keyId:env.RAZORPAY_KEY_ID,
+    return json({success:true,mode:paymentMode(env),keyId:gatewayCredentials(env).keyId,
       gatewayOrderId:gateway.id,orderNumber:held.order_number,
       amount:held.amount_paise,currency:"INR",expiresAt:held.expires_at});
   }
   if(held.state==="expired") return json({success:false,code:"CHECKOUT_EXPIRED",
-    error:"Your previous test reservation expired. Please review the cart and retry."},410);
+    error:"Your previous reservation expired. Please review the cart and retry."},410);
   if(held.state!=="new") return apiError("This checkout has already been processed. Contact the shop before retrying.",409);
-  if(!Number.isSafeInteger(held.amount_paise)||held.amount_paise<=0)
+  if(!Number.isSafeInteger(held.amount_paise)||held.amount_paise<100)
     throw new Error("Invalid authoritative amount");
   // A failed/uncertain provider call leaves the reservation held for timeout cleanup;
   // never create a second provider order using the same checkout UUID.
@@ -167,7 +185,7 @@ async function prepare(request,env){
     p_checkout_id:body.checkout_id,p_gateway_order_id:gateway.id,p_amount_paise:gateway.amount
   });
   if(saved.state!=="ready" || saved.gateway_order_id!==gateway.id) throw new Error("Could not attach provider order");
-  return json({success:true,keyId:env.RAZORPAY_KEY_ID,
+  return json({success:true,mode:paymentMode(env),keyId:gatewayCredentials(env).keyId,
     gatewayOrderId:gateway.id,orderNumber:held.order_number,
     amount:gateway.amount,currency:"INR",expiresAt:held.expires_at});
 }
@@ -178,7 +196,7 @@ async function verify(request,env) {
     return apiError("Invalid payment verification details");
   const checkout=await callDb(env,"get_razorpay_checkout",{p_checkout_id:body.checkout_id});
   if(!checkout || checkout.gateway_order_id!==body.razorpay_order_id) return apiError("Unknown payment order",404);
-  const valid=await verifyHmac(env.RAZORPAY_KEY_SECRET,
+  const valid=await verifyHmac(gatewayCredentials(env).keySecret,
     checkout.gateway_order_id+"|"+body.razorpay_payment_id,body.razorpay_signature);
   if(!valid) return apiError("Invalid payment signature",401);
   const payment=await callRazorpay(env,"/payments/"+encodeURIComponent(body.razorpay_payment_id));
@@ -207,11 +225,11 @@ async function verify(request,env) {
 }
 async function webhook(request,env){
   if(request.method!=="POST") return methodNotAllowed("POST");
-  if(!isTestSecretsConfigured(env)) return apiError("Webhook is unavailable",503);
+  if(!gatewayCredentials(env)) return apiError("Webhook is unavailable",503);
   const raw=await request.text();
   if(raw.length>200000) return apiError("Webhook too large",413);
   const signature=request.headers.get("x-razorpay-signature");
-  if(!await verifyHmac(env.RAZORPAY_WEBHOOK_SECRET,raw,signature)) return apiError("Invalid webhook signature",401);
+  if(!await verifyHmac(gatewayCredentials(env).webhookSecret,raw,signature)) return apiError("Invalid webhook signature",401);
   const eventId=request.headers.get("x-razorpay-event-id");
   if(!eventId || eventId.length>128) return apiError("Invalid event identifier");
   try{

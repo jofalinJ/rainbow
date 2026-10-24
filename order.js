@@ -1,5 +1,5 @@
 import {INDIAN_STATES,deliveryFeeForState} from "./order-pricing.mjs";
-import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpay.mjs?v=20261021-paid-confirmation-v4";
+import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=20261021-paid-confirmation-v4";
 (() => {
   const CONFIG=window.RAINBOW_SUPABASE_CONFIG||{};
   const SUPABASE_URL=String(CONFIG.supabaseUrl||"").trim();
@@ -15,6 +15,7 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
   let cartVerificationFailed=false;
   let submitting=false;
   let razorpayReady=false;
+  let razorpayMode="test";
   let paymentChoiceTouched=false;
   let readinessAttempt=0;
   const selectedPaymentMethod=()=>document.querySelector('input[name="paymentMethod"]:checked')?.value||"upi";
@@ -136,7 +137,8 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
         :"Checking price and stock before showing the UPI QR…";
     }
     if(referenceGroup)referenceGroup.hidden=gatewaySelected;
-    button.textContent=submitting?"Processing…":gatewaySelected?"Pay securely · TEST →":"Submit UPI reference →";
+    button.textContent=submitting?"Processing…":gatewaySelected?
+      (razorpayMode==="live"?"Pay securely →":"Pay securely · TEST →"):"Submit UPI reference →";
     button.disabled=submitting||!payReady||
       (gatewaySelected?!razorpayReady:!/^[A-Za-z0-9-]{8,64}$/.test(reference));
   }
@@ -245,13 +247,15 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
     }
     submitting=true;
     updatePlaceOrderState();
-    msg(paymentMethod==="razorpay"?"Starting a secure test checkout…":"Submitting your payment reference for verification…");
+    msg(paymentMethod==="razorpay"?"Starting secure checkout…":"Submitting your payment reference for verification…");
     try{
       if(paymentMethod==="razorpay"){
-        const result=await beginRazorpayTestPayment({
+        const result=await beginRazorpayPayment({
           items:cart.map(item=>({variant_id:item.variant_id,quantity:Number(item.quantity)})),
           customer,
-          displayTotal:totals().total
+          displayTotal:totals().total,
+          expectedMode:razorpayMode,
+          onPaymentFailed:reason=>msg("Payment failed: "+reason+" You can retry in Razorpay or close checkout.","error")
         });
         if(result.status==="paid"){
           cart=[];save();
@@ -265,10 +269,10 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
                 /^[0-9a-f-]{36}$/i.test(url.searchParams.get("token")||"") ? url.href : null;
             }catch{return null;}
           })();
-          $("orderSuccess").innerHTML="<h2>TEST payment verified</h2>"+
-            "<p>Test order <strong>"+esc(result.orderNumber||"—")+
+          $("orderSuccess").innerHTML=(result.mode==="live"?"<h2>Payment verified</h2>":"<h2>TEST payment verified</h2>")+
+            "<p>"+(result.mode==="live"?"Order ":"Test order ")+"<strong>"+esc(result.orderNumber||"—")+
             "</strong> is confirmed.</p>"+
-            "<p>No real money was deducted.</p>"+
+            (result.mode==="live"?"<p>Your payment has been securely verified.</p>":"<p>No real money was deducted.</p>")+
             (safeBill?"<p><a class='btn btn-dark' target='_blank' rel='noopener noreferrer' href='"+esc(safeBill)+
               "'>View / Print Invoice →</a></p>":"<p>Your invoice is being prepared. Contact the shop with the order number if it does not appear.</p>")+
             "<p>WhatsApp updates are sent only if you opted in and messaging is available.</p>"+
@@ -324,9 +328,20 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
     connection?.classList.remove("is-online","is-offline");
     if(message)message.textContent="Checking online payment…";
     if(retry){retry.hidden=true;retry.disabled=true;}
-    const status=await razorpayTestAvailability();
+    const status=await razorpayAvailability();
     if(attempt!==readinessAttempt)return;
     razorpayReady=status.available;
+    razorpayMode=status.mode==="live"?"live":"test";
+    const badge=document.querySelector("#razorpayChoice .checkout-mode");
+    const choiceNote=document.querySelector("#razorpayChoice .payment-choice-note");
+    const detailsNote=document.querySelector("#razorpayDetails .payment-safety");
+    const footerNote=document.querySelector(".checkout-test-notice");
+    if(badge)badge.textContent=razorpayMode==="live"?"LIVE":"TEST MODE";
+    if(choiceNote)choiceNote.textContent=razorpayMode==="live"?"Real payment · Protected by Razorpay.":"Test only — no real charge.";
+    if(detailsNote)detailsNote.textContent=razorpayMode==="live"?"Your payment is verified securely before the order is confirmed.":"Razorpay TEST: no money is deducted. Payment is verified by our server.";
+    if(footerNote)footerNote.textContent=razorpayMode==="live"
+      ?"Razorpay charges real money. Manual UPI transfers real money and requires shop verification."
+      :"Razorpay TEST does not charge real money. Manual UPI transfers real money and requires shop verification.";
     connection?.classList.add(status.available?"is-online":"is-offline");
     if(message)message.textContent=status.message;
     if(indicator)indicator.title=status.available?"Connected":"Not connected";
