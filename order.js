@@ -36,6 +36,7 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
       cart=selection?[selection]:ordinary;
     }catch{cart=[];buyNowActive=false;}
     updateCount();
+    if($("clearCart"))$("clearCart").textContent=buyNowActive?"Cancel Buy now":"Clear bag";
     const existing=$("buyNowBackToBag");
     if(buyNowActive&&!existing){
       const link=document.createElement("a");
@@ -535,7 +536,10 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
   clearTrigger.onclick=()=>{
     const count=cart.reduce((n,item)=>n+Number(item.quantity||0),0);
     if(count<1)return;
-    clearHeading.textContent="Remove all "+count+" "+(count===1?"item":"items")+" from your bag?";
+    clearHeading.textContent=buyNowActive
+      ?"Cancel Buy now for "+count+" "+(count===1?"item":"items")+"?"
+      :"Remove all "+count+" "+(count===1?"item":"items")+" from your bag?";
+    confirmClear.textContent=buyNowActive?"Cancel Buy now":"Clear bag";
     clearDialog.showModal();
     keepBag.focus();
   };
