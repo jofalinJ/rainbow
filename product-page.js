@@ -15,7 +15,7 @@
  });
  const safeUrl=new URL(location.href),sku=(safeUrl.searchParams.get("sku")||"").trim();
  const cfg=window.RAINBOW_SUPABASE_CONFIG||{};
- const money=n=>"₹"+Number(n||0).toLocaleString("en-IN",{maximumFractionDigits:2});
+ const formatINR=window.RainbowCatalogue.formatINR;
  const cartKey="rainbow_cart_v1";
  const set=(id,value)=>{if($(id))$(id).textContent=String(value??"");};
  const showError=message=>{$("productLoading").hidden=true;$("productError").hidden=false;set("productError",message);};
@@ -68,7 +68,7 @@
      if(first){const img=document.createElement("img");img.src=window.RainbowCatalogue?.thumbnailUrl(first)||first.public_url;img.onerror=()=>{img.onerror=null;img.src=first.public_url;};img.loading="lazy";img.alt=p.product_name;img.width=240;img.height=240;a.append(img);}
      else a.insertAdjacentHTML("beforeend",window.RainbowCatalogue.photoUnavailableMarkup());
      const label=document.createElement("strong");label.textContent=p.product_name;
-     const price=document.createElement("span");price.textContent=money(p.selling_price);a.append(label,price);grid.append(a);
+     const price=document.createElement("span");price.textContent=formatINR(p.selling_price);a.append(label,price);grid.append(a);
    }
    $("detailRelated").hidden=grid.children.length===0;
  }
@@ -77,7 +77,7 @@
    if(error)throw error;if(!data){showError("This design is unavailable or no longer listed.");return;}
    product=data;const variants=inStock(product);const images=imagesOf(product);
    set("crumbName",product.product_name);set("detailCategory",product.type||"Jewellery");set("detailName",product.product_name);
-   set("detailSku",product.product_code);set("detailPrice",money(product.selling_price));
+   set("detailSku",product.product_code);set("detailPrice",formatINR(product.selling_price));
    set("detailDescription",product.description||"Contact Rainbow Gold Covering for details about this design.");
    document.title=product.product_name+" | Rainbow Gold Covering";
    document.querySelector('meta[name="description"]').content="Explore "+product.product_name+" from Rainbow Gold Covering. Check current availability and options.";
