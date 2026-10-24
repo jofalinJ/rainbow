@@ -1,10 +1,13 @@
 import {describe,it,expect} from "vitest";
 import {readFileSync} from "node:fs";
+import vm from "node:vm";
 import {deliveryFeeForState} from "../../order-pricing.mjs";
 
 const read=name=>readFileSync(new URL("../../"+name,import.meta.url),"utf8");
 const checkout=read("order.js"),html=read("order.html"),worker=read("proposed-backend/manual-upi-routes.js");
-const money=value=>"₹"+Number(value||0).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2});
+const root={};
+vm.runInNewContext(read("shop-catalogue.js"),{window:root});
+const formatINR=root.RainbowCatalogue.formatINR;
 const roundMoney=value=>Math.round((Number(value)+Number.EPSILON)*100)/100;
 
 function renderPreview(state){
@@ -16,9 +19,9 @@ function renderPreview(state){
     return values.get(id);
   };
   const cart=[{variant_id:"test",quantity:1,product:{selling_price:1000}}];
-  const calc=new Function("cart","roundMoney","deliveryFeeForState","$","money","lockedAmounts","pending",
+  const calc=new Function("cart","roundMoney","deliveryFeeForState","$","formatINR","lockedAmounts","pending",
     "return function totals(){"+marker[1]+"\n}");
-  const result=calc(cart,roundMoney,deliveryFeeForState,$,money,()=>null,null)();
+  const result=calc(cart,roundMoney,deliveryFeeForState,$,formatINR,()=>null,null)();
   return {result,values};
 }
 
@@ -33,8 +36,8 @@ describe("UX-06 pricing display: no formula changes",()=>{
     expect(view.result.sgst).toBe(14.55);
     expect(view.result.shipping).toBe(shipping);
     expect(view.result.total).toBe(total);
-    expect(view.values.get("discount").textContent).toBe("−₹30.00");
-    expect(view.values.get("total").textContent).toBe(money(total));
+    expect(view.values.get("discount").textContent).toBe("−₹30");
+    expect(view.values.get("total").textContent).toBe(formatINR(total));
   });
 });
 describe("UX-07 matching compact and sidebar breakdown",()=>{
