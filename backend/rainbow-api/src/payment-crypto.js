@@ -15,11 +15,43 @@ export function safeHexEqual(expected, actual) {
 export async function verifyHmac(secret, message, signature) {
   return safeHexEqual(await hmacHex(secret,message),signature);
 }
+// A live credential must never work just because someone replaced a test key.
+// Both the operator-selected mode and a separate release switch are required.
+export function paymentMode(env={}) {
+  const mode=String(env.PAYMENTS_MODE||"test");
+  return mode==="test"||mode==="live"?mode:"invalid";
+}
 export function isTestSecretsConfigured(env={}) {
   return /^rzp_test_[a-zA-Z0-9]+$/.test(String(env.RAZORPAY_KEY_ID||"")) &&
     Boolean(env.RAZORPAY_KEY_SECRET && env.RAZORPAY_WEBHOOK_SECRET &&
       env.SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY);
 }
+export function isLiveSecretsConfigured(env={}) {
+  return /^rzp_live_[a-zA-Z0-9]+$/.test(String(env.RAZORPAY_LIVE_KEY_ID||"")) &&
+    Boolean(env.RAZORPAY_LIVE_KEY_SECRET && env.RAZORPAY_LIVE_WEBHOOK_SECRET &&
+      env.SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY);
+}
 export function isTestConfigured(env={}) {
-  return env.PAYMENTS_ENABLED === "true" && env.PAYMENTS_SUSPENDED !== "true" && isTestSecretsConfigured(env);
+  return paymentMode(env)==="test" && env.PAYMENTS_ENABLED === "true" &&
+    env.PAYMENTS_SUSPENDED !== "true" && isTestSecretsConfigured(env);
+}
+export function isLiveConfigured(env={}) {
+  return paymentMode(env)==="live" && env.PAYMENTS_ENABLED === "true" &&
+    env.PAYMENTS_SUSPENDED !== "true" &&
+    env.LIVE_PAYMENTS_RELEASED === "true" && isLiveSecretsConfigured(env);
+}
+export function isPaymentsConfigured(env={}) {
+  return isTestConfigured(env)||isLiveConfigured(env);
+}
+// Continue handling captured-payment webhooks even if checkout is suspended.
+// Live webhooks require explicit live release, not just uploaded credentials.
+export function gatewayCredentials(env={}) {
+  if(paymentMode(env)==="test" && isTestSecretsConfigured(env)) return {
+    keyId:env.RAZORPAY_KEY_ID,keySecret:env.RAZORPAY_KEY_SECRET,
+    webhookSecret:env.RAZORPAY_WEBHOOK_SECRET
+  };
+  if(paymentMode(env)==="live" && env.LIVE_PAYMENTS_RELEASED==="true" && isLiveSecretsConfigured(env))
+    return {keyId:env.RAZORPAY_LIVE_KEY_ID,keySecret:env.RAZORPAY_LIVE_KEY_SECRET,
+      webhookSecret:env.RAZORPAY_LIVE_WEBHOOK_SECRET};
+  return null;
 }
