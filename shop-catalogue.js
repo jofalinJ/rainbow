@@ -79,6 +79,13 @@
    return url.replace(/-optimized\.webp(?=\?|$)/,"-thumb.webp");
  }
  // Single-item Buy now lives only in this tab; ordinary localStorage bag is untouched.
+ // Shared zero-photo placeholder: identical card, quick-view and detail content.
+ // Static markup only; never includes any untrusted product values.
+ function photoUnavailableMarkup(){
+   return '<span class="photo-unavailable" role="img" aria-label="Photo unavailable">'+
+     '<span class="photo-unavailable-icon" aria-hidden="true">◇</span>'+
+     '<span class="photo-unavailable-label" aria-hidden="true">Photo unavailable</span></span>';
+ }
  const BUY_NOW_KEY="rainbow_buy_now_v1";
  const validSelection=item=>item&&typeof item==="object"&&typeof item.variant_id==="string"&&
    item.product&&Number.isInteger(Number(item.quantity))&&Number(item.quantity)>=1&&Number(item.quantity)<=100;
@@ -92,5 +99,5 @@
  }
  function clearBuyNow(){try{sessionStorage.removeItem(BUY_NOW_KEY);}catch{}}
  root.RainbowCatalogue={PAGE_SIZE,MAX_PAGE_SIZE,buildQuery,page,thumbnailUrl,cleanSearch,
-   startBuyNow,readBuyNow,clearBuyNow};
+   startBuyNow,readBuyNow,clearBuyNow,photoUnavailableMarkup};
 })(typeof window==="undefined"?globalThis:window);
