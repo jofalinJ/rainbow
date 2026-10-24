@@ -28,11 +28,17 @@ function requireOrigin(request,env) {
   const origin=request.headers.get("Origin");
   return Boolean(origin && origins(env).has(origin));
 }
+class CheckoutInputError extends Error {
+  constructor(message,status=400){super(message);this.status=status;}
+}
 async function readBody(request) {
   const raw=await request.text();
-  if(raw.length>MAX_BODY) throw new Error("Request is too large");
-  const parsed=JSON.parse(raw);
-  if(!parsed || typeof parsed!=="object" || Array.isArray(parsed)) throw new Error("Invalid request");
+  if(raw.length>MAX_BODY)throw new CheckoutInputError("Request is too large",413);
+  let parsed;
+  try{parsed=JSON.parse(raw);}
+  catch{throw new CheckoutInputError("Malformed checkout request");}
+  if(!parsed || typeof parsed!=="object" || Array.isArray(parsed))
+    throw new CheckoutInputError("Invalid checkout request");
   return parsed;
 }
 async function callDb(env,fn,payload) {
@@ -109,6 +115,8 @@ export async function razorpayRoute(request,env) {
     if(path==="/api/razorpay/verify") return reply(request,env,await verify(request,env));
     return reply(request,env,apiError("Endpoint not found",404));
   }catch(error){
+    if(error instanceof CheckoutInputError)
+      return reply(request,env,apiError(error.message,error.status));
     console.error("Razorpay route error",error.message);
     return reply(request,env,apiError("Checkout could not be completed. Please retry or contact the shop.",503));
   }
