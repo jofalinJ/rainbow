@@ -154,8 +154,8 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
     pendingTimer=setTimeout(()=>{void preparePending();},220);
   }
   function phoneLooksValid(phone){
-    const cleaned=String(phone||"").replace(/[\\s-]/g,"").replace(/^\\+91/,"").replace(/^91(?=[6-9]\\d{9}$)/,"").replace(/^0(?=[6-9]\\d{9}$)/,"");
-    return /^[6-9]\\d{9}$/.test(cleaned);
+    const cleaned=String(phone||"").replace(/[\s-]/g,"").replace(/^\+91/,"").replace(/^91(?=[6-9]\d{9}$)/,"").replace(/^0(?=[6-9]\d{9}$)/,"");
+    return /^[6-9]\d{9}$/.test(cleaned);
   }
   // Same validation result is used for payment readiness, inline errors and submit.
   const deliveryFields=["name","phone","email","pin","city","state","address"];
@@ -164,8 +164,8 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
     const errors={};
     if(val("name").length<2)errors.name="Enter at least 2 characters.";
     if(!phoneLooksValid(val("phone")))errors.phone="Enter a valid 10-digit Indian mobile number.";
-    if(val("email")&&!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(val("email")))errors.email="Enter a valid email or leave it blank.";
-    if(val("pin")&&!/^\\d{6}$/.test(val("pin")))errors.pin="Enter a 6-digit PIN.";
+    if(val("email")&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val("email")))errors.email="Enter a valid email or leave it blank.";
+    if(val("pin")&&!/^\d{6}$/.test(val("pin")))errors.pin="Enter a 6-digit PIN.";
     if(!deliveryFeeForState(val("state"))&&deliveryFeeForState(val("state"))!==0)errors.state="Select your delivery state.";
     if(val("address").length<10)errors.address="Enter at least 10 characters for your address.";
     return errors;
