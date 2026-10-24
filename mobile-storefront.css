@@ -779,7 +779,8 @@
     margin:9px 0!important;gap:7px!important;padding:9px 11px!important;
     border-radius:11px!important
   }
-  .gateway-connection.is-online{display:none!important}
+  .gateway-connection[hidden]{display:none!important}
+  .gateway-connection.is-online:not([hidden]){display:flex!important}
   .gateway-connection .gateway-status{font-size:11px!important;line-height:1.4!important;
     min-width:0!important}
   .payment-method-detail{border:none!important;box-shadow:none!important;
@@ -950,3 +951,8 @@
     padding:9px 16px;border:1px solid #8f1520;border-radius:999px;
     background:#fffdfa;color:#8f1520;font-size:13px;font-weight:750;cursor:pointer}
 }
+
+
+/* UX-21: readiness belongs to the Razorpay TEST choice, not manual UPI. */
+.payment-choice-availability{display:block;color:#625249;font-size:11px;font-weight:700;line-height:1.45;margin-top:4px}
+.gateway-connection[hidden]{display:none!important}
