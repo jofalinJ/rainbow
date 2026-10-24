@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import worker from "../src/index.js";
-import {hmacHex,verifyHmac,isTestConfigured} from "../src/payment-crypto.js";
+import {hmacHex,verifyHmac,isTestConfigured,isLiveConfigured,isPaymentsConfigured,gatewayCredentials} from "../src/payment-crypto.js";
 
 const baseEnv={
   PAYMENTS_ENABLED:"true",RAZORPAY_KEY_ID:"rzp_test_Example123",
@@ -300,4 +300,72 @@ test("valid payment.captured webhook rechecks provider and settles",async()=>{
     assert.equal((await res.json()).paid,true);
     assert.equal(calls.length,2);
   }finally{globalThis.fetch=oldFetch;}
+});
+
+const liveEnv={...baseEnv,PAYMENTS_MODE:"live",
+  RAZORPAY_LIVE_KEY_ID:"rzp_live_Example123",RAZORPAY_LIVE_KEY_SECRET:"live-secret",
+  RAZORPAY_LIVE_WEBHOOK_SECRET:"live-webhook",LIVE_PAYMENTS_RELEASED:"true"};
+test("live mode requires a separate release flag and dedicated live keys",async()=>{
+  assert.equal(isLiveConfigured({...baseEnv,PAYMENTS_MODE:"live"}),false);
+  assert.equal(isLiveConfigured({...liveEnv,LIVE_PAYMENTS_RELEASED:"false"}),false);
+  assert.equal(isLiveConfigured({...liveEnv,RAZORPAY_LIVE_KEY_ID:baseEnv.RAZORPAY_KEY_ID}),false);
+  assert.equal(isLiveConfigured({...liveEnv,RAZORPAY_LIVE_KEY_SECRET:null}),false);
+  assert.equal(isLiveConfigured({...liveEnv,PAYMENTS_SUSPENDED:"true"}),false);
+  assert.equal(isLiveConfigured(liveEnv),true);
+  assert.equal(isPaymentsConfigured(liveEnv),true);
+  assert.equal(gatewayCredentials(liveEnv).keySecret,"live-secret");
+  const res=await worker.fetch(request("/api/razorpay/config",undefined,"GET",
+    "https://rainbowgoldcovering.com"),liveEnv);
+  const body=await res.json();
+  assert.equal(body.enabled,true);
+  assert.equal(body.mode,"live");
+  assert.equal(body.keyId,"rzp_live_Example123");
+  assert.ok(!JSON.stringify(body).includes("live-secret"));
+  assert.ok(!JSON.stringify(body).includes("live-webhook"));
+});
+test("live mode denies the GitHub Pages origin and never creates a real order there",async()=>{
+  const res=await worker.fetch(request("/api/razorpay/create",{
+    checkout_id:checkoutId,items,customer:checkoutCustomer
+  }),liveEnv);
+  assert.equal(res.status,403);
+  assert.equal(res.headers.get("Access-Control-Allow-Origin"),null);
+});
+test("live mode accepts a release-authorized production checkout with live public key",async()=>{
+  const oldFetch=globalThis.fetch,calls=[];
+  globalThis.fetch=mockFetch({
+    "/rest/v1/rpc/create_razorpay_checkout":{
+      state:"ready",gateway_order_id:rOrder,order_number:"RG-LIVE",amount_paise:19900,
+      expires_at:"2099-01-01T00:00:00Z"
+    }
+  },calls);
+  try {
+    const res=await worker.fetch(request("/api/razorpay/create",
+      {checkout_id:checkoutId,items,customer:checkoutCustomer},
+      "POST","https://rainbowgoldcovering.com"),liveEnv);
+    assert.equal(res.status,200);
+    assert.deepEqual((await res.json()).mode,"live");
+    assert.equal(calls.length,1);
+  } finally {globalThis.fetch=oldFetch;}
+});
+test("webhook can reconcile captured live payment while checkout is suspended",async()=>{
+  const oldFetch=globalThis.fetch,calls=[];
+  const payload=JSON.stringify({event:"payment.captured",payload:{
+    payment:{entity:{id:rPayment,order_id:rOrder}}}});
+  globalThis.fetch=mockFetch({
+    ["/v1/payments/"+rPayment]:{
+      id:rPayment,order_id:rOrder,amount:2500,currency:"INR",status:"captured"
+    },
+    "/rest/v1/rpc/complete_razorpay_checkout":{paid:true,state:"paid"}
+  },calls);
+  try {
+    const env={...liveEnv,PAYMENTS_SUSPENDED:"true"};
+    assert.equal(isPaymentsConfigured(env),false);
+    const sig=await hmacHex(env.RAZORPAY_LIVE_WEBHOOK_SECRET,payload);
+    const res=await worker.fetch(request("/api/razorpay/webhook",payload,"POST","",{
+      "x-razorpay-signature":sig,"x-razorpay-event-id":"evt_live_123"
+    }),env);
+    assert.equal(res.status,200);
+    assert.equal((await res.json()).paid,true);
+    assert.equal(calls.length,2);
+  } finally {globalThis.fetch=oldFetch;}
 });
