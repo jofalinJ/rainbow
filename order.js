@@ -136,7 +136,7 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
     if(el)el.textContent=count;
     const badge=$("bagItemCount");
     if(badge)badge.textContent=buyNowActive?"Buying now: "+count+" "+(count===1?"item":"items"):
-      count===0?"Your bag is empty":count+" "+(count===1?"item":"items")+" in your bag";
+      count===0?"Bag is empty":count+" "+(count===1?"item":"items")+" in your bag";
   }
   function msg(text,kind=""){
     const el=$("orderMsg");
@@ -343,7 +343,7 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
   }
   function render(){
     if(!cart.length){
-      $("orderItems").innerHTML='<div class="empty">Your cart is empty. <a href="index.html#products">Browse products →</a></div>';
+      $("orderItems").innerHTML='<div class="empty">Bag is empty. <a href="index.html#products">Browse products →</a></div>';
       totals();
       updatePlaceOrderState();
       return;
@@ -508,7 +508,7 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
       save();
       render();
       if(cart.some(item=>item.unavailable||Number(item.quantity)>Number(item.current_stock))){
-        msg("Some cart items need attention. Remove unavailable items or adjust quantities before ordering.","error");
+        msg("Some bag items need attention. Remove unavailable items or adjust quantities before checkout.","error");
       }else msg("");
     }catch(error){
       console.error("Cart verification failed.",error);
