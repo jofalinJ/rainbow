@@ -123,6 +123,11 @@ async function prepare(request,env){
   const held=await callDb(env,"create_razorpay_checkout",{
     p_checkout_id:body.checkout_id,p_items:body.items,p_customer:body.customer
   });
+  // Razorpay's minimum is 100 paise. This amount must come from the database,
+  // not a user-supplied "amount" or the browser's calculated display total.
+  if(["new","ready","creating"].includes(held.state) &&
+    (!Number.isSafeInteger(held.amount_paise) || held.amount_paise<100))
+    return apiError("The verified checkout total is below the minimum ₹1.00. Review your cart.",422);
   // Customer consent is voluntary and attached to the same reserved checkout.
   // Only the server can update it; never send a message before verified capture.
   if(body.customer.whatsapp_opt_in===true)
@@ -158,7 +163,7 @@ async function prepare(request,env){
   if(held.state==="expired") return json({success:false,code:"CHECKOUT_EXPIRED",
     error:"Your previous reservation expired. Please review the cart and retry."},410);
   if(held.state!=="new") return apiError("This checkout has already been processed. Contact the shop before retrying.",409);
-  if(!Number.isSafeInteger(held.amount_paise)||held.amount_paise<=0)
+  if(!Number.isSafeInteger(held.amount_paise)||held.amount_paise<100)
     throw new Error("Invalid authoritative amount");
   // A failed/uncertain provider call leaves the reservation held for timeout cleanup;
   // never create a second provider order using the same checkout UUID.
