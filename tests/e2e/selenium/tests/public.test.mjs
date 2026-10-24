@@ -186,13 +186,18 @@ test("mobile storefront puts cart beside account and displays photo categories w
   });
 });
 
-test("checkout top navigation and logo do not overlap at phone width",async()=>{
+test("checkout mobile top bar keeps logo and cart visible without overlapping",async()=>{
   await runWithDriver("checkout-mobile-topbar",async driver=>{
     await driver.sendDevToolsCommand("Emulation.setDeviceMetricsOverride",{width:390,height:844,deviceScaleFactor:1,mobile:true});
     await driver.get(BASE_URL+"/order.html");
     const logo=await driver.findElement(By.css(".topbar .logo"));
     const links=await driver.findElement(By.css(".topbar .navlinks"));
-    const a=await logo.getRect(),b=await links.getRect();
-    assert.ok(a.y+a.height<=b.y+2,"Mobile checkout logo should be above navigation row");
+    const cart=await driver.findElement(By.css(".topbar .cart-top"));
+    assert.equal(await links.isDisplayed(),false,"Desktop navigation links should be hidden on mobile checkout");
+    assert.ok(await logo.isDisplayed(),"Checkout brand logo should be visible on mobile");
+    assert.ok(await cart.isDisplayed(),"Checkout cart button should be visible on mobile");
+    const a=await logo.getRect(),b=await cart.getRect();
+    assert.ok(a.x+a.width<=b.x+2,"Mobile checkout brand logo must not overlap the cart button");
+    assert.ok(a.x>=-2 && b.x+b.width<=392,"Mobile checkout header must fit within the phone viewport");
   });
 });
