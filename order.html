@@ -39,6 +39,18 @@
     <section class="order-card checkout-panel" aria-labelledby="paymentHeading">
       <div class="checkout-section-title"><span class="checkout-eyebrow">STEP 03 / PAYMENT</span><h2 id="paymentHeading">Payment method</h2></div>
       <p class="checkout-subtitle checkout-payment-intro">Choose how to pay. The final amount is verified securely.</p>
+      <details id="paymentPriceBreakdown" class="payment-price-breakdown">
+        <summary><span id="paymentPriceHeadline">Review your amount</span><span aria-hidden="true">⌄</span></summary>
+        <div class="payment-price-breakdown-rows">
+          <div><span>Subtotal</span><strong id="paymentMiniSubtotal">—</strong></div>
+          <div><span>Discount (3%)</span><strong id="paymentMiniDiscount">—</strong></div>
+          <div><span>CGST (1.5%)</span><strong id="paymentMiniCgst">—</strong></div>
+          <div><span>SGST (1.5%)</span><strong id="paymentMiniSgst">—</strong></div>
+          <div><span>Delivery</span><strong id="paymentMiniDelivery">—</strong></div>
+          <div class="payment-mini-grand"><span>Total</span><strong id="paymentMiniTotal">—</strong></div>
+          <p id="paymentPriceSource" class="payment-price-source" role="status">Amount verified before payment.</p>
+        </div>
+      </details>
       <div class="payment-methods" role="radiogroup" aria-label="Payment method">
         <label class="payment-choice" id="razorpayChoice">
           <input id="payRazorpay" type="radio" name="paymentMethod" value="razorpay" disabled>
