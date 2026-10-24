@@ -249,6 +249,9 @@
     const track=document.getElementById("mobileCategoryTrack");
     if(!section||!track)return;
     if(!mobileCategoryCountsReady){
+      // The DOM has switched to skeleton/error; force cards to rebuild after
+      // a recovered request even if its category signature is unchanged.
+      mobileCategorySignature="";
       track.innerHTML=mobileCategoryCountError
         ?'<div class="mobile-category-count-error" role="alert">Collections unavailable. <button type="button" id="mobileCategoryRetry">Retry</button></div>'
         :'<span class="mobile-category-loading" role="status">Loading collections…</span>';
