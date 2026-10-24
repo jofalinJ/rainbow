@@ -44,6 +44,10 @@
     document.getElementById("mobileCategoryTrack")?.addEventListener("click",event=>{
       if(event.target.closest("[data-mobile-category]"))setTab(categories);
     });
+    // Choosing a category from the hamburger uses the same Explore active tab.
+    document.getElementById("shopDrawer")?.addEventListener("click",event=>{
+      if(event.target.closest("[data-filter-type]"))setTab(categories);
+    });
     wishlist?.addEventListener("click",()=>queueMicrotask(syncWishlist));
     if(wishlist)new MutationObserver(syncWishlist).observe(wishlist,{attributes:true,attributeFilter:["aria-pressed"]});
     if(accountOverlay){
