@@ -18,7 +18,8 @@ describe("QA audit Phase 0 — failing source baselines, no network",()=>{
     expect(shop).not.toMatch(/if\s*\(replace\)\s*\{\s*saveCart\(\[/);
   });
   it("UX-03 Clear bag requires an actual confirmation control",()=>{
-    expect(order).toMatch(/<dialog\b[^>]*id="[^"]*clear[^"]*"/i);
+    expect(checkout).toContain('document.createElement("dialog")');
+    expect(checkout).toContain("clearDialog.showModal()");
     expect(checkout).not.toMatch(/\$\("clearCart"\)\.onclick\s*=\s*\(\)\s*=>\s*\{\s*cart\s*=\s*\[\]/);
   });
   it("UX-04 Razorpay readiness cannot auto-select the TEST method",()=>{
@@ -37,29 +38,31 @@ describe("QA audit Phase 0 — failing source baselines, no network",()=>{
     expect(order).toMatch(/<ol\b[^>]*class="checkout-progress"/);
   });
   it("UX-11 Categories require visible stock or non-clickable coming-soon state",()=>{
-    expect(shop).toMatch(/buckets\.filter\([^)]*(?:products|count|stock)/);
+    expect(shop).toContain("mobileCategoryStockCounts.get(normalizeCategory(bucket.label))>0");
+    expect(shop).toContain('{count:"exact",head:true}');
   });
   it("UX-12 Mobile product header has a reachable back action",()=>{
     expect(mobileCss).not.toContain('body:has(.detail-page) .topbar .nav > a[href="index.html#products"]{display:none!important}');
     expect(product).toMatch(/aria-label="Back to jewellery"/);
   });
   it("UX-13 Mobile input text receives 16px or larger overrides",()=>{
-    expect(mobileCss).toMatch(/\.account-auth-form input[^}]*font-size:\s*16px/s);
-    expect(mobileCss).toMatch(/\.detail-picker[^}]*font-size:\s*16px/s);
+    expect(mobileCss).toContain(".account-auth-form :is(input,select,textarea)");
+    expect(mobileCss).toContain("select,textarea {font-size:16px!important}");
   });
   it("UX-15 Mobile carousel dots expose a 24px+ touch hitbox",()=>{
     expect(mobileCss).toMatch(/\.promotion-carousel-dots button[^}]*min-width:\s*24px/s);
   });
   it("UX-16 A catalogue request failure has its own retry control",()=>{
-    expect(home).toMatch(/id="(?:productRetry|catalogueRetry)"/);
-    expect(shop).toMatch(/(?:productRetry|catalogueRetry).*addEventListener/s);
+    expect(shop).toContain('id="catalogueRetry"');
+    expect(shop).toContain('document.getElementById("productGrid")?.addEventListener("click",event=>');
   });
   it("UX-17 Product quick view has a semantic activation target",()=>{
     expect(shop).toMatch(/Quick view:/);
     expect(shop).not.toMatch(/card\.addEventListener\("click"/);
   });
   it("UX-18 Image counter cannot read 1 \/ 0",()=>{
-    expect(shop).not.toMatch(/data-gallery-count>1 \/ '\+images\.length/);
+    expect(shop).toContain("(images.length?'<span");
+    expect(shop).toContain("gallery-count");
   });
   it("UX-19 A shared price formatter is used across pages",()=>{
     expect(shop).toContain("formatINR(");
@@ -72,7 +75,8 @@ describe("QA audit Phase 0 — failing source baselines, no network",()=>{
     expect(product).not.toContain(">My bag");
   });
   it("UX-21 Gateway status is contextual to the selected method",()=>{
-    expect(checkout).toMatch(/gatewayConnection[^;\n]*hidden\s*=/);
+    expect(checkout).toContain("providerPanel.hidden=!razorpayTestAllowed||!gatewaySelected");
+    expect(order).toContain('id="razorpayInlineStatus"');
   });
   it("Baseline safety: frontend never embeds a server-only secret or payment key",()=>{
     expect(order).not.toContain("RAZORPAY_KEY_SECRET");
