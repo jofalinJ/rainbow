@@ -29,8 +29,8 @@
    if(!selected)return;
    const qty=Number($("detailQty").value);
    if(!Number.isInteger(qty)||qty<1||qty>Number(selected.stock_quantity)){set("detailMessage","Choose an available quantity.");return;}
-   const items=buy?[]:cart();
-   const existing=items.find(item=>String(item.variant_id)===String(selected.id));
+   const items=cart();
+   const existing=buy?null:items.find(item=>String(item.variant_id)===String(selected.id));
    const current=Number(existing?.quantity||0);
    if(current+qty>Number(selected.stock_quantity)){set("detailMessage","Only "+selected.stock_quantity+" available; reduce the quantity.");return;}
    const line={variant_id:selected.id,quantity:current+qty,variant_label:variantLabel(selected),product:{
@@ -38,11 +38,16 @@
      selling_price:Number(product.selling_price),description:product.description||"",image:imagesOf(product)[0]?.public_url||"",
      variant_color:selected.color||null,variant_size:selected.size||null,variant_length_cm:selected.length_cm||null
    }};
+   if(buy){
+     if(!window.RainbowCatalogue?.startBuyNow(line)){
+       set("detailMessage","Could not start Buy now on this device. Try again.");return;
+     }
+     location.href="order.html";return;
+   }
    if(existing)Object.assign(existing,line);else items.push(line);
    try{localStorage.setItem(cartKey,JSON.stringify(items));}catch{set("detailMessage","Could not save your bag on this device.");return;}
    window.RainbowAnalytics?.track("add_to_cart",{item_id:product.product_code,quantity:qty});
    refreshCart();set("detailMessage","Added to your bag.");
-   if(buy)location.href="order.html";
  }
  function renderRelated(rows){
    const grid=$("detailRelatedGrid");grid.replaceChildren();
