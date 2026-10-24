@@ -51,6 +51,10 @@ async function mockCheckout(page,{buyNow=false,quoteTotal=1049.10}={}){
   // Strict denylist: no external request escapes the test runner.
   await page.route("**/*",async route=>{
     const url=new URL(route.request().url());
+    // Never render a real, scannable merchant QR in screenshots/test runs.
+    if(url.pathname.endsWith("/assets/brand/pay.png"))
+      return route.fulfill({status:200,contentType:"image/svg+xml",
+        body:'<svg xmlns="http://www.w3.org/2000/svg" width="176" height="176"><rect width="176" height="176" fill="#f9e5e5"/><text x="88" y="79" text-anchor="middle" font-size="20" fill="#8f1520">TEST ONLY</text><text x="88" y="108" text-anchor="middle" font-size="12" fill="#8f1520">DO NOT PAY</text></svg>'});
     if(url.origin===base)return route.continue();
     return route.fulfill({status:503,contentType:"text/plain",body:"Blocked by isolated test"});
   });
