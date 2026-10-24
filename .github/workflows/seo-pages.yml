@@ -1,0 +1,56 @@
+name: Publish SEO catalogue (GitHub Pages)
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "23 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "seo-pages-production"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.repository == 'jofalinJ/rainbow' && vars.RAINBOW_SEO_CATALOGUE_APPROVED == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Validate SEO renderer
+        run: node --test tests/seo/seo-pages.test.mjs
+      - name: Read public Supabase catalogue and generate crawlable HTML + sitemap
+        run: node scripts/generate-seo-pages.mjs
+      - name: Build filtered static storefront artifact
+        run: |
+          npm ci --legacy-peer-deps
+          npm run build:pages
+          test -f dist-pages/categories/index.html
+          test -f dist-pages/sitemap.xml
+          test ! -e dist-pages/backend
+          test ! -e dist-pages/supabase
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./dist-pages
+
+  deploy:
+    needs: build
+    if: github.repository == 'jofalinJ/rainbow' && vars.RAINBOW_SEO_CATALOGUE_APPROVED == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy generated storefront to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
