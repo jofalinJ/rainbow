@@ -385,7 +385,7 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
     if(!cart.length)msg("");
   }
   function updateCheckoutProgress(){
-    const submitted=$("orderLayout")?.hidden===true&&Boolean(pendingRecord?.status==="pending");
+    const submitted=Boolean(pendingRecord?.status==="pending")&&($("orderLayout")?.hidden===true||cart.length===0);
     const deliveryValid=Object.keys(deliveryErrors()).length===0;
     const stockReady=cart.length>0&&cartVerified&&!cartVerificationFailed&&cart.every(cartItemHasStock);
     const paymentReady=deliveryValid&&stockReady&&
