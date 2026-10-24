@@ -177,3 +177,9 @@ body:has(.order-page) .order-page{padding:44px 0 110px}
 .order-success h2{color:#275f3c;font:600 clamp(23px,3vw,33px)/1.3 Georgia,serif}
 .order-success p{color:#564c43;line-height:1.65}
 .order-success a.btn{margin:8px 12px 5px 0}
+
+
+/* UX-10: semantic ol/list items keep their existing visual positions. */
+.checkout-progress{list-style:none}
+.checkout-step{list-style:none}
+.checkout-step.is-complete b{font-family:inherit}
