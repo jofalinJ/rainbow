@@ -149,4 +149,75 @@ test.describe("Phase 1 isolated checkout at 390x844",()=>{
     await page.getByRole("button",{name:"Clear bag",exact:true}).last().click();
     expect(await page.evaluate(()=>JSON.parse(localStorage.getItem("rainbow_cart_v1")).length)).toBe(0);
   });
+  test("UX-06/07: discount is negative and one price model feeds both breakdowns",async({page})=>{
+    await mockCheckout(page);
+    await page.goto(base+"/order.html");await fillValid(page);
+    await expect(page.locator("#checkoutQR img")).toHaveCount(1);
+    await expect(page.locator("#discount")).toHaveText("−₹30.00");
+    await expect(page.locator("#paymentMiniDiscount")).toHaveText("−₹30.00");
+    await expect(page.locator("#paymentPriceHeadline")).toHaveText("Pay ₹1,049.10");
+    await page.locator("#paymentPriceBreakdown summary").click();
+    for(const [a,b] of [
+      ["subtotal","paymentMiniSubtotal"],["discount","paymentMiniDiscount"],
+      ["cgst","paymentMiniCgst"],["sgst","paymentMiniSgst"],
+      ["delivery","paymentMiniDelivery"],["total","paymentMiniTotal"]
+    ]){
+      expect(await page.locator("#"+a).textContent()).toBe(
+        await page.locator("#"+b).textContent()
+      );
+    }
+  });
+  test("UX-09: pending checkout persists without address and corrects same order",async({page})=>{
+    const mock=await mockCheckout(page);
+    await page.goto(base+"/order.html");await fillValid(page);
+    await expect(page.locator("#checkoutQR img")).toHaveCount(1);
+    await page.locator("#paymentReference").fill("TEST-UTR-001");
+    await page.locator("#placeOrder").click();
+    await expect(page.locator("#orderSuccess")).toContainText("pending shop verification");
+    const record=await page.evaluate(()=>JSON.parse(localStorage.getItem("rainbow_pending_upi_v1")));
+    expect(record.order_number).toBe("ISOLATED-0001");
+    expect(record.phone_last4).toBe("3210");
+    expect(JSON.stringify(record)).not.toContain("Isolated test address");
+    expect(JSON.stringify(record)).not.toContain("9876543210");
+    const firstCheckoutId=record.checkout_id;
+    await page.reload();
+    await expect(page.locator("#pendingCheckoutBanner")).toBeVisible();
+    await expect(page.locator("#pendingCheckoutMessage")).toContainText("ISOLATED-0001");
+    expect(mock.stats().prepares).toBe(1);
+    await page.locator("#pendingCheckoutCorrect").click();
+    await page.locator("#pendingCheckoutUtr").fill("TEST-UTR-CORRECTED");
+    await page.locator("#pendingCheckoutSaveUtr").click();
+    await expect(page.locator("#pendingCheckoutMessage")).toContainText("Reference updated");
+    expect(mock.stats().corrections).toBe(1);
+    const current=await page.evaluate(()=>JSON.parse(localStorage.getItem("rainbow_pending_upi_v1")));
+    expect(current.checkout_id).toBe(firstCheckoutId);
+    await page.locator("#pendingCheckoutStatus").click();
+    expect(mock.stats().statusReads).toBe(1);
+    expect(mock.stats().prepares).toBe(1);
+  });
+  test("UX-09: only server decline restores the bag and clears pending state",async({page})=>{
+    const mock=await mockCheckout(page);
+    await page.goto(base+"/order.html");await fillValid(page);
+    await expect(page.locator("#checkoutQR img")).toHaveCount(1);
+    await page.locator("#paymentReference").fill("TEST-UTR-002");
+    await page.locator("#placeOrder").click();
+    await expect(page.locator("#orderSuccess")).toContainText("pending");
+    expect(await page.evaluate(()=>JSON.parse(localStorage.getItem("rainbow_cart_v1")))).toHaveLength(0);
+    mock.setStatus("declined");
+    await page.locator("#pendingCheckoutStatus").click();
+    await expect(page.locator("#pendingCheckoutMessage")).toContainText("restored");
+    const restored=await page.evaluate(()=>JSON.parse(localStorage.getItem("rainbow_cart_v1")));
+    expect(restored).toHaveLength(1);
+    expect(await page.evaluate(()=>localStorage.getItem("rainbow_pending_upi_v1"))).toBeNull();
+  });
+  test("UX-10: checkout stages announce bag, delivery and payment",async({page})=>{
+    await mockCheckout(page);
+    await page.goto(base+"/order.html");
+    await expect(page.locator("#addressStep")).toHaveAttribute("aria-current","step");
+    await fillValid(page);
+    await expect(page.locator("#paymentStep")).toHaveAttribute("aria-current","step");
+    await expect(page.locator("#addressStep b")).toHaveText("✓");
+    await expect(page.locator("#paymentStep [data-step-announcement]")).toContainText("Step 3 of 3");
+  });
+
 });
