@@ -36,7 +36,7 @@
   }
 
   const esc=value=>String(value??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
-  const money=value=>"₹"+Number(value||0).toLocaleString("en-IN",{maximumFractionDigits:2});
+  const formatINR=window.RainbowCatalogue.formatINR;
   const getProductImages=product=>{
     const images=Array.isArray(product.product_images)?product.product_images:[];
     return images.filter(image=>image&&image.public_url)
@@ -328,7 +328,7 @@
       const anchor=document.createElement("a");anchor.href="product.html?sku="+encodeURIComponent(p.product_code||"");anchor.className="latest-item";
       const img=document.createElement("img");img.src=getThumb(p);if(getThumb(p)!==getImage(p)){img.srcset=getThumb(p)+" 480w, "+getImage(p)+" 1600w";img.sizes="(max-width:700px) 50vw, 25vw";}img.alt=p.product_name||"New jewellery design";img.width=320;img.height=320;img.loading="lazy";img.decoding="async";
       const label=document.createElement("strong");label.textContent=p.product_name||"Jewellery";
-      const price=document.createElement("span");price.textContent=money(p.selling_price);
+      const price=document.createElement("span");price.textContent=formatINR(p.selling_price);
       anchor.append(img,label,price);grid.append(anchor);
     });
   }
@@ -449,7 +449,7 @@
         "<div class='product-image'>"+(image?"<img src='"+esc(image)+"'"+responsiveSource(p)+" alt='"+esc(p.product_name)+"' width='320' height='320' loading='lazy' decoding='async'>":catalogue.photoUnavailableMarkup())+
         "<button type='button' class='product-wishlist-button"+(saved?" is-saved":"")+"' data-wishlist-product='"+esc(p.id)+"' aria-label='"+(saved?"Remove ":"Add ")+esc(p.product_name)+(saved?" from":" to")+" wishlist' aria-pressed='"+saved+"'>"+(saved?"♥":"♡")+"</button></div>"+
         "<div class='product-body'><h3 class='product-name'>"+esc(p.product_name)+"</h3><div class='product-type'>"+esc(categoryFor(p))+"</div>"+
-        "<div class='product-meta'><strong class='product-price'>"+money(p.selling_price)+"</strong><span class='product-stock "+stockClass+"'>"+stockText+"</span></div><div class='product-card-actions'><a href='product.html?sku="+encodeURIComponent(p.product_code||"")+"'>Details ↗</a></div></div></article>";
+        "<div class='product-meta'><strong class='product-price'>"+formatINR(p.selling_price)+"</strong><span class='product-stock "+stockClass+"'>"+stockText+"</span></div><div class='product-card-actions'><a href='product.html?sku="+encodeURIComponent(p.product_code||"")+"'>Details ↗</a></div></div></article>";
     }).join(""):"<div class='product-empty'>"+(wishlistOnly?"Nothing saved yet. Tap a heart to save a design.":activeSearch?"No matches. Try another search or category.":visualSearchSignature?"No visual matches could be ranked for this image. Try a clearer photo or search by name.":activeCategory?"No "+esc(activeCategory.toLowerCase())+" products are currently in stock.":"No jewellery listed yet.")+"</div>";
     renderPager(false);
     if(appendOnly)grid.insertAdjacentHTML("beforeend",rendered);
@@ -825,7 +825,7 @@
     return '<article class="active-order-card"><div class="tracking-result-top"><div><strong>'+esc(order.order_number)+'</strong>'+
       '<small>'+esc(order.product_names||order.product_name||"Online order")+(date?" · "+esc(date):"")+'</small></div>'+
       '<span class="tracking-status '+esc(status)+'">'+esc(status)+'</span></div>'+
-      '<small>Payment: '+esc(order.payment_status||"pending")+(order.total_amount!=null?' · Total ₹'+Number(order.total_amount).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2}):"")+'</small>'+
+      '<small>Payment: '+esc(order.payment_status||"pending")+(order.total_amount!=null?' · Total '+formatINR(order.total_amount):"")+'</small>'+
       (notice?'<p class="tracking-manual-note">'+esc(notice)+'</p>':"")+timeline+tracking+'</article>';
   }
   async function loadMyOrdersInto(container,label){
@@ -960,7 +960,7 @@
         '<div class="product-breadcrumb"><span>Rainbow Gold Covering</span><span aria-hidden="true">›</span><span>'+esc(category)+'</span></div>'+
         '<h2 id="modalProductName">'+esc(product.product_name)+'</h2>'+
         '<div class="product-type modal-product-type">'+esc(category)+'</div>'+
-        '<div class="modal-price-row"><div class="modal-price">'+money(product.selling_price)+'</div><span class="product-stock '+(stockOf(selectedVariant)===0?"out":"in")+'" data-variant-status>'+(stockOf(selectedVariant)===0?"Out of stock":"In stock")+'</span></div>'+
+        '<div class="modal-price-row"><div class="modal-price">'+formatINR(product.selling_price)+'</div><span class="product-stock '+(stockOf(selectedVariant)===0?"out":"in")+'" data-variant-status>'+(stockOf(selectedVariant)===0?"Out of stock":"In stock")+'</span></div>'+
         choiceControls+genericVariantPicker+
         '<div class="product-quantity-row"><span>Quantity</span><div class="quantity-picker"><button type="button" data-qty-minus aria-label="Decrease quantity">−</button><span data-qty>1</span><button type="button" data-qty-plus aria-label="Increase quantity">＋</button></div></div>'+
         '<div class="product-buy-actions"><button class="btn btn-dark" type="button" data-add-cart>Add to Cart</button><button class="btn btn-light" type="button" data-buy-now>Buy Now →</button></div>'+
