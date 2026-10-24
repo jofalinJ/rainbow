@@ -177,7 +177,9 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
   function paintQR(){
     const qr=$("checkoutQR");if(!qr)return;
     qr.replaceChildren();qr.hidden=true;
-    const amounts=lockedAmounts();if(!amounts||!pending)return;
+    const amounts=lockedAmounts();
+    if(!amounts||!pending||!pendingRecord||
+      Date.now()-pendingRecord.created_at>PENDING_TTL)return;
     const img=document.createElement("img");img.src="assets/brand/pay.png";
     img.alt="Shop UPI QR. Verify the recipient name before transferring money.";
     img.width=176;img.height=176;
@@ -215,6 +217,8 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
       if(generation!==pendingVersion||signature!==snapshot())return;
       const names=["subtotal","discount_amount","cgst_amount","sgst_amount","delivery_fee","total_amount"];
       if(!data||data.checkout_id!==key||data.state!=="awaiting_payment"||!data.order_number||
+        !/^[A-Za-z0-9_-]{32,128}$/.test(String(data.recovery_token||""))||
+        !Number.isFinite(Date.parse(data.expires_at))||Date.parse(data.expires_at)<=Date.now()||
         !names.every(name=>Number.isFinite(Number(data[name]))))
         throw new Error("Pending checkout could not be verified.");
       if(paise(data.total_amount)!==paise(totals().total)){
