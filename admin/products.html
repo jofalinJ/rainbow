@@ -37,6 +37,10 @@
 <div class="field"><label for="lookupProductCode">Or find any product by its exact code</label>
 <div class="catalogue-lookup"><input id="lookupProductCode" type="search" placeholder="e.g. RGC/C00004" autocomplete="off"><button id="lookupProductButton" type="button">Find product</button></div></div>
 <p id="lookupProductStatus" role="status" aria-live="polite"></p>
+<div class="field" id="sharedProductLookupSection" hidden style="margin:12px 0"><label for="sharedProductSearch">Find shared product by name, code or barcode</label>
+<div class="catalogue-lookup"><input id="sharedProductSearch" type="search" maxlength="70" placeholder="Search products already entered by another shop" autocomplete="off"><button type="button" id="sharedProductSearchButton">Search</button></div>
+<div id="sharedProductResults" class="existing-variants" role="status" aria-live="polite"></div>
+<small>Use an existing master product and its photos. To increase a shop's stock, select the product and choose Inventory → Multi-shop stock.</small></div>
    <p id="existingVariantHelp" class="field-help">Select a product to see its existing variants.</p>
    <div id="existingVariants" class="existing-variants" aria-live="polite"></div>
    <div id="variantFields" class="entry-grid variant-grid">
@@ -85,6 +89,14 @@
  </form>
  <p id="msg" class="product-form-message" role="status" aria-live="polite"></p>
 </section>
+<dialog hidden id="onlineListingDialog" aria-labelledby="onlineListingTitle" class="stock-dialog">
+<header class="stock-dialog-head"><h2 id="onlineListingTitle">Online product listing</h2><button type="button" id="closeOnlineListing">Close</button></header>
+<div class="stock-dialog-content"><p id="onlineListingProduct"></p>
+<label class="publish-toggle"><input id="onlineListingVisible" type="checkbox"> Publish this existing product online</label>
+<label>Online price (₹, optional)<input id="onlineListingPrice" type="number" min="0" step="0.01" placeholder="Use master product price"></label>
+<p class="field-help">Online publishing alone doesn't add stock. Move stock from a physical shop to the online allocation in Inventory. This listing is staged and does not yet affect the live website.</p>
+<button type="button" id="saveOnlineListing" class="save-category">Save online listing</button>
+<p id="onlineListingFeedback" role="status"></p></div></dialog>
 <section class="panel" id="categoryDisplay"><div class="panelhead"><h2>Storefront category display</h2><span>Set the category order and choose which in-stock types can appear in the shop.</span></div><div id="storefrontCategoryRows" class="storefront-category-rows">Loading categories…</div><div class="category-display-save"><button type="button" id="saveStorefrontCategories">Save storefront display</button><span id="storefrontCategoryMessage" role="status"></span></div></section>
 <section class="panel" aria-labelledby="catalogueAdminTitle">
 <div class="panelhead"><div><h2 id="catalogueAdminTitle">Product Catalogue</h2><small>Search and manage products across the full database, 40 at a time.</small></div>

@@ -1,5 +1,6 @@
 import { methodNotAllowed, notFound } from "./http.js";
 import { health } from "./routes/health.js";
+import { erpCatalogue } from "./routes/erp-catalogue.js";
 import { razorpayRoute, expireRazorpayReservations } from "./routes/razorpay.js";
 import { sendPaidInvoiceWhatsApp } from "./whatsapp.js";
 
@@ -10,6 +11,7 @@ export default {
       if (request.method !== "GET" && request.method !== "HEAD") return methodNotAllowed();
       return health(request, env);
     }
+    if (path === "/api/erp/catalogue") return erpCatalogue(request,env);
     if (path.startsWith("/api/razorpay/")) return razorpayRoute(request,env);
     return notFound();
   },
