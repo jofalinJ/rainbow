@@ -20,15 +20,17 @@ create table public.branches(
 );
 create table public.products(
  id uuid primary key,product_code text unique not null,
- product_name text not null,active boolean not null default true
+ product_name text not null,selling_price numeric not null default 100,
+ created_at timestamptz not null default now(),active boolean not null default true
 );
 create table public.product_variants(
  id uuid primary key,product_id uuid not null references public.products(id),
- barcode text unique,active boolean not null default true,stock_quantity integer not null default 0
+ barcode text unique,color text not null default '0',size text not null default '0',
+ active boolean not null default true,stock_quantity integer not null default 0
 );
 create table public.product_images(
  id uuid primary key, product_id uuid not null references public.products(id),
- is_primary boolean,sort_order integer
+ is_primary boolean,sort_order integer,public_url text
 );
 insert into auth.users(id) values
  ('11111111-1111-4111-8111-111111111111'),
