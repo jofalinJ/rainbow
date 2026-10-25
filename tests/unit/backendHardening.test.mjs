@@ -29,6 +29,11 @@ describe("exactly-once local POS billing",()=>{
   });
   it("rejects duplicate variant lines and handles unnamed walk-ins",()=>{
     expect(sql).toContain("Duplicate product variant in sale");
+    expect(sql.match(/CREATE OR REPLACE FUNCTION public\.create_local_sale/g)).toHaveLength(1);
+    expect(sql.match(/\$function\$/g)).toHaveLength(2);
+    expect(sql).toContain("coalesce(v_customer_phone,'')");
+    expect(sql).toContain("return v_final_response;");
+    expect(sql).toMatch(/\$function\$;\s*$/);
     expect(sql).toContain("coalesce(v_customer_name, 'Walk-in Customer')");
     expect(sql).not.toContain("if v_customer_name is not null or v_customer_phone is not null then");
   });
