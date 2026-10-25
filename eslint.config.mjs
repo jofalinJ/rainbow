@@ -22,6 +22,10 @@ export default [
     rules:{...js.configs.recommended.rules}
   },
   {
+    files:["tests/e2e/ux-phase*.spec.mjs"],
+    languageOptions:{ecmaVersion:"latest",sourceType:"module",globals:{...globals.node,...globals.browser}}
+  },
+  {
     files:["admin/app.js"],
     languageOptions:{ecmaVersion:"latest",sourceType:"script",globals:{...globals.browser}},
     rules:{...js.configs.recommended.rules,"no-unused-vars":"off","no-undef":"off"}
