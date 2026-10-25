@@ -91,10 +91,15 @@ async function selectVariant(pair) {
 async function refreshSelected() {
  if(!state.selected)return;
  const vid=state.selected.v.id;
- const [balances,transfers,listing]=await Promise.all([
+ const [balances,transfers,listing,reorder,movements]=await Promise.all([
  query(state.client.from("erp_stock_balances").select("location_id,on_hand,reserved").eq("variant_id",vid)),
  query(state.client.from("erp_transfers").select("quantity,to_location").eq("variant_id",vid).eq("status","in_transit").limit(1000)),
- state.admin?query(state.client.from("erp_online_listings").select("published,online_price").eq("product_id",state.selected.p.id).maybeSingle()):Promise.resolve(null)
+ state.admin?query(state.client.from("erp_online_listings").select("published,online_price").eq("product_id",state.selected.p.id).maybeSingle()):Promise.resolve(null),
+ state.admin&&$("erpLocation").value?query(state.client.from("erp_reorder_settings").select("minimum_qty")
+ .eq("location_id",$("erpLocation").value).eq("variant_id",vid).maybeSingle()):Promise.resolve(null),
+ query(state.client.from("erp_stock_events")
+  .select("action,quantity_delta,created_at,reason,location_id").eq("variant_id",vid)
+  .order("created_at",{ascending:false}).limit(20))
  ]);
  state.stock=balances||[];state.listing=listing;
  const here=state.stock.find(x=>x.location_id===$("erpLocation").value);
@@ -122,7 +127,19 @@ async function refreshSelected() {
    hint.textContent="Other shops may have stock that your role cannot view.";
    breakdown.append(hint);
  }
+ const activity=$("erpMovementHistory");activity.replaceChildren();
+ if(!movements?.length)activity.textContent="No stock movements recorded for this variant.";
+ for(const event of (movements||[])){
+  const row=document.createElement("article");
+  const name=state.locations.find(x=>x.id===event.location_id)?.name||"Authorized location";
+  row.textContent=name+" · "+event.action+" · "+(event.quantity_delta>0?"+":"")+
+    format(event.quantity_delta)+" · "+new Date(event.created_at).toLocaleString("en-IN")+
+    " · "+event.reason;
+  activity.append(row);
+ }
  if(state.admin) {
+  $("erpMinimum").value=String(reorder?.minimum_qty??3);
+  $("erpReorderPanel").hidden=false;
   $("erpPublished").checked=Boolean(listing?.published);
   $("erpOnlinePrice").value=listing?.online_price??"";
  }
@@ -183,6 +200,18 @@ async function dispatchTransfer(event) {
   await Promise.all([refreshSelected(),reloadPending(),reloadSummary()]);
  }catch(e){notify(e.message+" Retry unchanged details to prevent duplication.",true);}
  finally{btn.disabled=false;}
+}
+async function saveMinimum() {
+ if(!state.admin||!state.selected)return;
+ const loc=chosenLocation()?.id,value=$("erpMinimum").value.trim();
+ if(!loc||!/^\d+$/.test(value)||Number(value)>100000){notify("Choose a shop and valid minimum quantity.",true);return;}
+ const button=$("erpReorderSave");button.disabled=true;
+ try{
+  await query(state.client.from("erp_reorder_settings").upsert({
+   location_id:loc,variant_id:state.selected.v.id,minimum_qty:Number(value)
+  },{onConflict:"location_id,variant_id"}));
+  notify("Low-stock threshold saved.");await reloadSummary();
+ }catch(e){notify(e.message,true);}finally{button.disabled=false;}
 }
 async function publish() {
  if(!state.admin||!state.selected)return;
@@ -420,6 +449,7 @@ async function init() {
   $("erpTransferForm").addEventListener("submit",dispatchTransfer);
   $("erpRefreshTransfers").addEventListener("click",()=>reloadPending().catch(e=>notify(e.message,true)));
   $("erpPublishBtn").addEventListener("click",publish);
+  $("erpReorderSave").addEventListener("click",saveMinimum);
   if(state.admin){
    $("erpAssignBtn").addEventListener("click",assignStaff);
    $("erpRefreshSummary").addEventListener("click",reloadSummary);
