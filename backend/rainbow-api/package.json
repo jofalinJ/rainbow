@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "wrangler dev",
     "test": "node --test",
-    "check": "node --check src/index.js && node --check src/http.js && node --check src/routes/health.js && node --check src/payment-crypto.js && node --check src/routes/razorpay.js && node --check src/whatsapp.js",
+    "check": "node --check src/index.js && node --check src/http.js && node --check src/routes/health.js && node --check src/routes/erp-catalogue.js && node --check src/payment-crypto.js && node --check src/routes/razorpay.js && node --check src/whatsapp.js",
     "deploy": "wrangler deploy"
   },
   "devDependencies": {
