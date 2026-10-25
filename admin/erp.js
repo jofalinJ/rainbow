@@ -36,7 +36,6 @@ async function refreshLocations() {
  if(rows.length && !$("erpLocation").value)$("erpLocation").value=rows.find(x=>x.kind==="branch")?.id||rows[0].id;
  options($("erpDestination"),rows.map(x=>({id:x.id,label:x.name})),"Choose destination");
  if(state.admin) {
-  options($("erpStaffShop"),rows.filter(x=>x.kind==="branch").map(x=>({id:x.id,label:x.name})),"Choose staff shop");
   options($("erpPurchaseDestination"),rows.filter(x=>x.kind==="branch").map(x=>({id:x.id,label:x.name})),"Choose receiving shop");
  }
 }
@@ -227,23 +226,6 @@ async function publish() {
   notify("Online listing settings saved in the new ERP catalogue. Legacy storefront is unchanged until cutover.");
  }catch(e){notify(e.message,true);}
  finally{button.disabled=false;}
-}
-async function loadStaff() {
- const staff=await query(state.client.from("staff_profiles").select("user_id,full_name,role,active").eq("active",true).order("full_name").limit(250));
- options($("erpStaff"),staff.map(x=>({id:x.user_id,label:x.full_name+" ("+x.role+")"})),"Choose staff");
- const mappings=await query(state.client.from("erp_staff_locations").select("user_id,location_id").limit(500));
- $("erpAssignments").textContent=(mappings||[]).map(m=>{
- const person=staff.find(x=>x.user_id===m.user_id)?.full_name||m.user_id.slice(0,8);
- return person+" → "+(state.locations.find(x=>x.id===m.location_id)?.name||"Unknown shop");
- }).join(" · ")||"No assigned staff yet.";
-}
-async function assignStaff() {
- const user_id=$("erpStaff").value,location_id=$("erpStaffShop").value;
- if(!user_id||!location_id){notify("Select staff and shop.",true);return;}
- try{
- await query(state.client.from("erp_staff_locations").insert({user_id,location_id}));
- notify("Shop permission assigned.");await loadStaff();
- }catch(e){notify(e.message,true);}
 }
 async function reloadSummary() {
  if(!state.admin)return;
@@ -451,16 +433,23 @@ async function init() {
   $("erpPublishBtn").addEventListener("click",publish);
   $("erpReorderSave").addEventListener("click",saveMinimum);
   if(state.admin){
-   $("erpAssignBtn").addEventListener("click",assignStaff);
    $("erpRefreshSummary").addEventListener("click",reloadSummary);
    $("erpSupplierForm").addEventListener("submit",saveSupplier);
    $("erpPurchaseForm").addEventListener("submit",makePurchase);
    $("erpValidateCsv").addEventListener("click",validateCsv);
    $("erpCommitCsv").addEventListener("click",commitCsv);
    $("erpCsv").addEventListener("change",()=>{state.csvRows=[];$("erpCommitCsv").disabled=true;$("erpCsvPreview").textContent="Select Preview CSV to validate.";});
-   await Promise.all([loadStaff(),loadSuppliers(),loadPurchases(),reloadSummary()]);
+   await Promise.all([loadSuppliers(),loadPurchases(),reloadSummary()]);
   }
-  await reloadPending();notify("ERP inventory loaded. Choose an existing product to update its shop stock.");
+  await reloadPending();notify("Shared catalogue and shop stock controls loaded.");
+  const lookup=new URL(location.href).searchParams.get("lookup");
+  if(lookup){
+    const details=$("branchInventoryTools");
+    if(details)details.open=true;
+    $("erpSearch").value=lookup.slice(0,70);
+    await search();
+    $("branchInventoryTools")?.scrollIntoView({block:"start"});
+  }
   window.addEventListener("pagehide",()=>state.scanner?.stop(),{once:true});
  }catch(e){notify("ERP unavailable: "+e.message+". No changes have been made.",true);console.warn("ERP boot failed",e);}
 }
