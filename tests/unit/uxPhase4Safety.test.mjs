@@ -71,8 +71,8 @@ describe("UX-21 contextual gateway status; manual UPI unaffected",()=>{
   it("hides full gateway panel by method while rendering its status inside Razorpay",()=>{
     expect(order).toContain('id="razorpayInlineStatus" role="status" aria-live="polite"');
     expect(order).toContain('id="gatewayConnection" class="gateway-connection" role="status" aria-live="polite" hidden');
-    expect(checkout).toContain('providerPanel.hidden=!razorpayTestAllowed||!gatewaySelected');
-    expect(checkout).toContain('inline.textContent=status.available?"Available · TEST only":"Unavailable right now"');
+    expect(checkout).toContain('providerPanel.hidden=!razorpayMethodAllowed()||!gatewaySelected');
+    expect(checkout).toContain('razorpayMode==="live"?"Available · LIVE payment":"Available · TEST only"');
     expect(checkout).toContain("const status=await razorpayTestAvailability()");
     expect(checkout).not.toContain("gateway.checked=true");
     expect(mobile).toContain(".gateway-connection[hidden]{display:none!important}");
