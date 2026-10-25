@@ -1,23 +1,41 @@
 <!doctype html>
-<html lang="en"><head><meta name="robots" content="noindex,nofollow"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#8f1520"><link rel="icon" type="image/png" href="assets/brand/rainbow-logo.png"><title>Order — Rainbow Gold Covering</title><link rel="stylesheet" href="content.css?v=20261015-storefront-polish-v2"><link rel="stylesheet" href="order.css?v=20261015-nav-alignment-v2"><script src="config.js"></script><script src="admin/config.js"></script><link rel="stylesheet" href="mobile-storefront.css?v=20261024-payment-clarity-v5"></head>
+<html lang="en"><head><meta name="robots" content="noindex,nofollow"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#8f1520"><link rel="icon" type="image/png" href="assets/brand/rainbow-logo.png"><title>Order — Rainbow Gold Covering</title><link rel="stylesheet" href="content.css?v=20261024-uxphase4"><link rel="stylesheet" href="order.css?v=20261024-uxphase2"><script src="config.js"></script><script src="admin/config.js"></script><link rel="stylesheet" href="mobile-storefront.css?v=20261025-live-gated-v1"></head>
 <body>
-<header class="topbar"><nav class="nav container"><div class="navlinks"><a href="index.html#products">Shop</a><a href="index.html#products">Shop by Type</a><a href="index.html#contact">Contact</a></div><a class="logo" href="index.html"><img class="brand-logo" src="assets/brand/rainbow-logo.png" alt="Rainbow Gold Covering logo" width="42" height="42"><span><strong>RAINBOW</strong><small>GOLD COVERING</small></span></a><div class="nav-actions"><a class="instagram-top" href="https://www.instagram.com/rainbow_kollam_gold_covering/" target="_blank" rel="noopener noreferrer">Instagram ↗</a><a class="cart-top" href="order.html">Cart <span id="cartCount">0</span></a></div></nav></header>
+<header class="topbar"><nav class="nav container"><div class="navlinks"><a href="index.html#products">Shop</a><a href="index.html#products">Shop by Type</a><a href="index.html#contact">Contact</a></div><a class="logo" href="index.html"><img class="brand-logo" src="assets/brand/rainbow-logo.png" alt="Rainbow Gold Covering logo" width="42" height="42"><span><strong>RAINBOW</strong><small>GOLD COVERING</small></span></a><div class="nav-actions"><a class="instagram-top" href="https://www.instagram.com/rainbow_kollam_gold_covering/" target="_blank" rel="noopener noreferrer">Instagram ↗</a><a class="cart-top" href="order.html">Bag <span id="cartCount">0</span></a></div></nav></header>
 <main class="order-page"><div class="container">
 <div class="order-head">
   <div><span class="section-kicker">SECURE CHECKOUT</span><h1>Almost yours.</h1><p>Review your bag, address and payment.</p></div>
   <a class="btn btn-light checkout-back" href="index.html#products">← Continue shopping</a>
 </div>
-<nav class="checkout-progress" aria-label="Checkout progress">
-  <span class="checkout-step is-complete"><b>1</b> Bag</span>
-  <span class="checkout-step is-active" id="addressStep"><b>2</b> Delivery</span>
-  <span class="checkout-step" id="paymentStep"><b>3</b> Pay</span>
+<nav aria-label="Checkout progress">
+  <ol class="checkout-progress">
+    <li id="bagStep" class="checkout-step is-active" aria-current="step"><b aria-hidden="true">1</b><span>Bag</span><span class="visually-hidden" data-step-announcement>Step 1 of 3: Bag, current</span></li>
+    <li id="addressStep" class="checkout-step"><b aria-hidden="true">2</b><span>Delivery</span><span class="visually-hidden" data-step-announcement>Step 2 of 3: Delivery</span></li>
+    <li id="paymentStep" class="checkout-step"><b aria-hidden="true">3</b><span>Pay</span><span class="visually-hidden" data-step-announcement>Step 3 of 3: Pay</span></li>
+  </ol>
 </nav>
+<section id="pendingCheckoutBanner" class="pending-checkout-banner" aria-labelledby="pendingCheckoutTitle" hidden>
+  <h2 id="pendingCheckoutTitle">Payment verification pending</h2>
+  <p id="pendingCheckoutMessage" role="status" aria-live="polite"></p>
+  <div class="pending-checkout-actions">
+    <button id="pendingCheckoutStatus" type="button">View status</button>
+    <button id="pendingCheckoutCorrect" type="button">Correct payment reference</button>
+    <button id="pendingCheckoutReturn" type="button" hidden>Return to bag</button>
+  </div>
+  <div id="pendingCheckoutCorrection" hidden>
+    <label for="pendingCheckoutUtr">Correct UPI reference (UTR)</label>
+    <input id="pendingCheckoutUtr" type="text" inputmode="text" autocomplete="off" maxlength="64" aria-describedby="pendingCheckoutCorrectionHelp">
+    <p id="pendingCheckoutCorrectionHelp">Your payment remains pending until the shop verifies it.</p>
+    <button id="pendingCheckoutSaveUtr" type="button">Save corrected reference</button>
+    <button id="pendingCheckoutCancelUtr" type="button">Cancel</button>
+  </div>
+</section>
 <div id="orderSuccess" class="order-success" role="status" aria-live="polite" hidden></div>
 <div id="orderLayout" class="order-layout checkout-layout">
   <div class="checkout-main">
     <section class="order-card checkout-panel" aria-labelledby="bagHeading">
       <div class="order-card-head">
-        <div><span class="checkout-eyebrow">STEP 01 / YOUR BAG</span><h2 id="bagHeading">Your bag</h2></div>
+        <div><span class="checkout-eyebrow">STEP 01 / BAG</span><h2 id="bagHeading">Bag</h2></div>
         <button id="clearCart" type="button">Clear bag</button>
       </div>
       <p class="checkout-subtitle checkout-essential-note">Prices and stock are verified before payment.</p>
@@ -27,10 +45,10 @@
       <div class="checkout-section-title"><span class="checkout-eyebrow">STEP 02 / DELIVERY</span><h2 id="deliveryHeading">Delivery details</h2></div>
       <p class="checkout-subtitle">Delivery fee updates with your state.</p>
       <div class="order-form">
-        <label>Full name <span class="required-mark">*</span><input id="name" required autocomplete="name" placeholder="Name for delivery"></label>
-        <label>WhatsApp number <span class="required-mark">*</span><input id="phone" required inputmode="tel" autocomplete="tel" placeholder="10-digit number"></label>
+        <label>Full name <span class="required-mark">*</span><input id="name" type="text" required autocomplete="name" placeholder="Name for delivery"></label>
+        <label>WhatsApp number <span class="required-mark">*</span><input id="phone" type="tel" required inputmode="tel" autocomplete="tel" placeholder="10-digit number"></label>
         <label>Email (optional)<input id="email" type="email" autocomplete="email" placeholder="you@example.com"></label>
-        <label>PIN code<input id="pin" inputmode="numeric" autocomplete="postal-code" placeholder="6 digits"></label>
+        <label>PIN code<input id="pin" type="text" inputmode="numeric" maxlength="6" autocomplete="postal-code" placeholder="6 digits"></label>
         <label>City<input id="city" autocomplete="address-level2" placeholder="City / town"></label>
         <label>State / UT <span class="required-mark">*</span><select id="state" required autocomplete="address-level1"><option value="">Select state</option></select></label>
         <label class="full">Delivery address <span class="required-mark">*</span><textarea id="address" rows="3" required autocomplete="street-address" placeholder="House, street, area"></textarea></label>
@@ -39,13 +57,26 @@
     <section class="order-card checkout-panel" aria-labelledby="paymentHeading">
       <div class="checkout-section-title"><span class="checkout-eyebrow">STEP 03 / PAYMENT</span><h2 id="paymentHeading">Payment method</h2></div>
       <p class="checkout-subtitle checkout-payment-intro">Choose how to pay. The final amount is verified securely.</p>
+      <details id="paymentPriceBreakdown" class="payment-price-breakdown">
+        <summary><span id="paymentPriceHeadline">Review your amount</span><span aria-hidden="true">⌄</span></summary>
+        <div class="payment-price-breakdown-rows">
+          <div><span>Subtotal</span><strong id="paymentMiniSubtotal">—</strong></div>
+          <div><span>Discount (3%)</span><strong id="paymentMiniDiscount">—</strong></div>
+          <div><span>CGST (1.5%)</span><strong id="paymentMiniCgst">—</strong></div>
+          <div><span>SGST (1.5%)</span><strong id="paymentMiniSgst">—</strong></div>
+          <div><span>Delivery</span><strong id="paymentMiniDelivery">—</strong></div>
+          <div class="payment-mini-grand"><span>Total</span><strong id="paymentMiniTotal">—</strong></div>
+          <p id="paymentPriceSource" class="payment-price-source" role="status">Amount verified before payment.</p>
+        </div>
+      </details>
       <div class="payment-methods" role="radiogroup" aria-label="Payment method">
         <label class="payment-choice" id="razorpayChoice">
           <input id="payRazorpay" type="radio" name="paymentMethod" value="razorpay" disabled>
           <span class="payment-choice-body">
-            <span class="payment-choice-top"><strong>Pay online</strong><span class="checkout-mode">TEST MODE</span></span>
+            <span class="payment-choice-top"><strong>Pay online</strong><span class="checkout-mode">Test mode: no real money</span></span>
             <span class="payment-choice-description">Razorpay · UPI, cards &amp; more</span>
             <span class="payment-choice-note">Test only — no real charge.</span>
+            <span class="payment-choice-availability" id="razorpayInlineStatus" role="status" aria-live="polite">Checking availability…</span>
           </span>
           <span class="payment-choice-dot" aria-hidden="true"></span>
         </label>
@@ -59,7 +90,7 @@
           <span class="payment-choice-dot" aria-hidden="true"></span>
         </label>
       </div>
-      <div id="gatewayConnection" class="gateway-connection" role="status" aria-live="polite">
+      <div id="gatewayConnection" class="gateway-connection" role="status" aria-live="polite" hidden>
         <span class="connection-indicator" id="gatewayIndicator" aria-hidden="true"></span>
         <p id="gatewayStatus" class="gateway-status">Checking online payment…</p>
         <button id="retryGateway" type="button" class="payment-retry" hidden>Retry connection ↗</button>
@@ -69,11 +100,10 @@
         <label class="checkout-whatsapp-consent"><input id="whatsappReceiptConsent" type="checkbox"> <span>Yes, WhatsApp me my confirmation and invoice link after payment verification (optional).</span></label>
       </div>
       <div id="manualPaymentDetails" class="payment-method-detail">
-        <p id="qrUnavailable" class="gateway-status">Select a state to see the payable amount.</p>
-        <div id="checkoutQR" class="payment-qr-card checkout-qr" hidden>
-          <img src="assets/brand/pay.png" alt="Shop UPI QR code. Verify recipient name before paying." width="176" height="176">
-          <div><strong>Scan to pay</strong><p>Confirm the recipient and amount in your UPI app.</p><p class="payment-total">Pay <b id="paymentDueTotal">—</b></p></div>
-        </div>
+        <p id="qrUnavailable" class="gateway-status" role="status" aria-live="polite">Complete delivery details to unlock UPI payment.</p>
+        <button id="retryPendingCheckout" type="button" class="payment-retry" hidden>Retry secure checkout</button>
+        <!-- No real-money QR image exists in the DOM until the server locks the exact total. -->
+        <div id="checkoutQR" class="payment-qr-card checkout-qr" hidden></div>
         <label id="paymentReferenceGroup" class="payment-reference-label">UPI reference (UTR)
           <input id="paymentReference" autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="text" minlength="8" maxlength="64" placeholder="Enter after payment" title="8–64 letters, numbers or hyphens">
         </label>
@@ -100,5 +130,5 @@
   </aside>
 </div></div></main>
 <footer class="container footer"><span class="footer-brand"><img class="footer-logo" src="assets/brand/rainbow-logo.png" alt="Rainbow Gold Covering logo" width="28" height="28" loading="lazy"><span>RAINBOW GOLD COVERING</span></span><span><a class="instagram-link" href="https://www.instagram.com/rainbow_kollam_gold_covering/" target="_blank" rel="noopener noreferrer">Instagram · @rainbow_kollam_gold_covering</a></span><span class="footer-legal-link"><a href="privacy-policy.html">Privacy Policy</a></span><span class="footer-legal-link"><a href="terms-and-conditions.html">Terms &amp; Conditions</a></span><span class="footer-legal-link"><a href="sitemap.html">Sitemap</a></span></footer>
-<script src="payment-config.js?v=20261021-checkout-v2"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script type="module" src="order.js?v=20261024-payment-clarity-v5"></script>
+<script src="shop-catalogue.js?v=20261024-uxphase4"></script><script src="payment-config.js?v=20261021-checkout-v2"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script type="module" src="order.js?v=20261025-live-gated-v2"></script>
 </body></html>

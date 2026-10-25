@@ -4,7 +4,11 @@
 <header><div><p class="eyebrow">CUSTOMER RELATIONSHIPS</p><h1>Customers</h1></div><button id="refreshCustomers" class="profile" type="button">Refresh</button></header>
 <section class="panel"><div class="panelhead"><div><h2>Customer directory</h2><span class="muted">Select a customer to review their saved details, orders and bills.</span></div></div>
 <div class="filters" style="display:grid;grid-template-columns:minmax(0,1fr);margin-bottom:16px"><input id="customerSearch" type="search" placeholder="Search name, phone, email or city" aria-label="Search customers"></div>
-<div class="table-wrap"><table class="staff-table"><thead><tr><th>Customer</th><th>WhatsApp</th><th>Email</th><th>Location</th><th>Added</th></tr></thead><tbody id="customerRows"><tr><td colspan="5">Loading customers…</td></tr></tbody></table></div><p id="customerMessage" class="form-msg" role="status" aria-live="polite"></p></section>
+<div class="table-wrap"><table class="staff-table"><thead><tr><th>Customer</th><th>WhatsApp</th><th>Email</th><th>Location</th><th>Added</th></tr></thead><tbody id="customerRows"><tr><td colspan="5">Loading customers…</td></tr></tbody></table></div><nav aria-label="Customer pages" style="display:flex;gap:12px;justify-content:center;align-items:center;margin:14px 0">
+<button type="button" id="customerPrev" disabled>← Previous</button>
+<span id="customerPageInfo" role="status" aria-live="polite">Loading…</span>
+<button type="button" id="customerNext" disabled>Next →</button>
+</nav><p id="customerMessage" class="form-msg" role="status" aria-live="polite"></p></section>
 </main>
 <dialog id="customerDetails" class="customer-dialog" aria-labelledby="customerDetailsHeading">
   <header class="customer-dialog-header"><div><p class="eyebrow">CUSTOMER RELATIONSHIP</p><h2 id="customerDetailsHeading">Customer details</h2></div><button id="customerDetailsClose" type="button">Close ✕</button></header>

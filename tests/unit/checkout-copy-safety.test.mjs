@@ -23,7 +23,9 @@ describe("customer checkout compact UX safety",()=>{
     expect(order).toContain('value="upi"');
     expect(order).toContain('name="paymentMethod"');
     expect(orderJs).toContain('beginRazorpayPayment(');
-    expect(orderJs).toContain('sb.rpc("create_online_order"');
+    expect(orderJs).toContain('pendingApi("/api/upi/prepare"');
+    expect(orderJs).toContain('pendingApi("/api/upi/submit"');
+    expect(orderJs).not.toContain('sb.rpc("create_online_order"');
   });
   it("never hides the real-money warning or claims manual UPI is verified",()=>{
     expect(order).toContain("Manual UPI transfers real money and requires shop verification.");
@@ -63,7 +65,9 @@ describe("customer checkout compact UX safety",()=>{
   });
   it("keeps mobile-only compact styles and preserves desktop styling",()=>{
     expect(mobileCss).toContain('@media (max-width:767px)');
-    expect(mobileCss).toContain('.gateway-connection.is-online{display:none!important}');
+    expect(mobileCss).toContain('.gateway-connection[hidden]{display:none!important}');
+    expect(orderJs).toContain('providerPanel.hidden=!razorpayMethodAllowed()||!gatewaySelected');
+    expect(order).toContain('id="razorpayInlineStatus"');
     for(const page of [home,order,product])expect(page).toContain('mobile-storefront.css?');
   });
 });

@@ -2,9 +2,20 @@
 (async function(){
  "use strict";
  const $=id=>document.getElementById(id);
+ // A product opened from the storefront returns to the same catalogue scroll
+ // position; shared or external links fall back to the normal jewellery URL.
+ document.querySelector(".detail-back-link")?.addEventListener("click",event=>{
+   try{
+     const previous=new URL(document.referrer);
+     const shopPath=/\/(?:index\.html)?$/.test(previous.pathname);
+     if(previous.origin===location.origin&&shopPath&&history.length>1){
+       event.preventDefault();history.back();
+     }
+   }catch{/* Direct visits use the ordinary href. */}
+ });
  const safeUrl=new URL(location.href),sku=(safeUrl.searchParams.get("sku")||"").trim();
  const cfg=window.RAINBOW_SUPABASE_CONFIG||{};
- const money=n=>"₹"+Number(n||0).toLocaleString("en-IN",{maximumFractionDigits:2});
+ const formatINR=window.RainbowCatalogue.formatINR;
  const cartKey="rainbow_cart_v1";
  const set=(id,value)=>{if($(id))$(id).textContent=String(value??"");};
  const showError=message=>{$("productLoading").hidden=true;$("productError").hidden=false;set("productError",message);};
@@ -29,8 +40,8 @@
    if(!selected)return;
    const qty=Number($("detailQty").value);
    if(!Number.isInteger(qty)||qty<1||qty>Number(selected.stock_quantity)){set("detailMessage","Choose an available quantity.");return;}
-   const items=buy?[]:cart();
-   const existing=items.find(item=>String(item.variant_id)===String(selected.id));
+   const items=cart();
+   const existing=buy?null:items.find(item=>String(item.variant_id)===String(selected.id));
    const current=Number(existing?.quantity||0);
    if(current+qty>Number(selected.stock_quantity)){set("detailMessage","Only "+selected.stock_quantity+" available; reduce the quantity.");return;}
    const line={variant_id:selected.id,quantity:current+qty,variant_label:variantLabel(selected),product:{
@@ -38,11 +49,16 @@
      selling_price:Number(product.selling_price),description:product.description||"",image:imagesOf(product)[0]?.public_url||"",
      variant_color:selected.color||null,variant_size:selected.size||null,variant_length_cm:selected.length_cm||null
    }};
+   if(buy){
+     if(!window.RainbowCatalogue?.startBuyNow(line)){
+       set("detailMessage","Could not start Buy now on this device. Try again.");return;
+     }
+     location.href="order.html";return;
+   }
    if(existing)Object.assign(existing,line);else items.push(line);
    try{localStorage.setItem(cartKey,JSON.stringify(items));}catch{set("detailMessage","Could not save your bag on this device.");return;}
    window.RainbowAnalytics?.track("add_to_cart",{item_id:product.product_code,quantity:qty});
    refreshCart();set("detailMessage","Added to your bag.");
-   if(buy)location.href="order.html";
  }
  function renderRelated(rows){
    const grid=$("detailRelatedGrid");grid.replaceChildren();
@@ -50,8 +66,9 @@
      const a=document.createElement("a");a.className="detail-related-card";a.href="product.html?sku="+encodeURIComponent(p.product_code);
      const first=imagesOf(p)[0];
      if(first){const img=document.createElement("img");img.src=window.RainbowCatalogue?.thumbnailUrl(first)||first.public_url;img.onerror=()=>{img.onerror=null;img.src=first.public_url;};img.loading="lazy";img.alt=p.product_name;img.width=240;img.height=240;a.append(img);}
+     else a.insertAdjacentHTML("beforeend",window.RainbowCatalogue.photoUnavailableMarkup());
      const label=document.createElement("strong");label.textContent=p.product_name;
-     const price=document.createElement("span");price.textContent=money(p.selling_price);a.append(label,price);grid.append(a);
+     const price=document.createElement("span");price.textContent=formatINR(p.selling_price);a.append(label,price);grid.append(a);
    }
    $("detailRelated").hidden=grid.children.length===0;
  }
@@ -60,13 +77,19 @@
    if(error)throw error;if(!data){showError("This design is unavailable or no longer listed.");return;}
    product=data;const variants=inStock(product);const images=imagesOf(product);
    set("crumbName",product.product_name);set("detailCategory",product.type||"Jewellery");set("detailName",product.product_name);
-   set("detailSku",product.product_code);set("detailPrice",money(product.selling_price));
+   set("detailSku",product.product_code);set("detailPrice",formatINR(product.selling_price));
    set("detailDescription",product.description||"Contact Rainbow Gold Covering for details about this design.");
    document.title=product.product_name+" | Rainbow Gold Covering";
    document.querySelector('meta[name="description"]').content="Explore "+product.product_name+" from Rainbow Gold Covering. Check current availability and options.";
    const img=$("detailMainImage");
    if(images.length){img.src=images[0].public_url;img.alt=product.product_name;}
-   else img.hidden=true;
+   else{
+     img.hidden=true;
+     const picture=img.parentElement;
+     const placeholder=document.createElement("span");
+     placeholder.innerHTML=window.RainbowCatalogue.photoUnavailableMarkup();
+     picture.append(placeholder.firstElementChild);
+   }
    const thumbs=$("detailThumbnails");thumbs.replaceChildren();
    let activePhoto=0;
    const photoButtons=[];

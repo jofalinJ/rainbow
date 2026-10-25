@@ -4,6 +4,34 @@ const cart=new Map();
 const TAX_RATE=.015;
 const DISCOUNT_RATE=.03;
 let lastReceipt=null;
+let saleBusy=false;
+let pendingSale=null;
+const PENDING_SALE_KEY="rainbow_pos_pending_sale_v1";
+const validPendingSale=data=>data&&
+  /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(data.id||"")&&
+  /^[0-9a-f]{64}$/i.test(data.hash||"");
+function readPendingSale(){
+  try{
+    const record=JSON.parse(sessionStorage.getItem(PENDING_SALE_KEY)||"null");
+    return validPendingSale(record)?record:null;
+  }catch{return null;}
+}
+function clearPendingSale(){
+  pendingSale=null;
+  try{sessionStorage.removeItem(PENDING_SALE_KEY);}catch(error){
+    console.warn("Could not remove sale recovery marker",error);
+  }
+}
+async function saleRequestHash(items,payment,customer){
+  // Only a digest and the retry UUID are stored on this device, never customer details.
+  if(!globalThis.crypto?.subtle || !globalThis.TextEncoder)
+    throw new Error("Secure sale recovery requires HTTPS and a supported browser.");
+  const payload=new TextEncoder().encode(JSON.stringify({items,payment,customer}));
+  const digest=await crypto.subtle.digest("SHA-256",payload);
+  return Array.from(new Uint8Array(digest),byte=>byte.toString(16).padStart(2,"0")).join("");
+}
+let catalogueRevision=0;
+let catalogueTimer=null;
 
 function escB(x){return String(x??"").replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;" ,'"':"&quot;"}[m]));}
 function moneyB(v){return "₹"+Number(v||0).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2});}
@@ -32,7 +60,7 @@ function refreshTotals(){
   $b("cgst").textContent=moneyB(cgst);
   $b("sgst").textContent=moneyB(sgst);
   $b("total").textContent=moneyB(total);
-  $b("completeSale").disabled=cart.size===0;
+  $b("completeSale").disabled=cart.size===0||saleBusy;
   return{subtotal,discount,cgst,sgst,total};
 }
 function renderCatalog(){
@@ -58,6 +86,7 @@ function renderCatalog(){
   document.querySelectorAll("[data-add-variant]").forEach(btn=>btn.addEventListener("click",()=>addToCart(btn.dataset.addVariant)));
 }
 function addToCart(variantId){
+  if(saleBusy)return;
   const record=findVariant(variantId);
   if(!record)return;
   const existing=cart.get(variantId);
@@ -83,10 +112,11 @@ function renderCart(){
   }).join("")||'<div class="empty">No items added.</div>';
   document.querySelectorAll("[data-inc]").forEach(btn=>btn.addEventListener("click",()=>changeQty(btn.dataset.inc,1)));
   document.querySelectorAll("[data-dec]").forEach(btn=>btn.addEventListener("click",()=>changeQty(btn.dataset.dec,-1)));
-  document.querySelectorAll("[data-remove]").forEach(btn=>btn.addEventListener("click",()=>{cart.delete(btn.dataset.remove);renderCart();}));
+  document.querySelectorAll("[data-remove]").forEach(btn=>btn.addEventListener("click",()=>{if(saleBusy)return;cart.delete(btn.dataset.remove);renderCart();}));
   refreshTotals();
 }
 function changeQty(id,delta){
+  if(saleBusy)return;
   const line=cart.get(id);if(!line)return;
   const next=line.quantity+delta;
   if(next<=0){cart.delete(id);}
@@ -133,12 +163,58 @@ async function sendBillWhatsAppPdf(data,items,phone,customerName){
 function setMsg(message,tone=""){
   const el=$b("billingMsg");el.textContent=message;el.className="billing-msg "+tone;
 }
+// Query only a bounded set of products; never download the whole POS catalogue.
 async function loadCatalog(){
-  catalog=await sb("products?select=id,product_code,product_name,type,description,selling_price,product_images(public_url,is_primary),product_variants(id,color,size,stock_quantity,barcode,active)&active=eq.true&order=created_at.desc&limit=1000");
+  const revision=++catalogueRevision;
+  const q=$b("productSearch").value.trim().slice(0,70);
+  const safe=q.replace(/[%_,().\\]/g," ").trim();
+  const select="id,product_code,product_name,type,description,selling_price,product_images(public_url,is_primary),product_variants(id,color,size,stock_quantity,barcode,active)";
+  const client=bootSupabase();
+  let request=client.from("products").select(select).eq("active",true)
+    .order("created_at",{ascending:false}).limit(120);
+  if(safe){
+    request=request.or(["product_name","product_code","type","description"]
+      .map(field=>field+".ilike.%"+safe+"%").join(","));
+  }
+  const {data,error}=await request;
+  if(error)throw error;
+  let rows=Array.isArray(data)?data:[];
+  if(q){
+    const {data:barcodeRows,error:barcodeError}=await client.from("product_variants")
+      .select("product_id").ilike("barcode",q).eq("active",true).limit(20);
+    if(barcodeError)throw barcodeError;
+    const ids=[...new Set((barcodeRows||[]).map(v=>v.product_id))].filter(id=>!rows.some(p=>p.id===id));
+    if(ids.length){
+      const {data:extra,error:extraError}=await client.from("products").select(select)
+        .eq("active",true).in("id",ids);
+      if(extraError)throw extraError;
+      rows=rows.concat(extra||[]);
+    }
+  }
+  if(revision!==catalogueRevision)return;
+  catalog=rows;
   renderCatalog();
 }
+async function recoverPreviousSale(){
+  const previous=pendingSale||readPendingSale();
+  if(!previous)return;
+  // Read only a response committed by this authenticated cashier; no new sale.
+  try{
+    const {data,error}=await bootSupabase().rpc("get_local_sale_receipt",{p_request_id:previous.id});
+    if(error)throw error;
+    if(data&&data.order_id&&data.invoice_number){
+      if(pendingSale?.id===previous.id)clearPendingSale();
+      setMsg("Previous sale confirmed: "+data.invoice_number+". Open Bills to view or print the invoice. Do not bill it again.","success");
+    }else{
+      setMsg("An earlier sale may still be processing. Re-enter its exact items and customer details to retry safely, or check Bills before clearing its recovery ID.","error");
+    }
+  }catch(error){
+    console.warn("Previous sale recovery is unavailable",error);
+    setMsg("Cannot verify the previous sale yet. Check Bills or retry this exact checkout; do not create a different sale.","error");
+  }
+}
 async function completeSale(){
-  if(cart.size===0)return;
+  if(cart.size===0||saleBusy)return;
   const payment=document.querySelector("input[name=payment]:checked")?.value||"cash";
   const items=[...cart.values()].map(x=>({variant_id:x.variantId,quantity:x.quantity}));
   const customerPhone=$b("customerPhone").value.trim();
@@ -153,23 +229,50 @@ async function completeSale(){
     address:$b("customerAddress").value.trim()
   };
   const snapshot=[...cart.values()].map(x=>({...x}));
+  // Lock immediately, before awaiting the digest, to prevent double-tap races.
+  saleBusy=true;
   setMsg("Processing secure sale…");
-  $b("completeSale").disabled=true;
+  refreshTotals();
   try{
+    const hash=await saleRequestHash(items,payment,customer);
+    pendingSale=pendingSale||readPendingSale();
+    if(pendingSale&&pendingSale.hash!==hash)
+      throw new Error("An earlier checkout may already be saved. Restore its exact items and customer details, or verify the Bills list before clearing the previous retry ID.");
+    if(!pendingSale){
+      if(!globalThis.crypto?.randomUUID)
+        throw new Error("Secure sale IDs require HTTPS and a supported browser.");
+      const next={id:crypto.randomUUID(),hash};
+      try{sessionStorage.setItem(PENDING_SALE_KEY,JSON.stringify(next));}
+      catch{throw new Error("Cannot safely store this sale's recovery ID. Enable session storage before billing.");}
+      pendingSale=next;
+    }
+    customer.client_sale_id=pendingSale.id;
     const {data,error}=await bootSupabase().rpc("create_local_sale",{p_items:items,p_customer:customer,p_payment_method:payment});
     if(error)throw error;
-    const savedItems=await sb("order_items?select=product_code,product_name,product_type,variant_color,variant_size,length_cm,thickness,gold_amount_g,quantity,unit_price,discount_amount,line_total&order_id=eq."+encodeURIComponent(data.order_id));
-    showReceipt(data,savedItems||snapshot.map(x=>({product_code:x.p.product_code,product_name:x.p.product_name,quantity:x.quantity,unit_price:x.price,discount_amount:0,line_total:x.price*x.quantity})),customerPhone,customerName);
+    // The sale is committed at this point: immediately prevent another sale on this cart.
+    clearPendingSale();
     cart.clear();
     renderCart();
     clearCustomer();
-    await loadCatalog();
+    let savedItems=snapshot.map(x=>({product_code:x.p.product_code,product_name:x.p.product_name,quantity:x.quantity,unit_price:x.price,discount_amount:0,line_total:x.price*x.quantity}));
+    try{
+      const rows=await sb("order_items?select=product_code,product_name,product_type,variant_color,variant_size,length_cm,thickness,gold_amount_g,quantity,unit_price,discount_amount,line_total&order_id=eq."+encodeURIComponent(data.order_id));
+      if(Array.isArray(rows))savedItems=rows;
+    }catch(e){console.warn("Sale completed, but receipt item refresh failed:",e);}
+    try{showReceipt(data,savedItems,customerPhone,customerName);}
+    catch(receiptError){
+      console.warn("Sale completed but receipt preview failed",receiptError);
+      setMsg("Sale saved as "+data.invoice_number+". Open Bills to print it; do not bill again.","success");
+      return;
+    }
     setMsg("Sale completed: "+data.invoice_number,"success");
+    try{await loadCatalog();}catch(e){console.warn("Catalogue refresh failed after sale",e);}
   }catch(e){
-    console.error(e);
-    setMsg(e.message||"Could not complete sale.","error");
+    console.error("Sale attempt status uncertain or rejected:",e);
+    setMsg("Sale was not confirmed on this screen. Retry this SAME checkout to recover safely; do not start another sale. "+(e.message||""),"error");
   }finally{
-    $b("completeSale").disabled=cart.size===0;
+    saleBusy=false;
+    refreshTotals();
   }
 }
 function showReceipt(data,items,customerPhone="",customerName=""){
@@ -198,11 +301,32 @@ function showReceipt(data,items,customerPhone="",customerName=""){
 function clearCustomer(){
   ["customerName","customerPhone","customerEmail","customerPin","customerCity","customerState","customerAddress"].forEach(id=>$b(id).value="");
 }
-$b("productSearch").addEventListener("input",renderCatalog);
-$b("productSearch").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();const exact=catalog.flatMap(p=>(p.product_variants||[]).map(v=>({p,v}))).find(x=>x.v.active&&x.v.barcode&&x.v.barcode.toLowerCase()===e.currentTarget.value.trim().toLowerCase());if(exact)addToCart(exact.v.id);}});
-$b("clearSearch").addEventListener("click",()=>{$b("productSearch").value="";renderCatalog();$b("productSearch").focus();});
-$b("clearCart").addEventListener("click",()=>{cart.clear();renderCart();});
+$b("productSearch").addEventListener("input",()=>{
+  clearTimeout(catalogueTimer);
+  catalogueTimer=setTimeout(()=>loadCatalog().catch(e=>setMsg("Could not search products: "+e.message,"error")),260);
+});
+$b("productSearch").addEventListener("keydown",async e=>{
+  if(e.key!=="Enter")return;
+  e.preventDefault();clearTimeout(catalogueTimer);
+  try{
+    await loadCatalog();
+    const exact=catalog.flatMap(p=>(p.product_variants||[]).map(v=>({p,v})))
+      .find(x=>x.v.active&&x.v.barcode&&x.v.barcode.toLowerCase()===e.currentTarget.value.trim().toLowerCase());
+    if(exact)addToCart(exact.v.id);
+  }catch(error){setMsg("Barcode lookup failed: "+error.message,"error");}
+});
+$b("clearSearch").addEventListener("click",()=>{$b("productSearch").value="";loadCatalog().catch(e=>setMsg(e.message,"error"));$b("productSearch").focus();});
+$b("clearCart").addEventListener("click",()=>{
+  if(saleBusy)return;
+  if(pendingSale&&!confirm("This checkout may have completed. Verify the Bills list for a matching invoice before discarding the retry ID. Clear anyway?"))return;
+  cart.clear();clearPendingSale();renderCart();
+});
 $b("completeSale").addEventListener("click",completeSale);
 $b("newSale").addEventListener("click",()=>{$b("receiptScreen").style.display="none";$b("productSearch").focus();});
 renderCart();
-requireSession().then(loadCatalog).catch(e=>setMsg(e.message||"Could not load billing.","error"));
+pendingSale=readPendingSale();
+if(pendingSale)setMsg("Recovering previous sale result safely…","error");
+requireSession().then(async()=>{
+  if(pendingSale)await recoverPreviousSale();
+  await loadCatalog();
+}).catch(e=>setMsg(e.message||"Could not load billing.","error"));

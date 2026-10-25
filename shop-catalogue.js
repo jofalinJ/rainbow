@@ -78,5 +78,40 @@
    if(!path.endsWith("-optimized.webp")||!url.includes("/storage/v1/object/public/product-images/"))return url;
    return url.replace(/-optimized\.webp(?=\?|$)/,"-thumb.webp");
  }
- root.RainbowCatalogue={PAGE_SIZE,MAX_PAGE_SIZE,buildQuery,page,thumbnailUrl,cleanSearch};
+ // Single-item Buy now lives only in this tab; ordinary localStorage bag is untouched.
+ // Shared zero-photo placeholder: identical card, quick-view and detail content.
+ // Static markup only; never includes any untrusted product values.
+ function photoUnavailableMarkup(){
+   return '<span class="photo-unavailable" role="img" aria-label="Photo unavailable">'+
+     '<span class="photo-unavailable-icon" aria-hidden="true">◇</span>'+
+     '<span class="photo-unavailable-label" aria-hidden="true">Photo unavailable</span></span>';
+ }
+ // Formatting works in integer paise. Existing API/pricing contracts supply
+ // rupees; conversion is presentation-only and never changes server totals.
+ function formatPaise(amountPaise){
+   const paise=Number.isFinite(Number(amountPaise))?Math.round(Number(amountPaise)):0;
+   const negative=paise<0?"−":"";
+   const absolute=Math.abs(paise);
+   const rupees=Math.floor(absolute/100).toLocaleString("en-IN");
+   const fraction=absolute%100;
+   return negative+"₹"+rupees+(fraction?"."+String(fraction).padStart(2,"0"):"");
+ }
+ function formatINR(amountRupees){
+   const rupees=Number(amountRupees);
+   return formatPaise(Math.round((Number.isFinite(rupees)?rupees:0)*100));
+ }
+ const BUY_NOW_KEY="rainbow_buy_now_v1";
+ const validSelection=item=>item&&typeof item==="object"&&typeof item.variant_id==="string"&&
+   item.product&&Number.isInteger(Number(item.quantity))&&Number(item.quantity)>=1&&Number(item.quantity)<=100;
+ function startBuyNow(item){
+   if(!validSelection(item))return false;
+   try{sessionStorage.setItem(BUY_NOW_KEY,JSON.stringify(item));return true;}catch{return false;}
+ }
+ function readBuyNow(){
+   try{const item=JSON.parse(sessionStorage.getItem(BUY_NOW_KEY)||"null");return validSelection(item)?item:null;}
+   catch{return null;}
+ }
+ function clearBuyNow(){try{sessionStorage.removeItem(BUY_NOW_KEY);}catch{}}
+ root.RainbowCatalogue={PAGE_SIZE,MAX_PAGE_SIZE,buildQuery,page,thumbnailUrl,cleanSearch,
+   startBuyNow,readBuyNow,clearBuyNow,photoUnavailableMarkup,formatINR,formatPaise};
 })(typeof window==="undefined"?globalThis:window);

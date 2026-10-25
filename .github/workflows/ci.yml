@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, fix/ux-audit]
   pull_request:
 
 permissions:
@@ -90,3 +90,78 @@ jobs:
           path: |
             test-results/selenium
             test-server.log
+
+  free-browser-smoke:
+    name: Isolated checkout and staff Selenium smoke (no Supabase staging)
+    runs-on: ubuntu-latest
+    env:
+      E2E_ISOLATED_ENV: "true"
+      E2E_BASE_URL: "http://127.0.0.1:4173"
+      PORT: "4173"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci --legacy-peer-deps
+      - name: Verify loopback test host only
+        run: |
+          test "$E2E_BASE_URL" = "http://127.0.0.1:4173"
+          test "$E2E_ISOLATED_ENV" = "true"
+      - name: Start local checkout and staff pages with no external backend
+        run: |
+          nohup node scripts/static-server.mjs > free-e2e-server.log 2>&1 &
+          for attempt in $(seq 1 20); do
+            if curl --fail --silent http://127.0.0.1:4173/admin/login.html >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          exit 1
+      - name: Check tab-isolated staff sessions and fail-closed checkout
+        run: node --test tests/e2e/selenium/tests/free-isolated.test.mjs
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: free-isolated-browser-test-log
+          path: free-e2e-server.log
+
+  migration-smoke:
+    name: Seven migrations in disposable PostgreSQL
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: rainbow_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d rainbow_test"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    env:
+      PGHOST: localhost
+      PGPORT: "5432"
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: rainbow_test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Confirm PostgreSQL client
+        run: |
+          if ! command -v psql >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+      - name: Create isolated shop-shaped SQL fixture
+        run: psql -v ON_ERROR_STOP=1 -f tests/sql/admin-hardening-fixture.sql
+      - name: Apply all seven proposed migrations in exact order
+        run: |
+          for file in supabase/migrations/20261025120{1,2,3,4,5,6,7}00_*.sql; do
+            test -f "$file"
+            psql -v ON_ERROR_STOP=1 -f "$file"
+          done
+      - name: Verify money, stock, access and pagination behavior
+        run: psql -v ON_ERROR_STOP=1 -f tests/sql/admin-hardening-smoke.sql

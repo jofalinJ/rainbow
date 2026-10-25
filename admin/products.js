@@ -17,7 +17,7 @@ function updateFields(){
   const current=editingProductId?findCurrentProduct(editingProductId):null;
   setField("sizeField",!!c.has_size&&!editingProductId);setField("colorField",!!c.has_color&&!editingProductId);
   setField("lengthField",!!c.has_length);setField("thicknessField",!!c.has_thickness);setField("goldField",!!c.has_gold_amount);
-  const baseTypes=TYPE_OPTIONS[c.name]||[];
+  const baseTypes=TYPE_OPTIONS[c.name]||["Standard","Plain","Designer","Stone","Chain"];
   const typeOptions=Array.from(new Set([...baseTypes,...(current&&current.type?[current.type]:[])]));
   $("type").innerHTML=typeOptions.map(x=>'<option value="'+escHtml(x)+'">'+escHtml(x)+"</option>").join("")||'<option value="">Select type</option>';
   if(current&&current.type)$("type").value=current.type;
@@ -88,7 +88,7 @@ function fillExistingProducts(preferredId=""){
   for(const p of [...items,...(pinnedProduct&&!items.some(x=>x.id===pinnedProduct.id)?[pinnedProduct]:[])]){
     select.add(new Option(p.product_code+" — "+p.product_name+(p.active===false?" (draft)":""),String(p.id)));
   }
-  select.value=items.some(p=>String(p.id)===String(previous))?String(previous):"";
+  select.value=[...items,pinnedProduct].some(p=>p&&String(p.id)===String(previous))?String(previous):"";
   updateExistingVariantFields();
 }
 function displayExistingVariants(product,category){
@@ -440,24 +440,34 @@ $("form").onsubmit=async e=>{
       if(photoRows(product).length+editPhotoFiles.length>5)throw new Error("A product can have no more than five photos.");
       await saveExistingProduct(product,c,validation,productLength);return;
     }
-    const product=(await sb("products",{method:"POST",headers:{"Prefer":"return=representation"},body:JSON.stringify({
+    const productDraft={
       category_id:validation.value.categoryId,product_name:validation.value.name,type:validation.value.type,
       gender:$("gender").value,active:$("active").checked,selling_price:validation.value.sellingPrice,description:$("description").value.trim()||null,length_cm:productLength,
       thickness:c.has_thickness?($("thickness").value.trim()||null):null,gold_amount_g:c.has_gold_amount?(Number($("gold").value)||null):null
-    })}))[0];
-    await sb("product_variants",{method:"POST",headers:{"Prefer":"return=minimal"},body:JSON.stringify({
-      product_id:product.id,color:c.has_color?($("color").value||"0"):"0",size:c.has_size?($("size").value||"0"):"0",length_cm:productLength,
+    };
+    const variantDraft={
+      color:c.has_color?($("color").value||"0"):"0",size:c.has_size?($("size").value||"0"):"0",length_cm:productLength,
       stock_quantity:Number($("stock").value)||0,low_stock_limit:Number($("low").value??3)
-    })});
-    let uploadedCount=0;
+    };
+    const {data:product,error:createError}=await bootSupabase().rpc("create_product_with_variant",{
+      p_product:productDraft,p_variant:variantDraft
+    });
+    if(createError)throw createError;
+    if(!product?.id||!product?.product_code)throw new Error("Could not verify product creation.");
+    let uploadedCount=0,photoError=null;
     for(let i=0;i<selectedImages.length;i++){
-      await uploadAndSavePhoto(selectedImages[i],product,{
-        alt_text:product.product_name+(selectedImages.length>1?" — image "+(i+1):""),
-        is_primary:i===0,sort_order:i
-      });uploadedCount++;
+      try{
+        await uploadAndSavePhoto(selectedImages[i],product,{
+          alt_text:product.product_name+(selectedImages.length>1?" — image "+(i+1):""),
+          is_primary:i===0,sort_order:i
+        });
+        uploadedCount++;
+      }catch(error){photoError=error;break;}
     }
-    const success="Saved "+product.product_code+(uploadedCount?" with "+uploadedCount+" photo"+(uploadedCount===1?"":"s"):"");
-    await load();fillExistingProducts();resetEditor();$("msg").textContent=success;
+    const success="Saved "+product.product_code+(uploadedCount?" with "+uploadedCount+" photo"+(uploadedCount===1?"":"s"):"")+
+      (photoError?". Product exists, but the remaining photos did not upload: "+photoError.message+". Find the product by code and add photos.":"");
+    try{await load();fillExistingProducts();}catch(error){console.warn("Product saved, but refresh failed:",error);}
+    resetEditor();$("msg").textContent=success;
   }catch(error){console.error(error);$("msg").textContent="Error: "+error.message;}
 };
 $("saveStorefrontCategories").onclick=saveStorefrontCategories;

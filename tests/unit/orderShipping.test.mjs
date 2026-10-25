@@ -35,14 +35,16 @@ describe("state-based shipping preview",()=>{
   });
 });
 describe("gateway readiness and manual UPI",()=>{
-  it("keeps the new Razorpay option gated until server confirms availability",()=>{
+  it("keeps Razorpay disabled until a permitted server-verified TEST or LIVE mode",()=>{
     expect(html).toMatch(/id="payRazorpay"[^>]*value="razorpay" disabled/);
     expect(html).toContain('id="gatewayStatus"');
     expect(html).toContain('id="retryGateway"');
     expect(html).toContain('src="payment-config.js?v=20261021-checkout-v2"');
     expect(read("payment-config.js")).toContain('apiBaseUrl:"https://rainbow-api.jofalin2005.workers.dev"');
     expect(js).toContain("razorpayAvailability()");
-    expect(js).toContain("gateway.disabled=!status.available");
+    expect(js).toContain("gateway.disabled=!razorpayReady");
+    expect(js).toContain('razorpayMode==="live"?razorpayLiveAllowed:razorpayTestAllowed');
+    expect(js).toContain('expectedMode:selectedRazorpayMode');
     expect(js).toContain('input[name="paymentMethod"]:checked');
     expect(js).not.toContain("paymentConfirmed");
   });
@@ -51,7 +53,9 @@ describe("gateway readiness and manual UPI",()=>{
     expect(js).toContain("cart.every(cartItemHasStock)");
     expect(js).toContain('paymentMethod==="upi"');
     expect(js).toContain('/^[A-Za-z0-9-]{8,64}$/.test(paymentReference)');
-    expect(js).toContain('rpc("create_online_order"');
+    expect(js).toContain('pendingApi("/api/upi/prepare"');
+    expect(js).toContain('pendingApi("/api/upi/submit"');
+    expect(js).not.toContain('rpc("create_online_order"');
     expect(html).toContain('id="checkoutQR"');
     expect(html).toContain('id="paymentReferenceGroup"');
   });

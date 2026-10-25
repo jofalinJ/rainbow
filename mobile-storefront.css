@@ -233,15 +233,18 @@
   /* Full product detail route — existing variant/stock JS stays unchanged. */
   body:has(.detail-page){background:white}
   body:has(.detail-page) .topbar .nav{
-    display:grid!important;grid-template-columns:1fr auto;align-items:center!important;
-    gap:8px;padding:8px 0!important;min-height:67px!important}
+    display:grid!important;grid-template-columns:44px minmax(0,1fr) auto;align-items:center!important;
+    gap:7px;padding:8px 0!important;min-height:67px!important}
   body:has(.detail-page) .topbar .logo{position:static!important;transform:none!important;
     flex-direction:row;justify-self:start;align-items:center;min-width:0;gap:6px;max-width:100%}
   body:has(.detail-page) .topbar .logo .brand-logo{width:30px;height:30px}
   body:has(.detail-page) .topbar .logo strong{font-size:12px}
   body:has(.detail-page) .topbar .logo small{font-size:6px}
   body:has(.detail-page) .topbar .nav .btn{padding:9px 10px;font-size:10px;min-height:40px}
-  body:has(.detail-page) .topbar .nav > a[href="index.html#products"]{display:none!important}
+  body:has(.detail-page) .topbar .detail-back-link{grid-column:1;grid-row:1;display:flex!important;align-items:center;justify-content:center;width:44px;min-width:44px;height:44px;min-height:44px!important;padding:0!important;font-size:22px!important;border-radius:12px}
+  body:has(.detail-page) .topbar .detail-back-text{display:none!important}
+  body:has(.detail-page) .topbar .logo{grid-column:2;grid-row:1}
+  body:has(.detail-page) .topbar .nav>a[href="order.html"]{grid-column:3;grid-row:1;justify-self:end;min-height:44px!important;display:flex;align-items:center}
   .detail-page{padding-top:13px;padding-bottom:48px}
   .product-crumb{font-size:11px;margin:12px 0 17px}
   .detail-grid{gap:19px}
@@ -772,11 +775,13 @@
   .payment-choice-dot{width:18px;height:18px;flex-basis:18px}
   /* One TEST warning near the bottom is enough; keep manual UPI's pending status. */
   #razorpayChoice .payment-choice-note{display:none!important}
+  html.checkout-razorpay-live #razorpayChoice .payment-choice-note{display:block!important;color:#625249!important}
   .gateway-connection{
     margin:9px 0!important;gap:7px!important;padding:9px 11px!important;
     border-radius:11px!important
   }
-  .gateway-connection.is-online{display:none!important}
+  .gateway-connection[hidden]{display:none!important}
+  .gateway-connection.is-online:not([hidden]){display:flex!important}
   .gateway-connection .gateway-status{font-size:11px!important;line-height:1.4!important;
     min-width:0!important}
   .payment-method-detail{border:none!important;box-shadow:none!important;
@@ -842,3 +847,113 @@
   .checkout-mode,.manual-label{font-size:8px!important}
   .checkout-layout .order-card{padding:15px 13px!important}
 }
+
+/* UX-05 — accessible blocked payment action still receives focus/clicks
+   so checkout can identify and focus the first invalid field. */
+@media(max-width:767px){
+  .checkout-summary-card .place-order[aria-disabled="true"]{
+    opacity:.64;cursor:not-allowed;
+  }
+  .checkout-layout :is(input,select,textarea)[aria-invalid="true"]{
+    border-color:#97232c!important;box-shadow:0 0 0 2px rgba(151,35,44,.13);
+  }
+}
+
+
+/* UX-07: compact breakdown inside the existing payment panel only. */
+@media(max-width:767px){
+  .payment-price-breakdown{
+    margin:12px 0 10px;padding:0;border:1px solid #ebdfd3;
+    border-radius:13px;background:#fffdf9;color:#342925;
+  }
+  .payment-price-breakdown summary{
+    display:flex;justify-content:space-between;align-items:center;gap:10px;
+    min-height:48px;padding:11px 13px;cursor:pointer;
+    font-size:13px;font-weight:800;line-height:1.35;
+  }
+  .payment-price-breakdown summary>span:last-child{color:#8f1520;font-size:18px}
+  .payment-price-breakdown[open] summary>span:last-child{transform:rotate(180deg)}
+  .payment-price-breakdown-rows{padding:0 13px 12px;border-top:1px solid #f2e8db}
+  .payment-price-breakdown-rows>div{
+    display:flex;align-items:baseline;justify-content:space-between;gap:12px;
+    padding:7px 0;font-size:12px;line-height:1.45;
+  }
+  .payment-price-breakdown-rows strong{white-space:nowrap;font-variant-numeric:tabular-nums}
+  .payment-price-breakdown-rows .payment-mini-grand{
+    border-top:1px solid #eadccd;margin-top:3px;font-weight:800;font-size:14px;
+  }
+  .payment-price-source{margin:5px 0 0;font-size:11px;line-height:1.5;color:#6b584b}
+}
+@media(min-width:768px){.payment-price-breakdown{display:none}}
+
+
+/* UX-13: prevent iOS Safari zoom from undersized customer text fields.
+   This CSS is linked on customer pages only; staff/admin styles unchanged. */
+@media(max-width:767px){
+  .account-auth-form :is(input,select,textarea),
+  .detail-picker,
+  .detail-page :is(input:not([type="checkbox"]),select,textarea),
+  .order-page :is(input:not([type="checkbox"]):not([type="radio"]),select,textarea),
+  .live-products :is(input:not([type="checkbox"]),select,textarea),
+  .storefront-search-form input,
+  .utility-modal :is(input,select,textarea),
+  input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+  select,textarea {font-size:16px!important}
+}
+
+
+/* UX-14: darken only small, low-contrast text on mobile while preserving hue. */
+@media(max-width:767px){
+  .payment-choice-note{color:#625249!important}
+  .account-auth-note{color:#625953!important}
+  .checkout-progress .checkout-step:not(.is-active):not(.is-complete){color:#615852!important}
+  .catalog-layout .product-type{color:#63554d!important}
+}
+
+
+/* UX-15: keep visible control artwork unchanged; expand interactive targets. */
+@media(max-width:767px){
+  .checkout-layout .order-qty{display:flex;flex-wrap:wrap;align-items:center;gap:8px!important}
+  .checkout-layout .order-qty button,
+  .promotion-carousel-arrow,.product-wishlist-button{
+    position:relative;overflow:visible;isolation:isolate
+  }
+  .checkout-layout .order-qty button::after{
+    content:"";position:absolute;inset:-3px;z-index:1
+  }
+  .promotion-carousel-arrow::after{
+    content:"";position:absolute;inset:-5px;z-index:1
+  }
+  .product-wishlist-button::after{
+    content:"";position:absolute;inset:-3px;z-index:1
+  }
+  .promotion-carousel-dots{gap:0!important;padding:6px 8px!important}
+  .promotion-carousel-dots button{
+    display:grid;place-items:center;flex:0 0 24px;
+    width:24px!important;min-width:24px!important;height:24px!important;
+    background:transparent!important;border:0!important;
+    box-shadow:none!important;padding:0!important
+  }
+  .promotion-carousel-dots button::before{
+    content:"";display:block;width:11px;height:11px;border-radius:50%;
+    border:1px solid #947a6c;background:#fff
+  }
+  .promotion-carousel-dots button.is-active::before{
+    background:#8f1520;border-color:#8f1520;box-shadow:0 0 0 2px #fff
+  }
+}
+
+
+/* UX-11: explicit category-lookup failure without exposing empty categories. */
+@media(max-width:767px){
+  .mobile-category-count-error{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+    min-height:72px;font-size:13px;color:#625249}
+  .mobile-category-count-error button{min-width:74px;min-height:44px;
+    padding:9px 16px;border:1px solid #8f1520;border-radius:999px;
+    background:#fffdfa;color:#8f1520;font-size:13px;font-weight:750;cursor:pointer}
+}
+
+
+/* UX-21: readiness belongs to the Razorpay TEST choice, not manual UPI. */
+.payment-choice-availability{display:block;color:#625249;font-size:11px;font-weight:700;line-height:1.45;margin-top:4px}
+.gateway-connection[hidden]{display:none!important}

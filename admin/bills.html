@@ -52,6 +52,11 @@
 </div>
 <div class="summary-row"><span id="billCount">0 bills</span><span id="billTotal">₹0.00 billed</span></div>
 <div class="table-wrap"><table class="bill-table"><thead><tr><th>Invoice</th><th>Date</th><th>Customer</th><th>Phone</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead><tbody id="billRows"><tr><td colspan="7">Loading…</td></tr></tbody></table></div>
+<nav class="bill-pagination" aria-label="Bill history pages" style="display:flex;gap:12px;align-items:center;justify-content:center;margin:14px 0">
+  <button type="button" id="billPrev" disabled>← Previous</button>
+  <span id="billPageInfo" role="status" aria-live="polite">Loading…</span>
+  <button type="button" id="billNext" disabled>Next →</button>
+</nav>
 <p id="billMsg" class="form-msg"></p>
 </section>
 </main>

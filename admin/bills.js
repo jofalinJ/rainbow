@@ -1,6 +1,8 @@
 const $bl=id=>document.getElementById(id);
 let bills=[];
 let currentBill=null;
+let billPage=0,billTotalMatches=0,billMatchingAmount=0,billRevision=0,billSearchTimer=null;
+const BILL_PAGE_SIZE=50;
 
 function escBl(x){return String(x??"").replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));}
 function moneyBl(v){return "₹"+Number(v||0).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2});}
@@ -14,14 +16,9 @@ function setToast(message,tone=""){
 }
 
 function renderBills(){
-  const q=($bl("billSearch").value||"").trim().toLowerCase();
-  const status=$bl("billStatus").value;
-  const filtered=bills.filter(b=>{
-    const hay=[b.invoice_number,b.order_number,b.customer_name,b.phone].map(x=>String(x??"").toLowerCase());
-    return (!q||hay.some(x=>x.includes(q)))&&(status==="all"||b.status===status);
-  });
-  $bl("billCount").textContent=filtered.length+" bill"+(filtered.length===1?"":"s");
-  $bl("billTotal").textContent=moneyBl(filtered.reduce((s,b)=>s+Number(b.total_amount||0),0))+" billed";
+  const filtered=bills;
+  $bl("billCount").textContent=billTotalMatches+" matching bills";
+  $bl("billTotal").textContent=moneyBl(billMatchingAmount)+" billed across matching results";
   $bl("billRows").innerHTML=filtered.map(b=>{
     const date=b.created_at?new Date(b.created_at).toLocaleString("en-IN",{dateStyle:"medium",timeStyle:"short"}):"—";
     return "<tr><td><b>"+escBl(b.invoice_number)+"</b><small class='muted'>"+escBl(b.order_number)+"</small></td>"+
@@ -119,22 +116,46 @@ $bl("billModal").addEventListener("click",e=>{if(e.target===e.currentTarget)clos
 $bl("modalPrint").addEventListener("click",()=>currentBill&&window.print());
 $bl("modalPdf").addEventListener("click",()=>currentBill&&createAndDownloadPdf(currentBill.token));
 $bl("modalWhatsApp").addEventListener("click",()=>currentBill&&sendWhatsAppPdf(currentBill.token));
-$bl("refreshBills").addEventListener("click",loadBills);
-$bl("billSearch").addEventListener("input",renderBills);
-$bl("billStatus").addEventListener("change",renderBills);
+$bl("refreshBills").addEventListener("click",()=>loadBills());
+$bl("billSearch").addEventListener("input",()=>{
+  clearTimeout(billSearchTimer);
+  billSearchTimer=setTimeout(()=>loadBills({reset:true}),250);
+});
+$bl("billStatus").addEventListener("change",()=>loadBills({reset:true}));
+$bl("billPrev")?.addEventListener("click",()=>{if(billPage>0){billPage--;loadBills();}});
+$bl("billNext")?.addEventListener("click",()=>{if((billPage+1)*BILL_PAGE_SIZE<billTotalMatches){billPage++;loadBills();}});
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&$bl("billModal").classList.contains("open"))closeBillModal();});
 
-async function loadBills(){
+async function loadBills({reset=false}={}){
+  if(reset)billPage=0;
+  const revision=++billRevision;
   setBillMsg("Loading bills…");
   try{
-    const rows=await sb("invoices?select=invoice_number,public_token,issued_at,orders(order_number,created_at,total_amount,status,customers(name,whatsapp_number))&order=issued_at.desc&limit=500");
-    bills=(rows||[]).map(x=>({invoice_number:x.invoice_number,public_token:x.public_token,issued_at:x.issued_at,order_number:x.orders?.order_number||"",created_at:x.orders?.created_at||x.issued_at,total_amount:Number(x.orders?.total_amount||0),status:x.orders?.status||"confirmed",customer_name:x.orders?.customers?.name||"Walk-in Customer",phone:x.orders?.customers?.whatsapp_number||""}));
+    const {data,error}=await bootSupabase().rpc("search_shop_bills",{
+      p_search:$bl("billSearch").value.trim().slice(0,100),
+      p_status:$bl("billStatus").value,
+      p_offset:billPage*BILL_PAGE_SIZE,
+      p_limit:BILL_PAGE_SIZE
+    });
+    if(error)throw error;
+    if(revision!==billRevision)return;
+    billTotalMatches=Number(data?.total||0);
+    billMatchingAmount=Number(data?.total_amount||0);
+    bills=Array.isArray(data?.rows)?data.rows:[];
+    if(!bills.length&&billPage>0){billPage=Math.max(0,billPage-1);return loadBills();}
     renderBills();
+    const info=$bl("billPageInfo");
+    if(info)info.textContent=billTotalMatches
+      ?"Page "+(billPage+1)+" of "+Math.ceil(billTotalMatches/BILL_PAGE_SIZE)
+      :"No matching bills";
+    if($bl("billPrev"))$bl("billPrev").disabled=billPage===0;
+    if($bl("billNext"))$bl("billNext").disabled=(billPage+1)*BILL_PAGE_SIZE>=billTotalMatches;
     setBillMsg("");
   }catch(e){
+    if(revision!==billRevision)return;
     console.error(e);
     setBillMsg("Could not load bills: "+(e.message||"Unknown error"),"error");
     $bl("billRows").innerHTML="<tr><td colspan='7' class='empty'>Unable to load bills.</td></tr>";
   }
 }
-requireSession().then(loadBills).catch(e=>setBillMsg(e.message||"Please sign in.","error"));
+requireSession().then(()=>loadBills()).catch(e=>setBillMsg(e.message||"Please sign in.","error"));

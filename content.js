@@ -10,7 +10,7 @@
   const discovery=window.RainbowDiscovery;
   const catalogue=window.RainbowCatalogue;
   const paging={epoch:0,loading:false,hasMore:true,total:0,offset:0,autoPages:0,error:""};
-  let promotionProducts=[],newestProducts=[],metadataLoading=false,loaderObserver=null,showAllProducts=false;
+  let promotionProducts=[],newestProducts=[],metadataLoading=false,metadataError=false,loaderObserver=null,showAllProducts=false;
   const filterState={minPrice:"",maxPrice:"",color:"",size:"",length:"",inStock:true};
   let catalogueSort="featured";
   const track=(name,detail={})=>window.RainbowAnalytics?.track(name,detail);
@@ -36,7 +36,7 @@
   }
 
   const esc=value=>String(value??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
-  const money=value=>"₹"+Number(value||0).toLocaleString("en-IN",{maximumFractionDigits:2});
+  const formatINR=window.RainbowCatalogue.formatINR;
   const getProductImages=product=>{
     const images=Array.isArray(product.product_images)?product.product_images:[];
     return images.filter(image=>image&&image.public_url)
@@ -192,7 +192,8 @@
   function renderCategorySidebar(){
     const sidebar=document.getElementById("drawerCategories");
     if(!sidebar)return;
-    const buckets=categoryBuckets();
+    const buckets=window.matchMedia("(max-width:767px)").matches
+      ?storefrontMobileBuckets():categoryBuckets();
     const typeButtons=buckets.map(bucket=>{
       const cover=bucket.products.find(p=>getImage(p))||null;
       const url=cover?getThumb(cover):"";
@@ -209,12 +210,55 @@
   // Category-first mobile browsing uses the same real category metadata and product
   // photographs as the desktop catalogue. No duplicate backend requests.
   const mobileCategoryImageCache=new Map();
+  const mobileCategoryStockCounts=new Map();
+  let mobileCategoryCountsReady=false;
+  let mobileCategoryCountError=false;
+  let mobileCategoryCountVersion=0;
   let mobileCategorySignature="";
+  function withCatalogueTimeout(task){
+    let timer;
+    return Promise.race([
+      task,
+      new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error("Catalogue request timed out")),10000);})
+    ]).finally(()=>clearTimeout(timer));
+  }
+  // Server-side exact counts: never infer category emptiness from a paginated page.
+  async function loadCategoryStockCounts(){
+    const version=++mobileCategoryCountVersion;
+    mobileCategoryCountsReady=false;
+    mobileCategoryCountError=false;
+    mobileCategoryStockCounts.clear();
+    const counted=await Promise.all(catalogueCategories.filter(c=>c.show_in_storefront!==false).map(async c=>{
+      const result=await client.from("product_variants")
+        .select("id,products!inner(category_id,active)",{count:"exact",head:true})
+        .eq("active",true).gt("stock_quantity",0)
+        .eq("products.active",true).eq("products.category_id",c.id);
+      if(result.error)throw result.error;
+      return [normalizeCategory(c.name),Number(result.count||0)];
+    }));
+    if(version!==mobileCategoryCountVersion)return;
+    counted.forEach(([name,count])=>mobileCategoryStockCounts.set(name,count));
+    mobileCategoryCountsReady=true;
+  }
+  function storefrontMobileBuckets(){
+    if(!mobileCategoryCountsReady)return [];
+    return categoryBuckets().filter(bucket=>mobileCategoryStockCounts.get(normalizeCategory(bucket.label))>0);
+  }
   function renderMobileCategories(){
     const section=document.getElementById("mobileCategorySection");
     const track=document.getElementById("mobileCategoryTrack");
     if(!section||!track)return;
-    const buckets=categoryBuckets();
+    if(!mobileCategoryCountsReady){
+      // The DOM has switched to skeleton/error; force cards to rebuild after
+      // a recovered request even if its category signature is unchanged.
+      mobileCategorySignature="";
+      track.innerHTML=mobileCategoryCountError
+        ?'<div class="mobile-category-count-error" role="alert">Collections unavailable. <button type="button" id="mobileCategoryRetry">Retry</button></div>'
+        :'<span class="mobile-category-loading" role="status">Loading collections…</span>';
+      section.hidden=false;
+      return;
+    }
+    const buckets=storefrontMobileBuckets();
     const prepared=buckets.map(bucket=>{
       const key=normalizeCategory(bucket.label);
       const photographed=bucket.products.find(product=>getImage(product));
@@ -284,7 +328,7 @@
       const anchor=document.createElement("a");anchor.href="product.html?sku="+encodeURIComponent(p.product_code||"");anchor.className="latest-item";
       const img=document.createElement("img");img.src=getThumb(p);if(getThumb(p)!==getImage(p)){img.srcset=getThumb(p)+" 480w, "+getImage(p)+" 1600w";img.sizes="(max-width:700px) 50vw, 25vw";}img.alt=p.product_name||"New jewellery design";img.width=320;img.height=320;img.loading="lazy";img.decoding="async";
       const label=document.createElement("strong");label.textContent=p.product_name||"Jewellery";
-      const price=document.createElement("span");price.textContent=money(p.selling_price);
+      const price=document.createElement("span");price.textContent=formatINR(p.selling_price);
       anchor.append(img,label,price);grid.append(anchor);
     });
   }
@@ -337,6 +381,19 @@
     let products=catalogueProducts;
     if(visualSearchSignature)products=products.slice().sort((a,b)=>(visualSearchScores.get(String(b.id))??-1)-(visualSearchScores.get(String(a.id))??-1));
     visibleProducts=products;
+    // Failed requests never masquerade as an empty inventory.
+    if(!products.length&&paging.error){
+      if(status)status.textContent="Catalogue unavailable";
+      grid.innerHTML='<div class="catalogue-error" role="alert">'+
+        '<p>Couldn\'t load jewellery. Check your connection and try again.</p>'+
+        '<button type="button" id="catalogueRetry">Retry</button></div>';
+      renderPager(false);return;
+    }
+    if(!products.length&&paging.loading){
+      if(status)status.textContent="Loading jewellery…";
+      grid.innerHTML='<div class="catalogue-skeleton" aria-label="Loading jewellery"></div>'.repeat(8);
+      renderPager(false);return;
+    }
 
     const filtersActive=Object.entries(filterState).some(([key,value])=>key!=="inStock"&&value!=="");
     const categoryLanding=!window.matchMedia("(max-width:767px)").matches&&!showAllProducts&&!activeCategory&&!activeSearch&&!visualSearchSignature&&!wishlistOnly&&!filtersActive&&catalogueSort==="featured";
@@ -363,7 +420,7 @@
         const product=bucket.products.find(item=>getImage(item))||bucket.products[0];
         const image=product?getThumb(product):"";
         return "<button type='button' class='category-tile' data-category-tile='"+esc(bucket.label)+"' aria-label='Browse "+esc(bucket.label)+"'>"+
-          "<span class='category-tile-image'>"+(image?"<img src='"+esc(image)+"' alt='' loading='lazy'>":"<span class='placeholder'>RG</span>")+"</span>"+
+          "<span class='category-tile-image'>"+(image?"<img src='"+esc(image)+"' alt='' loading='lazy'>":catalogue.photoUnavailableMarkup())+"</span>"+
           "<span class='category-tile-copy'><strong>"+esc(bucket.label)+"</strong><small>View collection</small></span></button>";
       }).join(""):"<div class='product-empty'>Product categories will appear here when in-stock designs are added.</div>";
       grid.querySelectorAll("[data-category-tile]").forEach(tile=>tile.addEventListener("click",()=>{
@@ -388,20 +445,19 @@
       const stock=getStock(p),stockClass=stock===0?"out":"in",stockText=stock===0?"Out of stock":"In stock",image=getThumb(p);
       const saved=wishlistIds.has(String(p.id));
       return "<article class='product-card' data-product-id='"+esc(p.id)+"'>"+
-        "<div class='product-image'>"+(image?"<img src='"+esc(image)+"'"+responsiveSource(p)+" alt='"+esc(p.product_name)+"' width='320' height='320' loading='lazy' decoding='async'>":"<div class='placeholder'>RG</div>")+
+        "<button type='button' class='product-card-quick-view' data-product-open aria-label='Quick view: "+esc(p.product_name)+"'></button>"+
+        "<div class='product-image'>"+(image?"<img src='"+esc(image)+"'"+responsiveSource(p)+" alt='"+esc(p.product_name)+"' width='320' height='320' loading='lazy' decoding='async'>":catalogue.photoUnavailableMarkup())+
         "<button type='button' class='product-wishlist-button"+(saved?" is-saved":"")+"' data-wishlist-product='"+esc(p.id)+"' aria-label='"+(saved?"Remove ":"Add ")+esc(p.product_name)+(saved?" from":" to")+" wishlist' aria-pressed='"+saved+"'>"+(saved?"♥":"♡")+"</button></div>"+
         "<div class='product-body'><h3 class='product-name'>"+esc(p.product_name)+"</h3><div class='product-type'>"+esc(categoryFor(p))+"</div>"+
-        "<div class='product-meta'><strong class='product-price'>"+money(p.selling_price)+"</strong><span class='product-stock "+stockClass+"'>"+stockText+"</span></div><div class='product-card-actions'><button type='button' data-product-open>Quick view</button><a href='product.html?sku="+encodeURIComponent(p.product_code||"")+"'>Details ↗</a></div></div></article>";
-    }).join(""):"<div class='product-empty'>"+(wishlistOnly?"Nothing saved yet. Tap a heart to save a design.":activeSearch?"No matches. Try another search or category.":visualSearchSignature?"No visual matches could be ranked for this image. Try a clearer photo or search by name.":activeCategory?"No "+esc(activeCategory.toLowerCase())+" products are currently in stock.":"No jewellery is available right now.")+"</div>";
+        "<div class='product-meta'><strong class='product-price'>"+formatINR(p.selling_price)+"</strong><span class='product-stock "+stockClass+"'>"+stockText+"</span></div><div class='product-card-actions'><a href='product.html?sku="+encodeURIComponent(p.product_code||"")+"'>Details ↗</a></div></div></article>";
+    }).join(""):"<div class='product-empty'>"+(wishlistOnly?"Nothing saved yet. Tap a heart to save a design.":activeSearch?"No matches. Try another search or category.":visualSearchSignature?"No visual matches could be ranked for this image. Try a clearer photo or search by name.":activeCategory?"No "+esc(activeCategory.toLowerCase())+" products are currently in stock.":"No jewellery listed yet.")+"</div>";
     renderPager(false);
     if(appendOnly)grid.insertAdjacentHTML("beforeend",rendered);
-    else if(!products.length&&paging.loading)grid.innerHTML='<div class="catalogue-skeleton" aria-label="Loading jewellery"></div>'.repeat(8);
     else grid.innerHTML=rendered;
     grid.querySelectorAll("[data-product-id]:not([data-shop-bound])").forEach(card=>{
       card.dataset.shopBound="true";
       const open=()=>openProductModal(catalogueProducts.find(p=>String(p.id)===String(card.dataset.productId)));
-      card.addEventListener("click",event=>{if(event.target.closest("[data-wishlist-product],a[href]"))return;open();});
-      card.querySelector("[data-product-open]")?.addEventListener("keydown",event=>{if(event.key===" "){event.preventDefault();open();}});
+      card.querySelector("[data-product-open]")?.addEventListener("click",open);
     });
     grid.querySelectorAll("[data-wishlist-product]:not([data-wishlist-bound])").forEach(button=>{button.dataset.wishlistBound="true";button.addEventListener("click",event=>{
       event.preventDefault();event.stopPropagation();const id=String(button.dataset.wishlistProduct);
@@ -413,6 +469,7 @@
   function bindCollectionFilters(){
     const mobileTrack=document.getElementById("mobileCategoryTrack");
     mobileTrack?.addEventListener("click",event=>{
+      if(event.target.closest("#mobileCategoryRetry")){void loadProducts();return;}
       const button=event.target.closest("[data-mobile-category]");
       if(!button)return;
       const targetCategory=button.dataset.mobileCategory||"";
@@ -768,7 +825,7 @@
     return '<article class="active-order-card"><div class="tracking-result-top"><div><strong>'+esc(order.order_number)+'</strong>'+
       '<small>'+esc(order.product_names||order.product_name||"Online order")+(date?" · "+esc(date):"")+'</small></div>'+
       '<span class="tracking-status '+esc(status)+'">'+esc(status)+'</span></div>'+
-      '<small>Payment: '+esc(order.payment_status||"pending")+(order.total_amount!=null?' · Total ₹'+Number(order.total_amount).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2}):"")+'</small>'+
+      '<small>Payment: '+esc(order.payment_status||"pending")+(order.total_amount!=null?' · Total '+formatINR(order.total_amount):"")+'</small>'+
       (notice?'<p class="tracking-manual-note">'+esc(notice)+'</p>':"")+timeline+tracking+'</article>';
   }
   async function loadMyOrdersInto(container,label){
@@ -884,8 +941,8 @@
     ].filter(item=>item[1]!==null&&item[1]!==undefined&&String(item[1]).trim()!=="");
     let activeImageIndex=0;
     const galleryHtml='<div class="product-gallery">'+
-      '<div class="product-detail-main">'+(main?'<img data-gallery-main src="'+esc(main)+'" alt="'+esc(product.product_name)+'">':'<div class="placeholder">RG</div>')+
-        '<span class="gallery-count" data-gallery-count>1 / '+images.length+' photo'+(images.length===1?'':'s')+'</span></div>'+
+      '<div class="product-detail-main">'+(main?'<img data-gallery-main src="'+esc(main)+'" alt="'+esc(product.product_name)+'">':catalogue.photoUnavailableMarkup())+
+        (images.length?'<span class="gallery-count" data-gallery-count>1 / '+images.length+' photo'+(images.length===1?'':'s')+'</span>':'')+'</div>'+
       (images.length>1?'<div class="product-detail-thumbs">'+images.map((image,i)=>'<button type="button" class="product-detail-thumb'+(i===0?' active':'')+'" data-gallery-src="'+esc(image.public_url)+'" data-gallery-index="'+i+'" data-gallery-alt="'+esc(product.product_name+' — image '+(i+1))+'" aria-label="View product image '+(i+1)+'" aria-current="'+(i===0?'true':'false')+'"><img src="'+esc(image.public_url)+'" alt="" loading="lazy"></button>').join("")+'</div>':"")+
       '</div>';
     const lengthGuide=lengthOptions.length
@@ -903,10 +960,10 @@
         '<div class="product-breadcrumb"><span>Rainbow Gold Covering</span><span aria-hidden="true">›</span><span>'+esc(category)+'</span></div>'+
         '<h2 id="modalProductName">'+esc(product.product_name)+'</h2>'+
         '<div class="product-type modal-product-type">'+esc(category)+'</div>'+
-        '<div class="modal-price-row"><div class="modal-price">'+money(product.selling_price)+'</div><span class="product-stock '+(stockOf(selectedVariant)===0?"out":"in")+'" data-variant-status>'+(stockOf(selectedVariant)===0?"Out of stock":"In stock")+'</span></div>'+
+        '<div class="modal-price-row"><div class="modal-price">'+formatINR(product.selling_price)+'</div><span class="product-stock '+(stockOf(selectedVariant)===0?"out":"in")+'" data-variant-status>'+(stockOf(selectedVariant)===0?"Out of stock":"In stock")+'</span></div>'+
         choiceControls+genericVariantPicker+
         '<div class="product-quantity-row"><span>Quantity</span><div class="quantity-picker"><button type="button" data-qty-minus aria-label="Decrease quantity">−</button><span data-qty>1</span><button type="button" data-qty-plus aria-label="Increase quantity">＋</button></div></div>'+
-        '<div class="product-buy-actions"><button class="btn btn-dark" type="button" data-add-cart>Add to Cart</button><button class="btn btn-light" type="button" data-buy-now>Buy Now →</button></div>'+
+        '<div class="product-buy-actions"><button class="btn btn-dark" type="button" data-add-cart>Add to bag</button><button class="btn btn-light" type="button" data-buy-now>Buy Now →</button></div>'+
         '<button class="modal-wishlist-button'+(savedInWishlist?' is-saved':'')+'" type="button" data-modal-wishlist aria-pressed="'+savedInWishlist+'"><span aria-hidden="true">'+(savedInWishlist?'♥':'♡')+'</span><span>'+(savedInWishlist?'Saved to wishlist':'Save to wishlist')+'</span></button>'+
         detailsPanel+lengthGuide+
         '<div class="product-support-card"><span>Need help?</span><p>Ask us about this design, sizing, or delivery options.</p><button type="button" data-contact-store>Contact Rainbow on WhatsApp <span aria-hidden="true">↗</span></button></div>'+
@@ -1031,16 +1088,21 @@
       const stock=stockOf(selectedVariant);
       if(!selectedVariant||stock<=0){if(status)status.textContent="This option is out of stock.";return;}
       const cart=getCart();
-      if(replace){saveCart([makeCartItem(Math.min(selectedQty,stock))]);location.href="order.html";return;}
+      if(replace){
+        if(!window.RainbowCatalogue?.startBuyNow(makeCartItem(Math.min(selectedQty,stock)))){
+          if(status)status.textContent="Could not start Buy now. Try again.";return;
+        }
+        location.href="order.html";return;
+      }
       const existing=cart.find(item=>String(item.variant_id)===String(selectedVariant.id));
       const oldQty=Number(existing?.quantity||0);
-      if(oldQty>=stock){if(status)status.textContent="The cart already contains all available stock for this option.";return;}
+      if(oldQty>=stock){if(status)status.textContent="Your bag already has all available stock for this option.";return;}
       const next=Math.min(stock,oldQty+selectedQty);
       if(existing){existing.quantity=next;existing.variant_label=labelForVariant(selectedVariant);existing.product=makeCartItem(next).product;}
       else cart.push(makeCartItem(next));
       saveCart(cart);track("add_to_cart",{item_id:product.product_code||product.id,quantity:selectedQty});
       document.dispatchEvent(new CustomEvent("rainbow:mobile-toast",{detail:{message:"Added to your bag"}}));
-      if(status)status.textContent="Added to cart.";
+      if(status)status.textContent="Added to bag.";
       closeProductModal();
     };
     addButton.onclick=()=>addSelectedToCart(false);
@@ -1152,9 +1214,13 @@
   async function loadMoreProducts(manual=false){
     if(!client||!catalogue||paging.loading||(!paging.hasMore&&!paging.error))return;
     const epoch=paging.epoch;
-    paging.loading=true;paging.error="";renderPager(false);
+    paging.loading=true;paging.error="";render();
+    let deadline=null;
     try{
-      const response=await catalogue.page(client,{...pageFilters(),offset:paging.offset,limit:catalogue.PAGE_SIZE});
+      const response=await Promise.race([
+        catalogue.page(client,{...pageFilters(),offset:paging.offset,limit:catalogue.PAGE_SIZE}),
+        new Promise((_,reject)=>{deadline=setTimeout(()=>reject(new Error("Catalogue request timed out")),10000);})
+      ]);
       if(epoch!==paging.epoch)return;
       const known=new Set(catalogueProducts.map(product=>String(product.id)));
       for(const product of response.items){
@@ -1170,21 +1236,27 @@
     }catch(error){
       if(epoch!==paging.epoch)return;
       console.warn("Catalogue page failed",error);
-      paging.error="Check your connection and retry.";
-      const state=document.getElementById("productStatus");
-      if(state)state.textContent="Could not load jewellery right now.";
+      paging.error="Check your connection and try again.";
     }finally{
-      if(epoch===paging.epoch){paging.loading=false;renderPager(false);}
+      if(deadline!==null)clearTimeout(deadline);
+      if(epoch===paging.epoch){paging.loading=false;render();renderPager(false);}
     }
   }
   function resetCatalogue(){
     paging.epoch++;paging.offset=0;paging.total=0;paging.loading=false;paging.error="";
     paging.hasMore=true;paging.autoPages=0;
-    catalogueProducts=[];visibleProducts=[];render();
+    catalogueProducts=[];visibleProducts=[];
     return loadMoreProducts();
   }
   function bindCataloguePaging(){
     document.getElementById("loadMoreProducts")?.addEventListener("click",()=>loadMoreProducts(true));
+    // Delegation survives skeleton/error/grid replacements without duplicate listeners.
+    document.getElementById("productGrid")?.addEventListener("click",event=>{
+      if(!event.target.closest("#catalogueRetry"))return;
+      if(metadataError){void loadProducts();return;}
+      if(paging.error&&paging.offset>0)void loadMoreProducts(true);
+      else void resetCatalogue();
+    });
     const sentinel=document.getElementById("catalogueSentinel");
     if(sentinel&&"IntersectionObserver" in window){
       loaderObserver=new IntersectionObserver(entries=>{
@@ -1197,44 +1269,80 @@
       loaderObserver.observe(sentinel);
     }
   }
+  // UX-11: on deeply paginated mobile screens, refresh category metadata
+  // without resetting the shopper's scroll position or loaded products.
+  let categoryRailRefreshing=false;
+  async function refreshCategoryRailOnly(){
+    if(categoryRailRefreshing||metadataLoading||!client)return;
+    categoryRailRefreshing=true;
+    try{
+      const result=await withCatalogueTimeout(client.from("categories")
+        .select("id,name,storefront_order,show_in_storefront")
+        .eq("active",true).order("storefront_order",{ascending:true}).order("name",{ascending:true}));
+      if(result.error)throw result.error;
+      catalogueCategories=result.data||[];
+      await withCatalogueTimeout(loadCategoryStockCounts());
+      renderCategorySidebar();renderMobileCategories();
+    }catch(error){
+      console.warn("Mobile categories unavailable",error);
+      mobileCategoryCountVersion++;mobileCategoryCountsReady=false;mobileCategoryCountError=true;
+      renderMobileCategories();
+    }finally{categoryRailRefreshing=false;}
+  }
   function scheduleCatalogRefresh(){
     if(document.visibilityState==="hidden")return;
     if(realtimeRefreshTimer)window.clearTimeout(realtimeRefreshTimer);
     realtimeRefreshTimer=window.setTimeout(()=>{
       realtimeRefreshTimer=null;
-      // Keep a scrolled catalogue stable. Checkout always checks the authoritative stock.
-      if(paging.offset>catalogue.PAGE_SIZE)return;
+      // Keep a deeply scrolled catalogue stable; refresh mobile categories
+      // independently so new stocked product types still appear automatically.
+      if(paging.offset>catalogue.PAGE_SIZE){
+        if(window.matchMedia("(max-width:767px)").matches)void refreshCategoryRailOnly();
+        return;
+      }
       loadProducts();
     },400);
   }
   async function loadProducts(){
     if(metadataLoading)return;
-    metadataLoading=true;
+    metadataLoading=true;metadataError=false;
+    paging.loading=true;paging.error="";render();
     const status=document.getElementById("productStatus");
     try{
       if(!catalogue)throw new Error("Catalogue discovery module was not loaded.");
-      const [categoriesResult,promotionResult]=await Promise.all([
+      const [categoriesResult,promotionResult]=await withCatalogueTimeout(Promise.all([
         client.from("categories").select("id,name,storefront_order,show_in_storefront")
           .eq("active",true).order("storefront_order",{ascending:true}).order("name",{ascending:true}),
         client.from("storefront_promotion_items").select("product_id,display_order").order("display_order",{ascending:true}).limit(8)
-      ]);
+      ]));
       if(categoriesResult.error)throw categoriesResult.error;
       catalogueCategories=categoriesResult.data||[];
+      // Counts are independent metadata. Failure must never take down product
+      // listings or show potentially empty categories as stocked.
+      try{await withCatalogueTimeout(loadCategoryStockCounts());}
+      catch(error){
+        console.warn("Category counts unavailable",error);
+        mobileCategoryCountVersion++;mobileCategoryCountsReady=false;
+        mobileCategoryCountError=true;
+      }
       promotionProductIds=promotionResult.error?[]:(promotionResult.data||[]).map(p=>String(p.product_id));
-      const [latestResult,promotionResultPage]=await Promise.all([
+      const [latestResult,promotionResultPage]=await withCatalogueTimeout(Promise.all([
         catalogue.page(client,{sort:"newest",limit:4}),
         promotionProductIds.length?catalogue.page(client,{wishlistIds:promotionProductIds,limit:8})
           :Promise.resolve({items:[]})
-      ]);
+      ]));
       newestProducts=latestResult.items;
       promotionProducts=promotionResultPage.items;
       renderMobileCategories();
       renderLatestArrivals();
       renderPromotion();
+      paging.loading=false;
       await resetCatalogue();
     }catch(error){
       console.warn("Catalogue metadata unavailable",error);
-      if(status)status.textContent="Products are temporarily unavailable. Please try again.";
+      metadataError=true;paging.error="Check your connection and try again.";
+      paging.loading=false;render();
+      if(status)status.textContent="Catalogue unavailable";
       const categoryLoading=document.querySelector("#mobileCategoryTrack .mobile-category-loading");
       if(categoryLoading)categoryLoading.textContent="Collections are temporarily unavailable. Refresh to try again.";
     }finally{metadataLoading=false;}

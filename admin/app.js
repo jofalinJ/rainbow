@@ -2,7 +2,7 @@ const SUPABASE_CONFIG=window.RAINBOW_SUPABASE_CONFIG||{};
 const SUPABASE_URL=String(SUPABASE_CONFIG.supabaseUrl||"").trim();
 const SUPABASE_ANON_KEY=String(SUPABASE_CONFIG.supabasePublishableKey||"").trim();
 let sbClient=null;
-function bootSupabase(){if(sbClient)return sbClient;if(!window.supabase?.createClient)throw new Error("Supabase library did not load. Refresh the page.");sbClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);return sbClient;}
+function bootSupabase(){if(sbClient)return sbClient;if(!window.supabase?.createClient)throw new Error("Supabase library did not load. Refresh the page.");sbClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{storage:window.sessionStorage,storageKey:"rainbow-staff-session",persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});return sbClient;}
 async function getAuthUser(){const {data,error}=await bootSupabase().auth.getUser();if(error){if(error.name==="AuthSessionMissingError"||error.status===401||error.status===403)location.href="login.html";throw new Error("Session error: "+error.message);}if(!data.user){location.href="login.html";throw new Error("Please sign in.");}return data.user;}
 async function requireSession(){const client=bootSupabase();const {data:userData,error:userError}=await client.auth.getUser();if(userError||!userData.user){location.href="login.html";throw new Error("Please sign in.");}const {data:sessionData,error:sessionError}=await client.auth.getSession();if(sessionError||!sessionData.session){location.href="login.html";throw new Error("Session expired. Please sign in again.");}return sessionData.session;}
 async function getMyProfile(){const user=await getAuthUser();const {data,error}=await bootSupabase().from("staff_profiles").select("role,active,full_name,username").eq("user_id",user.id).maybeSingle();if(error)throw new Error("Could not load staff profile: "+error.message);if(!data)throw new Error("No staff profile exists for this login.");return data;}
@@ -87,7 +87,36 @@ async function logout(){await bootSupabase().auth.signOut();location.href="login
 function comingSoon(name){alert(name+" is not enabled yet.");return false;}
 function enableStableNavigation(){document.querySelectorAll("aside nav a[href]").forEach(a=>{if(a.dataset.stableNav==="true")return;const href=a.getAttribute("href")||"";if(!href.endsWith(".html"))return;a.dataset.stableNav="true";a.addEventListener("click",event=>{if(event.defaultPrevented)return;event.preventDefault();window.location.assign(href);},{once:true});});}
 window.addEventListener("pageshow",event=>{if(event.persisted)window.location.reload();});
-async function loadDashboard(){try{const [products,orders,low,best]=await Promise.all([sb("products?select=id&active=eq.true"),sb("orders?select=id,total_amount,created_at,status&order=created_at.desc&limit=50"),sb("low_stock_products?select=*"),sb("best_selling_products?select=*&limit=5")]);const today=new Date();today.setHours(0,0,0,0);const todayOrders=(orders||[]).filter(o=>new Date(o.created_at)>=today&&!["cancelled","refunded"].includes(o.status));const sales=todayOrders.reduce((s,o)=>s+Number(o.total_amount||0),0);const salesEl=document.querySelector("#sales");if(salesEl)salesEl.textContent="₹"+sales.toLocaleString("en-IN",{maximumFractionDigits:0});const meta=document.querySelector("#salesMeta");if(meta)meta.textContent=todayOrders.length+" orders today";const ordersEl=document.querySelector("#orders");if(ordersEl)ordersEl.textContent=(orders||[]).length;const productsEl=document.querySelector("#products");if(productsEl)productsEl.textContent=(products||[]).length;const lowEl=document.querySelector("#lowCount");if(lowEl)lowEl.textContent=(low||[]).length;const orderRows=document.querySelector("#orderRows");if(orderRows)orderRows.innerHTML=(orders||[]).slice(0,5).map(o=>"<tr><td>#"+o.id.slice(0,8).toUpperCase()+"</td><td>₹"+Number(o.total_amount||0).toLocaleString("en-IN")+"</td><td><b>"+o.status+"</b></td></tr>").join("")||"<tr><td colspan='3'>No orders yet.</td></tr>";const lowRows=document.querySelector("#lowRows");if(lowRows)lowRows.innerHTML=(low||[]).slice(0,5).map(x=>"<div class='stock'><div><b>"+x.product_name+"</b><small>"+x.product_code+"</small></div><strong>"+x.stock_quantity+" left</strong></div>").join("")||"<p>No low-stock products.</p>";const bestRows=document.querySelector("#bestRows");if(bestRows)bestRows.innerHTML=(best||[]).map((x,i)=>"<div class='seller'><span>0"+(i+1)+"</span><div><b>"+x.product_name+"</b><small>"+x.units_sold+" sold</small></div><strong>₹"+Number(x.sales_amount||0).toLocaleString("en-IN")+"</strong></div>").join("")||"<p>No sales yet.</p>"}catch(e){console.error(e);const meta=document.querySelector("#salesMeta");if(meta)meta.textContent="Error: "+e.message;const rows=document.querySelector("#orderRows");if(rows)rows.innerHTML="<tr><td colspan='3'>Could not load dashboard: "+e.message+"</td></tr>";}}
+async function loadDashboard(){
+  try{
+    const [metrics,orders,low,best]=await Promise.all([
+      bootSupabase().rpc("get_admin_operational_metrics").then(({data,error})=>{if(error)throw error;return data;}),
+      sb("orders?select=id,total_amount,created_at,status&order=created_at.desc&limit=5"),
+      sb("low_stock_products?select=*&limit=5"),
+      sb("best_selling_products?select=*&limit=5")
+    ]);
+    const money=value=>"₹"+Number(value||0).toLocaleString("en-IN",{maximumFractionDigits:0});
+    const safe=value=>String(value??"").replace(/[&<>"']/g,ch=>({
+      "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+    }[ch]));
+    const assign=(id,value)=>{const element=document.querySelector("#"+id);if(element)element.textContent=value;};
+    assign("sales",money(metrics.today_sales));
+    assign("salesMeta",Number(metrics.today_orders||0).toLocaleString("en-IN")+" orders today");
+    assign("orders",Number(metrics.orders||0).toLocaleString("en-IN"));
+    assign("products",Number(metrics.products||0).toLocaleString("en-IN"));
+    assign("lowCount",Number(metrics.low_stock||0).toLocaleString("en-IN"));
+    const orderRows=document.querySelector("#orderRows");
+    if(orderRows)orderRows.innerHTML=(orders||[]).map(o=>"<tr><td>#"+String(o.id).slice(0,8).toUpperCase()+"</td><td>"+money(o.total_amount)+"</td><td><b>"+o.status+"</b></td></tr>").join("")||"<tr><td colspan='3'>No orders yet.</td></tr>";
+    const lowRows=document.querySelector("#lowRows");
+    if(lowRows)lowRows.innerHTML=(low||[]).map(x=>"<div class='stock'><div><b>"+safe(x.product_name)+"</b><small>"+safe(x.product_code)+"</small></div><strong>"+x.stock_quantity+" left</strong></div>").join("")||"<p>No low-stock products.</p>";
+    const bestRows=document.querySelector("#bestRows");
+    if(bestRows)bestRows.innerHTML=(best||[]).map((x,i)=>"<div class='seller'><span>0"+(i+1)+"</span><div><b>"+safe(x.product_name)+"</b><small>"+x.units_sold+" sold</small></div><strong>"+money(x.sales_amount)+"</strong></div>").join("")||"<p>No sales yet.</p>";
+  }catch(e){
+    console.error(e);
+    const meta=document.querySelector("#salesMeta");if(meta)meta.textContent="Error: "+e.message;
+    const rows=document.querySelector("#orderRows");if(rows)rows.innerHTML="<tr><td colspan='3'>Could not load dashboard. Refresh to retry.</td></tr>";
+  }
+}
 let dashboardLiveChannel=null,dashboardRefreshTimer=null,dashboardPollTimer=null;
 function startDashboardLiveUpdates(){
   if(dashboardPollTimer)return;
