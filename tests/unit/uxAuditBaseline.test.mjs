@@ -75,7 +75,7 @@ describe("QA audit Phase 0 — failing source baselines, no network",()=>{
     expect(product).not.toContain(">My bag");
   });
   it("UX-21 Gateway status is contextual to the selected method",()=>{
-    expect(checkout).toContain("providerPanel.hidden=!razorpayTestAllowed||!gatewaySelected");
+    expect(checkout).toContain("providerPanel.hidden=!razorpayMethodAllowed()||!gatewaySelected");
     expect(order).toContain('id="razorpayInlineStatus"');
   });
   it("Baseline safety: frontend never embeds a server-only secret or payment key",()=>{
