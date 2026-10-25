@@ -40,7 +40,7 @@
 <div class="erp-image-row" id="erpImages"></div>
 <div class="erp-stats">
 <div><small>Shop stock</small><strong id="erpShopStock">—</strong></div>
-<div><small>Total stock</small><strong id="erpTotalStock">—</strong></div>
+<div><small id="erpTotalStockLabel">Visible stock</small><strong id="erpTotalStock">—</strong></div>
 <div><small>Online available</small><strong id="erpOnlineStock">—</strong></div>
 <div><small>In transit</small><strong id="erpTransitStock">—</strong></div>
 </div>
@@ -65,6 +65,10 @@
 <p class="erp-muted">Destination staff must confirm receipt. In-transit units are not counted twice.</p>
 </form>
 </div>
+<section aria-label="Branch-wise product stock">
+<h3>Stock by location</h3>
+<div id="erpBranchBreakdown" class="erp-list"></div>
+</section>
 <div id="erpOnlinePanel" hidden>
 <h3>Online publication</h3>
 <label class="erp-inline"><input type="checkbox" id="erpPublished"> Publish this product online</label>
