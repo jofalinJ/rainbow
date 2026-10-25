@@ -22,7 +22,7 @@ describe("customer checkout compact UX safety",()=>{
     expect(order).toContain('value="razorpay"');
     expect(order).toContain('value="upi"');
     expect(order).toContain('name="paymentMethod"');
-    expect(orderJs).toContain('beginRazorpayTestPayment(');
+    expect(orderJs).toContain('beginRazorpayPayment(');
     expect(orderJs).toContain('pendingApi("/api/upi/prepare"');
     expect(orderJs).toContain('pendingApi("/api/upi/submit"');
     expect(orderJs).not.toContain('sb.rpc("create_online_order"');
@@ -66,7 +66,7 @@ describe("customer checkout compact UX safety",()=>{
   it("keeps mobile-only compact styles and preserves desktop styling",()=>{
     expect(mobileCss).toContain('@media (max-width:767px)');
     expect(mobileCss).toContain('.gateway-connection[hidden]{display:none!important}');
-    expect(orderJs).toContain('providerPanel.hidden=!razorpayTestAllowed||!gatewaySelected');
+    expect(orderJs).toContain('providerPanel.hidden=!razorpayMethodAllowed()||!gatewaySelected');
     expect(order).toContain('id="razorpayInlineStatus"');
     for(const page of [home,order,product])expect(page).toContain('mobile-storefront.css?');
   });
