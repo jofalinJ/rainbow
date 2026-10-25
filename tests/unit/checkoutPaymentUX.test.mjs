@@ -3,54 +3,58 @@ import {readFileSync} from "node:fs";
 
 const read=path=>readFileSync(new URL("../../"+path,import.meta.url),"utf8");
 const page=read("order.html");
-const script=read("order.js");
+const checkout=read("order.js");
 const gateway=read("order-razorpay.mjs");
-const styles=read("order.css");
 const build=read("scripts/build-cloudflare.mjs");
+const css=read("mobile-storefront.css");
 
-describe("Rainbow secure checkout release",()=>{
-  it("publishes both payment dependencies with the Cloudflare Pages build",()=>{
+describe("Razorpay LIVE reconciliation on the isolated audit branch",()=>{
+  it("retains both gateway dependencies and mode-gated module import",()=>{
     expect(build).toContain('"payment-config.js","order-razorpay.mjs"');
     expect(build).toContain('"order.js"');
-    expect(page).toContain('src="payment-config.js?v=20261021-checkout-v2"');
-    expect(script).toContain('order-razorpay.mjs?v=20261021-paid-confirmation-v4');
-  });
-  it("offers only supported choices and updates the order amount alongside the payment selector",()=>{
+    expect(checkout).toContain("import {razorpayAvailability,beginRazorpayPayment}");
+    expect(checkout).toContain("order-razorpay.mjs?v=20261025-live-gated-audit");
     expect(page).toContain('id="payRazorpay"');
     expect(page).toContain('id="payUpi"');
-    expect(page).toContain('id="manualPaymentDetails"');
-    expect(page).toContain('id="razorpayDetails"');
-    expect(page).toContain('id="whatsappReceiptConsent"');
-    expect(script).toContain('Order placed — payment verified!');
-    expect(script).toContain('View / Print Invoice');
-    expect(script).toContain('whatsapp_opt_in:paymentMethod==="razorpay"');
-    expect(gateway).toContain('invoiceUrl:result.invoiceUrl||null');
-    expect(page).toContain('id="summaryHeading"');
-    expect(page).toContain('id="placeOrder"');
-    expect(page).not.toMatch(/name="paymentMethod"[^>]*value="cod"/i);
-    expect(styles).toContain(".checkout-layout");
-    expect(styles).toContain(".checkout-aside");
-    expect(styles).toContain("@media(max-width:520px)");
   });
-  it("fails closed and explains outages rather than enabling an unverified gateway",()=>{
-    expect(page).toMatch(/id="payRazorpay"[^>]*disabled/);
-    expect(script).toContain("gateway.disabled=!status.available");
-    expect(script).toContain('manual.checked=true');
-    expect(script).toContain('retryGateway');
-    expect(gateway).toContain('razorpayTestAvailability()');
-    expect(gateway).toContain('data.enabled===true && data.mode==="test"');
-    expect(gateway).toContain('cache:"no-store"');
-    expect(gateway).toContain("Could not connect to the secure payment service");
-    expect(gateway).toContain("/api/razorpay/provider-check?check=");
-    expect(gateway).toContain('result.provider==="credentials_rejected"');
+  it("never exposes TEST unrequested in production or LIVE on a preview host",()=>{
+    expect(checkout).toContain('get("test")==="1"');
+    expect(checkout).toContain('const razorpayLiveAllowed=!testHost');
+    expect(checkout).toContain('razorpayMode==="live"?razorpayLiveAllowed:razorpayTestAllowed');
+    expect(checkout).toContain('gatewayOption.hidden=!razorpayTestAllowed');
+    expect(checkout).toContain("razorpayReady=Boolean(status.available&&permitted)");
+    expect(checkout).not.toContain("gateway.checked=true");
+    expect(checkout).not.toContain("manual.checked=true");
+    expect(page).toContain('id="payUpi" type="radio" name="paymentMethod" value="upi" checked');
+  });
+  it("rechecks server mode and exact integer-paise amount before opening payment",()=>{
+    expect(gateway).toContain("export async function razorpayAvailability()");
+    expect(gateway).toContain('result.provider==="connected"');
+    expect(gateway).toContain('data.mode==="test" || data.mode==="live"');
+    expect(gateway).toContain("if(mode!==expectedMode)");
+    expect(gateway).toContain("Math.round(displayTotal*100)!==gateway.amount");
     expect(gateway).toContain('data.code==="CHECKOUT_EXPIRED"');
     expect(gateway).toContain('error.code!=="CHECKOUT_EXPIRED"');
+    expect(checkout).toContain('expectedMode:razorpayMode');
+    expect(checkout).toContain('onPaymentFailed:reason=>msg(');
   });
-  it("preserves manual UPI verification and clarifies it can transfer actual money",()=>{
+  it("keeps payment pending distinct from independently verified paid",()=>{
+    expect(gateway).toContain("if(result.paid===true)");
+    expect(gateway).toContain('resolve({status:"pending",mode,orderNumber:result.orderNumber})');
+    expect(checkout).toContain('if(result.status==="paid")');
+    expect(checkout).toContain('if(result.status==="pending")');
+    expect(checkout).toContain('result.mode==="live"?"<h2>Payment verified');
+    expect(checkout).toContain("No real money was deducted.");
+    expect(css).toContain('html.checkout-razorpay-live #razorpayChoice .payment-choice-note');
+    expect(checkout).toContain("Razorpay charges real money.");
+  });
+  it("requires safe pending UPI order and never enables the old anonymous RPC fallback",()=>{
+    expect(checkout).toContain('pendingApi("/api/upi/prepare"');
+    expect(checkout).toContain('pendingApi("/api/upi/submit"');
+    expect(checkout).not.toContain('sb.rpc("create_online_order"');
     expect(page).toContain('id="checkoutQR"');
-    expect(page).toContain('id="paymentReference"');
-    expect(page).toContain('Manual UPI transfer is separate and can move real funds.');
-    expect(script).toContain('rpc("create_online_order"');
-    expect(script).toContain('/^[A-Za-z0-9-]{8,64}$/.test(paymentReference)');
+    expect(page).toContain('id="paymentReferenceGroup"');
+    expect(page).toContain("Manual UPI transfers real money and requires shop verification.");
+    expect(checkout).toContain("is pending shop verification. It is not confirmed yet.");
   });
 });
