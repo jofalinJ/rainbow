@@ -106,14 +106,15 @@ create table if not exists public.erp_online_listings(
 );
 
 create table if not exists public.erp_online_reservations(
- checkout_id uuid primary key,
+ checkout_id uuid not null,
  location_id uuid not null references public.erp_locations(id),
  variant_id uuid not null references public.product_variants(id),
  quantity integer not null check(quantity between 1 and 100000),
  state text not null check(state in ('reserved','paid','released')),
  expires_at timestamptz not null,
  created_at timestamptz not null default now(),
- updated_at timestamptz not null default now()
+ updated_at timestamptz not null default now(),
+ primary key(checkout_id,variant_id)
 );
 create index if not exists erp_reservations_expiry on public.erp_online_reservations(expires_at) where state='reserved';
 
@@ -356,22 +357,28 @@ grant execute on function public.erp_receive_transfer(uuid) to authenticated;
 
 -- Online reservations are deliberately service_role-only; the Razorpay path
 -- is NOT redirected here until checkout/legacy inventory cutover is tested.
+-- Reserve one variant; service_role only. Idempotent by (checkout,variant).
 create or replace function public.erp_reserve_online(
  p_checkout uuid,p_variant uuid,p_qty integer,p_expires timestamptz
 ) returns jsonb language plpgsql security definer
 set search_path=pg_catalog,public as $$
 declare v_loc uuid; v_old public.erp_online_reservations%rowtype; v_stock record;
 begin
- if p_checkout is null or p_variant is null or p_qty is null or p_qty not between 1 and 100000 or p_expires is null or
- p_expires<=now() or p_expires>now()+interval '2 hours'
+ if p_checkout is null or p_variant is null or p_qty is null or p_qty not between 1 and 100000
+ or p_expires is null or p_expires<=now() or p_expires>now()+interval '2 hours'
  then raise exception 'Invalid reservation'; end if;
  perform pg_advisory_xact_lock(hashtextextended(p_checkout::text,353));
- select * into v_old from public.erp_online_reservations where checkout_id=p_checkout;
+ select * into v_old from public.erp_online_reservations
+ where checkout_id=p_checkout and variant_id=p_variant for update;
  if found then
- if v_old.variant_id<>p_variant or v_old.quantity<>p_qty or v_old.state<>'reserved' or v_old.expires_at<=now()
- then raise exception 'Checkout ID already used'; end if;
+ if v_old.quantity<>p_qty or v_old.state<>'reserved'
+ or v_old.expires_at is distinct from p_expires or v_old.expires_at<=now()
+ then raise exception 'Checkout item already used'; end if;
  return jsonb_build_object('state','reserved','already_applied',true);
  end if;
+ if exists(select 1 from public.erp_online_reservations
+   where checkout_id=p_checkout and (state<>'reserved' or expires_at is distinct from p_expires))
+ then raise exception 'Checkout expiry or state inconsistent'; end if;
  select id into v_loc from public.erp_locations where kind='online' and active;
  if v_loc is null then raise exception 'Online location unavailable'; end if;
  if not exists(select 1 from public.product_variants v
@@ -392,34 +399,94 @@ end; $$;
 revoke all on function public.erp_reserve_online(uuid,uuid,integer,timestamptz) from public,anon,authenticated;
 grant execute on function public.erp_reserve_online(uuid,uuid,integer,timestamptz) to service_role;
 
+-- Atomic whole-cart reservation; any invalid / out-of-stock item rolls back the batch.
+create or replace function public.erp_reserve_online_cart(
+ p_checkout uuid,p_items jsonb,p_expires timestamptz
+) returns jsonb language plpgsql security definer
+set search_path=pg_catalog,public as $$
+declare r record; v_existing integer; v_total integer;
+begin
+ if p_checkout is null or p_expires is null or p_expires<=now()
+ or p_expires>now()+interval '2 hours'
+ or jsonb_typeof(p_items) is distinct from 'array'
+ then raise exception 'Invalid checkout reservation'; end if;
+ v_total:=jsonb_array_length(p_items);
+ if v_total<1 or v_total>50 then raise exception 'Checkout must have 1–50 variants'; end if;
+ if exists(select 1 from jsonb_array_elements(p_items) item
+ where jsonb_typeof(item) is distinct from 'object'
+    or coalesce(item->>'variant_id','') !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+    or coalesce(item->>'quantity','') !~ '^[0-9]{1,6}$'
+    or (item->>'quantity')::integer not between 1 and 100000)
+ then raise exception 'Malformed cart variant or quantity'; end if;
+ if exists(select item->>'variant_id' from jsonb_array_elements(p_items) item
+ group by item->>'variant_id' having count(*)>1)
+ then raise exception 'Duplicate variant in cart'; end if;
+ perform pg_advisory_xact_lock(hashtextextended(p_checkout::text,353));
+ select count(*) into v_existing from public.erp_online_reservations where checkout_id=p_checkout;
+ if v_existing>0 then
+  if v_existing<>v_total or exists(
+   select 1 from jsonb_array_elements(p_items) item
+   left join public.erp_online_reservations v
+   on v.checkout_id=p_checkout and v.variant_id=(item->>'variant_id')::uuid
+   where v.variant_id is null or v.quantity<>(item->>'quantity')::integer
+   or v.state<>'reserved' or v.expires_at is distinct from p_expires or v.expires_at<=now()
+  ) then raise exception 'Checkout ID reused with different cart or state'; end if;
+  return jsonb_build_object('state','reserved','count',v_total,'already_applied',true);
+ end if;
+ -- Sorting locks stock rows consistently under concurrent carts.
+ for r in select (item->>'variant_id')::uuid as variant_id,
+ (item->>'quantity')::integer as quantity
+ from jsonb_array_elements(p_items) item
+ order by (item->>'variant_id')::uuid loop
+  perform public.erp_reserve_online(p_checkout,r.variant_id,r.quantity,p_expires);
+ end loop;
+ return jsonb_build_object('state','reserved','count',v_total,'already_applied',false);
+end; $$;
+revoke all on function public.erp_reserve_online_cart(uuid,jsonb,timestamptz) from public,anon,authenticated;
+grant execute on function public.erp_reserve_online_cart(uuid,jsonb,timestamptz) to service_role;
+
 create or replace function public.erp_settle_online(p_checkout uuid,p_paid boolean)
 returns jsonb language plpgsql security definer
 set search_path=pg_catalog,public as $$
 declare v public.erp_online_reservations%rowtype; v_before integer;
+ v_count integer; v_reserved integer; v_paid integer; v_released integer;
 begin
- if p_paid is null then raise exception 'Settlement result must be explicit'; end if;
- select * into v from public.erp_online_reservations where checkout_id=p_checkout for update;
- if not found then raise exception 'Checkout unknown'; end if;
- if v.state<>'reserved' then
- if (p_paid and v.state='paid') or (not p_paid and v.state='released') then
- return jsonb_build_object('state',v.state,'already_applied',true); end if;
- raise exception 'Conflicting settlement state';
+ if p_checkout is null or p_paid is null then raise exception 'Checkout and settlement required'; end if;
+ perform pg_advisory_xact_lock(hashtextextended(p_checkout::text,353));
+ select count(*),count(*) filter(where state='reserved'),
+ count(*) filter(where state='paid'),count(*) filter(where state='released')
+ into v_count,v_reserved,v_paid,v_released
+ from public.erp_online_reservations where checkout_id=p_checkout;
+ if v_count=0 then raise exception 'Checkout unknown'; end if;
+ if v_reserved=0 then
+  if (p_paid and v_paid=v_count) or (not p_paid and v_released=v_count) then
+  return jsonb_build_object('state',case when p_paid then 'paid' else 'released' end,
+   'already_applied',true,'items',v_count); end if;
+  raise exception 'Conflicting settlement state';
  end if;
- select on_hand into v_before from public.erp_stock_balances
- where location_id=v.location_id and variant_id=v.variant_id for update;
- if p_paid then
- update public.erp_stock_balances set reserved=reserved-v.quantity,on_hand=on_hand-v.quantity,updated_at=now()
- where location_id=v.location_id and variant_id=v.variant_id;
- insert into public.erp_stock_events(location_id,variant_id,action,quantity_delta,stock_before,stock_after,idempotency_key,reason)
- values(v.location_id,v.variant_id,'online_sale',-v.quantity,v_before,v_before-v.quantity,v.checkout_id,'Payment independently verified');
- end if;
- if not p_paid then
- update public.erp_stock_balances set reserved=reserved-v.quantity,updated_at=now()
- where location_id=v.location_id and variant_id=v.variant_id;
- end if;
- update public.erp_online_reservations set state=case when p_paid then 'paid' else 'released' end,updated_at=now()
- where checkout_id=p_checkout;
- return jsonb_build_object('state',case when p_paid then 'paid' else 'released' end,'already_applied',false);
+ if v_reserved<>v_count then raise exception 'Partial settlement state is invalid'; end if;
+ for v in select * from public.erp_online_reservations where checkout_id=p_checkout
+ order by variant_id for update loop
+  select on_hand into v_before from public.erp_stock_balances
+  where location_id=v.location_id and variant_id=v.variant_id for update;
+  if p_paid then
+   update public.erp_stock_balances
+   set reserved=reserved-v.quantity,on_hand=on_hand-v.quantity,updated_at=now()
+   where location_id=v.location_id and variant_id=v.variant_id;
+   insert into public.erp_stock_events(
+    location_id,variant_id,action,quantity_delta,stock_before,stock_after,idempotency_key,reason)
+   values(v.location_id,v.variant_id,'online_sale',-v.quantity,v_before,v_before-v.quantity,
+    v.checkout_id,'Payment independently verified');
+  else
+   update public.erp_stock_balances set reserved=reserved-v.quantity,updated_at=now()
+   where location_id=v.location_id and variant_id=v.variant_id;
+  end if;
+  update public.erp_online_reservations
+  set state=case when p_paid then 'paid' else 'released' end,updated_at=now()
+  where checkout_id=p_checkout and variant_id=v.variant_id;
+ end loop;
+ return jsonb_build_object('state',case when p_paid then 'paid' else 'released' end,
+ 'already_applied',false,'items',v_count);
 end; $$;
 revoke all on function public.erp_settle_online(uuid,boolean) from public,anon,authenticated;
 grant execute on function public.erp_settle_online(uuid,boolean) to service_role;
@@ -429,12 +496,13 @@ returns integer language plpgsql security definer
 set search_path=pg_catalog,public as $$
 declare r record; n integer:=0;
 begin
- if p_limit not between 1 and 500 then raise exception 'Invalid batch size'; end if;
- for r in select checkout_id from public.erp_online_reservations
- where state='reserved' and expires_at<now() order by expires_at
- for update skip locked limit p_limit loop
- perform public.erp_settle_online(r.checkout_id,false);
- n:=n+1;
+ if p_limit is null or p_limit not between 1 and 500 then raise exception 'Invalid batch size'; end if;
+ for r in
+  select checkout_id,min(expires_at) as expires_at from public.erp_online_reservations
+  where state='reserved' and expires_at<now()
+  group by checkout_id order by min(expires_at) limit p_limit loop
+  perform public.erp_settle_online(r.checkout_id,false);
+  n:=n+1;
  end loop;
  return n;
 end; $$;
