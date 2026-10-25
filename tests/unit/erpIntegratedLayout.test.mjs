@@ -36,6 +36,19 @@ describe("existing admin screen multi-shop integration",()=>{
    expect(read(p)).toContain('branch-summary.js');
   }
  });
+ it("does not auto-activate new ERP controls on production without opt-in",()=>{
+  for(const page of ["admin/index.html","admin/reports.html"]){
+   expect(read(page)).toContain('id="branchSummaryPanel" hidden');
+  }
+  expect(read("admin/inventory.html")).toContain('id="branchInventoryTools" hidden');
+  expect(read("admin/staff.html")).toContain('id="staffBranchPanel" hidden');
+  expect(read("admin/products.html")).toContain('id="sharedProductLookupSection" hidden');
+  expect(read("admin/erp.js")).toContain("window.RAINBOW_MULTI_SHOP_ENABLED!==true");
+  expect(read("admin/staff-branches.js")).toContain("window.RAINBOW_MULTI_SHOP_ENABLED!==true");
+  expect(read("admin/branch-summary.js")).toContain("window.RAINBOW_MULTI_SHOP_ENABLED!==true");
+  expect(read("admin/products.js")).toContain("window.RAINBOW_MULTI_SHOP_ENABLED===true");
+  expect(read("admin/config.js")).not.toContain("RAINBOW_MULTI_SHOP_ENABLED=true");
+ });
  it("stages optional UI scripts with valid JavaScript",()=>{
   for(const p of ["admin/erp.js","admin/staff-branches.js","admin/branch-summary.js","admin/products.js"]){
    expect(()=>new Script(read(p),{filename:p})).not.toThrow();
