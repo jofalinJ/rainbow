@@ -8,6 +8,7 @@ do $$
 declare
   v_first jsonb;
   v_repeat jsonb;
+  v_recovered jsonb;
   v_stock integer;
   v_count integer;
 begin
@@ -21,6 +22,22 @@ begin
   if v_first->>'order_id' is distinct from v_repeat->>'order_id' then
     raise exception 'Idempotency failed: same checkout created a different order';
   end if;
+  -- A timed-out cashier request is read-only recoverable without selling twice.
+  v_recovered:=public.get_local_sale_receipt('55555555-5555-4555-8555-555555555555');
+  if v_recovered->>'invoice_number' is distinct from v_first->>'invoice_number' then
+    raise exception 'Recovered sale invoice did not match the original';
+  end if;
+  perform set_config('request.jwt.claim.sub','33333333-3333-4333-8333-333333333333',false);
+  if public.get_local_sale_receipt('55555555-5555-4555-8555-555555555555') is not null then
+    raise exception 'Admin must not read another cashier private retry response';
+  end if;
+  perform set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',false);
+  begin
+    perform public.get_local_sale_receipt('55555555-5555-4555-8555-555555555555');
+    raise exception 'Unauthorized inventory-only account accessed sale recovery';
+  exception when insufficient_privilege then null;
+  end;
+  perform set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
   select stock_quantity into v_stock from public.product_variants
     where id='bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb';
   if v_stock<>3 then raise exception 'Retry deducted stock twice: %',v_stock;end if;
@@ -109,4 +126,4 @@ begin
     raise exception 'Staff can read private POS idempotency requests directly';
   end if;
 end $$;
-select 'PASS: seven SQL migrations, atomic sale retry, stock, invoices, product rollback, RLS and reports' as result;
+select 'PASS: seven SQL migrations, invoice recovery, sale retry, stock, product rollback, RLS and reports' as result;
