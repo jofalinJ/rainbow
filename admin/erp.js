@@ -412,6 +412,8 @@ async function scanBarcode() {
  }catch(e){notify("Camera not available: "+e.message,true);}
 }
 async function init() {
+ if(window.RAINBOW_MULTI_SHOP_ENABLED!==true)return;
+ const root=$("branchInventoryTools");if(root)root.hidden=false;
  try{
   await window.requireSession();
   state.client=window.bootSupabase();
