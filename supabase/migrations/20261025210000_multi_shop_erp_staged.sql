@@ -209,7 +209,10 @@ create policy "erp receipt admin read" on public.erp_purchase_receipts for selec
 -- Explicitly limited administrative writes; balances and ledgers are RPC-only.
 grant insert,delete on public.erp_staff_locations to authenticated;
 create policy "erp admin assign staff" on public.erp_staff_locations for insert to authenticated
- with check((select app_private.erp_is_admin()));
+ with check((select app_private.erp_is_admin()) and exists(
+ select 1 from public.staff_profiles p join public.erp_locations l on l.id=location_id
+ where p.user_id=user_id and p.active and p.archived_at is null
+ and l.kind='branch' and l.active));
 create policy "erp admin revoke staff" on public.erp_staff_locations for delete to authenticated
  using((select app_private.erp_is_admin()));
 grant insert,update on public.erp_online_listings to authenticated;
@@ -365,7 +368,7 @@ begin
  perform pg_advisory_xact_lock(hashtextextended(p_checkout::text,353));
  select * into v_old from public.erp_online_reservations where checkout_id=p_checkout;
  if found then
- if v_old.variant_id<>p_variant or v_old.quantity<>p_qty or v_old.state<>'reserved'
+ if v_old.variant_id<>p_variant or v_old.quantity<>p_qty or v_old.state<>'reserved' or v_old.expires_at<=now()
  then raise exception 'Checkout ID already used'; end if;
  return jsonb_build_object('state','reserved','already_applied',true);
  end if;
@@ -394,6 +397,7 @@ returns jsonb language plpgsql security definer
 set search_path=pg_catalog,public as $$
 declare v public.erp_online_reservations%rowtype; v_before integer;
 begin
+ if p_paid is null then raise exception 'Settlement result must be explicit'; end if;
  select * into v from public.erp_online_reservations where checkout_id=p_checkout for update;
  if not found then raise exception 'Checkout unknown'; end if;
  if v.state<>'reserved' then
@@ -486,6 +490,51 @@ sum(b.on_hand-b.reserved)::bigint as available_now
 from public.erp_stock_balances b group by b.variant_id;
 revoke all on public.erp_admin_stock_totals from public,anon,authenticated;
 grant select on public.erp_admin_stock_totals to authenticated;
+
+
+-- Submit a complete purchase order. Draft orders cannot receive stock.
+create or replace function public.erp_submit_purchase(p_purchase uuid)
+returns jsonb language plpgsql security definer
+set search_path=pg_catalog,public,app_private as $
+declare v public.erp_purchase_orders%rowtype;
+begin
+ if (select auth.uid()) is null or not app_private.erp_is_admin()
+ then raise exception 'Admin only' using errcode='42501'; end if;
+ select * into v from public.erp_purchase_orders where id=p_purchase for update;
+ if not found then raise exception 'Purchase order not found'; end if;
+ if v.status='ordered' then return jsonb_build_object('status','ordered','already_applied',true); end if;
+ if v.status<>'draft' or not exists(
+ select 1 from public.erp_purchase_lines where purchase_id=p_purchase)
+ then raise exception 'Purchase order is not a complete draft'; end if;
+ if not exists(select 1 from public.erp_locations where id=v.destination_id and kind='branch' and active)
+ then raise exception 'Destination shop not active'; end if;
+ update public.erp_purchase_orders set status='ordered' where id=p_purchase;
+ return jsonb_build_object('status','ordered','already_applied',false);
+end; $;
+revoke all on function public.erp_submit_purchase(uuid) from public,anon,authenticated;
+grant execute on function public.erp_submit_purchase(uuid) to authenticated;
+
+-- Database-side aggregate so a 10k+ product dashboard does not fetch all rows.
+create or replace function public.erp_dashboard_snapshot()
+returns jsonb language plpgsql stable security definer
+set search_path=pg_catalog,public,app_private as $
+begin
+ if (select auth.uid()) is null or not app_private.erp_is_admin()
+ then raise exception 'Admin only' using errcode='42501'; end if;
+ return jsonb_build_object(
+ 'master_products',(select count(*) from public.products),
+ 'locations',(select count(*) from public.erp_locations where active),
+ 'on_hand',(select coalesce(sum(on_hand),0) from public.erp_stock_balances),
+ 'reserved',(select coalesce(sum(reserved),0) from public.erp_stock_balances),
+ 'in_transit',(select coalesce(sum(quantity),0) from public.erp_transfers where status='in_transit'),
+ 'pending_transfers',(select count(*) from public.erp_transfers where status='in_transit'),
+ 'low_stock',(select count(*) from public.erp_stock_balances b
+ left join public.erp_reorder_settings s using(location_id,variant_id)
+ where b.on_hand-b.reserved<=coalesce(s.minimum_qty,3))
+ );
+end; $;
+revoke all on function public.erp_dashboard_snapshot() from public,anon,authenticated;
+grant execute on function public.erp_dashboard_snapshot() to authenticated;
 
 -- No broad grants on privileged functions or ledger writes.
 commit;
