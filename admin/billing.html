@@ -104,6 +104,12 @@ main>header h1{font-size:30px;letter-spacing:-.8px}
 <div class="billing-layout">
 <section class="panel">
 <div class="panelhead"><div><h2>Products</h2><span class="muted">Search name, code, type or scan/type a barcode</span></div></div>
+<div id="erpBillingLocationBox" hidden style="padding:12px 14px;background:#fbf5ef;border:1px solid #e8dfd6;border-radius:12px;margin-bottom:14px">
+<label for="erpBillingLocation"><strong>Billing shop</strong></label>
+<select id="erpBillingLocation" style="display:block;width:min(370px,100%);margin-top:8px;padding:10px;border-radius:8px;border:1px solid #dcc9bd">
+<option value="">Select your shop</option></select>
+<small>Sales deduct stock only from this selected shop. Existing invoices and printing remain unchanged.</small>
+</div>
 <div class="billing-search"><input id="productSearch" data-testid="billing-product-search" placeholder="Search products or barcode" autocomplete="off"><button id="clearSearch" type="button">Clear</button></div>
 <div id="catalog" class="catalog"><div class="empty">Loading product catalog…</div></div>
 </section>
@@ -163,6 +169,6 @@ main>header h1{font-size:30px;letter-spacing:-.8px}
 </main>
 <div id="receiptPdfStage" class="invoice" style="position:absolute;left:-100000px;top:0;width:80mm;background:#fff"></div>
 <script src="app.js?v=20261018-unified-shop-staff-v2"></script>
-<script src="billing.js?v=20261006"></script>
+<script src="billing.js?v=20261025-shop-pos"></script>
 </body>
 </html>
