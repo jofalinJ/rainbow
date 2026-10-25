@@ -46,5 +46,6 @@ insert into public.branches(id,code,name) values
 insert into public.products(id,product_code,product_name) values
  ('cccccccc-cccc-4ccc-8ccc-cccccccccccc','JM001','Jimmiki Earrings');
 insert into public.product_variants(id,product_id,barcode) values
- ('dddddddd-dddd-4ddd-8ddd-dddddddddddd','cccccccc-cccc-4ccc-8ccc-cccccccccccc','JM001-RED');
+ ('dddddddd-dddd-4ddd-8ddd-dddddddddddd','cccccccc-cccc-4ccc-8ccc-cccccccccccc','JM001-RED'),
+ ('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee','cccccccc-cccc-4ccc-8ccc-cccccccccccc','JM001-BLUE');
 grant select on public.products, public.product_variants, public.product_images, public.staff_profiles, public.branches to authenticated;
