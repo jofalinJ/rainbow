@@ -19,8 +19,12 @@ jobs:
           node-version: 22
       - run: npm ci --legacy-peer-deps
       - run: npm run lint
+      - run: node --test tests/seo/seo-pages.test.mjs
       - run: npm run test:unit
       - run: npm run build
+      - name: Generate public SEO pages in isolated CI checkout
+        run: node scripts/generate-seo-pages.mjs
+      - run: test -f categories/index.html && grep -q "<urlset" sitemap.xml
       - run: npm run build:pages
       - run: test -f dist-pages/index.html && test -f dist-pages/staff/index.html && test -f dist-pages/admin/login.html && test ! -e dist-pages/backend && test ! -e dist-pages/supabase && test ! -e dist-pages/tests
       - run: npm run security

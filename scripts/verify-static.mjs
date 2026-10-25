@@ -21,6 +21,11 @@ for(const file of htmlFiles){
     if(!ref||ref.startsWith("#")||/^(?:(?:https?:)?\/\/|mailto:|tel:|sms:)/i.test(ref))continue;
     const clean=ref.split("?")[0].split("#")[0];
     if(!clean)continue;
+    // SEO pages are generated during the Pages deployment build, not committed to source.
+    if(clean==="/categories/"||clean==="categories/"){
+      await fs.access(path.join(root,"scripts/generate-seo-pages.mjs"));
+      continue;
+    }
     try{await fs.access(path.resolve(path.dirname(path.join(root,file)),clean));}
     catch{throw new Error("Broken local asset reference in "+file+": "+ref);}
   }
