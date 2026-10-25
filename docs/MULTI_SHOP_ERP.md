@@ -1,6 +1,6 @@
 # Rainbow Gold Covering — Multi-Shop ERP staging guide
 
-**STAGED / DEFAULT OFF: code may be merged to main as requested, but do not enable ERP, apply SQL to production, alter checkout stock, or run live payments.**
+**2026-10-25 rollout:** the six DDL migrations have been applied successfully to Supabase project ajnicsvtymvvkgepjmmk; runtime ERP activation remains OFF until the separately reviewed activation SQL is applied after updated admin assets are published. No product, order, or payment data existed at preflight. Do not run real Razorpay charges as tests.
 Branch: feature/multi-shop-erp. Does not modify fix/ux-audit or main.
 
 ## Verified existing system (25 October 2026)
@@ -108,3 +108,15 @@ Images are stored once per master product. Staff shop-specific changes must use
 idempotent RPCs and never manually overwrite a stock field. CSV imports are
 per-row transactions and can partially succeed; do not re-import completed
 batches. Online listing publication alone does not add physical stock.
+
+## Empty-catalogue activation and existing payment compatibility (2026-10-25)
+
+- New POS RPC: erp_create_local_sale(items,customer,payment_method,location,request). One authenticated staff member must have an assigned physical shop, unless they are admin. Idempotent UUID retry returns the same invoice without double counting.
+- New legacy/ERP checkout bridge: online global stock_quantity is strictly the **available quantity allocated to online**, not branch stock. Existing Razorpay and manual UPI checkout decrements create online reservations; a verified paid order commits the same hold once; an expired checkout releases it. Existing customer-facing payment controls and signatures are unchanged.
+- Branch receiving never increments legacy ONLINE stock. Only an actual transfer to the online virtual location makes a product available online; it must be published first.
+- The new database activation flag in app_private.erp_activation_state is **false** after DDL. The new web admin config explicitly enables the new UI in this activation branch. Do not enable database flag until that admin config has been published to the same live website.
+- Then apply supabase/migrations/20261025222000_erp_enable_after_deploy.sql once, after verifying products/variants/orders and the production interface. This revokes obsolete authenticated POS and stock-adjustment RPCs so cached staff pages fail safely. Never run an old billing app on fresh branch inventory.
+- The original Products, Inventory, Staff, Billing, Dashboard and Reports pages are retained. Inventory and Billing add a working shop dropdown; Staff adds shop assignment. Existing 3 staff accounts are **not** automatically assigned to an arbitrary branch: admin must assign them to the correct shop first.
+- Online override prices are disabled until full server-side support is added; online orders use the master product price.
+- To test: add one zero-stock product; receive stock into a branch; confirm local billing deducts only there; publish and transfer some stock online; test one Razorpay TEST checkout and one manual UPI pending/verify/release; confirm invoice, stock totals and refund handling. Do not use live money for QA.
+- For 10k+ SKUs, improve server-side pagination on POS and category inventory before bulk import at scale.
