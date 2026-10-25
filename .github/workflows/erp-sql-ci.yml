@@ -45,5 +45,11 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261025212000_erp_public_catalogue.sql
       - name: Apply staged per-branch report RPC
         run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261025213000_erp_location_summary.sql
+      - name: Apply staged branch POS and payment bridge
+        run: |
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261025220000_erp_branch_pos.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261025221000_erp_live_inventory_bridge.sql
       - name: Verify branch permission, transfers, retries, purchases and checkout reservations
         run: psql -v ON_ERROR_STOP=1 -f tests/sql/erp-behavior.sql
+      - name: Verify live bridge simulation (NO payment provider calls)
+        run: psql -v ON_ERROR_STOP=1 -f tests/sql/erp-live-bridge.sql
