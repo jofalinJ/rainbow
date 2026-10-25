@@ -388,8 +388,8 @@ $function$
   v_customer_state := nullif(trim(coalesce(p_customer->>'state','')), '');
   v_customer_pin := nullif(trim(coalesce(p_customer->>'pin_code','')), '');
 
-  if v_customer_name is not null or v_customer_phone is not null then
-    insert into public.customers (
+  -- A linked customer is mandatory even for walk-in cash sales.
+  insert into public.customers (
       name, whatsapp_number, email, address, city, state, pin_code
     )
     values (
@@ -402,7 +402,6 @@ $function$
       v_customer_pin
     )
     returning id into v_customer_id;
-  end if;
 
   v_order_number := 'LS-' || to_char(current_date, 'YYYYMMDD') || '-' ||
                     lpad(nextval('public.local_order_number_seq')::text, 6, '0');
