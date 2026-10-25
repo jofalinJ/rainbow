@@ -1,6 +1,8 @@
 import {setupShipmentManagement} from "./shipment-management.mjs";
 const ordersClient=bootSupabase();
 let allOrders=[];
+let orderPage=0,orderTotal=0,ordersSearchTimer=null;
+const ORDERS_PAGE_SIZE=50;
 let ordersLoading=false;
 let ordersReloadQueued=false;
 let ordersRefreshTimer=null;
@@ -63,11 +65,12 @@ async function loadOrders({quiet=false}={}){
   const controller=new AbortController();
   let timeoutId;
   try{
-    const request=ordersClient.from("orders")
-      .select("id,order_number,source,status,payment_status,subtotal,discount_amount,cgst_amount,sgst_amount,delivery_fee,total_amount,shipping_address,created_at,updated_at,customers:customers!orders_customer_id_fkey(name,whatsapp_number,email,address,city,state,pin_code),order_items:order_items!order_items_order_id_fkey(product_code,product_name,quantity,unit_price,line_total,variant_color,variant_size,length_cm,thickness,discount_amount),payments:payments!payments_order_id_fkey(id,method,status,transaction_reference,amount,paid_at,verified_at),invoices:invoices!invoices_order_id_fkey(invoice_number,public_token)")
-      .eq("source","online")
-      .order("created_at",{ascending:false})
-      .abortSignal(controller.signal);
+    const request=ordersClient.rpc("search_online_orders",{
+      p_search:document.querySelector("#search")?.value.trim().slice(0,90)||"",
+      p_status:document.querySelector("#status")?.value||"all",
+      p_offset:orderPage*ORDERS_PAGE_SIZE,
+      p_limit:ORDERS_PAGE_SIZE
+    }).abortSignal(controller.signal);
     const timeout=new Promise((resolve,reject)=>{
       timeoutId=setTimeout(()=>{
         controller.abort();
@@ -77,11 +80,23 @@ async function loadOrders({quiet=false}={}){
     const {data,error}=await Promise.race([request,timeout]);
     if(error){console.error("Orders fetch error:",error);throw error;}
     console.log("Orders data:",{count:Array.isArray(data)?data.length:0});
-    allOrders=Array.isArray(data)?data.filter(row=>row.source==="online"):[];
+    orderTotal=Number(data?.total||0);
+    allOrders=Array.isArray(data?.rows)?data.rows:[];
+    if(!allOrders.length&&orderPage>0){
+      orderPage--;ordersReloadQueued=true;
+    }
     render();
-    setOrdersMessage(allOrders.length
-      ?allOrders.length+" order"+(allOrders.length===1?"":"s")+" loaded · refreshed "+new Date().toLocaleTimeString("en-IN")
-      :"No customer orders found.");
+    const info=document.querySelector("#ordersPageInfo");
+    if(info)info.textContent=orderTotal
+      ?"Page "+(orderPage+1)+" of "+Math.ceil(orderTotal/ORDERS_PAGE_SIZE)
+      :"No matching orders";
+    const previous=document.querySelector("#ordersPrev");
+    const next=document.querySelector("#ordersNext");
+    if(previous)previous.disabled=orderPage===0;
+    if(next)next.disabled=(orderPage+1)*ORDERS_PAGE_SIZE>=orderTotal;
+    setOrdersMessage(orderTotal
+      ?orderTotal+" matching online orders · refreshed "+new Date().toLocaleTimeString("en-IN")
+      :"No matching online orders.");
   }catch(e){
     console.error("Orders fetch error:",e);
     const message=e?.name==="AbortError"
@@ -96,11 +111,8 @@ async function loadOrders({quiet=false}={}){
   }
 }
 function filtered(){
-  const search=document.querySelector("#search"),status=document.querySelector("#status");
-  const q=String(search?.value||"").toLowerCase().trim(),s=status?.value||"all";
-  return allOrders.filter(o=>(s==="all"||o.status===s)&&(!q||[
-    o.order_number,relationOne(o.customers).name,relationOne(o.customers).whatsapp_number
-  ].some(v=>String(v??"").toLowerCase().includes(q))));
+  // Server has already applied the customer/order search and status filter.
+  return allOrders;
 }
 function render(){
   const rows=document.querySelector("#rows");if(!rows)return;
@@ -291,8 +303,17 @@ function startOrdersLiveUpdates(){
   window.addEventListener("focus",()=>loadOrders({quiet:true}));
   document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")loadOrders({quiet:true});});
 }
-document.querySelector("#search")?.addEventListener("input",render);
-document.querySelector("#status")?.addEventListener("change",render);
+document.querySelector("#search")?.addEventListener("input",()=>{
+  orderPage=0;clearTimeout(ordersSearchTimer);
+  ordersSearchTimer=setTimeout(()=>loadOrders(),260);
+});
+document.querySelector("#status")?.addEventListener("change",()=>{orderPage=0;loadOrders();});
+document.querySelector("#ordersPrev")?.addEventListener("click",()=>{
+  if(orderPage>0){orderPage--;loadOrders();}
+});
+document.querySelector("#ordersNext")?.addEventListener("click",()=>{
+  if((orderPage+1)*ORDERS_PAGE_SIZE<orderTotal){orderPage++;loadOrders();}
+});
 document.querySelector("#refresh")?.addEventListener("click",()=>loadOrders());
 document.querySelector("#close")?.addEventListener("click",()=>{
   document.querySelector("#modal").classList.remove("open");
