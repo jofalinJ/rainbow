@@ -11,7 +11,7 @@ const formatINR=root.RainbowCatalogue.formatINR;
 const roundMoney=value=>Math.round((Number(value)+Number.EPSILON)*100)/100;
 
 function renderPreview(state){
-  const marker=checkout.match(/function totals\(\)\{([\s\S]*?)\n  \}/);
+  const marker=checkout.match(/function totals\(\)\{([\s\S]*?)\n {2}\}/);
   if(!marker)throw new Error("Checkout amount renderer not found");
   const values=new Map();
   const $=id=>{
