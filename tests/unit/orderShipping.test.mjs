@@ -44,7 +44,7 @@ describe("gateway readiness and manual UPI",()=>{
     expect(js).toContain("razorpayAvailability()");
     expect(js).toContain("gateway.disabled=!razorpayReady");
     expect(js).toContain('razorpayMode==="live"?razorpayLiveAllowed:razorpayTestAllowed');
-    expect(js).toContain('expectedMode:razorpayMode');
+    expect(js).toContain('expectedMode:selectedRazorpayMode');
     expect(js).toContain('input[name="paymentMethod"]:checked');
     expect(js).not.toContain("paymentConfirmed");
   });
