@@ -6,8 +6,8 @@ const attendanceSql=read("supabase/migrations/20261015180500_exclude_admin_perso
 describe("admin and customer page improvements",()=>{
   it("only loads online orders in Orders management",()=>{
     const js=read("admin/orders.js");
-    expect(js).toContain('.eq("source","online")');
-    expect(js).toContain('data.filter(row=>row.source==="online")');
+    expect(js).toContain('rpc("search_online_orders"');
+    expect(read("supabase/migrations/20261025120700_paginated_online_orders.sql")).toContain("where o.source='online'");
     expect(js).toContain("setupShipmentManagement");
   });
   it("opens the selected customer and loads only their related bills",()=>{
