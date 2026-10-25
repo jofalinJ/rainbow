@@ -92,7 +92,7 @@ async function seedMockSession(driver,username){
     "sessionStorage.setItem('__isolated_auth', JSON.stringify({role:arguments[0],id:arguments[1]}))",
     role,userId
   );
-  await driver.get(base+"/admin/index.html");
+  await driver.get(base+"/admin/"+(role==="admin"?"index.html":"billing.html"));
   try{
     await driver.wait(async()=>await driver.executeScript(
       "return !!window.__mockAuthOptions?.storageKey"),12000);
