@@ -191,7 +191,9 @@ create policy "erp stock events read" on public.erp_stock_events for select to a
  using((select app_private.erp_can_use_location(location_id)));
 create policy "erp transfers read" on public.erp_transfers for select to authenticated
  using((select app_private.erp_can_use_location(from_location)) or (select app_private.erp_can_use_location(to_location)));
-create policy "erp online listing read" on public.erp_online_listings for select to anon,authenticated
+create policy "erp public online listing" on public.erp_online_listings for select to anon
+ using(published);
+create policy "erp staff online listing" on public.erp_online_listings for select to authenticated
  using(published or (select app_private.erp_is_admin()));
 create policy "erp supplier admin read" on public.erp_suppliers for select to authenticated
  using((select app_private.erp_is_admin()));
@@ -220,7 +222,9 @@ create policy "erp admin reorder create" on public.erp_reorder_settings for inse
  with check((select app_private.erp_is_admin()));
 create policy "erp admin reorder update" on public.erp_reorder_settings for update to authenticated
  using((select app_private.erp_is_admin())) with check((select app_private.erp_is_admin()));
-grant insert,update on public.erp_suppliers, public.erp_purchase_orders,public.erp_purchase_lines to authenticated;
+grant insert,update on public.erp_suppliers to authenticated;
+grant insert on public.erp_purchase_orders,public.erp_purchase_lines to authenticated;
+grant update(reference) on public.erp_purchase_orders to authenticated;
 create policy "erp admin supplier insert" on public.erp_suppliers for insert to authenticated
  with check((select app_private.erp_is_admin()));
 create policy "erp admin supplier update" on public.erp_suppliers for update to authenticated
@@ -231,8 +235,8 @@ create policy "erp admin purchase update" on public.erp_purchase_orders for upda
  using((select app_private.erp_is_admin())) with check((select app_private.erp_is_admin()));
 create policy "erp admin purchase line insert" on public.erp_purchase_lines for insert to authenticated
  with check((select app_private.erp_is_admin()));
-create policy "erp admin purchase line update" on public.erp_purchase_lines for update to authenticated
- using((select app_private.erp_is_admin())) with check((select app_private.erp_is_admin()));
+-- Purchase quantities and receipts cannot be edited directly from a browser.
+-- Receiving occurs through erp_receive_purchase() after an order is marked ordered by a server-side workflow.
 
 -- Atomic, idempotent adjustment: the browser never updates balances directly.
 create or replace function public.erp_adjust_stock(
@@ -287,7 +291,7 @@ begin
  or not app_private.erp_can_use_location(p_to)
  then raise exception 'Not authorized for both locations' using errcode='42501'; end if;
  if p_from=p_to or p_from is null or p_to is null or p_variant is null or p_request is null or
- p_quantity not between 1 and 100000 or length(btrim(coalesce(p_reason,''))) not between 8 and 240
+ p_quantity is null or p_quantity not between 1 and 100000 or length(btrim(coalesce(p_reason,''))) not between 8 and 240
  then raise exception 'Invalid transfer' using errcode='22023'; end if;
  perform pg_advisory_xact_lock(hashtextextended(p_request::text,352));
  select * into v_existing from public.erp_transfers where request_id=p_request;
@@ -355,7 +359,7 @@ create or replace function public.erp_reserve_online(
 set search_path=pg_catalog,public as $$
 declare v_loc uuid; v_old public.erp_online_reservations%rowtype; v_stock record;
 begin
- if p_checkout is null or p_variant is null or p_qty not between 1 and 100000 or
+ if p_checkout is null or p_variant is null or p_qty is null or p_qty not between 1 and 100000 or p_expires is null or
  p_expires<=now() or p_expires>now()+interval '2 hours'
  then raise exception 'Invalid reservation'; end if;
  perform pg_advisory_xact_lock(hashtextextended(p_checkout::text,353));
@@ -441,7 +445,7 @@ declare v_line public.erp_purchase_lines%rowtype; v_order public.erp_purchase_or
 begin
  if (select auth.uid()) is null or not app_private.erp_is_admin()
  then raise exception 'Admin only' using errcode='42501'; end if;
- if p_line is null or p_request is null or p_qty not between 1 and 100000
+ if p_line is null or p_request is null or p_qty is null or p_qty not between 1 and 100000
  then raise exception 'Invalid receipt'; end if;
  perform pg_advisory_xact_lock(hashtextextended(p_request::text,354));
  select * into v_receipt from public.erp_purchase_receipts where request_id=p_request;
