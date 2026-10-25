@@ -1,6 +1,6 @@
 # Rainbow Gold Covering — Multi-Shop ERP staging guide
 
-**DRAFT: DO NOT MERGE, DEPLOY, APPLY SQL TO PRODUCTION OR ENABLE THE PUBLIC ERP CATALOGUE YET.**
+**STAGED / DEFAULT OFF: code may be merged to main as requested, but do not enable ERP, apply SQL to production, alter checkout stock, or run live payments.**
 Branch: feature/multi-shop-erp. Does not modify fix/ux-audit or main.
 
 ## Verified existing system (25 October 2026)
@@ -83,15 +83,22 @@ possession. Transfers in transit are company-owned but not available to sell.
 6. Set up three test staff users (admin, Shop A, Shop B) and verify cross-branch
    denials, retries/idempotency, transfer-in-transit totals, bulk import partial
    failure, purchase receipt, online reservations and payment retry safety.
-7. Point the test admin config at test Supabase. Navigate the EXISTING
+7. On an isolated staging configuration only, explicitly set
+   window.RAINBOW_MULTI_SHOP_ENABLED=true before the new admin page scripts load.
+   The production admin config intentionally omits this flag; new sections are
+   hidden and make no ERP database requests by default. The public Cloudflare
+   Worker catalogue additionally requires ERP_CATALOGUE_ENABLED=true in its
+   environment, which must remain disabled in production until checkout cutover.
+   Navigate the EXISTING
    /admin/inventory.html, /admin/products.html, /admin/staff.html,
    /admin/index.html and /admin/reports.html. There is NO /admin/erp.html.
    Existing staff POS /admin/billing.html is unchanged and continues using the
    old stock source until safe cutover.
    Continue to use the existing public storefront with ERP catalogue disabled.
 8. Only after a separate reviewed cutover, migrate authoritative live inventory
-   and integrate checkout/billing with location stock; promote to main and deploy
-   only after explicit approval and successful reconciliation.
+   and integrate checkout/billing with location stock; only activate the ERP
+   functionality after separate approval and successful reconciliation. A
+   code-only main merge with both ERP flags OFF does not authorize activation.
 
 ## Operational rules
 
