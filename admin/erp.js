@@ -429,7 +429,15 @@ async function init() {
   $("erpOnlinePanel").hidden=!state.admin;
   await refreshLocations();
   if(!state.locations.length){notify("No shops assigned. Ask the admin to assign your staff account.",true);return;}
-  $("erpLocation").addEventListener("change",()=>{if(state.selected)refreshSelected().catch(e=>notify(e.message,true));reloadPending().catch(e=>notify(e.message,true));});
+  $("erpLocation").addEventListener("change",()=>{
+   const root=document.getElementById("inventoryBranchSelect");
+   if(root && root.value!==$("erpLocation").value){
+     root.value=$("erpLocation").value;
+     root.dispatchEvent(new Event("change"));
+   }
+   if(state.selected)refreshSelected().catch(e=>notify(e.message,true));
+   reloadPending().catch(e=>notify(e.message,true));
+  });
   $("erpSearchBtn").addEventListener("click",search);
   $("erpSearch").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();search();}});
   $("erpScan").addEventListener("click",scanBarcode);
