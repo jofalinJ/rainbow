@@ -195,6 +195,24 @@ async function loadCatalog(){
   catalog=rows;
   renderCatalog();
 }
+async function recoverPreviousSale(){
+  const previous=pendingSale||readPendingSale();
+  if(!previous)return;
+  // Read only a response committed by this authenticated cashier; no new sale.
+  try{
+    const {data,error}=await bootSupabase().rpc("get_local_sale_receipt",{p_request_id:previous.id});
+    if(error)throw error;
+    if(data&&data.order_id&&data.invoice_number){
+      if(pendingSale?.id===previous.id)clearPendingSale();
+      setMsg("Previous sale confirmed: "+data.invoice_number+". Open Bills to view or print the invoice. Do not bill it again.","success");
+    }else{
+      setMsg("An earlier sale may still be processing. Re-enter its exact items and customer details to retry safely, or check Bills before clearing its recovery ID.","error");
+    }
+  }catch(error){
+    console.warn("Previous sale recovery is unavailable",error);
+    setMsg("Cannot verify the previous sale yet. Check Bills or retry this exact checkout; do not create a different sale.","error");
+  }
+}
 async function completeSale(){
   if(cart.size===0||saleBusy)return;
   const payment=document.querySelector("input[name=payment]:checked")?.value||"cash";
@@ -307,5 +325,8 @@ $b("completeSale").addEventListener("click",completeSale);
 $b("newSale").addEventListener("click",()=>{$b("receiptScreen").style.display="none";$b("productSearch").focus();});
 renderCart();
 pendingSale=readPendingSale();
-if(pendingSale)setMsg("A previous sale may have completed. Re-enter the same cart and customer to retry safely, or check Bills before clearing the recovery ID.","error");
-requireSession().then(loadCatalog).catch(e=>setMsg(e.message||"Could not load billing.","error"));
+if(pendingSale)setMsg("Recovering previous sale result safely…","error");
+requireSession().then(async()=>{
+  if(pendingSale)await recoverPreviousSale();
+  await loadCatalog();
+}).catch(e=>setMsg(e.message||"Could not load billing.","error"));
