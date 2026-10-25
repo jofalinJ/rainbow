@@ -33,7 +33,11 @@ describe("exactly-once local POS billing",()=>{
     expect(sql.match(/\$function\$/g)).toHaveLength(2);
     expect(sql).toContain("coalesce(v_customer_phone,'')");
     expect(sql).toContain("return v_final_response;");
-    expect(sql).toMatch(/\$function\$;\s*$/);
+    expect(sql).toContain("$function$;");
+    expect(sql).toContain("public.get_local_sale_receipt(p_request_id uuid)");
+    expect(sql).toContain("set search_path = ''");
+    expect(sql).toContain("created_by=auth.uid()");
+    expect(sql).toContain("revoke all on function public.get_local_sale_receipt(uuid) from public, anon, authenticated");
     expect(sql).toContain("coalesce(v_customer_name, 'Walk-in Customer')");
     expect(sql).not.toContain("if v_customer_name is not null or v_customer_phone is not null then");
   });
@@ -44,6 +48,10 @@ describe("exactly-once local POS billing",()=>{
     expect(client).toContain("const hash=await saleRequestHash(items,payment,customer)");
     expect(client).toContain("if(pendingSale&&pendingSale.hash!==hash)");
     expect(client).toContain("clearPendingSale()");
+    expect(client).toContain('rpc("get_local_sale_receipt",{p_request_id:previous.id})');
+    expect(client).toContain('if(pendingSale)await recoverPreviousSale()');
+    expect(client).toContain("if(pendingSale?.id===previous.id)clearPendingSale()");
+
     expect(client).not.toContain("pendingSale.fingerprint");
     expect(client).toContain("saleBusy=true;");
     expect(client.indexOf("saleBusy=true;",client.indexOf("async function completeSale"))).toBeLessThan(
