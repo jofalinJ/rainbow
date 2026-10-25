@@ -1,10 +1,11 @@
 (() => {
   const cfg=window.RAINBOW_SUPABASE_CONFIG||{};
   const esc=v=>String(v??"").replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
+  let client=null,channel=null,refreshTimer=null,started=false;
   async function loadBusiness(){
     if(!window.supabase?.createClient)return;
     if(!cfg.supabaseUrl||!cfg.supabasePublishableKey)return;
-    const client=window.supabase.createClient(cfg.supabaseUrl,cfg.supabasePublishableKey);
+    client=client||window.RainbowSupabase?.getClient()||window.supabase.createClient(cfg.supabaseUrl,cfg.supabasePublishableKey);
     try{
       const [{data:settings,error:sError},{data:branches,error:bError}]=await Promise.all([
         client.from("business_settings").select("business_name,legal_display_name,tagline,trust_line,instagram_handle,logo_url").eq("id",true).maybeSingle(),
@@ -25,12 +26,20 @@
     }catch(e){console.warn("Live business settings unavailable.",e);}
   }
   function start(){
+    if(started)return;
+    started=true;
     loadBusiness();
-    setInterval(loadBusiness,30000);
+    refreshTimer=window.setInterval(loadBusiness,30000);
     if(window.supabase?.createClient&&cfg.supabaseUrl&&cfg.supabasePublishableKey){
-      const client=window.supabase.createClient(cfg.supabaseUrl,cfg.supabasePublishableKey);
-      client.channel("customer-business-live").on("postgres_changes",{event:"*",schema:"public",table:"business_settings"},loadBusiness).on("postgres_changes",{event:"*",schema:"public",table:"branches"},loadBusiness).subscribe();
+      client=client||window.RainbowSupabase?.getClient()||window.supabase.createClient(cfg.supabaseUrl,cfg.supabasePublishableKey);
+      channel=client.channel("customer-business-live").on("postgres_changes",{event:"*",schema:"public",table:"business_settings"},loadBusiness).on("postgres_changes",{event:"*",schema:"public",table:"branches"},loadBusiness).subscribe();
     }
   }
+  window.addEventListener("pagehide",()=>{
+    if(refreshTimer)window.clearInterval(refreshTimer);
+    if(client&&channel)client.removeChannel(channel);
+    refreshTimer=null;channel=null;started=false;
+  });
+  window.addEventListener("pageshow",event=>{if(event.persisted)start();});
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",start,{once:true});else start();
 })();

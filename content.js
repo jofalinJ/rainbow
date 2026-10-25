@@ -327,6 +327,34 @@
       resetCatalogue();
     });
   }
+  // Reserve product imagery for real products. Categories without a photo use compact line icons.
+  function categoryIcon(label){
+    const key=String(label).toLowerCase();
+    let shape='<circle cx="24" cy="25" r="13"/><path d="m19 11 5-6 5 6"/>';
+    if(/chain|necklace/.test(key))shape='<path d="M8 10c0 18 6 29 16 29s16-11 16-29M12 11c0 14 4 23 12 23s12-9 12-23"/><path d="m20 35 4 7 4-7"/>';
+    else if(/earring/.test(key))shape='<path d="M14 8v6M34 8v6"/><circle cx="14" cy="26" r="9"/><circle cx="34" cy="26" r="9"/>';
+    else if(/bangle|bracelet|anklet/.test(key))shape='<ellipse cx="24" cy="25" rx="17" ry="13"/><ellipse cx="24" cy="25" rx="12" ry="8"/>';
+    else if(/dollar/.test(key))shape='<path d="M20 9h8v6h-8z"/><circle cx="24" cy="28" r="13"/><path d="m24 20 3 5 5 3-5 3-3 5-3-5-5-3 5-3z"/>';
+    return '<svg viewBox="0 0 48 48" focusable="false" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'+shape+'</svg>';
+  }
+  function catalogueRequest(request){
+    let timer;
+    return Promise.race([request,new Promise((_,reject)=>{
+      timer=window.setTimeout(()=>reject(new Error("Catalogue request timed out.")),15000);
+    })]).finally(()=>window.clearTimeout(timer));
+  }
+  const initialSection=window.location.hash.slice(1);
+  let initialSectionUntouched=true;
+  const cancelInitialSection=()=>{initialSectionUntouched=false;};
+  for(const name of ["pointerdown","wheel","touchstart","keydown"])
+    document.addEventListener(name,cancelInitialSection,{once:true,passive:true});
+  function restoreInitialSection(){
+    for(const name of ["pointerdown","wheel","touchstart","keydown"])
+      document.removeEventListener(name,cancelInitialSection);
+    if(!initialSectionUntouched||window.location.hash.slice(1)!==initialSection)return;
+    if(!["mainContent","products","collections","process","story","contact"].includes(initialSection))return;
+    window.requestAnimationFrame(()=>document.getElementById(initialSection)?.scrollIntoView({behavior:"auto",block:"start"}));
+  }
   function render(){
     const grid=document.getElementById("productGrid"),status=document.getElementById("productStatus");
     const heading=document.getElementById("productHeading"),clearButton=document.getElementById("clearProductFilter");
@@ -344,7 +372,7 @@
       heading.textContent=wishlistOnly?"Saved jewellery":activeSearch?"Search results":visualSearchSignature?"Visual matches":activeCategory?"Explore "+activeCategory.toLowerCase()+".":showAllProducts?"All jewellery.":categoryLanding?(activeSegment==="women"?"Shop women by category.":activeSegment==="men"?"Shop men by category.":"Shop by category."):"Shop jewellery.";
     }
     if(clearButton){
-      clearButton.textContent=activeCategory?"Back to product types":"View all jewellery";
+      clearButton.textContent=activeCategory?"Back to product types":"Browse categories";
       clearButton.hidden=!(activeCategory||activeSearch||visualSearchSignature||wishlistOnly||activeSegment!=="all"||showAllProducts);
     }
     document.querySelectorAll("[data-segment]").forEach(button=>{
@@ -362,8 +390,8 @@
       grid.innerHTML=buckets.length?buckets.map(bucket=>{
         const product=bucket.products.find(item=>getImage(item))||bucket.products[0];
         const image=product?getThumb(product):"";
-        return "<button type='button' class='category-tile' data-category-tile='"+esc(bucket.label)+"' aria-label='Browse "+esc(bucket.label)+"'>"+
-          "<span class='category-tile-image'>"+(image?"<img src='"+esc(image)+"' alt='' loading='lazy'>":"<span class='placeholder'>RG</span>")+"</span>"+
+        return "<button type='button' class='category-tile"+(!image?" category-tile-text":"")+"' data-category-tile='"+esc(bucket.label)+"' aria-label='Browse "+esc(bucket.label)+"'>"+
+          (image?"<span class='category-tile-image'><img src='"+esc(image)+"' alt='' loading='lazy'></span>":"<span class='category-tile-icon' aria-hidden='true'>"+categoryIcon(bucket.label)+"</span>")+
           "<span class='category-tile-copy'><strong>"+esc(bucket.label)+"</strong><small>View collection</small></span></button>";
       }).join(""):"<div class='product-empty'>Product categories will appear here when in-stock designs are added.</div>";
       grid.querySelectorAll("[data-category-tile]").forEach(tile=>tile.addEventListener("click",()=>{
@@ -380,6 +408,8 @@
       else if(activeSearch)status.textContent=paging.total+" result"+(paging.total===1?"":"s")+" for \""+activeSearch+"\"";
       else if(activeCategory)status.textContent=paging.total+" "+(paging.total===1?"product":"products")+" in "+activeCategory;
       else status.textContent=paging.total+" product"+(paging.total===1?"":"s")+" available";
+      if(paging.loading&&!products.length)status.textContent="Loading jewellery…";
+      else if(paging.error)status.textContent="Could not load jewellery right now. Please retry below.";
     }
     const existingIds=[...grid.querySelectorAll("[data-product-id]")].map(card=>card.dataset.productId);
     const appendOnly=existingIds.length>0&&products.length>existingIds.length&&existingIds.every((id,index)=>String(products[index]?.id)===String(id));
@@ -396,7 +426,7 @@
     renderPager(false);
     if(appendOnly)grid.insertAdjacentHTML("beforeend",rendered);
     else if(!products.length&&paging.loading)grid.innerHTML='<div class="catalogue-skeleton" aria-label="Loading jewellery"></div>'.repeat(8);
-    else grid.innerHTML=rendered;
+    else grid.innerHTML=!products.length&&paging.error?"<div class='product-empty' role='status'>The catalogue could not be loaded. Use Retry loading below, or <a href='#contact'>contact the store</a> for help.</div>":rendered;
     grid.querySelectorAll("[data-product-id]:not([data-shop-bound])").forEach(card=>{
       card.dataset.shopBound="true";
       const open=()=>openProductModal(catalogueProducts.find(p=>String(p.id)===String(card.dataset.productId)));
@@ -1152,9 +1182,10 @@
   async function loadMoreProducts(manual=false){
     if(!client||!catalogue||paging.loading||(!paging.hasMore&&!paging.error))return;
     const epoch=paging.epoch;
-    paging.loading=true;paging.error="";renderPager(false);
+    paging.loading=true;paging.error="";
+    if(catalogueProducts.length)renderPager(false);else render();
     try{
-      const response=await catalogue.page(client,{...pageFilters(),offset:paging.offset,limit:catalogue.PAGE_SIZE});
+      const response=await catalogueRequest(catalogue.page(client,{...pageFilters(),offset:paging.offset,limit:catalogue.PAGE_SIZE}));
       if(epoch!==paging.epoch)return;
       const known=new Set(catalogueProducts.map(product=>String(product.id)));
       for(const product of response.items){
@@ -1164,6 +1195,7 @@
       paging.total=response.total;
       paging.hasMore=response.hasMore&&response.items.length>0;
       if(!manual)paging.autoPages++;
+      paging.loading=false;
       syncShopFilters();
       render();renderPromotion();
       if(activeSearch)showSearchFeedback(""); // The live result count below replaces the temporary search message.
@@ -1174,7 +1206,10 @@
       const state=document.getElementById("productStatus");
       if(state)state.textContent="Could not load jewellery right now.";
     }finally{
-      if(epoch===paging.epoch){paging.loading=false;renderPager(false);}
+      if(epoch===paging.epoch&&paging.loading){
+        paging.loading=false;
+        if(catalogueProducts.length)renderPager(false);else render();
+      }
     }
   }
   function resetCatalogue(){
@@ -1284,8 +1319,9 @@
       if(categoryLoading)categoryLoading.textContent="Collections are temporarily unavailable. Refresh to try again.";
       return;
     }
-    client=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
+    client=window.RainbowSupabase?.getClient()||window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
     await loadProducts();
+    restoreInitialSection();
     startRealtime();
     // Fallback refresh keeps the catalogue current even if realtime is temporarily unavailable.
     refreshInterval=window.setInterval(scheduleCatalogRefresh,120000);

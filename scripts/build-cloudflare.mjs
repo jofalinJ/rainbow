@@ -18,7 +18,8 @@ const repo=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"..");
 const output=path.join(repo,"dist-pages");
 
 const publicRootFiles=[
-  "index.html","order.html","product.html","invoice.html",
+  "index.html","order.html","product.html","invoice.html","404.html",
+  "reset-password.html","account-recovery.js","recovery-redirect.js","supabase-client.js",
   "privacy-policy.html","returns-and-refunds.html",
   "shipping-policy.html","terms-and-conditions.html",
   "sitemap.html","sitemap.xml","robots.txt",
