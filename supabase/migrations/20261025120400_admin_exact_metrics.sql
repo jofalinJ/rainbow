@@ -14,9 +14,9 @@ begin
     'today_orders', (select count(*) from public.orders
       where created_at>=v_start and status::text not in ('cancelled','refunded')),
     'today_sales', (select coalesce(sum(total_amount),0) from public.orders
-      where created_at>=v_start and status::text not in ('cancelled','refunded')),
+      where created_at>=v_start and payment_status='paid' and status::text not in ('cancelled','refunded')),
     'total_sales', (select coalesce(sum(total_amount),0) from public.orders
-      where status::text not in ('cancelled','refunded')),
+      where payment_status='paid' and status::text not in ('cancelled','refunded')),
     'low_stock', (select count(*) from public.low_stock_products)
   );
 end $$;
