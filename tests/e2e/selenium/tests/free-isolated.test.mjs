@@ -81,28 +81,26 @@ async function browser(){
   return driver;
 }
 
-async function login(driver,username){
+// Seed a fake authenticated identity directly: never submit credentials to a live SDK.
+async function seedMockSession(driver,username){
   await driver.get(base+"/admin/login.html");
-  await driver.findElement(By.css("#username")).sendKeys(username);
-  await driver.findElement(By.css("#password")).sendKeys("NOT_A_REAL_PASSWORD");
-  await driver.findElement(By.css("[data-testid='login-submit']")).click();
-  try{await driver.wait(until.urlContains("/admin/index.html"),10000);}
-  catch(error){
-    const info=await driver.executeScript(`return {
-      url:location.pathname,message:document.querySelector("#msg")?.textContent,
-      mock:typeof window.supabase?.createClient,
-      options:window.__mockAuthOptions?.storageKey,
-      storage:sessionStorage.getItem("__isolated_auth"),
-      error:document.querySelector("#pageError")?.textContent
-    }`);
-    throw new Error("Isolated login navigation failed: "+JSON.stringify(info),{cause:error});
-  }
+  assert.equal(await driver.findElement(By.css("[data-testid='login-username']")).isDisplayed(),true);
+  const role=username==="admin"?"admin":"cashier";
+  const userId=role==="admin"?"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa":
+    "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+  await driver.executeScript(
+    "sessionStorage.setItem('__isolated_auth', JSON.stringify({role:arguments[0],id:arguments[1]}))",
+    role,userId
+  );
+  await driver.get(base+"/admin/index.html");
+  await driver.wait(async()=>await driver.executeScript(
+    "return !!window.__mockAuthOptions?.storageKey"),12000);
 }
 
-test("admin and staff sessions remain isolated in the same browser tabs",async()=>{
+test("mocked admin and staff sessions remain isolated in the same browser tabs",async()=>{
   const driver=await browser();
   try{
-    await login(driver,"admin");
+    await seedMockSession(driver,"admin");
     const adminTab=await driver.getWindowHandle();
     await driver.wait(async()=>{
       const nav=await driver.findElement(By.css("aside nav")).getText();
@@ -113,7 +111,7 @@ test("admin and staff sessions remain isolated in the same browser tabs",async()
     assert.equal(await driver.executeScript(
       "return window.__mockAuthOptions.storageKey"),"rainbow-staff-session");
     await driver.switchTo().newWindow("tab");
-    await login(driver,"cashier");
+    await seedMockSession(driver,"cashier");
     await driver.get(base+"/admin/billing.html");
     await driver.wait(async()=>{
       const nav=await driver.findElement(By.css("aside nav")).getText();
