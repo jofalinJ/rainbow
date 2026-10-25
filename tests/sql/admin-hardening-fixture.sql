@@ -52,14 +52,14 @@ create table public.inventory_transactions(
 );
 create or replace function public.fixture_product_code() returns trigger language plpgsql as $$
 begin
-  if new.product_code is null then new.product_code='F-'+upper(substr(replace(gen_random_uuid()::text,'-',''),1,10));end if;
+  if new.product_code is null then new.product_code='F-'||upper(substr(replace(gen_random_uuid()::text,'-',''),1,10));end if;
   return new;
 end $$;
 create trigger fixture_product_code before insert on public.products
   for each row execute function public.fixture_product_code();
 create or replace function public.fixture_barcode() returns trigger language plpgsql as $$
 begin
-  if new.barcode is null then new.barcode='B-'+upper(substr(replace(gen_random_uuid()::text,'-',''),1,10));end if;
+  if new.barcode is null then new.barcode='B-'||upper(substr(replace(gen_random_uuid()::text,'-',''),1,10));end if;
   return new;
 end $$;
 create trigger fixture_barcode before insert on public.product_variants
