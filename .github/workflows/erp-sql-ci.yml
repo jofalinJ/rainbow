@@ -1,0 +1,45 @@
+name: Staged ERP SQL (disposable PostgreSQL)
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/2026102521*'
+      - 'tests/sql/erp-*'
+      - '.github/workflows/erp-sql-ci.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  erp-sql:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: rainbow_erp_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d rainbow_erp_test"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    env:
+      PGHOST: localhost
+      PGPORT: "5432"
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: rainbow_erp_test
+    steps:
+      - uses: actions/checkout@v4
+      - name: PostgreSQL command line
+        run: command -v psql || (sudo apt-get update && sudo apt-get install -y postgresql-client)
+      - name: Load fake schema and staff
+        run: psql -v ON_ERROR_STOP=1 -f tests/sql/erp-fixture.sql
+      - name: Apply isolated multi-shop schema
+        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261025210000_multi_shop_erp_staged.sql
+      - name: Apply optional search indexes
+        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261025211000_erp_catalogue_indexes.sql
+      - name: Verify branch permission, transfers, retries, purchases and checkout reservations
+        run: psql -v ON_ERROR_STOP=1 -f tests/sql/erp-behavior.sql
