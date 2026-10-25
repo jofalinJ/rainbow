@@ -93,8 +93,22 @@ async function seedMockSession(driver,username){
     role,userId
   );
   await driver.get(base+"/admin/index.html");
-  await driver.wait(async()=>await driver.executeScript(
-    "return !!window.__mockAuthOptions?.storageKey"),12000);
+  try{
+    await driver.wait(async()=>await driver.executeScript(
+      "return !!window.__mockAuthOptions?.storageKey"),12000);
+  }catch(error){
+    const info=await driver.executeScript(`return {
+      path:location.pathname,ready:document.readyState,
+      mockOptions:window.__mockAuthOptions||null,
+      sdk:typeof window.supabase?.createClient,
+      auth:sessionStorage.getItem("__isolated_auth"),
+      nav:document.querySelector("aside nav")?.textContent,
+      message:document.body?.innerText?.slice(-550),
+      script:typeof window.bootSupabase,
+      scripts:Array.from(document.scripts).map(x=>({src:x.src,ready:x.readyState}))
+    }`);
+    throw new Error("Mock staff bootstrap failed: "+JSON.stringify(info),{cause:error});
+  }
 }
 
 test("mocked admin and staff sessions remain isolated in the same browser tabs",async()=>{
