@@ -37,7 +37,7 @@
 <div class="field"><label for="lookupProductCode">Or find any product by its exact code</label>
 <div class="catalogue-lookup"><input id="lookupProductCode" type="search" placeholder="e.g. RGC/C00004" autocomplete="off"><button id="lookupProductButton" type="button">Find product</button></div></div>
 <p id="lookupProductStatus" role="status" aria-live="polite"></p>
-<div class="field" style="margin:12px 0"><label for="sharedProductSearch">Find shared product by name, code or barcode</label>
+<div class="field" id="sharedProductLookupSection" hidden style="margin:12px 0"><label for="sharedProductSearch">Find shared product by name, code or barcode</label>
 <div class="catalogue-lookup"><input id="sharedProductSearch" type="search" maxlength="70" placeholder="Search products already entered by another shop" autocomplete="off"><button type="button" id="sharedProductSearchButton">Search</button></div>
 <div id="sharedProductResults" class="existing-variants" role="status" aria-live="polite"></div>
 <small>Use an existing master product and its photos. To increase a shop's stock, select the product and choose Inventory → Multi-shop stock.</small></div>
@@ -89,7 +89,7 @@
  </form>
  <p id="msg" class="product-form-message" role="status" aria-live="polite"></p>
 </section>
-<dialog id="onlineListingDialog" aria-labelledby="onlineListingTitle" class="stock-dialog">
+<dialog hidden id="onlineListingDialog" aria-labelledby="onlineListingTitle" class="stock-dialog">
 <header class="stock-dialog-head"><h2 id="onlineListingTitle">Online product listing</h2><button type="button" id="closeOnlineListing">Close</button></header>
 <div class="stock-dialog-content"><p id="onlineListingProduct"></p>
 <label class="publish-toggle"><input id="onlineListingVisible" type="checkbox"> Publish this existing product online</label>
