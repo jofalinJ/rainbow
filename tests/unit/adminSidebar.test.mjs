@@ -96,7 +96,7 @@ describe("shared admin sidebar", () => {
     await verify();
     const nav = aside.querySelector("nav");
     expect(nav.children.map(child => child.textContent)).toEqual([
-      "Products", "Inventory", "Multi-shop ERP", "Bills", "Orders", "Billing", "Customers", "My Attendance"
+      "Products", "Inventory", "Bills", "Orders", "Billing", "Customers", "My Attendance"
     ]);
     expect(nav.children.find(child => child.getAttribute("aria-current") === "page")?.textContent).toBe("Inventory");
     expect(aside.querySelector(".user").children.find(child => child.tagName === "small")?.textContent).toBe("Staff");
