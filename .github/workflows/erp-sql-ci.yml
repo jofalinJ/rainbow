@@ -45,5 +45,16 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261025212000_erp_public_catalogue.sql
       - name: Apply staged per-branch report RPC
         run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261025213000_erp_location_summary.sql
+      - name: Apply staged branch POS and payment bridge
+        run: |
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261025220000_erp_branch_pos.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261025221000_erp_live_inventory_bridge.sql
       - name: Verify branch permission, transfers, retries, purchases and checkout reservations
         run: psql -v ON_ERROR_STOP=1 -f tests/sql/erp-behavior.sql
+      - name: Verify live bridge simulation (NO payment provider calls)
+        run: psql -v ON_ERROR_STOP=1 -f tests/sql/erp-live-bridge.sql
+      - name: Verify final activation gate on disposable database
+        run: |
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261025222000_erp_enable_after_deploy.sql
+          psql -v ON_ERROR_STOP=1 -c "select enabled from app_private.erp_activation_state where singleton"
+          psql -v ON_ERROR_STOP=1 -c "select has_function_privilege('authenticated','public.create_local_sale(jsonb,jsonb,text)','EXECUTE') as old_billing_allowed"

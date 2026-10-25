@@ -4,6 +4,10 @@ const cart=new Map();
 const TAX_RATE=.015;
 const DISCOUNT_RATE=.03;
 let lastReceipt=null;
+const ERP_BILLING=window.RAINBOW_MULTI_SHOP_ENABLED===true;
+let billingLocationId="";
+let currentPosRequest=null;
+
 
 function escB(x){return String(x??"").replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;" ,'"':"&quot;"}[m]));}
 function moneyB(v){return "₹"+Number(v||0).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2});}
@@ -135,10 +139,51 @@ function setMsg(message,tone=""){
 }
 async function loadCatalog(){
   catalog=await sb("products?select=id,product_code,product_name,type,description,selling_price,product_images(public_url,is_primary),product_variants(id,color,size,stock_quantity,barcode,active)&active=eq.true&order=created_at.desc&limit=1000");
+  if(ERP_BILLING){
+    const balances=new Map();
+    if(billingLocationId){
+      const client=bootSupabase();
+      for(let page=0;page<100;page++){
+        const {data,error}=await client.from("erp_stock_balances")
+          .select("variant_id,on_hand,reserved").eq("location_id",billingLocationId)
+          .range(page*500,page*500+499);
+        if(error)throw error;
+        for(const row of data||[])balances.set(row.variant_id,Math.max(0,row.on_hand-row.reserved));
+        if((data||[]).length<500)break;
+        if(page===99)throw new Error("Inventory result too large; contact administrator.");
+      }
+    }
+    for(const product of catalog)for(const variant of product.product_variants||[]){
+      variant.stock_quantity=balances.get(variant.id)||0;
+    }
+  }
   renderCatalog();
 }
+async function loadBillingShops(){
+  if(!ERP_BILLING)return;
+  const select=$b("erpBillingLocation"),box=$b("erpBillingLocationBox");
+  box.hidden=false;
+  const {data,error}=await bootSupabase().from("erp_locations")
+    .select("id,name,kind").eq("kind","branch").eq("active",true).order("name");
+  if(error)throw error;
+  select.replaceChildren(new Option("Select your shop",""));
+  for(const shop of data||[])select.add(new Option(shop.name,shop.id));
+  if(data?.length===1){select.value=data[0].id;billingLocationId=data[0].id;}
+  select.addEventListener("change",async()=>{
+    if(cart.size>0&&!confirm("Switch shop? Your current billing cart will be cleared.")){
+      select.value=billingLocationId;return;
+    }
+    cart.clear();currentPosRequest=null;billingLocationId=select.value;
+    renderCart();
+    try{await loadCatalog();setMsg("Now billing for the selected shop.","success");}
+    catch(e){setMsg(e.message||"Could not load shop stock.","error");}
+  });
+  if(!data?.length)setMsg("No billing shop assigned. Ask admin to assign your location.","error");
+}
+
 async function completeSale(){
   if(cart.size===0)return;
+  if(ERP_BILLING&&!billingLocationId){setMsg("Select a billing shop before creating an invoice.","error");return;}
   const payment=document.querySelector("input[name=payment]:checked")?.value||"cash";
   const items=[...cart.values()].map(x=>({variant_id:x.variantId,quantity:x.quantity}));
   const customerPhone=$b("customerPhone").value.trim();
@@ -156,11 +201,20 @@ async function completeSale(){
   setMsg("Processing secure sale…");
   $b("completeSale").disabled=true;
   try{
-    const {data,error}=await bootSupabase().rpc("create_local_sale",{p_items:items,p_customer:customer,p_payment_method:payment});
+    if(ERP_BILLING&&!currentPosRequest)currentPosRequest=crypto.randomUUID();
+    const {data,error}=ERP_BILLING
+      ? await bootSupabase().rpc("erp_create_local_sale",{
+          p_items:items,p_customer:customer,p_payment_method:payment,
+          p_location:billingLocationId,p_request:currentPosRequest
+        })
+      : await bootSupabase().rpc("create_local_sale",{
+          p_items:items,p_customer:customer,p_payment_method:payment
+        });
     if(error)throw error;
     const savedItems=await sb("order_items?select=product_code,product_name,product_type,variant_color,variant_size,length_cm,thickness,gold_amount_g,quantity,unit_price,discount_amount,line_total&order_id=eq."+encodeURIComponent(data.order_id));
     showReceipt(data,savedItems||snapshot.map(x=>({product_code:x.p.product_code,product_name:x.p.product_name,quantity:x.quantity,unit_price:x.price,discount_amount:0,line_total:x.price*x.quantity})),customerPhone,customerName);
     cart.clear();
+    currentPosRequest=null;
     renderCart();
     clearCustomer();
     await loadCatalog();
@@ -205,4 +259,5 @@ $b("clearCart").addEventListener("click",()=>{cart.clear();renderCart();});
 $b("completeSale").addEventListener("click",completeSale);
 $b("newSale").addEventListener("click",()=>{$b("receiptScreen").style.display="none";$b("productSearch").focus();});
 renderCart();
-requireSession().then(loadCatalog).catch(e=>setMsg(e.message||"Could not load billing.","error"));
+requireSession().then(async()=>{await loadBillingShops();await loadCatalog();})
+ .catch(e=>setMsg(e.message||"Could not load billing.","error"));

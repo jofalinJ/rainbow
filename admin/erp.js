@@ -140,7 +140,8 @@ async function refreshSelected() {
   $("erpMinimum").value=String(reorder?.minimum_qty??3);
   $("erpReorderPanel").hidden=false;
   $("erpPublished").checked=Boolean(listing?.published);
-  $("erpOnlinePrice").value=listing?.online_price??"";
+  $("erpOnlinePrice").value="";
+  $("erpOnlinePrice").disabled=true;
  }
 }
 async function reloadPending() {
@@ -167,6 +168,7 @@ async function reloadPending() {
 }
 async function saveAdjustment(event) {
  event.preventDefault();const loc=chosenLocation(),v=state.selected?.v;
+ if(loc?.kind==="online"){notify("Online stock must come from a shop transfer, not a manual adjustment.",true);return;}
  const change=$("erpDelta").value.trim(),reason=$("erpReason").value.trim();
  if(!loc||!v||!isInt(change)||reason.length<8||reason.length>240){notify("Choose a product and enter a valid quantity and reason.",true);return;}
  const signature=[loc.id,v.id,change,reason].join("|");
@@ -179,6 +181,7 @@ async function saveAdjustment(event) {
  notify(result.already_applied?"Request was already recorded. Stock was not added again.":"Stock saved. New stock: "+result.stock);
  state.operation=null;$("erpDelta").value="";$("erpReason").value="";
  await Promise.all([refreshSelected(),reloadSummary()]);
+ window.dispatchEvent(new Event("erp-stock-changed"));
  }catch(e){notify(e.message+" Retry with the same values if the connection dropped.",true);}
  finally{button.disabled=false;}
 }
@@ -197,6 +200,7 @@ async function dispatchTransfer(event) {
   delete btn.dataset.sig;delete btn.dataset.request;
   $("erpTransferQty").value="";$("erpTransferReason").value="";
   await Promise.all([refreshSelected(),reloadPending(),reloadSummary()]);
+  window.dispatchEvent(new Event("erp-stock-changed"));
  }catch(e){notify(e.message+" Retry unchanged details to prevent duplication.",true);}
  finally{btn.disabled=false;}
 }
@@ -221,7 +225,7 @@ async function publish() {
  try{
   await query(state.client.from("erp_online_listings").upsert({
    product_id:state.selected.p.id,published:$("erpPublished").checked,
-   online_price:value,updated_by:state.user.id,updated_at:new Date().toISOString()
+   online_price:null,updated_by:state.user.id,updated_at:new Date().toISOString()
   },{onConflict:"product_id"}));
   notify("Online listing settings saved in the new ERP catalogue. Legacy storefront is unchanged until cutover.");
  }catch(e){notify(e.message,true);}
@@ -425,7 +429,15 @@ async function init() {
   $("erpOnlinePanel").hidden=!state.admin;
   await refreshLocations();
   if(!state.locations.length){notify("No shops assigned. Ask the admin to assign your staff account.",true);return;}
-  $("erpLocation").addEventListener("change",()=>{if(state.selected)refreshSelected().catch(e=>notify(e.message,true));reloadPending().catch(e=>notify(e.message,true));});
+  $("erpLocation").addEventListener("change",()=>{
+   const root=document.getElementById("inventoryBranchSelect");
+   if(root && root.value!==$("erpLocation").value){
+     root.value=$("erpLocation").value;
+     root.dispatchEvent(new Event("change"));
+   }
+   if(state.selected)refreshSelected().catch(e=>notify(e.message,true));
+   reloadPending().catch(e=>notify(e.message,true));
+  });
   $("erpSearchBtn").addEventListener("click",search);
   $("erpSearch").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();search();}});
   $("erpScan").addEventListener("click",scanBarcode);
