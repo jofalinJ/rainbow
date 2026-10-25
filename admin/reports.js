@@ -21,6 +21,34 @@ async function loadReports(){
   if(button){button.disabled=true;button.textContent="Refreshing…";}
   if(rows)rows.innerHTML="<tr><td colspan='6'>Loading report…</td></tr>";
   reportStatus("");
+  try{
+    const [{data:metrics,error:metricsError},{data:orders,error:ordersError}]=await Promise.all([
+      reportsClient.rpc("get_admin_operational_metrics"),
+      reportsClient.from("orders")
+        .select("id,order_number,source,status,payment_status,total_amount,created_at")
+        .order("created_at",{ascending:false}).limit(30)
+    ]);
+    if(metricsError)throw metricsError;
+    if(ordersError)throw ordersError;
+    setReportValue("reportOrders",Number(metrics.orders||0).toLocaleString("en-IN"));
+    setReportValue("reportSales",reportMoney(metrics.total_sales));
+    setReportValue("reportTodayOrders",Number(metrics.today_orders||0).toLocaleString("en-IN"));
+    setReportValue("reportProducts",Number(metrics.products||0).toLocaleString("en-IN"));
+    const recent=Array.isArray(orders)?orders:[];
+    if(rows)rows.innerHTML=recent.map(o=>"<tr><td><b>"+reportEsc(o.order_number||("Order "+String(o.id||"").slice(0,8)))+"</b></td><td>"+reportEsc(reportDate(o.created_at))+"</td><td>"+reportEsc(o.source||"—")+"</td><td>"+reportEsc(o.payment_status||"—")+"</td><td>"+reportEsc(o.status||"—")+"</td><td>"+reportMoney(o.total_amount)+"</td></tr>").join("")||"<tr><td colspan='6'>No orders are available to report.</td></tr>";
+    reportStatus("Report refreshed at "+new Date().toLocaleTimeString("en-IN")+".");
+  }catch(error){
+    console.error("Report could not be loaded",error);
+    if(rows)rows.innerHTML="<tr><td colspan='6'>Could not load report: "+reportEsc(error?.message||"Check your staff permissions.")+"</td></tr>";
+    reportStatus("Report loading failed. Use Refresh to retry.",true);
+  }finally{
+    if(button){button.disabled=false;button.textContent="Refresh";}
+  }
+}
+document.querySelector("#refreshReports"),rows=document.querySelector("#reportRows");
+  if(button){button.disabled=true;button.textContent="Refreshing…";}
+  if(rows)rows.innerHTML="<tr><td colspan='6'>Loading report…</td></tr>";
+  reportStatus("");
   const controller=new AbortController();let timer;
   try{
     const request=Promise.all([
