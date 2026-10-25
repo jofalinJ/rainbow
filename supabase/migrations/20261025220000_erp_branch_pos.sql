@@ -330,8 +330,7 @@ begin
   values(p_request,p_location,v_uid,v_hash,v_result);
   return v_result;
 end;
-$function$
-
+$function$;
 
 revoke all on function public.erp_create_local_sale(jsonb,jsonb,text,uuid,uuid)
  from public,anon,authenticated;
