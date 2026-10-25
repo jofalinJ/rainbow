@@ -14,12 +14,12 @@ test("live Rainbow storefront only enables Razorpay when provider credentials ar
     const status=await driver.findElement(By.css("#gatewayStatus"));
     await driver.wait(async()=>{
       const message=await status.getText();
-      return message.includes("Razorpay test checkout is connected") || message.includes("Razorpay rejected") || message.includes("not enabled") || message.includes("Could not connect") || message.includes("Razorpay could not be verified");
+      return message.includes("Razorpay test checkout is connected") || message.includes("Secure Razorpay payments are ready") || message.includes("Razorpay rejected") || message.includes("not enabled") || message.includes("Could not connect") || message.includes("Razorpay could not be verified");
     },20000,"Gateway never returned a readiness status");
     const message=await status.getText();
     const enabled=await radio.isEnabled();
     console.log(JSON.stringify({test:"payment-card",enabled,message}));
-    if(message.includes("Razorpay test checkout is connected")){
+    if(message.includes("Razorpay test checkout is connected") || message.includes("Secure Razorpay payments are ready")){
       assert.equal(enabled,true,"Provider is connected but the payment card is disabled.");
       assert.equal(await radio.isSelected(),true);
     }else if(message.includes("Razorpay rejected")){

@@ -1,0 +1,15 @@
+# Copy to .dev.vars for local Wrangler development ONLY.
+# .dev.vars is ignored by Git; production secrets belong in the Cloudflare dashboard.
+PAYMENTS_MODE=test
+PAYMENTS_ENABLED=false
+PAYMENTS_SUSPENDED=true
+LIVE_PAYMENTS_RELEASED=false
+RAZORPAY_KEY_ID=
+RAZORPAY_KEY_SECRET=
+RAZORPAY_WEBHOOK_SECRET=
+RAZORPAY_LIVE_KEY_ID=
+RAZORPAY_LIVE_KEY_SECRET=
+RAZORPAY_LIVE_WEBHOOK_SECRET=
+SUPABASE_URL=
+SUPABASE_SERVICE_ROLE_KEY=
+ALLOWED_ORIGINS=http://localhost:8787
