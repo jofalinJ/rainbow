@@ -52,12 +52,13 @@ async function startup(hostname,search,mode,available=true){
   const run=new Function(
     "window","document","location","localStorage",
     "razorpayAvailability","beginRazorpayPayment",
-    "INDIAN_STATES","deliveryFeeForState","Option","crypto",source
+    "INDIAN_STATES","deliveryFeeForState","Option","crypto","URLSearchParams",source
   );
   run(window,document,location,storage,provider,forbidPayment,
     ["Tamil Nadu"],state=>state==="Tamil Nadu"?50:null,
     function Option(label,value){return {label,value}},
-    {randomUUID:()=>"00000000-0000-4000-8000-000000000001"}
+    {randomUUID:()=>"00000000-0000-4000-8000-000000000001"},
+    URLSearchParams
   );
   for(let index=0;index<8;index++)await Promise.resolve();
   return {
