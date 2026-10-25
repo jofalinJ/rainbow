@@ -6,6 +6,30 @@ const DISCOUNT_RATE=.03;
 let lastReceipt=null;
 let saleBusy=false;
 let pendingSale=null;
+const PENDING_SALE_KEY="rainbow_pos_pending_sale_v1";
+const validPendingSale=data=>data&&
+  /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(data.id||"")&&
+  /^[0-9a-f]{64}$/i.test(data.hash||"");
+function readPendingSale(){
+  try{
+    const record=JSON.parse(sessionStorage.getItem(PENDING_SALE_KEY)||"null");
+    return validPendingSale(record)?record:null;
+  }catch{return null;}
+}
+function clearPendingSale(){
+  pendingSale=null;
+  try{sessionStorage.removeItem(PENDING_SALE_KEY);}catch(error){
+    console.warn("Could not remove sale recovery marker",error);
+  }
+}
+async function saleRequestHash(items,payment,customer){
+  // Only a digest and the retry UUID are stored on this device, never customer details.
+  if(!globalThis.crypto?.subtle || !globalThis.TextEncoder)
+    throw new Error("Secure sale recovery requires HTTPS and a supported browser.");
+  const payload=new TextEncoder().encode(JSON.stringify({items,payment,customer}));
+  const digest=await crypto.subtle.digest("SHA-256",payload);
+  return Array.from(new Uint8Array(digest),byte=>byte.toString(16).padStart(2,"0")).join("");
+}
 let catalogueRevision=0;
 let catalogueTimer=null;
 
@@ -187,27 +211,28 @@ async function completeSale(){
     address:$b("customerAddress").value.trim()
   };
   const snapshot=[...cart.values()].map(x=>({...x}));
-  const fingerprint=JSON.stringify({items,payment,customer});
-  if(pendingSale&&pendingSale.fingerprint!==fingerprint){
-    setMsg("This earlier checkout may already have been saved. Restore the original cart/customer details and retry, or first verify the Bills list before clearing the cart.","error");
-    return;
-  }
-  if(!pendingSale){
-    if(!globalThis.crypto?.randomUUID){
-      setMsg("Secure sale ID generation is unavailable. Use an updated HTTPS browser.","error");
-      return;
-    }
-    pendingSale={id:crypto.randomUUID(),fingerprint};
-  }
-  customer.client_sale_id=pendingSale.id;
+  // Lock immediately, before awaiting the digest, to prevent double-tap races.
   saleBusy=true;
   setMsg("Processing secure sale…");
   refreshTotals();
   try{
+    const hash=await saleRequestHash(items,payment,customer);
+    pendingSale=pendingSale||readPendingSale();
+    if(pendingSale&&pendingSale.hash!==hash)
+      throw new Error("An earlier checkout may already be saved. Restore its exact items and customer details, or verify the Bills list before clearing the previous retry ID.");
+    if(!pendingSale){
+      if(!globalThis.crypto?.randomUUID)
+        throw new Error("Secure sale IDs require HTTPS and a supported browser.");
+      const next={id:crypto.randomUUID(),hash};
+      try{sessionStorage.setItem(PENDING_SALE_KEY,JSON.stringify(next));}
+      catch{throw new Error("Cannot safely store this sale's recovery ID. Enable session storage before billing.");}
+      pendingSale=next;
+    }
+    customer.client_sale_id=pendingSale.id;
     const {data,error}=await bootSupabase().rpc("create_local_sale",{p_items:items,p_customer:customer,p_payment_method:payment});
     if(error)throw error;
     // The sale is committed at this point: immediately prevent another sale on this cart.
-    pendingSale=null;
+    clearPendingSale();
     cart.clear();
     renderCart();
     clearCustomer();
@@ -276,9 +301,11 @@ $b("clearSearch").addEventListener("click",()=>{$b("productSearch").value="";loa
 $b("clearCart").addEventListener("click",()=>{
   if(saleBusy)return;
   if(pendingSale&&!confirm("This checkout may have completed. Verify the Bills list for a matching invoice before discarding the retry ID. Clear anyway?"))return;
-  cart.clear();pendingSale=null;renderCart();
+  cart.clear();clearPendingSale();renderCart();
 });
 $b("completeSale").addEventListener("click",completeSale);
 $b("newSale").addEventListener("click",()=>{$b("receiptScreen").style.display="none";$b("productSearch").focus();});
 renderCart();
+pendingSale=readPendingSale();
+if(pendingSale)setMsg("A previous sale may have completed. Re-enter the same cart and customer to retry safely, or check Bills before clearing the recovery ID.","error");
 requireSession().then(loadCatalog).catch(e=>setMsg(e.message||"Could not load billing.","error"));
