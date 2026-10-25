@@ -304,3 +304,26 @@ begin
   return v_final_response;
 end;
 $function$;
+
+-- A cashier may recover a completed invoice after a timeout or tablet reload
+-- without re-entering the cart or risking a second stock deduction.
+-- No cross-account reads: return only the original cashier's committed response.
+create or replace function public.get_local_sale_receipt(p_request_id uuid)
+returns jsonb language plpgsql stable security definer
+set search_path = '' as $recovery$
+declare
+  v_result jsonb;
+begin
+  if auth.uid() is null or not exists (
+    select 1 from public.staff_profiles
+    where user_id = auth.uid() and active = true and role in ('admin','cashier')
+  ) then
+    raise exception 'Active billing staff required' using errcode = '42501';
+  end if;
+  select response into v_result from app_private.local_sale_requests
+    where request_id=p_request_id and created_by=auth.uid();
+  return v_result;
+end;
+$recovery$;
+revoke all on function public.get_local_sale_receipt(uuid) from public, anon, authenticated;
+grant execute on function public.get_local_sale_receipt(uuid) to authenticated;
