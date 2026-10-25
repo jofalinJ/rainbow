@@ -114,8 +114,8 @@ export async function beginRazorpayPayment({items,customer,displayTotal,expected
     gateway.currency!=="INR" || !gateway.gatewayOrderId)
     throw new Error("Invalid payment provider response");
   // Never silently charge a different amount from the visible review summary.
-  if(Math.abs(gateway.amount/100-displayTotal)>0.01)
-    throw new Error("The verified price changed. Please reload and review your cart before paying.");
+  if(!Number.isFinite(displayTotal)||Math.round(displayTotal*100)!==gateway.amount)
+    throw new Error("The verified price changed. Please reload and review your bag before paying.");
   if(new Date(gateway.expiresAt).getTime()<=Date.now())
     throw new Error("This checkout has expired. Contact the shop if payment was attempted.");
   await loadGatewayScript();
