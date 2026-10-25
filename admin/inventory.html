@@ -1,11 +1,134 @@
 <!doctype html>
 <html lang="en">
-<head><meta name="robots" content="noindex,nofollow"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#8f1520"><link rel="icon" type="image/png" href="../assets/brand/rainbow-logo.png"><title>Rainbow Gold Covering — Inventory</title><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="inventory-stock.css?v=20261015-stock-v1"><script src="config.js"></script><style>.category-tabs{display:flex;gap:8px;overflow-x:auto;padding:4px 2px 14px}.category-tabs button{white-space:nowrap;border-radius:20px;padding:9px 15px}.category-tabs button.active{background:#171717;color:#fff;border-color:#171717}.inventory-title{display:flex;justify-content:space-between;align-items:center;gap:15px;margin-bottom:14px}.inventory-title small{color:#888}.table-wrap{overflow:auto}</style><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script defer src="app.js?v=20261018-unified-shop-staff-v2"></script><script defer src="inventory.js?v=20261015-stock-v1"></script></head>
+<head><meta name="robots" content="noindex,nofollow"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#8f1520"><link rel="icon" type="image/png" href="../assets/brand/rainbow-logo.png"><title>Rainbow Gold Covering — Inventory</title><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="inventory-stock.css?v=20261015-stock-v1"><link rel="stylesheet" href="erp.css?v=20261025-embedded"><script src="config.js"></script><style>.category-tabs{display:flex;gap:8px;overflow-x:auto;padding:4px 2px 14px}.category-tabs button{white-space:nowrap;border-radius:20px;padding:9px 15px}.category-tabs button.active{background:#171717;color:#fff;border-color:#171717}.inventory-title{display:flex;justify-content:space-between;align-items:center;gap:15px;margin-bottom:14px}.inventory-title small{color:#888}.table-wrap{overflow:auto}</style><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script defer src="app.js?v=20261018-unified-shop-staff-v2"></script><script defer src="inventory.js?v=20261015-stock-v1"></script><script defer src="catalogue-ops.js"></script><script defer src="erp.js?v=20261025-embedded"></script></head>
 <body><aside aria-label="Admin sidebar"></aside>
 <main><header><div><p class="eyebrow">STOCK CONTROL</p><h1>Inventory</h1></div><button onclick="location.href='products.html'">＋ Add Product</button></header>
 <section class="cards"><div><small>Products</small><strong id="variantCount">0</strong><span>In selected category</span></div><div><small>Total Stock</small><strong id="stockCount">0</strong><span>Units available</span></div><div><small>Low Stock</small><strong id="lowCount">0</strong><span>Needs attention</span></div><div class="alert"><small>Out of Stock</small><strong id="outCount">0</strong><span>Unavailable items</span></div></section>
 <section class="panel"><div class="panelhead"><h2>Categories</h2></div><div id="categoryTabs" class="category-tabs"></div></section>
-<section class="panel" style="margin-top:18px"><div class="inventory-title"><div><h2 id="selectedCategory">Inventory</h2><small id="categoryMeta"></small></div><input id="search" data-testid="inventory-search" placeholder="Search product, code, type, color, barcode" style="width:min(380px,100%);padding:10px 12px;border:1px solid #ddd;border-radius:8px"></div><div class="table-wrap"><table><thead id="head"></thead><tbody id="rows"><tr><td>Loading…</td></tr></tbody></table></div></section></main>
+<section class="panel" style="margin-top:18px"><div class="inventory-title"><div><h2 id="selectedCategory">Inventory</h2><small id="categoryMeta"></small></div><input id="search" data-testid="inventory-search" placeholder="Search product, code, type, color, barcode" style="width:min(380px,100%);padding:10px 12px;border:1px solid #ddd;border-radius:8px"></div><div class="table-wrap"><table><thead id="head"></thead><tbody id="rows"><tr><td>Loading…</td></tr></tbody></table></div></section><details class="panel" id="branchInventoryTools" style="margin-top:18px">
+<summary style="cursor:pointer;font-weight:700;padding:12px 4px">Multi-shop stock, transfers & online allocation</summary>
+<p class="stock-help">These new controls reuse existing products and photos. Shop-specific quantities are staged separately from current billing stock until a tested cutover. They cannot be used against production before the ERP database migration is approved.</p>
+<div class="erp-integrated">
+<div class="erp-status" id="erpStatus" role="status" aria-live="polite">Checking branch inventory availability…</div>
+<span id="erpRole" class="erp-tag"></span>
+<section class="erp-panel">
+<label for="erpLocation">Working location</label>
+<select id="erpLocation" aria-label="Choose shop"><option value="">Loading authorized locations…</option></select>
+<p class="erp-muted">Each shop uses one shared product catalogue and shared images. Stock quantities are separate.</p>
+</section>
+<section class="erp-panel">
+<h2>Find an existing product</h2>
+<div class="erp-search-row">
+<input id="erpSearch" type="search" placeholder="Product name, code or barcode" autocomplete="off" maxlength="70">
+<button id="erpSearchBtn" type="button">Search</button>
+<button id="erpScan" type="button">Scan barcode</button>
+</div>
+<video id="erpCamera" hidden playsinline muted autoplay class="erp-camera"></video>
+<div id="erpMatches" class="erp-matches" aria-live="polite"></div>
+</section>
+<section class="erp-panel" id="erpSelected" hidden>
+<h2 id="erpProductTitle">Selected variant</h2>
+<div id="erpProductMeta" class="erp-muted"></div>
+<div class="erp-image-row" id="erpImages"></div>
+<div class="erp-stats">
+<div><small>Shop stock</small><strong id="erpShopStock">—</strong></div>
+<div><small id="erpTotalStockLabel">Visible stock</small><strong id="erpTotalStock">—</strong></div>
+<div><small>Online available</small><strong id="erpOnlineStock">—</strong></div>
+<div><small>In transit</small><strong id="erpTransitStock">—</strong></div>
+</div>
+<div class="erp-half">
+<form id="erpAdjustForm">
+<h3>Change stock at this shop</h3>
+<label>Quantity change (+ receive / − remove)
+<input id="erpDelta" type="number" required step="1" min="-100000" max="100000" placeholder="e.g. 12"></label>
+<label>Reason (minimum 8 characters)
+<input id="erpReason" type="text" required minlength="8" maxlength="240" placeholder="Supplier delivery / correction"></label>
+<button id="erpAdjustSave" type="submit">Save stock change</button>
+</form>
+<form id="erpTransferForm">
+<h3>Send stock to another location</h3>
+<label>Destination
+<select id="erpDestination" required><option value="">Choose destination</option></select></label>
+<label>Quantity
+<input id="erpTransferQty" type="number" required min="1" max="100000" step="1"></label>
+<label>Reason
+<input id="erpTransferReason" type="text" required minlength="8" maxlength="240" placeholder="Transfer to online allocation / another shop"></label>
+<button id="erpTransferSave" type="submit">Dispatch transfer</button>
+<p class="erp-muted">Destination staff must confirm receipt. In-transit units are not counted twice.</p>
+</form>
+</div>
+<section aria-label="Branch-wise product stock">
+<h3>Stock by location</h3>
+<div id="erpBranchBreakdown" class="erp-list"></div>
+</section>
+<section id="erpReorderPanel" hidden aria-label="Minimum stock settings">
+<h3>Reorder threshold for this shop</h3>
+<label>Alert when available stock is at or below
+<input id="erpMinimum" type="number" step="1" min="0" max="100000" value="3"></label>
+<button type="button" id="erpReorderSave">Save low-stock threshold</button>
+</section>
+<section aria-label="Selected variant movement history">
+<h3>Recent stock movements</h3>
+<div id="erpMovementHistory" class="erp-list"></div>
+</section>
+<div id="erpOnlinePanel" hidden>
+<h3>Online publication</h3>
+<label class="erp-inline"><input type="checkbox" id="erpPublished"> Publish this product online</label>
+<label>Online selling price (optional; ₹)
+<input type="number" id="erpOnlinePrice" min="0" step="0.01" placeholder="Use master price"></label>
+<button id="erpPublishBtn" type="button">Save online listing</button>
+<p class="erp-muted">Publication and online stock are separate. The public storefront remains on the legacy catalogue until checkout cutover.</p>
+</div>
+</section>
+<section class="erp-panel">
+<h2>Receive transferred stock</h2>
+<button id="erpRefreshTransfers" type="button">Refresh transfers</button>
+<div id="erpPendingTransfers" class="erp-list"></div>
+</section>
+<section class="erp-panel" id="erpAdminTools" hidden>
+<h2>Admin tools</h2>
+<div class="erp-half">
+<section>
+<h3>Staff shop permissions</h3>
+<label>Staff
+<select id="erpStaff"><option value="">Choose staff</option></select></label>
+<label>Shop
+<select id="erpStaffShop"><option value="">Choose shop</option></select></label>
+<button id="erpAssignBtn" type="button">Assign staff to shop</button>
+<div id="erpAssignments" class="erp-list"></div>
+</section>
+<section>
+<h3>Quick stock and low-stock dashboard</h3>
+<button id="erpRefreshSummary" type="button">Refresh summary</button>
+<div id="erpSummary" class="erp-list"></div>
+</section>
+</div>
+<h3>Bulk stock addition (existing products)</h3>
+<p class="erp-muted">CSV headers: product_code,barcode,quantity,reason. At least product_code or barcode is required. Limit 200 lines. Rows are checked before saving.</p>
+<input id="erpCsv" type="file" accept=".csv,text/csv">
+<button id="erpValidateCsv" type="button">Preview CSV</button>
+<div id="erpCsvPreview" class="erp-list"></div>
+<button id="erpCommitCsv" type="button" disabled>Import validated quantities</button>
+<h3>Suppliers and purchasing</h3>
+<div class="erp-half">
+<form id="erpSupplierForm">
+<label>Supplier name<input id="erpSupplierName" required minlength="2" maxlength="160"></label>
+<label>Supplier phone<input id="erpSupplierPhone" maxlength="30"></label>
+<button type="submit">Create supplier</button>
+</form>
+<form id="erpPurchaseForm">
+<label>Supplier<select id="erpSupplierSelect" required></select></label>
+<label>Destination<select id="erpPurchaseDestination" required></select></label>
+<label>Product variant<select id="erpPurchaseVariant" required><option value="">Search and select product above</option></select></label>
+<label>Ordered units<input id="erpPurchaseQty" required type="number" min="1" step="1"></label>
+<label>Unit purchase cost (₹)<input id="erpPurchaseCost" required type="number" min="0" step="0.01"></label>
+<button type="submit">Create purchase order</button>
+</form>
+</div>
+<div id="erpPurchases" class="erp-list"></div>
+</section>
+
+</div></details></main>
 <dialog id="stockDialog" class="stock-dialog" aria-labelledby="stockDialogTitle">
   <header class="stock-dialog-head">
     <div><p class="eyebrow">INVENTORY · CONTROLLED ADJUSTMENTS</p><h2 id="stockDialogTitle">Manage stock</h2></div>
