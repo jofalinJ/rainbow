@@ -70,7 +70,8 @@ async function assign(){
  finally{busy=false;$("staffBranchAssign").disabled=false;}
 }
 async function boot(){
- if(!$("staffBranchPanel"))return;
+ if(!$("staffBranchPanel")||window.RAINBOW_MULTI_SHOP_ENABLED!==true)return;
+ $("staffBranchPanel").hidden=false;
  try{
   await window.requireSession();
   const role=await window.getMyProfile();
