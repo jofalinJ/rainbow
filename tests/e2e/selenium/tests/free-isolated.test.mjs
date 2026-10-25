@@ -86,7 +86,17 @@ async function login(driver,username){
   await driver.findElement(By.css("#username")).sendKeys(username);
   await driver.findElement(By.css("#password")).sendKeys("NOT_A_REAL_PASSWORD");
   await driver.findElement(By.css("[data-testid='login-submit']")).click();
-  await driver.wait(until.urlContains("/admin/index.html"),10000);
+  try{await driver.wait(until.urlContains("/admin/index.html"),10000);}
+  catch(error){
+    const info=await driver.executeScript(`return {
+      url:location.pathname,message:document.querySelector("#msg")?.textContent,
+      mock:typeof window.supabase?.createClient,
+      options:window.__mockAuthOptions?.storageKey,
+      storage:sessionStorage.getItem("__isolated_auth"),
+      error:document.querySelector("#pageError")?.textContent
+    }`);
+    throw new Error("Isolated login navigation failed: "+JSON.stringify(info),{cause:error});
+  }
 }
 
 test("admin and staff sessions remain isolated in the same browser tabs",async()=>{
