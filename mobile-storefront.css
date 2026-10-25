@@ -775,6 +775,7 @@
   .payment-choice-dot{width:18px;height:18px;flex-basis:18px}
   /* One TEST warning near the bottom is enough; keep manual UPI's pending status. */
   #razorpayChoice .payment-choice-note{display:none!important}
+  html.checkout-razorpay-live #razorpayChoice .payment-choice-note{display:block!important;color:#625249!important}
   .gateway-connection{
     margin:9px 0!important;gap:7px!important;padding:9px 11px!important;
     border-radius:11px!important
