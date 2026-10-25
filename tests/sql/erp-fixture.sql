@@ -20,12 +20,15 @@ create table public.branches(
 );
 create table public.products(
  id uuid primary key,product_code text unique not null,
- product_name text not null,selling_price numeric not null default 100,
+ product_name text not null,type text not null default 'Jewellery',
+ length_cm numeric,thickness text,gold_amount_g numeric,
+ selling_price numeric not null default 100,
  created_at timestamptz not null default now(),active boolean not null default true
 );
 create table public.product_variants(
  id uuid primary key,product_id uuid not null references public.products(id),
  barcode text unique,color text not null default '0',size text not null default '0',
+ length_cm numeric,
  active boolean not null default true,stock_quantity integer not null default 0
 );
 create table public.product_images(
