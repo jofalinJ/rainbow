@@ -9,12 +9,14 @@ async function startup(hostname,search,mode,available=true){
   const elements=new Map();
   const node=()=>({
     value:"",textContent:"",hidden:false,disabled:false,checked:false,
-    dataset:{},style:{},attrs:{},
+    dataset:{},style:{},attrs:{},listeners:{},
     classList:{add(){},remove(){},toggle(){},contains(){return false}},
     setAttribute(key,value){this.attrs[key]=value},
     getAttribute(key){return this.attrs[key]??null},
     removeAttribute(key){delete this.attrs[key]},
-    addEventListener(){},append(){},replaceChildren(){},insertAdjacentElement(){},
+    addEventListener(type,callback){(this.listeners[type]??=[]).push(callback)},
+    fire(type){return Promise.all((this.listeners[type]||[]).map(fn=>fn({target:this})))},
+    append(){},replaceChildren(){},insertAdjacentElement(){},
     focus(){},scrollIntoView(){},remove(){},showModal(){},close(){},add(){},
     querySelector(){return node()}
   });
@@ -28,7 +30,8 @@ async function startup(hostname,search,mode,available=true){
     getElementById:find,documentElement:{classList:{toggle(){}}},
     createElement:node,
     querySelector:selector=>selector.includes('input[name="paymentMethod"]')
-      ?find("payUpi"):find(selector),
+      ?([find("payUpi"),find("payRazorpay")].find(node=>node.checked)||find("payUpi"))
+      :find(selector),
     querySelectorAll:selector=>selector.includes("paymentMethod")
       ?[find("payUpi"),find("payRazorpay")]:[],
     body:{append(){}},head:{append(){}},addEventListener(){}
@@ -43,7 +46,8 @@ async function startup(hostname,search,mode,available=true){
   };
   const location={hostname,search,href:"https://"+hostname+"/order.html"};
   const storage={getItem(){return null},setItem(){},removeItem(){}};
-  const provider=async()=>({mode,available,message:"Isolated provider check"});
+  let currentMode=mode;
+  const provider=async()=>({mode:currentMode,available,message:"Isolated provider check"});
   const forbidPayment=()=>{throw new Error("A real payment action was attempted");};
   const run=new Function(
     "window","document","location","localStorage",
@@ -62,7 +66,22 @@ async function startup(hostname,search,mode,available=true){
     manualChecked:find("payUpi").checked,
     razorpayChecked:find("payRazorpay").checked,
     modeBadge:find("#razorpayChoice .checkout-mode").textContent,
-    inline:find("razorpayInlineStatus").textContent
+    inline:find("razorpayInlineStatus").textContent,
+    selectRazorpay(){
+      find("payUpi").checked=false;find("payRazorpay").checked=true;
+      return find("payRazorpay").fire("change");
+    },
+    selectManual(){
+      find("payUpi").checked=true;find("payRazorpay").checked=false;
+      return find("payUpi").fire("change");
+    },
+    async updateProvider(nextMode){
+      currentMode=nextMode;
+      await find("retryGateway").fire("click");
+      for(let index=0;index<8;index++)await Promise.resolve();
+    },
+    getInline(){return find("razorpayInlineStatus").textContent},
+    getSelection(){return find("payRazorpay").checked?"razorpay":"upi"}
   };
 }
 describe("UX-04: real checkout startup never silently changes a payment method",()=>{
@@ -94,6 +113,17 @@ describe("UX-04: real checkout startup never silently changes a payment method",
     expect(test.enabled).toBe(true);
     expect(live.visible).toBe(false);
     expect(live.enabled).toBe(false);
+  });
+  it("requires a fresh explicit selection when the provider flips TEST to LIVE",async()=>{
+    const x=await startup("rainbowgoldcovering.com","?test=1","test");
+    await x.selectRazorpay();
+    expect(x.getSelection()).toBe("razorpay");
+    await x.updateProvider("live");
+    expect(x.getSelection()).toBe("razorpay");
+    expect(x.getInline()).toContain("Payment mode changed.");
+    await x.selectManual();
+    await x.selectRazorpay();
+    expect(x.getInline()).toBe("Available · LIVE payment");
   });
   it("keeps the LIVE option disabled when provider readiness fails",async()=>{
     const x=await startup("rainbowgoldcovering.com","","live",false);
