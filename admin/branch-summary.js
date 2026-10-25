@@ -47,7 +47,8 @@ async function refresh(){
  }finally{button.disabled=false;}
 }
 function init(){
- if(!$("branchSummaryPanel"))return;
+ if(!$("branchSummaryPanel")||window.RAINBOW_MULTI_SHOP_ENABLED!==true)return;
+ $("branchSummaryPanel").hidden=false;
  $("refreshBranchSummary").addEventListener("click",refresh);
  refresh();
 }
