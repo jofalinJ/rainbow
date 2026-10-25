@@ -2,7 +2,7 @@
 // This file refuses anything except the loopback static server and sends no money.
 import {test} from "node:test";
 import assert from "node:assert/strict";
-import {Builder,By,until} from "selenium-webdriver";
+import {Builder,By} from "selenium-webdriver";
 import chrome from "selenium-webdriver/chrome.js";
 
 const base=(process.env.E2E_BASE_URL||"http://127.0.0.1:4173").replace(/\/$/,"");
