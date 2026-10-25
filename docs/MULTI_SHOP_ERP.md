@@ -33,15 +33,22 @@ possession. Transfers in transit are company-owned but not available to sell.
 ## Features staged in branch
 
 1. Schema, RLS, transactional stock changes and branch access assignments.
-2. Staff ERP page: search by product name/code/barcode, reuse images, add stock,
-   optional barcode camera scan, CSV preview/import, dispatch/receive transfers.
-3. Admin online publication and pricing, isolated online allocation and reserved
-   stock RPCs. Optional public read-only catalogue endpoint at GET /api/erp/catalogue
+2. Existing admin/inventory.html: an expandable multi-shop section reuses shared product
+   photos, lets authorized staff add location stock, scan codes where supported,
+   preview/import stock CSV, dispatch and receive transfers, set reorder limits,
+   and manage supplier purchases. No second admin screen or menu is created.
+3. Existing admin/products.html: search shared products by name, code, or
+   barcode, reuse their images and variants, open the existing Inventory page
+   for shop-specific stock, and let admins control online listing publication
+   and pricing. Isolated online allocation and reservation RPCs are staged.
+   Optional public read-only catalogue endpoint at GET /api/erp/catalogue
    requires ERP_CATALOGUE_ENABLED=true. Default: **disabled**.
 4. Search indexes for 10k+ products, shared image lookups, small search batches,
    pagination, mobile-friendly tablet display and database-side admin metrics.
-5. Shop dashboards with per-branch quantity breakdown and total company stock,
-   permissions, purchases, receipts, transfer ledger and reorder settings.
+5. Existing admin/index.html and admin/reports.html: compact branch-wise
+   figures without changing original KPI cards. Existing admin/staff.html:
+   shop assignments below the existing staff list. Inventory also has purchasing,
+   receipt, movement history and reorder settings.
 
 ## Critical incomplete integrations — mandatory before production
 
@@ -68,6 +75,7 @@ possession. Transfers in transit are company-owned but not available to sell.
    - supabase/migrations/20261025210000_multi_shop_erp_staged.sql
    - supabase/migrations/20261025211000_erp_catalogue_indexes.sql
    - supabase/migrations/20261025212000_erp_public_catalogue.sql
+   - supabase/migrations/20261025213000_erp_location_summary.sql
 4. Run tests/sql/erp-behavior.sql. GitHub workflow erp-sql-ci.yml performs this
    against PostgreSQL 17 in a disposable CI container.
 5. Run npm ci, npm run lint, npm run test, npm run build and backend npm test,
@@ -75,7 +83,11 @@ possession. Transfers in transit are company-owned but not available to sell.
 6. Set up three test staff users (admin, Shop A, Shop B) and verify cross-branch
    denials, retries/idempotency, transfer-in-transit totals, bulk import partial
    failure, purchase receipt, online reservations and payment retry safety.
-7. Point test admin config at test Supabase and visit /admin/erp.html.
+7. Point the test admin config at test Supabase. Navigate the EXISTING
+   /admin/inventory.html, /admin/products.html, /admin/staff.html,
+   /admin/index.html and /admin/reports.html. There is NO /admin/erp.html.
+   Existing staff POS /admin/billing.html is unchanged and continues using the
+   old stock source until safe cutover.
    Continue to use the existing public storefront with ERP catalogue disabled.
 8. Only after a separate reviewed cutover, migrate authoritative live inventory
    and integrate checkout/billing with location stock; promote to main and deploy
