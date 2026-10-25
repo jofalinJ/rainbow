@@ -36,7 +36,7 @@ describe("existing admin screen multi-shop integration",()=>{
    expect(read(p)).toContain('branch-summary.js');
   }
  });
- it("does not auto-activate new ERP controls on production without opt-in",()=>{
+ it("gates all ERP controls behind the explicit shared runtime flag",()=>{
   for(const page of ["admin/index.html","admin/reports.html"]){
    expect(read(page)).toContain('id="branchSummaryPanel" hidden');
   }
@@ -47,7 +47,7 @@ describe("existing admin screen multi-shop integration",()=>{
   expect(read("admin/staff-branches.js")).toContain("window.RAINBOW_MULTI_SHOP_ENABLED!==true");
   expect(read("admin/branch-summary.js")).toContain("window.RAINBOW_MULTI_SHOP_ENABLED!==true");
   expect(read("admin/products.js")).toContain("window.RAINBOW_MULTI_SHOP_ENABLED===true");
-  expect(read("admin/config.js")).not.toContain("RAINBOW_MULTI_SHOP_ENABLED=true");
+  expect(read("admin/config.js")).toContain("RAINBOW_MULTI_SHOP_ENABLED=true");
  });
  it("activates original billing and inventory pages with safe branch-specific RPCs",()=>{
   const billing=read("admin/billing.js");
