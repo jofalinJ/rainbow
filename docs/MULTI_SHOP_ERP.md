@@ -20,8 +20,9 @@ at inspection, but no per-branch stock records were present.
 - erp_stock_events: immutable auditable records; clients cannot edit directly.
 - erp_transfers: dispatch deducts source; receipt increases destination.
 - erp_online_listings: only admin-published products qualify for new online listing.
-- erp_online_reservations: service-role-only reservation and settlement, with
-  verified payment required before the backend calls paid settlement.
+- erp_online_reservations: service-role-only atomic *whole-cart* reservation and
+  settlement for 1–50 distinct variants; verified payment is required before
+  the backend calls paid settlement. No live checkout integration is enabled.
 - erp_suppliers, erp_purchase_orders, erp_purchase_lines, erp_purchase_receipts:
   basic supplier purchasing and idempotent goods receipt.
 - Existing products, variants and images remain shared across all shops.
@@ -39,7 +40,8 @@ possession. Transfers in transit are company-owned but not available to sell.
    requires ERP_CATALOGUE_ENABLED=true. Default: **disabled**.
 4. Search indexes for 10k+ products, shared image lookups, small search batches,
    pagination, mobile-friendly tablet display and database-side admin metrics.
-5. Shop dashboards, permissions, purchases, receipts, transfer ledger and reorder settings.
+5. Shop dashboards with per-branch quantity breakdown and total company stock,
+   permissions, purchases, receipts, transfer ledger and reorder settings.
 
 ## Critical incomplete integrations — mandatory before production
 
