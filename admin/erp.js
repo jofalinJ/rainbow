@@ -93,7 +93,7 @@ async function refreshSelected() {
  const vid=state.selected.v.id;
  const [balances,transfers,listing]=await Promise.all([
  query(state.client.from("erp_stock_balances").select("location_id,on_hand,reserved").eq("variant_id",vid)),
- query(state.client.from("erp_transfers").select("quantity").eq("variant_id",vid).eq("status","in_transit").limit(1000)),
+ query(state.client.from("erp_transfers").select("quantity,to_location").eq("variant_id",vid).eq("status","in_transit").limit(1000)),
  state.admin?query(state.client.from("erp_online_listings").select("published,online_price").eq("product_id",state.selected.p.id).maybeSingle()):Promise.resolve(null)
  ]);
  state.stock=balances||[];state.listing=listing;
@@ -101,9 +101,27 @@ async function refreshSelected() {
  const online=state.locations.find(x=>x.kind==="online");
  const onlineRow=state.stock.find(x=>x.location_id===online?.id);
  $("erpShopStock").textContent=format((here?.on_hand||0)-(here?.reserved||0));
+ $("erpTotalStockLabel").textContent=state.admin?"Company-owned stock":"Stock visible to your role";
  $("erpTotalStock").textContent=format(state.stock.reduce((sum,x)=>sum+x.on_hand,0)+(transfers||[]).reduce((sum,x)=>sum+x.quantity,0));
  $("erpOnlineStock").textContent=format((onlineRow?.on_hand||0)-(onlineRow?.reserved||0));
  $("erpTransitStock").textContent=format((transfers||[]).reduce((sum,x)=>sum+x.quantity,0));
+ const breakdown=$("erpBranchBreakdown");breakdown.replaceChildren();
+ for(const location of state.locations) {
+   const bal=state.stock.find(x=>x.location_id===location.id);
+   const inbound=(transfers||[]).filter(x=>x.to_location===location.id).reduce((sum,x)=>sum+x.quantity,0);
+   const row=document.createElement("article");
+   const title=document.createElement("strong");title.textContent=location.name+(location.kind==="online"?" · Online":" · Branch");
+   const meta=document.createElement("div");meta.className="erp-muted";
+   meta.textContent="On hand: "+format(bal?.on_hand||0)+" · Reserved: "+format(bal?.reserved||0)+
+     " · Available: "+format((bal?.on_hand||0)-(bal?.reserved||0))+
+     (inbound?" · Inbound: "+format(inbound):"");
+   row.append(title,meta);breakdown.append(row);
+ }
+ if(!state.admin){
+   const hint=document.createElement("p");hint.className="erp-muted";
+   hint.textContent="Other shops may have stock that your role cannot view.";
+   breakdown.append(hint);
+ }
  if(state.admin) {
   $("erpPublished").checked=Boolean(listing?.published);
   $("erpOnlinePrice").value=listing?.online_price??"";
