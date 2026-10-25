@@ -211,8 +211,8 @@ grant insert,delete on public.erp_staff_locations to authenticated;
 create policy "erp admin assign staff" on public.erp_staff_locations for insert to authenticated
  with check((select app_private.erp_is_admin()) and exists(
  select 1 from public.staff_profiles p join public.erp_locations l on l.id=location_id
- where p.user_id=user_id and p.active and p.archived_at is null
- and l.kind='branch' and l.active));
+ where p.user_id=erp_staff_locations.user_id and p.active and p.archived_at is null
+ and l.id=erp_staff_locations.location_id and l.kind='branch' and l.active));
 create policy "erp admin revoke staff" on public.erp_staff_locations for delete to authenticated
  using((select app_private.erp_is_admin()));
 grant insert,update on public.erp_online_listings to authenticated;
@@ -256,7 +256,7 @@ begin
  then raise exception 'Invalid adjustment input' using errcode='22023'; end if;
  perform pg_advisory_xact_lock(hashtextextended(p_request::text,351));
  select location_id,variant_id,quantity_delta,stock_after into v_existing
- from public.erp_stock_events where idempotency_key=p_request;
+ from public.erp_stock_events where idempotency_key=p_request and action='adjust';
  if found then
    if v_existing.location_id<>p_location or v_existing.variant_id<>p_variant or
    v_existing.quantity_delta<>p_delta then raise exception 'Request ID reused with different payload'; end if;
