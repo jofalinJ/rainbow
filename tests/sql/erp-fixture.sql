@@ -88,9 +88,9 @@ create table public.razorpay_checkouts(
 
 -- Existing legacy functions mocked only to verify final permission cutover SQL.
 create function public.create_local_sale(p_items jsonb,p_customer jsonb,p_payment_method text)
-returns jsonb language sql as $select '{}'::jsonb$;
+returns jsonb language sql as $mock$ select '{}'::jsonb $mock$;
 create function public.adjust_variant_stock(p_variant_id uuid,p_quantity_change integer,p_reason text)
-returns jsonb language sql as $select '{}'::jsonb$;
+returns jsonb language sql as $mock$ select '{}'::jsonb $mock$;
 grant execute on function public.create_local_sale(jsonb,jsonb,text) to authenticated;
 grant execute on function public.adjust_variant_stock(uuid,integer,text) to authenticated;
 
