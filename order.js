@@ -1,5 +1,5 @@
 import {INDIAN_STATES,deliveryFeeForState} from "./order-pricing.mjs";
-import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpay.mjs?v=20261021-paid-confirmation-v4";
+import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=20261025-live-gated-audit";
 (() => {
   const CONFIG=window.RAINBOW_SUPABASE_CONFIG||{};
   const SUPABASE_URL=String(CONFIG.supabaseUrl||"").trim();
@@ -89,9 +89,12 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
   let cartVerificationFailed=false;
   let submitting=false;
   let razorpayReady=false;
+  let razorpayMode="test";
   let paymentChoiceTouched=false;
   const testHost=!["rainbowgoldcovering.com","www.rainbowgoldcovering.com"].includes(location.hostname);
   const razorpayTestAllowed=testHost||new URLSearchParams(location.search).get("test")==="1";
+  const razorpayLiveAllowed=!testHost;
+  const razorpayMethodAllowed=()=>razorpayMode==="live"?razorpayLiveAllowed:razorpayTestAllowed;
   const touchedFields=new Set();
   let showAllErrors=false;
   let readinessAttempt=0;
@@ -427,7 +430,7 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
     // The provider probe may continue in the background, but its full
     // connection panel is relevant only to customers selecting Razorpay TEST.
     const providerPanel=$("gatewayConnection");
-    if(providerPanel)providerPanel.hidden=!razorpayTestAllowed||!gatewaySelected;
+    if(providerPanel)providerPanel.hidden=!razorpayMethodAllowed()||!gatewaySelected;
     const qr=$("checkoutQR"),qrMessage=$("qrUnavailable"),referenceGroup=$("paymentReferenceGroup");
     const signature=snapshot();
     if(signature!==pendingFingerprint){pendingFingerprint=signature;clearPending();}
@@ -445,9 +448,9 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
     if(retry)retry.hidden=gatewaySelected||!pendingError;
     if(referenceGroup)referenceGroup.hidden=gatewaySelected||!quoteReady;
     if(!gatewaySelected&&payReady&&!pending&&!pendingBusy&&!pendingError)queuePending();
-    button.textContent=submitting?"Processing…":gatewaySelected?"Pay securely · TEST →":"Submit UPI reference →";
+    button.textContent=submitting?"Processing…":gatewaySelected?(razorpayMode==="live"?"Pay securely →":"Pay securely · TEST →"):"Submit UPI reference →";
     const actionReady=!submitting&&payReady&&
-      (gatewaySelected?razorpayReady:quoteReady&&/^[A-Za-z0-9-]{8,64}$/.test(reference));
+      (gatewaySelected?(razorpayReady&&razorpayMethodAllowed()):quoteReady&&/^[A-Za-z0-9-]{8,64}$/.test(reference));
     button.disabled=false; // Keep reachable so invalid submission can focus its field.
     button.setAttribute("aria-disabled",String(!actionReady));
     button.dataset.checkoutReady=String(actionReady);
@@ -581,13 +584,15 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
     }
     submitting=true;
     updatePlaceOrderState();
-    msg(paymentMethod==="razorpay"?"Starting a secure test checkout…":"Submitting your payment reference for verification…");
+    msg(paymentMethod==="razorpay"?(razorpayMode==="live"?"Starting secure checkout…":"Starting a secure test checkout…"):"Submitting your payment reference for verification…");
     try{
       if(paymentMethod==="razorpay"){
-        const result=await beginRazorpayTestPayment({
+        const result=await beginRazorpayPayment({
           items:cart.map(item=>({variant_id:item.variant_id,quantity:Number(item.quantity)})),
           customer,
-          displayTotal:totals().total
+          displayTotal:totals().total,
+          expectedMode:razorpayMode,
+          onPaymentFailed:reason=>msg("Payment failed: "+reason+" You can retry in Razorpay or close checkout.","error")
         });
         if(result.status==="paid"){
           cart=[];save();
@@ -601,10 +606,10 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
                 /^[0-9a-f-]{36}$/i.test(url.searchParams.get("token")||"") ? url.href : null;
             }catch{return null;}
           })();
-          $("orderSuccess").innerHTML="<h2>TEST payment verified</h2>"+
-            "<p>Test order <strong>"+esc(result.orderNumber||"—")+
+          $("orderSuccess").innerHTML=(result.mode==="live"?"<h2>Payment verified</h2>":"<h2>TEST payment verified</h2>")+
+            "<p>"+(result.mode==="live"?"Order ":"Test order ")+"<strong>"+esc(result.orderNumber||"—")+
             "</strong> is confirmed.</p>"+
-            "<p>No real money was deducted.</p>"+
+            (result.mode==="live"?"<p>Your payment has been securely verified.</p>":"<p>No real money was deducted.</p>")+
             (safeBill?"<p><a class='btn btn-dark' target='_blank' rel='noopener noreferrer' href='"+esc(safeBill)+
               "'>View / Print Invoice →</a></p>":"<p>Your invoice is being prepared. Contact the shop with the order number if it does not appear.</p>")+
             "<p>WhatsApp updates are sent only if you opted in and messaging is available.</p>"+
@@ -829,34 +834,50 @@ import {razorpayTestAvailability,beginRazorpayTestPayment} from "./order-razorpa
     const inline=$("razorpayInlineStatus");
     if(inline)inline.textContent="Checking availability…";
     if(retry){retry.hidden=true;retry.disabled=true;}
-    const status=await razorpayTestAvailability();
+    const status=await razorpayAvailability();
     if(attempt!==readinessAttempt)return;
-    razorpayReady=status.available;
-    connection?.classList.add(status.available?"is-online":"is-offline");
-    if(message)message.textContent=status.message;
-    if(inline)inline.textContent=status.available?"Available · TEST only":"Unavailable right now";
-    if(indicator)indicator.title=status.available?"Connected":"Not connected";
-    if(retry){retry.hidden=status.available;retry.disabled=false;}
+    razorpayMode=status.mode==="live"?"live":"test";
+    const permitted=razorpayMethodAllowed();
+    razorpayReady=Boolean(status.available&&permitted);
+    const option=$("razorpayChoice");
+    if(option){option.hidden=!permitted;option.style.display=permitted?"":"none";}
+    const badge=document.querySelector("#razorpayChoice .checkout-mode");
+    const choiceNote=document.querySelector("#razorpayChoice .payment-choice-note");
+    const detailsNote=document.querySelector("#razorpayDetails .payment-safety");
+    const footerNote=document.querySelector(".checkout-test-notice");
+    if(badge)badge.textContent=razorpayMode==="live"?"LIVE":"Test mode: no real money";
+    if(choiceNote)choiceNote.textContent=razorpayMode==="live"?"Real payment · Protected by Razorpay.":"Test only — no real charge.";
+    if(detailsNote)detailsNote.textContent=razorpayMode==="live"
+      ?"Your payment is verified securely before the order is confirmed."
+      :"Razorpay TEST: no money is deducted. Payment is verified by our server.";
+    if(footerNote)footerNote.textContent=razorpayMode==="live"
+      ?"Razorpay charges real money. Manual UPI transfers real money and requires shop verification."
+      :"Razorpay TEST does not charge real money. Manual UPI transfers real money and requires shop verification.";
+    document.documentElement.classList.toggle("checkout-razorpay-live",razorpayMode==="live"&&permitted);
+    connection?.classList.add(razorpayReady?"is-online":"is-offline");
+    if(message)message.textContent=permitted?status.message:"Razorpay unavailable on this host.";
+    if(inline)inline.textContent=razorpayReady?(razorpayMode==="live"?"Available · LIVE payment":"Available · TEST only"):"Unavailable right now";
+    if(indicator)indicator.title=razorpayReady?"Connected":"Not connected";
+    if(retry){retry.hidden=razorpayReady;retry.disabled=false;}
     const gateway=$("payRazorpay");
     if(gateway){
-      gateway.disabled=!status.available||!razorpayTestAllowed;
-      // Availability never changes the customer's chosen payment method.
-      // Even a failed provider probe cannot silently select manual UPI.
+      gateway.disabled=!razorpayReady;
+      // Availability never changes the customer's selection. If the provider
+      // switches TEST/LIVE mode, a selected but unavailable method cannot pay.
     }
     updatePlaceOrderState();
   }
-  $("retryGateway").addEventListener("click",()=>{if(razorpayTestAllowed)checkGateway();});
+  $("retryGateway").addEventListener("click",checkGateway);
   document.addEventListener("visibilitychange",()=>{
-    if(razorpayTestAllowed&&document.visibilityState==="visible" && !razorpayReady)checkGateway();
+    if(document.visibilityState==="visible"&&!razorpayReady)checkGateway();
   });
   window.addEventListener("pageshow",event=>{
-    if(razorpayTestAllowed&&event.persisted)checkGateway();
+    if(event.persisted)checkGateway();
   });
-  const testChoice=$("razorpayChoice");
-  if(testChoice){testChoice.hidden=!razorpayTestAllowed;testChoice.style.display=razorpayTestAllowed?"":"none";}
-  if(!razorpayTestAllowed){
-    const connection=$("gatewayConnection");
-    if(connection)connection.hidden=true;
-    $("payRazorpay").disabled=true;
-  }else checkGateway();
+  // On production, TEST stays hidden until an explicitly permitted TEST
+  // provider is selected by the shopper; LIVE must be server-proven first.
+  const gatewayOption=$("razorpayChoice");
+  if(gatewayOption){gatewayOption.hidden=!razorpayTestAllowed;gatewayOption.style.display=razorpayTestAllowed?"":"none";}
+  $("payRazorpay").disabled=true;
+  checkGateway();
 })();
