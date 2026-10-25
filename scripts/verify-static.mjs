@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"..");
-const required=["index.html","product.html","product-page.js","product-page.css","order.html","staff/index.html","admin/index.html","admin/login.html","admin/products.html","admin/inventory.html","admin/staff.html","admin/settings.html","admin/orders.html","admin/billing.html","admin/billing.js","admin/bills.html","admin/bills.js","admin/orders.js","admin/app.js","admin/config.js","business-live.js","content.js","invoice.html","invoice.js","invoice-template.js","invoice-template.css","bill-pdf.js","scripts/run-e2e-local.mjs"];
+const required=["404.html","reset-password.html","account-recovery.js","supabase-client.js","recovery-redirect.js","index.html","product.html","product-page.js","product-page.css","order.html","staff/index.html","admin/index.html","admin/login.html","admin/products.html","admin/inventory.html","admin/staff.html","admin/settings.html","admin/orders.html","admin/billing.html","admin/billing.js","admin/bills.html","admin/bills.js","admin/orders.js","admin/app.js","admin/config.js","business-live.js","content.js","invoice.html","invoice.js","invoice-template.js","invoice-template.css","bill-pdf.js","scripts/run-e2e-local.mjs"];
 const forbiddenPatterns=[/SUPABASE_SERVICE_ROLE_KEY\s*[:=]\s*(?!\$\{\{)[A-Za-z0-9._-]{20,}/i,/-----BEGIN [A-Z ]+PRIVATE KEY-----/];
 
 for(const file of required){
@@ -11,7 +11,7 @@ for(const file of required){
   catch{throw new Error("Missing required project file: "+file);}
 }
 
-const htmlFiles=["product.html","staff/index.html","admin/index.html","admin/login.html","admin/products.html","admin/inventory.html","admin/staff.html","admin/settings.html","admin/orders.html","admin/billing.html","admin/bills.html","invoice.html","order.html","index.html"];
+const htmlFiles=["404.html","reset-password.html","product.html","staff/index.html","admin/index.html","admin/login.html","admin/products.html","admin/inventory.html","admin/staff.html","admin/settings.html","admin/orders.html","admin/billing.html","admin/bills.html","invoice.html","order.html","index.html"];
 const refRe=/(?:src|href)=["']([^"']+)["']/gi;
 
 for(const file of htmlFiles){
@@ -21,7 +21,7 @@ for(const file of htmlFiles){
     if(!ref||ref.startsWith("#")||/^(?:(?:https?:)?\/\/|mailto:|tel:|sms:)/i.test(ref))continue;
     const clean=ref.split("?")[0].split("#")[0];
     if(!clean)continue;
-    try{await fs.access(path.resolve(path.dirname(path.join(root,file)),clean));}
+    try{await fs.access(clean.startsWith("/")?path.join(root,clean):path.resolve(path.dirname(path.join(root,file)),clean));}
     catch{throw new Error("Broken local asset reference in "+file+": "+ref);}
   }
 }

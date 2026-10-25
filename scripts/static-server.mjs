@@ -21,7 +21,7 @@ const server = http.createServer(async (req, res) => {
     if (!filePath) { res.writeHead(403); res.end("Forbidden"); return; }
     let target = filePath;
     try { const stat = await fs.stat(target); if (stat.isDirectory()) target = path.join(target, "index.html"); }
-    catch { res.writeHead(404); res.end("Not found"); return; }
+    catch { res.writeHead(404,{"Content-Type":"text/html; charset=utf-8"}); res.end(await fs.readFile(path.join(root,"404.html"))); return; }
     const content = await fs.readFile(target);
     res.writeHead(200, { "Content-Type": mime[path.extname(target)] || "application/octet-stream", "Cache-Control": "no-store" });
     res.end(content);
