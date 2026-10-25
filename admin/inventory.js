@@ -69,6 +69,7 @@ document.querySelectorAll("[data-manage-stock]").forEach(button=>{
   });
 });
 }
+window.addEventListener("erp-stock-changed",()=>{if(ERP_INVENTORY)loadInventory().catch(console.error);});
 document.getElementById("search").oninput=renderInventory;
 if(document.getElementById("rows"))requireSession()
  .then(async()=>{await loadInventoryBranchPicker();await loadInventory();})
