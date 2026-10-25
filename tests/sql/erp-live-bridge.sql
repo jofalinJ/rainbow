@@ -42,12 +42,12 @@ end $$;
 update public.product_variants set stock_quantity=stock_quantity-2
 where barcode='JM001-RED';
 do $$
-declare b record;
+declare v_balance record;
 begin
- select b.on_hand,b.reserved into b from public.erp_stock_balances b
+ select b.on_hand,b.reserved into v_balance from public.erp_stock_balances b
  join public.erp_locations l on l.id=b.location_id
  where l.kind='online' and b.variant_id='dddddddd-dddd-4ddd-8ddd-dddddddddddd';
- if b.on_hand<>5 or b.reserved<>2 then
+ if v_balance.on_hand<>5 or v_balance.reserved<>2 then
  raise exception 'Online reserve must retain 5 physical and hold 2';end if;
 end $$;
 -- Captured money would require an independently paid checkout row.
@@ -70,12 +70,12 @@ where id='40000000-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 update public.orders set notes='duplicate provider notification'
 where id='40000000-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 do $$
-declare b record;
+declare v_balance record;
 begin
- select b.on_hand,b.reserved into b from public.erp_stock_balances b
+ select b.on_hand,b.reserved into v_balance from public.erp_stock_balances b
  join public.erp_locations l on l.id=b.location_id
  where l.kind='online' and b.variant_id='dddddddd-dddd-4ddd-8ddd-dddddddddddd';
- if b.on_hand<>3 or b.reserved<>0 then
+ if v_balance.on_hand<>3 or v_balance.reserved<>0 then
  raise exception 'Payment must consume exactly two online units once';end if;
  if (select stock_quantity from public.product_variants where barcode='JM001-RED')<>3
  then raise exception 'Legacy online availability diverged after payment';end if;
