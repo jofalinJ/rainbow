@@ -38,7 +38,16 @@ describe("exactly-once local POS billing",()=>{
     expect(sql).not.toContain("if v_customer_name is not null or v_customer_phone is not null then");
   });
   it("retries with the same ID and never retries because a receipt refresh fails",()=>{
-    expect(client).toContain("pendingSale={id:crypto.randomUUID(),fingerprint}");
+    expect(client).toContain('const PENDING_SALE_KEY="rainbow_pos_pending_sale_v1"');
+    expect(client).toContain("sessionStorage.setItem(PENDING_SALE_KEY,JSON.stringify(next))");
+    expect(client).toContain("pendingSale=pendingSale||readPendingSale()");
+    expect(client).toContain("const hash=await saleRequestHash(items,payment,customer)");
+    expect(client).toContain("if(pendingSale&&pendingSale.hash!==hash)");
+    expect(client).toContain("clearPendingSale()");
+    expect(client).not.toContain("pendingSale.fingerprint");
+    expect(client).toContain("saleBusy=true;");
+    expect(client.indexOf("saleBusy=true;",client.indexOf("async function completeSale"))).toBeLessThan(
+      client.indexOf("await saleRequestHash(items,payment,customer)"));
     expect(client).toContain("customer.client_sale_id=pendingSale.id");
     expect(client).toContain("if(cart.size===0||saleBusy)return;");
     expect(client).toContain('showReceipt(data,savedItems,customerPhone,customerName)');
