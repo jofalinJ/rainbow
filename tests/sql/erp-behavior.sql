@@ -126,12 +126,12 @@ select public.erp_reserve_online_cart(
  '33333333-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
  '[{"variant_id":"dddddddd-dddd-4ddd-8ddd-dddddddddddd","quantity":1},
    {"variant_id":"eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee","quantity":2}]'::jsonb,
- '2030-01-01T00:00:00Z'::timestamptz);
+ now()+interval '30 minutes');
 select public.erp_reserve_online_cart(
  '33333333-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
  '[{"variant_id":"eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee","quantity":2},
    {"variant_id":"dddddddd-dddd-4ddd-8ddd-dddddddddddd","quantity":1}]'::jsonb,
- '2030-01-01T00:00:00Z'::timestamptz);
+ now()+interval '30 minutes');
 select public.erp_settle_online('33333333-aaaa-4aaa-8aaa-aaaaaaaaaaaa',true);
 select public.erp_settle_online('33333333-aaaa-4aaa-8aaa-aaaaaaaaaaaa',true);
 reset role;
