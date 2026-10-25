@@ -35,7 +35,7 @@ describe("Razorpay LIVE reconciliation on the isolated audit branch",()=>{
     expect(gateway).toContain("Math.round(displayTotal*100)!==gateway.amount");
     expect(gateway).toContain('data.code==="CHECKOUT_EXPIRED"');
     expect(gateway).toContain('error.code!=="CHECKOUT_EXPIRED"');
-    expect(checkout).toContain('expectedMode:razorpayMode');
+    expect(checkout).toContain('expectedMode:selectedRazorpayMode');
     expect(checkout).toContain('onPaymentFailed:reason=>msg(');
   });
   it("keeps payment pending distinct from independently verified paid",()=>{
