@@ -49,6 +49,22 @@ describe("existing admin screen multi-shop integration",()=>{
   expect(read("admin/products.js")).toContain("window.RAINBOW_MULTI_SHOP_ENABLED===true");
   expect(read("admin/config.js")).not.toContain("RAINBOW_MULTI_SHOP_ENABLED=true");
  });
+ it("activates original billing and inventory pages with safe branch-specific RPCs",()=>{
+  const billing=read("admin/billing.js");
+  const inventory=read("admin/inventory.js");
+  const products=read("admin/products.js");
+  expect(read("admin/billing.html")).toContain('id="erpBillingLocation"');
+  expect(read("admin/inventory.html")).toContain('id="inventoryBranchSelect"');
+  expect(billing).toContain('rpc("erp_create_local_sale"');
+  expect(billing).toContain('p_location:billingLocationId');
+  expect(billing).toContain('p_request:currentPosRequest');
+  expect(inventory).toContain("ERP_INVENTORY");
+  expect(inventory).toContain("erp_stock_balances");
+  expect(products).toContain('for(const id of ["stock","existingStock"])');
+  for(const name of ["admin/billing.js","admin/inventory.js","admin/products.js"]){
+    expect(()=>new Script(read(name),{filename:name})).not.toThrow();
+  }
+ });
  it("stages optional UI scripts with valid JavaScript",()=>{
   for(const p of ["admin/erp.js","admin/staff-branches.js","admin/branch-summary.js","admin/products.js"]){
    expect(()=>new Script(read(p),{filename:p})).not.toThrow();
