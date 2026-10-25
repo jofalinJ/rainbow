@@ -821,6 +821,12 @@ import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=
     if(!input.checked)return;
     paymentChoiceTouched=true;
     selectedRazorpayMode=input.value==="razorpay"?razorpayMode:null;
+    if(input.value==="razorpay"){
+      const inline=$("razorpayInlineStatus");
+      if(inline)inline.textContent=razorpayReady
+        ?(razorpayMode==="live"?"Available · LIVE payment":"Available · TEST only")
+        :"Unavailable right now";
+    }
     updatePlaceOrderState();
   }));
   const stateField=$("state");
