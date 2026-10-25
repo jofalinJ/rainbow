@@ -1,10 +1,23 @@
 <!doctype html>
 <html lang="en">
-<head><meta name="robots" content="noindex,nofollow"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#8f1520"><link rel="icon" type="image/png" href="../assets/brand/rainbow-logo.png"><title>Rainbow Gold Covering — Admin</title><link rel="stylesheet" href="style.css"><script src="config.js"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script defer src="app.js?v=20261018-unified-shop-staff-v2"></script><script defer src="promotion.js?v=20261015-rotating-gallery-v1"></script></head>
+<head><meta name="robots" content="noindex,nofollow"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#8f1520"><link rel="icon" type="image/png" href="../assets/brand/rainbow-logo.png"><title>Rainbow Gold Covering — Admin</title><link rel="stylesheet" href="style.css"><script src="config.js"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script defer src="app.js?v=20261018-unified-shop-staff-v2"></script><script defer src="promotion.js?v=20261015-rotating-gallery-v1"></script><script defer src="branch-summary.js?v=20261025"></script></head>
 <body>
 <aside aria-label="Admin sidebar"></aside>
 <main><header><div><p class="eyebrow">OVERVIEW</p><h1>Dashboard</h1></div><button class="profile" onclick="logout()">Sign out</button></header>
 <section class="cards"><div><small>Today’s Sales</small><strong id="sales">₹0</strong><span id="salesMeta">Loading…</span></div><div><small>Orders</small><strong id="orders">0</strong><span>Recent orders</span></div><div><small>Products</small><strong id="products">0</strong><span>Active products</span></div><div class="alert"><small>Low Stock</small><strong id="lowCount">0</strong><span>Needs attention</span></div></section>
+<section class="panel" id="branchSummaryPanel" aria-labelledby="branchSummaryTitle" style="margin-top:18px">
+<div class="panelhead"><div><h2 id="branchSummaryTitle">Shop-wise inventory overview</h2><p class="muted">Shared products, separate stock by shop and online allocation. This view remains staged until the billing stock cutover is approved.</p></div><button type="button" id="refreshBranchSummary">Refresh shop totals</button></div>
+<div class="cards" style="margin:12px 0">
+<div><small>All locations · on hand</small><strong id="branchTotalOnHand">—</strong></div>
+<div><small>Reserved</small><strong id="branchTotalReserved">—</strong></div>
+<div><small>In transit</small><strong id="branchTotalTransit">—</strong></div>
+<div><small>Company-owned</small><strong id="branchTotalOwned">—</strong></div>
+</div>
+<div class="table-wrap"><table class="staff-table">
+<thead><tr><th>Location</th><th>Type</th><th>On hand</th><th>Available</th><th>Reserved</th><th>In transit</th><th>Low stock</th></tr></thead>
+<tbody id="branchSummaryRows"><tr><td colspan="7">Loading shop totals…</td></tr></tbody></table></div>
+<p id="branchSummaryMessage" class="muted" role="status" aria-live="polite"></p>
+</section>
 <section class="panel promotion-management" aria-labelledby="promotionTitle">
   <div class="panelhead promotion-head">
     <div><p class="eyebrow">HOMEPAGE GALLERY</p><h2 id="promotionTitle">Rotating promotional images</h2></div>
