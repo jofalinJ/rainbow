@@ -41,5 +41,7 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261025210000_multi_shop_erp_staged.sql
       - name: Apply optional search indexes
         run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261025211000_erp_catalogue_indexes.sql
+      - name: Install read-only public catalogue projection
+        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261025212000_erp_public_catalogue.sql
       - name: Verify branch permission, transfers, retries, purchases and checkout reservations
         run: psql -v ON_ERROR_STOP=1 -f tests/sql/erp-behavior.sql
