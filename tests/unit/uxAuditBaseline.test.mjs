@@ -7,7 +7,7 @@ import {describe,it,expect} from "vitest";
 import {readFileSync} from "node:fs";
 
 const src=path=>readFileSync(new URL("../../"+path,import.meta.url),"utf8");
-const home=src("index.html"),product=src("product.html"),order=src("order.html");
+const product=src("product.html"),order=src("order.html");
 const shop=src("content.js"),productJs=src("product-page.js"),checkout=src("order.js");
 const siteCss=src("content.css"),mobileCss=src("mobile-storefront.css"),productCss=src("product-page.css");
 const catalogue=src("shop-catalogue.js");
@@ -60,7 +60,7 @@ describe("QA audit Phase 0 — failing source baselines, no network",()=>{
     expect(shop).toMatch(/Quick view:/);
     expect(shop).not.toMatch(/card\.addEventListener\("click"/);
   });
-  it("UX-18 Image counter cannot read 1 \/ 0",()=>{
+  it("UX-18 Image counter cannot read 1 / 0",()=>{
     expect(shop).toContain("(images.length?'<span");
     expect(shop).toContain("gallery-count");
   });
