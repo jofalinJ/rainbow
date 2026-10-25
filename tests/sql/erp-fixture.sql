@@ -86,6 +86,14 @@ create table public.razorpay_checkouts(
  status text not null
 );
 
+-- Existing legacy functions mocked only to verify final permission cutover SQL.
+create function public.create_local_sale(p_items jsonb,p_customer jsonb,p_payment_method text)
+returns jsonb language sql as $select '{}'::jsonb$;
+create function public.adjust_variant_stock(p_variant_id uuid,p_quantity_change integer,p_reason text)
+returns jsonb language sql as $select '{}'::jsonb$;
+grant execute on function public.create_local_sale(jsonb,jsonb,text) to authenticated;
+grant execute on function public.adjust_variant_stock(uuid,integer,text) to authenticated;
+
 insert into auth.users(id) values
  ('11111111-1111-4111-8111-111111111111'),
  ('22222222-2222-4222-8222-222222222222'),
