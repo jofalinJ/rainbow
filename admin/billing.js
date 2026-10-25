@@ -188,7 +188,11 @@ async function completeSale(){
   };
   const snapshot=[...cart.values()].map(x=>({...x}));
   const fingerprint=JSON.stringify({items,payment,customer});
-  if(!pendingSale||pendingSale.fingerprint!==fingerprint){
+  if(pendingSale&&pendingSale.fingerprint!==fingerprint){
+    setMsg("This earlier checkout may already have been saved. Restore the original cart/customer details and retry, or first verify the Bills list before clearing the cart.","error");
+    return;
+  }
+  if(!pendingSale){
     if(!globalThis.crypto?.randomUUID){
       setMsg("Secure sale ID generation is unavailable. Use an updated HTTPS browser.","error");
       return;
@@ -202,17 +206,22 @@ async function completeSale(){
   try{
     const {data,error}=await bootSupabase().rpc("create_local_sale",{p_items:items,p_customer:customer,p_payment_method:payment});
     if(error)throw error;
-    // The sale is committed at this point. Receipt/network failures must never prompt another charge.
+    // The sale is committed at this point: immediately prevent another sale on this cart.
     pendingSale=null;
+    cart.clear();
+    renderCart();
+    clearCustomer();
     let savedItems=snapshot.map(x=>({product_code:x.p.product_code,product_name:x.p.product_name,quantity:x.quantity,unit_price:x.price,discount_amount:0,line_total:x.price*x.quantity}));
     try{
       const rows=await sb("order_items?select=product_code,product_name,product_type,variant_color,variant_size,length_cm,thickness,gold_amount_g,quantity,unit_price,discount_amount,line_total&order_id=eq."+encodeURIComponent(data.order_id));
       if(Array.isArray(rows))savedItems=rows;
     }catch(e){console.warn("Sale completed, but receipt item refresh failed:",e);}
-    showReceipt(data,savedItems,customerPhone,customerName);
-    cart.clear();
-    renderCart();
-    clearCustomer();
+    try{showReceipt(data,savedItems,customerPhone,customerName);}
+    catch(receiptError){
+      console.warn("Sale completed but receipt preview failed",receiptError);
+      setMsg("Sale saved as "+data.invoice_number+". Open Bills to print it; do not bill again.","success");
+      return;
+    }
     setMsg("Sale completed: "+data.invoice_number,"success");
     try{await loadCatalog();}catch(e){console.warn("Catalogue refresh failed after sale",e);}
   }catch(e){
@@ -264,7 +273,11 @@ $b("productSearch").addEventListener("keydown",async e=>{
   }catch(error){setMsg("Barcode lookup failed: "+error.message,"error");}
 });
 $b("clearSearch").addEventListener("click",()=>{$b("productSearch").value="";loadCatalog().catch(e=>setMsg(e.message,"error"));$b("productSearch").focus();});
-$b("clearCart").addEventListener("click",()=>{if(saleBusy)return;cart.clear();pendingSale=null;renderCart();});
+$b("clearCart").addEventListener("click",()=>{
+  if(saleBusy)return;
+  if(pendingSale&&!confirm("This checkout may have completed. Verify the Bills list for a matching invoice before discarding the retry ID. Clear anyway?"))return;
+  cart.clear();pendingSale=null;renderCart();
+});
 $b("completeSale").addEventListener("click",completeSale);
 $b("newSale").addEventListener("click",()=>{$b("receiptScreen").style.display="none";$b("productSearch").focus();});
 renderCart();
