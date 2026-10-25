@@ -495,7 +495,7 @@ grant select on public.erp_admin_stock_totals to authenticated;
 -- Submit a complete purchase order. Draft orders cannot receive stock.
 create or replace function public.erp_submit_purchase(p_purchase uuid)
 returns jsonb language plpgsql security definer
-set search_path=pg_catalog,public,app_private as $
+set search_path=pg_catalog,public,app_private as $$
 declare v public.erp_purchase_orders%rowtype;
 begin
  if (select auth.uid()) is null or not app_private.erp_is_admin()
@@ -510,14 +510,14 @@ begin
  then raise exception 'Destination shop not active'; end if;
  update public.erp_purchase_orders set status='ordered' where id=p_purchase;
  return jsonb_build_object('status','ordered','already_applied',false);
-end; $;
+end; $$;
 revoke all on function public.erp_submit_purchase(uuid) from public,anon,authenticated;
 grant execute on function public.erp_submit_purchase(uuid) to authenticated;
 
 -- Database-side aggregate so a 10k+ product dashboard does not fetch all rows.
 create or replace function public.erp_dashboard_snapshot()
 returns jsonb language plpgsql stable security definer
-set search_path=pg_catalog,public,app_private as $
+set search_path=pg_catalog,public,app_private as $$
 begin
  if (select auth.uid()) is null or not app_private.erp_is_admin()
  then raise exception 'Admin only' using errcode='42501'; end if;
@@ -532,7 +532,7 @@ begin
  left join public.erp_reorder_settings s using(location_id,variant_id)
  where b.on_hand-b.reserved<=coalesce(s.minimum_qty,3))
  );
-end; $;
+end; $$;
 revoke all on function public.erp_dashboard_snapshot() from public,anon,authenticated;
 grant execute on function public.erp_dashboard_snapshot() to authenticated;
 
