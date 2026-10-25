@@ -88,7 +88,8 @@ function fillExistingProducts(preferredId=""){
   for(const p of [...items,...(pinnedProduct&&!items.some(x=>x.id===pinnedProduct.id)?[pinnedProduct]:[])]){
     select.add(new Option(p.product_code+" — "+p.product_name+(p.active===false?" (draft)":""),String(p.id)));
   }
-  select.value=items.some(p=>String(p.id)===String(previous))?String(previous):"";
+  select.value=items.some(p=>String(p.id)===String(previous))||
+  (pinnedProduct&&String(pinnedProduct.id)===String(previous))?String(previous):"";
   updateExistingVariantFields();
 }
 function displayExistingVariants(product,category){
@@ -138,7 +139,7 @@ function updateExistingVariantFields(){
 }
 async function saveVariant(){
   if(variantSaving)return;
-  const product=items.find(p=>String(p.id)===String($("existingProduct").value));
+  const product=findCurrentProduct($("existingProduct").value);
   if(!product){variantMessage("Choose an existing product before saving.",true);return;}
   const category=cats.find(c=>String(c.id)===String(product.category_id));
   if(!category){variantMessage("The selected product category is unavailable.",true);return;}
@@ -174,7 +175,7 @@ async function saveVariant(){
   }finally{
     variantSaving=false;
     $("saveVariantBtn").textContent="Save Variant";
-    const selected=items.find(p=>String(p.id)===String($("existingProduct").value));
+    const selected=findCurrentProduct($("existingProduct").value);
     const c=selected&&cats.find(x=>String(x.id)===String(selected.category_id));
     $("saveVariantBtn").disabled=!selected||!c||
       (!c.has_color&&!c.has_size&&!c.has_length&&(selected.product_variants||[]).length>0);
@@ -237,12 +238,99 @@ async function lookupProductByCode(code){
     return data;
   }catch(error){if(message)message.textContent="Lookup failed: "+error.message;return null;}
 }
+
+let sharedProductTimer=null,sharedSearchRevision=0,onlineSelectedId=null;
+async function findSharedProducts(value){
+ const term=String(value||"").trim().replace(/[^\p{L}\p{N}\s/_-]/gu," ").replace(/\s+/g," ").slice(0,70);
+ const target=$("sharedProductResults"),seq=++sharedSearchRevision;
+ target.replaceChildren();
+ if(term.length<2){target.textContent="Enter at least two characters.";return;}
+ target.textContent="Searching shared product catalogue…";
+ try{
+  const [a,b]=await Promise.all([
+   bootSupabase().from("products").select("id,product_code,product_name,product_images(public_url,is_primary,sort_order)")
+    .or("product_code.ilike.%"+term+"%,product_name.ilike.%"+term+"%")
+    .limit(15),
+   bootSupabase().from("product_variants").select("product_id").ilike("barcode","%"+term+"%").limit(15)
+  ]);
+  if(a.error)throw a.error;if(b.error)throw b.error;
+  let found=a.data||[];
+  const missing=(b.data||[]).map(x=>x.product_id).filter(id=>!found.some(p=>p.id===id));
+  if(missing.length){
+   const c=await bootSupabase().from("products").select("id,product_code,product_name,product_images(public_url,is_primary,sort_order)").in("id",[...new Set(missing)].slice(0,15));
+   if(c.error)throw c.error;
+   found=[...found,...(c.data||[])];
+  }
+  if(seq!==sharedSearchRevision)return;
+  target.replaceChildren();
+  if(!found.length){target.textContent="No product found. Create a new product only if it really doesn't exist.";return;}
+  for(const p of found.slice(0,20)){
+   const wrap=document.createElement("div");wrap.className="variant-chip";wrap.style.cssText="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:6px 0";
+   const description=document.createElement("span");description.textContent=p.product_code+" · "+p.product_name;
+   const photos=(p.product_images||[]).filter(x=>x.public_url).sort((a,b)=>Number(b.is_primary)-Number(a.is_primary));
+   const href=photos[0]?.public_url;
+   try{const url=new URL(href);if(url.protocol==="https:"){const img=document.createElement("img");img.src=url.href;img.alt="";img.loading="lazy";img.style.cssText="height:42px;width:42px;object-fit:contain;border-radius:8px";wrap.append(img);}}catch{}
+   const button=document.createElement("button");button.type="button";button.textContent="Reuse product";button.className="save-category";
+   button.addEventListener("click",async()=>{
+    if(!variantMode)$("existingBtn").click();
+    const matched=await lookupProductByCode(p.product_code);
+    if(matched){$("existingProduct").value=matched.id;updateExistingVariantFields();$("sharedProductResults").textContent="Selected "+p.product_code+"; existing variants and images are reused.";}
+   });
+   const manage=document.createElement("a");manage.href="inventory.html?lookup="+encodeURIComponent(p.product_code);
+   manage.textContent="Manage shop stock";
+   wrap.append(description,button,manage);target.append(wrap);
+  }
+ }catch(error){if(seq===sharedSearchRevision)target.textContent="Search unavailable: "+error.message;}
+}
+async function openOnlineListing(productId){
+ const profile=await getMyProfile();if(profile.role!=="admin"||!profile.active){alert("Only admin can edit online listings.");return;}
+ const p=items.find(x=>String(x.id)===String(productId))||
+ (pinnedProduct?.id===productId?pinnedProduct:null);
+ if(!p)return;
+ onlineSelectedId=p.id;
+ $("onlineListingProduct").textContent=p.product_code+" · "+p.product_name;
+ $("onlineListingFeedback").textContent="Loading listing…";
+ const {data,error}=await bootSupabase().from("erp_online_listings")
+ .select("published,online_price").eq("product_id",p.id).maybeSingle();
+ if(error){$("onlineListingFeedback").textContent="ERP listings aren't available in this environment: "+error.message;}
+ else{$("onlineListingFeedback").textContent="";$("onlineListingVisible").checked=Boolean(data?.published);$("onlineListingPrice").value=data?.online_price??"";}
+ $("saveOnlineListing").disabled=Boolean(error);
+ $("onlineListingDialog").showModal();
+}
+async function saveOnlineListing(){
+ if(!onlineSelectedId)return;
+ const raw=$("onlineListingPrice").value.trim();
+ if(raw!==""&&(!/^\d+(\.\d{1,2})?$/.test(raw)||!Number.isFinite(Number(raw)))){
+  $("onlineListingFeedback").textContent="Enter a valid price.";return;
+ }
+ const button=$("saveOnlineListing");button.disabled=true;
+ try{
+  const user=await getAuthUser();
+  const {error}=await bootSupabase().from("erp_online_listings").upsert({
+   product_id:onlineSelectedId,published:$("onlineListingVisible").checked,
+   online_price:raw===""?null:Number(raw),updated_by:user.id,updated_at:new Date().toISOString()
+  },{onConflict:"product_id"});
+  if(error)throw error;
+  $("onlineListingFeedback").textContent="Listing settings saved. The current public storefront is unchanged until approved cutover.";
+ }catch(error){$("onlineListingFeedback").textContent="Could not save: "+error.message;}
+ finally{button.disabled=false;}
+}
+function bindSharedProductSearch(){
+ $("sharedProductSearchButton")?.addEventListener("click",()=>findSharedProducts($("sharedProductSearch").value));
+ $("sharedProductSearch")?.addEventListener("input",()=>{
+  clearTimeout(sharedProductTimer);
+  sharedProductTimer=setTimeout(()=>findSharedProducts($("sharedProductSearch").value),350);
+ });
+ $("closeOnlineListing")?.addEventListener("click",()=>$("onlineListingDialog").close());
+ $("saveOnlineListing")?.addEventListener("click",saveOnlineListing);
+}
+
 async function init(){
   const profile=await getMyProfile();
   if(!profile.active||!["admin","cashier","inventory_staff"].includes(profile.role))throw new Error("You do not have product-management permission.");
   cats=await sb("categories?select=*&active=eq.true&order=storefront_order.asc,name.asc");
   $("category").innerHTML=cats.map(cat=>'<option value="'+escHtml(cat.id)+'">'+escHtml(cat.name)+"</option>").join("");
-  updateFields();setupVariantBox();
+  updateFields();setupVariantBox();bindSharedProductSearch();
   $("lookupProductButton")?.addEventListener("click",()=>lookupProductByCode($("lookupProductCode").value));
   $("lookupProductCode")?.addEventListener("keydown",event=>{
     if(event.key==="Enter"){event.preventDefault();lookupProductByCode(event.currentTarget.value);}
@@ -298,11 +386,15 @@ function render(){
       '<td>'+escHtml((cats.find(c=>String(c.id)===String(p.category_id))||{}).name||"")+'</td>'+
       '<td>'+escHtml(p.type)+'</td><td>'+escHtml(p.gender||"women")+'</td><td>'+(p.active===false?"Draft":"Published")+'</td><td>₹'+Number(p.selling_price).toLocaleString("en-IN")+'</td><td>'+stock+'</td>'+
       '<td><span class="photo-count">'+photos+'/5</span><button class="save-category" type="button" data-add-photos="'+escHtml(p.id)+'" '+(photos>=5?'disabled':'')+'>Add photos</button><input type="file" accept="image/*" multiple hidden data-image-input="'+escHtml(p.id)+'"></td>'+
-      '<td><button class="save-category" type="button" data-edit-product="'+escHtml(p.id)+'">Edit product</button></td></tr>';
+      '<td><button class="save-category" type="button" data-edit-product="'+escHtml(p.id)+'">Edit product</button> '+
+      '<button class="save-category" type="button" data-online-product="'+escHtml(p.id)+'">Online</button></td></tr>';
   }).join("")||'<tr><td colspan="10">No products found for the current database filters.</td></tr>';
   bindProductActions();bindImageUploadActions();renderStorefrontCategorySettings();
 }
-function bindProductActions(){document.querySelectorAll("[data-edit-product]").forEach(button=>{button.onclick=()=>startEditProduct(button.dataset.editProduct);});}
+function bindProductActions(){
+ document.querySelectorAll("[data-edit-product]").forEach(button=>{button.onclick=()=>startEditProduct(button.dataset.editProduct);});
+ document.querySelectorAll("[data-online-product]").forEach(button=>{button.onclick=()=>openOnlineListing(button.dataset.onlineProduct).catch(error=>console.warn("Online listing unavailable",error));});
+}
 function bindImageUploadActions(){
   document.querySelectorAll("[data-add-photos]").forEach(button=>{button.onclick=()=>{const input=button.closest("td")?.querySelector("[data-image-input]");if(input)input.click();};});
   document.querySelectorAll("[data-image-input]").forEach(input=>{input.onchange=()=>addPhotosToProduct(input.dataset.imageInput,input);});
