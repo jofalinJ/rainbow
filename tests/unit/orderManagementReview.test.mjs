@@ -9,7 +9,8 @@ const promotionFix=read("supabase/migrations/20261015200500_fix_promotion_delete
 
 describe("complete online order review",()=>{
   it("loads online orders only and retrieves all billing breakdown fields",()=>{
-    expect(orders).toContain('.eq("source","online")');
+    expect(orders).toContain('rpc("search_online_orders"');
+    expect(read("supabase/migrations/20261025120700_paginated_online_orders.sql")).toContain("where o.source='online'");
     for(const field of ["subtotal","discount_amount","cgst_amount","sgst_amount","delivery_fee",
       "variant_color","variant_size","length_cm","thickness","unit_price","line_total",
       "transaction_reference","verified_at","amount"]){
