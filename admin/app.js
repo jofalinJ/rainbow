@@ -96,6 +96,9 @@ async function loadDashboard(){
       sb("best_selling_products?select=*&limit=5")
     ]);
     const money=value=>"₹"+Number(value||0).toLocaleString("en-IN",{maximumFractionDigits:0});
+    const safe=value=>String(value??"").replace(/[&<>"']/g,ch=>({
+      "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+    }[ch]));
     const assign=(id,value)=>{const element=document.querySelector("#"+id);if(element)element.textContent=value;};
     assign("sales",money(metrics.today_sales));
     assign("salesMeta",Number(metrics.today_orders||0).toLocaleString("en-IN")+" orders today");
@@ -105,9 +108,9 @@ async function loadDashboard(){
     const orderRows=document.querySelector("#orderRows");
     if(orderRows)orderRows.innerHTML=(orders||[]).map(o=>"<tr><td>#"+String(o.id).slice(0,8).toUpperCase()+"</td><td>"+money(o.total_amount)+"</td><td><b>"+o.status+"</b></td></tr>").join("")||"<tr><td colspan='3'>No orders yet.</td></tr>";
     const lowRows=document.querySelector("#lowRows");
-    if(lowRows)lowRows.innerHTML=(low||[]).map(x=>"<div class='stock'><div><b>"+x.product_name+"</b><small>"+x.product_code+"</small></div><strong>"+x.stock_quantity+" left</strong></div>").join("")||"<p>No low-stock products.</p>";
+    if(lowRows)lowRows.innerHTML=(low||[]).map(x=>"<div class='stock'><div><b>"+safe(x.product_name)+"</b><small>"+safe(x.product_code)+"</small></div><strong>"+x.stock_quantity+" left</strong></div>").join("")||"<p>No low-stock products.</p>";
     const bestRows=document.querySelector("#bestRows");
-    if(bestRows)bestRows.innerHTML=(best||[]).map((x,i)=>"<div class='seller'><span>0"+(i+1)+"</span><div><b>"+x.product_name+"</b><small>"+x.units_sold+" sold</small></div><strong>"+money(x.sales_amount)+"</strong></div>").join("")||"<p>No sales yet.</p>";
+    if(bestRows)bestRows.innerHTML=(best||[]).map((x,i)=>"<div class='seller'><span>0"+(i+1)+"</span><div><b>"+safe(x.product_name)+"</b><small>"+x.units_sold+" sold</small></div><strong>"+money(x.sales_amount)+"</strong></div>").join("")||"<p>No sales yet.</p>";
   }catch(e){
     console.error(e);
     const meta=document.querySelector("#salesMeta");if(meta)meta.textContent="Error: "+e.message;
