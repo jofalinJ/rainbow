@@ -69,6 +69,16 @@
 <h3>Stock by location</h3>
 <div id="erpBranchBreakdown" class="erp-list"></div>
 </section>
+<section id="erpReorderPanel" hidden aria-label="Minimum stock settings">
+<h3>Reorder threshold for this shop</h3>
+<label>Alert when available stock is at or below
+<input id="erpMinimum" type="number" step="1" min="0" max="100000" value="3"></label>
+<button type="button" id="erpReorderSave">Save low-stock threshold</button>
+</section>
+<section aria-label="Selected variant movement history">
+<h3>Recent stock movements</h3>
+<div id="erpMovementHistory" class="erp-list"></div>
+</section>
 <div id="erpOnlinePanel" hidden>
 <h3>Online publication</h3>
 <label class="erp-inline"><input type="checkbox" id="erpPublished"> Publish this product online</label>
