@@ -73,7 +73,7 @@ describe("UX-21 contextual gateway status; manual UPI unaffected",()=>{
     expect(order).toContain('id="gatewayConnection" class="gateway-connection" role="status" aria-live="polite" hidden');
     expect(checkout).toContain('providerPanel.hidden=!razorpayMethodAllowed()||!gatewaySelected');
     expect(checkout).toContain('razorpayMode==="live"?"Available · LIVE payment":"Available · TEST only"');
-    expect(checkout).toContain("const status=await razorpayTestAvailability()");
+    expect(checkout).toContain("const status=await razorpayAvailability()");
     expect(checkout).not.toContain("gateway.checked=true");
     expect(mobile).toContain(".gateway-connection[hidden]{display:none!important}");
     expect(mobile).not.toContain(".gateway-connection.is-online{display:none!important}");
