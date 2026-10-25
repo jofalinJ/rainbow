@@ -5,7 +5,7 @@
 <aside aria-label="Admin sidebar"></aside>
 <main><header><div><p class="eyebrow">OVERVIEW</p><h1>Dashboard</h1></div><button class="profile" onclick="logout()">Sign out</button></header>
 <section class="cards"><div><small>Today’s Sales</small><strong id="sales">₹0</strong><span id="salesMeta">Loading…</span></div><div><small>Orders</small><strong id="orders">0</strong><span>Recent orders</span></div><div><small>Products</small><strong id="products">0</strong><span>Active products</span></div><div class="alert"><small>Low Stock</small><strong id="lowCount">0</strong><span>Needs attention</span></div></section>
-<section class="panel" id="branchSummaryPanel" aria-labelledby="branchSummaryTitle" style="margin-top:18px">
+<section class="panel" id="branchSummaryPanel" hidden aria-labelledby="branchSummaryTitle" style="margin-top:18px">
 <div class="panelhead"><div><h2 id="branchSummaryTitle">Shop-wise inventory overview</h2><p class="muted">Shared products, separate stock by shop and online allocation. This view remains staged until the billing stock cutover is approved.</p></div><button type="button" id="refreshBranchSummary">Refresh shop totals</button></div>
 <div class="cards" style="margin:12px 0">
 <div><small>All locations · on hand</small><strong id="branchTotalOnHand">—</strong></div>
