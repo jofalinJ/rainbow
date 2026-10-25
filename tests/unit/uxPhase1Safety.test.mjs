@@ -36,7 +36,9 @@ describe("Phase 1 source safety: no real money or production side effects",()=>{
     expect(checkout).not.toContain("gateway.checked=true");
     expect(checkout).not.toContain("manual.checked=true");
     expect(checkout).toContain('get("test")==="1"');
-    expect(checkout).toContain('testChoice.style.display=razorpayTestAllowed?"":"none"');
+    expect(checkout).toContain('gatewayOption.style.display=razorpayTestAllowed?"":"none"');
+    expect(checkout).toContain('razorpayMode==="live"?razorpayLiveAllowed:razorpayTestAllowed');
+    expect(checkout).toContain('expectedMode:razorpayMode');
   });
   it("UX-01 both product purchase paths use one isolated Buy now API",()=>{
     expect(product).toContain("RainbowCatalogue?.startBuyNow(line)");
