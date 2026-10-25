@@ -90,6 +90,7 @@ import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=
   let submitting=false;
   let razorpayReady=false;
   let razorpayMode="test";
+  let selectedRazorpayMode=null; // Customer must explicitly accept this mode.
   let paymentChoiceTouched=false;
   const testHost=!["rainbowgoldcovering.com","www.rainbowgoldcovering.com"].includes(location.hostname);
   const razorpayTestAllowed=testHost||new URLSearchParams(location.search).get("test")==="1";
@@ -392,7 +393,7 @@ import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=
     const deliveryValid=Object.keys(deliveryErrors()).length===0;
     const stockReady=cart.length>0&&cartVerified&&!cartVerificationFailed&&cart.every(cartItemHasStock);
     const paymentReady=deliveryValid&&stockReady&&
-      (selectedPaymentMethod()==="razorpay"?razorpayReady:Boolean(lockedAmounts()));
+      (selectedPaymentMethod()==="razorpay"?(razorpayReady&&selectedRazorpayMode===razorpayMode):Boolean(lockedAmounts()));
     const index=!stockReady?0:!deliveryValid?1:2;
     const steps=[["bagStep","Bag"],["addressStep","Delivery"],["paymentStep","Pay"]];
     for(let i=0;i<steps.length;i++){
@@ -450,7 +451,7 @@ import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=
     if(!gatewaySelected&&payReady&&!pending&&!pendingBusy&&!pendingError)queuePending();
     button.textContent=submitting?"Processing…":gatewaySelected?(razorpayMode==="live"?"Pay securely →":"Pay securely · TEST →"):"Submit UPI reference →";
     const actionReady=!submitting&&payReady&&
-      (gatewaySelected?(razorpayReady&&razorpayMethodAllowed()):quoteReady&&/^[A-Za-z0-9-]{8,64}$/.test(reference));
+      (gatewaySelected?(razorpayReady&&razorpayMethodAllowed()&&selectedRazorpayMode===razorpayMode):quoteReady&&/^[A-Za-z0-9-]{8,64}$/.test(reference));
     button.disabled=false; // Keep reachable so invalid submission can focus its field.
     button.setAttribute("aria-disabled",String(!actionReady));
     button.dataset.checkoutReady=String(actionReady);
@@ -576,7 +577,7 @@ import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=
     if(!phoneLooksValid(phone)){msg("Enter a valid WhatsApp number, including country code if needed.","error");return;}
     if(pin&&!/^\d{6}$/.test(pin)){msg("Enter a valid 6-digit PIN code.","error");return;}
     if(shipping===null){msg("Choose a valid Indian state or union territory for delivery.","error");return;}
-    if(paymentMethod!=="upi" && (paymentMethod!=="razorpay" || !razorpayReady)){
+    if(paymentMethod!=="upi" && (paymentMethod!=="razorpay" || !razorpayReady || selectedRazorpayMode!==razorpayMode)){
       msg("This payment method is not available. Choose manual UPI instead.","error");return;
     }
     if(paymentMethod==="upi"&&!/^[A-Za-z0-9-]{8,64}$/.test(paymentReference)){
@@ -591,7 +592,7 @@ import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=
           items:cart.map(item=>({variant_id:item.variant_id,quantity:Number(item.quantity)})),
           customer,
           displayTotal:totals().total,
-          expectedMode:razorpayMode,
+          expectedMode:selectedRazorpayMode,
           onPaymentFailed:reason=>msg("Payment failed: "+reason+" You can retry in Razorpay or close checkout.","error")
         });
         if(result.status==="paid"){
@@ -816,7 +817,12 @@ import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=
     field.addEventListener("input",()=>updatePlaceOrderState());
     field.addEventListener("change",()=>updatePlaceOrderState());
   }
-  document.querySelectorAll('input[name="paymentMethod"]').forEach(input=>input.addEventListener("change",()=>{paymentChoiceTouched=true;updatePlaceOrderState();}));
+  document.querySelectorAll('input[name="paymentMethod"]').forEach(input=>input.addEventListener("change",()=>{
+    if(!input.checked)return;
+    paymentChoiceTouched=true;
+    selectedRazorpayMode=input.value==="razorpay"?razorpayMode:null;
+    updatePlaceOrderState();
+  }));
   const stateField=$("state");
   for(const state of INDIAN_STATES)stateField.add(new Option(state,state));
   stateField.addEventListener("change",()=>{totals();updatePlaceOrderState();});
@@ -856,7 +862,12 @@ import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=
     document.documentElement.classList.toggle("checkout-razorpay-live",razorpayMode==="live"&&permitted);
     connection?.classList.add(razorpayReady?"is-online":"is-offline");
     if(message)message.textContent=permitted?status.message:"Razorpay unavailable on this host.";
-    if(inline)inline.textContent=razorpayReady?(razorpayMode==="live"?"Available · LIVE payment":"Available · TEST only"):"Unavailable right now";
+    const staleMode=selectedPaymentMethod()==="razorpay"&&
+      selectedRazorpayMode!==null&&selectedRazorpayMode!==razorpayMode;
+    if(inline)inline.textContent=staleMode
+      ?"Payment mode changed. Select UPI, then Razorpay again to review before paying."
+      :razorpayReady?(razorpayMode==="live"?"Available · LIVE payment":"Available · TEST only")
+      :"Unavailable right now";
     if(indicator)indicator.title=razorpayReady?"Connected":"Not connected";
     if(retry){retry.hidden=razorpayReady;retry.disabled=false;}
     const gateway=$("payRazorpay");
