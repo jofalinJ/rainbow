@@ -89,7 +89,7 @@ begin
     values (v_request_id,v_uid,v_request_hash) on conflict (request_id) do nothing;
   select created_by,payload_hash,response
     into v_existing_actor,v_existing_hash,v_existing_response
-    from app_private.local_sale_requests where request_id=v_request_id for update;
+    from app_private.local_sale_requests where request_id = v_request_id for update;
   if v_existing_actor is distinct from v_uid or v_existing_hash is distinct from v_request_hash then
     raise exception 'Sale identifier was already used for a different request';
   end if;
