@@ -330,7 +330,7 @@ async function init(){
   if(!profile.active||!["admin","cashier","inventory_staff"].includes(profile.role))throw new Error("You do not have product-management permission.");
   cats=await sb("categories?select=*&active=eq.true&order=storefront_order.asc,name.asc");
   $("category").innerHTML=cats.map(cat=>'<option value="'+escHtml(cat.id)+'">'+escHtml(cat.name)+"</option>").join("");
-  updateFields();setupVariantBox();bindSharedProductSearch();
+  updateFields();setupVariantBox();if(window.RAINBOW_MULTI_SHOP_ENABLED===true){$("sharedProductLookupSection").hidden=false;bindSharedProductSearch();}
   $("lookupProductButton")?.addEventListener("click",()=>lookupProductByCode($("lookupProductCode").value));
   $("lookupProductCode")?.addEventListener("keydown",event=>{
     if(event.key==="Enter"){event.preventDefault();lookupProductByCode(event.currentTarget.value);}
@@ -387,7 +387,7 @@ function render(){
       '<td>'+escHtml(p.type)+'</td><td>'+escHtml(p.gender||"women")+'</td><td>'+(p.active===false?"Draft":"Published")+'</td><td>₹'+Number(p.selling_price).toLocaleString("en-IN")+'</td><td>'+stock+'</td>'+
       '<td><span class="photo-count">'+photos+'/5</span><button class="save-category" type="button" data-add-photos="'+escHtml(p.id)+'" '+(photos>=5?'disabled':'')+'>Add photos</button><input type="file" accept="image/*" multiple hidden data-image-input="'+escHtml(p.id)+'"></td>'+
       '<td><button class="save-category" type="button" data-edit-product="'+escHtml(p.id)+'">Edit product</button> '+
-      '<button class="save-category" type="button" data-online-product="'+escHtml(p.id)+'">Online</button></td></tr>';
+      (window.RAINBOW_MULTI_SHOP_ENABLED===true?'<button class="save-category" type="button" data-online-product="'+escHtml(p.id)+'">Online</button>':'')+'</td></tr>';
   }).join("")||'<tr><td colspan="10">No products found for the current database filters.</td></tr>';
   bindProductActions();bindImageUploadActions();renderStorefrontCategorySettings();
 }
