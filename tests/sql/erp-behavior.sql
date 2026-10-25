@@ -106,4 +106,43 @@ begin
  if (select count(*) from public.erp_stock_events where action='online_sale')<>1
  then raise exception 'Online payment retry duplicated sale'; end if;
 end $$;
+-- Whole-cart, two-variant reservation and captured settlement.
+set local role authenticated;
+select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',true);
+select public.erp_adjust_stock(
+ (select id from public.erp_locations where code='BR-ONE'),
+ 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',3,'Received additional blue variant',
+ '11111111-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+select public.erp_dispatch_transfer(
+ (select id from public.erp_locations where code='BR-ONE'),
+ (select id from public.erp_locations where code='ONLINE'),
+ 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',3,'Allocate blue variant online',
+ '22222222-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+select public.erp_receive_transfer(
+ (select id from public.erp_transfers where request_id='22222222-aaaa-4aaa-8aaa-aaaaaaaaaaaa'));
+reset role;
+set local role service_role;
+select public.erp_reserve_online_cart(
+ '33333333-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+ '[{"variant_id":"dddddddd-dddd-4ddd-8ddd-dddddddddddd","quantity":1},
+   {"variant_id":"eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee","quantity":2}]'::jsonb,
+ '2030-01-01T00:00:00Z'::timestamptz);
+select public.erp_reserve_online_cart(
+ '33333333-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+ '[{"variant_id":"eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee","quantity":2},
+   {"variant_id":"dddddddd-dddd-4ddd-8ddd-dddddddddddd","quantity":1}]'::jsonb,
+ '2030-01-01T00:00:00Z'::timestamptz);
+select public.erp_settle_online('33333333-aaaa-4aaa-8aaa-aaaaaaaaaaaa',true);
+select public.erp_settle_online('33333333-aaaa-4aaa-8aaa-aaaaaaaaaaaa',true);
+reset role;
+do $$
+declare qty integer; reserved_qty integer;
+begin
+ select sum(on_hand),sum(reserved) into qty,reserved_qty from public.erp_stock_balances;
+ if qty<>30 or reserved_qty<>0 then
+ raise exception 'Two-variant checkout miscounted stock: %, reserve %',qty,reserved_qty; end if;
+ if (select count(*) from public.erp_stock_events
+  where action='online_sale' and idempotency_key='33333333-aaaa-4aaa-8aaa-aaaaaaaaaaaa')<>2
+ then raise exception 'Cart settlement should log exactly two item sales'; end if;
+end $$;
 rollback;
