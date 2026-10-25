@@ -269,7 +269,7 @@ async function findSharedProducts(value){
    const description=document.createElement("span");description.textContent=p.product_code+" · "+p.product_name;
    const photos=(p.product_images||[]).filter(x=>x.public_url).sort((a,b)=>Number(b.is_primary)-Number(a.is_primary));
    const href=photos[0]?.public_url;
-   try{const url=new URL(href);if(url.protocol==="https:"){const img=document.createElement("img");img.src=url.href;img.alt="";img.loading="lazy";img.style.cssText="height:42px;width:42px;object-fit:contain;border-radius:8px";wrap.append(img);}}catch{}
+   try{const url=new URL(href);if(url.protocol==="https:"){const img=document.createElement("img");img.src=url.href;img.alt="";img.loading="lazy";img.style.cssText="height:42px;width:42px;object-fit:contain;border-radius:8px";wrap.append(img);}}catch{/* No remote image preview for missing or invalid URLs. */}
    const button=document.createElement("button");button.type="button";button.textContent="Reuse product";button.className="save-category";
    button.addEventListener("click",async()=>{
     if(!variantMode)$("existingBtn").click();
