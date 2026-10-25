@@ -295,6 +295,8 @@ async function openOnlineListing(productId){
  if(error){$("onlineListingFeedback").textContent="ERP listings aren't available in this environment: "+error.message;}
  else{$("onlineListingFeedback").textContent="";$("onlineListingVisible").checked=Boolean(data?.published);$("onlineListingPrice").value=data?.online_price??"";}
  $("saveOnlineListing").disabled=Boolean(error);
+ $("onlineListingPrice").disabled=true;
+ $("onlineListingFeedback").textContent="Online prices currently use the master product price. Allocation must happen in Inventory.";
  $("onlineListingDialog").showModal();
 }
 async function saveOnlineListing(){
@@ -308,7 +310,7 @@ async function saveOnlineListing(){
   const user=await getAuthUser();
   const {error}=await bootSupabase().from("erp_online_listings").upsert({
    product_id:onlineSelectedId,published:$("onlineListingVisible").checked,
-   online_price:raw===""?null:Number(raw),updated_by:user.id,updated_at:new Date().toISOString()
+   online_price:null,updated_by:user.id,updated_at:new Date().toISOString()
   },{onConflict:"product_id"});
   if(error)throw error;
   $("onlineListingFeedback").textContent="Listing settings saved. The current public storefront is unchanged until approved cutover.";
@@ -330,7 +332,13 @@ async function init(){
   if(!profile.active||!["admin","cashier","inventory_staff"].includes(profile.role))throw new Error("You do not have product-management permission.");
   cats=await sb("categories?select=*&active=eq.true&order=storefront_order.asc,name.asc");
   $("category").innerHTML=cats.map(cat=>'<option value="'+escHtml(cat.id)+'">'+escHtml(cat.name)+"</option>").join("");
-  updateFields();setupVariantBox();if(window.RAINBOW_MULTI_SHOP_ENABLED===true){$("sharedProductLookupSection").hidden=false;bindSharedProductSearch();}
+  updateFields();setupVariantBox();
+  if(window.RAINBOW_MULTI_SHOP_ENABLED===true){
+    for(const id of ["stock","existingStock"]){
+      const input=$(id);if(input){input.value="0";input.readOnly=true;
+        input.title="Receive opening stock at the selected shop using Inventory.";}}
+  }
+  if(window.RAINBOW_MULTI_SHOP_ENABLED===true){$("sharedProductLookupSection").hidden=false;bindSharedProductSearch();}
   $("lookupProductButton")?.addEventListener("click",()=>lookupProductByCode($("lookupProductCode").value));
   $("lookupProductCode")?.addEventListener("keydown",event=>{
     if(event.key==="Enter"){event.preventDefault();lookupProductByCode(event.currentTarget.value);}
