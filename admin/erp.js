@@ -194,7 +194,7 @@ async function assignStaff() {
  const user_id=$("erpStaff").value,location_id=$("erpStaffShop").value;
  if(!user_id||!location_id){notify("Select staff and shop.",true);return;}
  try{
- await query(state.client.from("erp_staff_locations").upsert({user_id,location_id},{onConflict:"user_id,location_id"}));
+ await query(state.client.from("erp_staff_locations").insert({user_id,location_id}));
  notify("Shop permission assigned.");await loadStaff();
  }catch(e){notify(e.message,true);}
 }
