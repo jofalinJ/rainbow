@@ -26,15 +26,15 @@
     <section class="order-card checkout-panel" aria-labelledby="deliveryHeading">
       <div class="checkout-section-title"><span class="checkout-eyebrow">STEP 02 / DELIVERY</span><h2 id="deliveryHeading">Delivery details</h2></div>
       <p class="checkout-subtitle">Delivery fee updates with your state.</p>
-      <div class="order-form">
-        <label>Full name <span class="required-mark">*</span><input id="name" required autocomplete="name" placeholder="Name for delivery"></label>
-        <label>WhatsApp number <span class="required-mark">*</span><input id="phone" required inputmode="tel" autocomplete="tel" placeholder="10-digit number"></label>
-        <label>Email (optional)<input id="email" type="email" autocomplete="email" placeholder="you@example.com"></label>
-        <label>PIN code<input id="pin" inputmode="numeric" autocomplete="postal-code" placeholder="6 digits"></label>
-        <label>City<input id="city" autocomplete="address-level2" placeholder="City / town"></label>
+      <form class="order-form" id="deliveryForm" novalidate>
+        <label>Full name <span class="required-mark">*</span><input id="name" required maxlength="120" autocomplete="name" placeholder="Name for delivery"></label>
+        <label>WhatsApp number <span class="required-mark">*</span><input id="phone" type="tel" required maxlength="20" inputmode="tel" autocomplete="tel" placeholder="10-digit number"></label>
+        <label>Email (optional)<input id="email" type="email" maxlength="254" autocomplete="email" placeholder="you@example.com"></label>
+        <label>PIN code<input id="pin" maxlength="6" inputmode="numeric" autocomplete="postal-code" placeholder="6 digits"></label>
+        <label>City<input id="city" maxlength="120" autocomplete="address-level2" placeholder="City / town"></label>
         <label>State / UT <span class="required-mark">*</span><select id="state" required autocomplete="address-level1"><option value="">Select state</option></select></label>
-        <label class="full">Delivery address <span class="required-mark">*</span><textarea id="address" rows="3" required autocomplete="street-address" placeholder="House, street, area"></textarea></label>
-      </div>
+        <label class="full">Delivery address <span class="required-mark">*</span><textarea id="address" rows="3" required maxlength="600" autocomplete="street-address" placeholder="House, street, area"></textarea></label>
+      </form>
     </section>
     <section class="order-card checkout-panel" aria-labelledby="paymentHeading">
       <div class="checkout-section-title"><span class="checkout-eyebrow">STEP 03 / PAYMENT</span><h2 id="paymentHeading">Payment method</h2></div>
@@ -92,7 +92,7 @@
         <div><span>Delivery</span><strong id="delivery">Choose state</strong></div>
         <div class="grand"><span id="totalLabel">Total including delivery</span><strong id="total">—</strong></div>
       </div>
-      <button id="placeOrder" class="btn btn-dark place-order" type="button" disabled>Checking checkout…</button>
+      <button id="placeOrder" class="btn btn-dark place-order" type="submit" form="deliveryForm" disabled>Checking checkout…</button>
       <p id="orderMsg" class="order-msg" role="status" aria-live="polite"></p>
       
       <p class="checkout-test-notice"><strong>Payment note:</strong> Razorpay TEST does not charge real money. Manual UPI transfers real money and requires shop verification.</p>
@@ -100,5 +100,5 @@
   </aside>
 </div></div></main>
 <footer class="container footer"><span class="footer-brand"><img class="footer-logo" src="assets/brand/rainbow-logo.png" alt="Rainbow Gold Covering logo" width="28" height="28" loading="lazy"><span>RAINBOW GOLD COVERING</span></span><span><a class="instagram-link" href="https://www.instagram.com/rainbow_kollam_gold_covering/" target="_blank" rel="noopener noreferrer">Instagram · @rainbow_kollam_gold_covering</a></span><span class="footer-legal-link"><a href="privacy-policy.html">Privacy Policy</a></span><span class="footer-legal-link"><a href="terms-and-conditions.html">Terms &amp; Conditions</a></span><span class="footer-legal-link"><a href="sitemap.html">Sitemap</a></span></footer>
-<script src="payment-config.js?v=20261021-checkout-v2"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script type="module" src="order.js?v=20261024-payment-clarity-v5"></script>
+<script src="payment-config.js?v=20261021-checkout-v2"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script type="module" src="order.js?v=20261026-delivery-validation"></script>
 </body></html>

@@ -142,7 +142,7 @@ export async function beginRazorpayPayment({items,customer,displayTotal,expected
               resolve({status:"paid",mode,orderNumber:result.orderNumber,
                 invoiceUrl:result.invoiceUrl||null,invoiceNumber:result.invoiceNumber||null});
             }else{
-              resolve({status:"pending",mode,orderNumber:result.orderNumber});
+              resolve({status:"pending",mode,orderNumber:result.orderNumber||gateway.orderNumber});
             }
           }catch(error){reject(error);}
         },

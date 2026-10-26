@@ -52,7 +52,8 @@ describe("Rainbow mobile storefront wiring",()=>{
     expect(productJs).toContain('document.createElement("button")');
     for(const id of ["placeOrder","payRazorpay","paymentReference","total","state"])
       expect(ids(checkout)).toContain(id);
-    expect(checkoutJs).toContain('$("placeOrder").onclick=placeOrder');
+    expect(checkoutJs).toContain('$("deliveryForm").addEventListener("submit"');
+    expect(checkout).toContain('form="deliveryForm"');
     expect(checkoutJs).toContain('selectedPaymentMethod');
   });
   it("publishes the mobile assets in Cloudflare's explicit file allowlist",()=>{
