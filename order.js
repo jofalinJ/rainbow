@@ -210,6 +210,16 @@ import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=
       render();
     }
   }
+  function focusOrderConfirmation(paid=false){
+    $("addressStep").classList.remove("is-active");
+    $("addressStep").classList.add("is-complete");
+    $("paymentStep").classList.add(paid?"is-complete":"is-active");
+    if(paid)$("paymentStep").classList.remove("is-active");
+    const confirmation=$("orderSuccess");
+    confirmation.tabIndex=-1;
+    confirmation.focus({preventScroll:true});
+    confirmation.scrollIntoView({block:"start"});
+  }
   function validateDeliveryFields(){
     const checks=[
       ["name",value=>!value?"Enter the name for delivery.":value.length>120?"Keep the name within 120 characters.":""],
@@ -298,6 +308,7 @@ import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=
             "<p>WhatsApp updates are sent only if you opted in and messaging is available.</p>"+
             "<a class='btn btn-light' href='index.html#products'>Continue shopping</a>";
           msg("");
+          focusOrderConfirmation(true);
         }else if(result.status==="pending"){
           msg("Payment "+(result.orderNumber?"for order "+result.orderNumber+" ":"")+"is awaiting confirmation. Do not pay again; contact the shop "+(result.orderNumber?"with this order number":"with your payment reference")+" if it remains pending.","error");
         }else{
@@ -320,6 +331,7 @@ import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=
       $("orderSuccess").hidden=false;
       $("orderSuccess").innerHTML="<h2>UPI reference submitted</h2><p>Order <strong>"+esc(data.order_number)+"</strong> is pending shop verification. It is not confirmed yet.</p><p>Total: <strong>"+money(data.total_amount)+"</strong>. Keep your UPI receipt until payment is verified.</p><a class='btn btn-dark' href='index.html#products'>Continue shopping</a>";
       msg("");
+      focusOrderConfirmation();
     }catch(error){
       console.error("Order creation failed.",error);
       msg(error.message||"We could not submit the payment details. Please check the information and try again.","error");
