@@ -186,13 +186,39 @@ test("mobile storefront puts cart beside account and displays photo categories w
   });
 });
 
-test("checkout top navigation and logo do not overlap at phone width",async()=>{
+test("checkout header keeps visible controls separated at phone and desktop widths",async()=>{
   await runWithDriver("checkout-mobile-topbar",async driver=>{
-    await driver.sendDevToolsCommand("Emulation.setDeviceMetricsOverride",{width:390,height:844,deviceScaleFactor:1,mobile:true});
-    await driver.get(BASE_URL+"/order.html");
-    const logo=await driver.findElement(By.css(".topbar .logo"));
-    const links=await driver.findElement(By.css(".topbar .navlinks"));
-    const a=await logo.getRect(),b=await links.getRect();
-    assert.ok(a.y+a.height<=b.y+2,"Mobile checkout logo should be above navigation row");
+    for(const size of [{width:320,height:568},{width:375,height:812},{width:390,height:844},{width:1366,height:768},{width:1440,height:900}]){
+      await driver.sendDevToolsCommand("Emulation.setDeviceMetricsOverride",{...size,deviceScaleFactor:1,mobile:size.width<768});
+      await driver.get(BASE_URL+"/order.html");
+      assert.equal(await driver.findElement(By.css(".topbar .logo")).isDisplayed(),true,"Checkout brand must remain visible");
+      assert.equal(await driver.findElement(By.css(".topbar .cart-top")).isDisplayed(),true,"Shopping bag must remain reachable");
+      const nav=await driver.findElement(By.css(".topbar .nav"));
+      const layout=await driver.executeScript(nav=>{
+        const view=nav.ownerDocument.defaultView;
+        const rect=element=>{
+          const box=element.getBoundingClientRect();
+          return {left:box.left,right:box.right,top:box.top,bottom:box.bottom,width:box.width,height:box.height};
+        };
+        // Compact phone checkout intentionally hides the redundant shop-link row.
+        // A display:none element has a zero rect and cannot establish an overlap.
+        const groups=Array.from(nav.querySelectorAll(":scope > .logo, :scope > .navlinks, :scope > .nav-actions"))
+          .filter(element=>{
+            const style=view.getComputedStyle(element),box=element.getBoundingClientRect();
+            return style.display!=="none"&&style.visibility!=="hidden"&&box.width>0&&box.height>0;
+          }).map(element=>({name:element.className,...rect(element)}));
+        return {nav:rect(nav),groups,viewport:view.innerWidth,scrollWidth:nav.ownerDocument.documentElement.scrollWidth};
+      },nav);
+      assert.ok(layout.scrollWidth<=layout.viewport+1,"Checkout must not scroll horizontally at "+size.width+"px");
+      for(const group of layout.groups){
+        assert.ok(group.left>=layout.nav.left-1&&group.right<=layout.nav.right+1&&group.top>=layout.nav.top-1&&group.bottom<=layout.nav.bottom+1,
+          group.name+" must fit inside the checkout header at "+size.width+"px");
+      }
+      for(let i=0;i<layout.groups.length;i++)for(let j=i+1;j<layout.groups.length;j++){
+        const a=layout.groups[i],b=layout.groups[j];
+        const overlaps=a.left<b.right-1&&a.right>b.left+1&&a.top<b.bottom-1&&a.bottom>b.top+1;
+        assert.equal(overlaps,false,a.name+" and "+b.name+" overlap at "+size.width+"px");
+      }
+    }
   });
 });

@@ -20,6 +20,7 @@ jobs:
       - run: npm ci --legacy-peer-deps
       - run: npm run lint
       - run: npm run test:unit
+      - run: npm run test:checkout:fixture
       - run: npm run build
       - run: npm run build:pages
       - run: test -f dist-pages/index.html && test -f dist-pages/staff/index.html && test -f dist-pages/admin/login.html && test ! -e dist-pages/backend && test ! -e dist-pages/supabase && test ! -e dist-pages/tests

@@ -139,7 +139,8 @@ body:has(.order-page) .order-page{padding:44px 0 110px}
 .checkout-assurance p{color:#75675f;font-size:11px;line-height:1.55;margin:7px 0}
 .checkout-assurance span{color:#967441;font-weight:900;margin-right:7px}
 .checkout-test-notice{border-radius:8px;padding:12px;background:#fff6e9;color:#7d5630;font-size:11px;line-height:1.55;margin:17px 0 0}
-.order-success[hidden]{display:none}
+.order-success[hidden],.order-layout[hidden]{display:none!important}
+.order-success{scroll-margin-top:120px}
 @media(max-width:900px){
   .checkout-layout{grid-template-columns:minmax(0,1.35fr) minmax(260px,.95fr);gap:14px}
   .checkout-layout .order-card{padding:19px}

@@ -11,6 +11,7 @@
     "test:all": "npm run test && npm run test:e2e",
     "test:unit": "vitest run tests/unit",
     "test:integration": "vitest run tests/integration",
+    "test:checkout:fixture": "node --test tests/fixtures/checkout-flow.test.mjs",
     "test:e2e": "node scripts/run-e2e-local.mjs",
     "test:e2e:public": "node --test tests/e2e/selenium/tests/public.test.mjs",
     "test:e2e:authenticated": "node --test tests/e2e/selenium/tests/staff.test.mjs",
@@ -22,13 +23,14 @@
     "security": "npm audit --audit-level=high"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.5.10",
     "@eslint/js": "^9.39.1",
     "@supabase/supabase-js": "^2.58.0",
     "@vitest/coverage-v8": "5.0.3",
     "eslint": "^9.39.1",
     "globals": "^16.5.0",
     "selenium-webdriver": "^4.38.0",
-    "vitest": "5.0.3",
-    "vite": "^7.3.0"
+    "vite": "^7.3.0",
+    "vitest": "5.0.3"
   }
 }

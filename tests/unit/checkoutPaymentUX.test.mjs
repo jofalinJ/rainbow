@@ -13,7 +13,7 @@ describe("Rainbow secure checkout release",()=>{
     expect(build).toContain('"payment-config.js","order-razorpay.mjs"');
     expect(build).toContain('"order.js"');
     expect(page).toContain('src="payment-config.js?v=20261021-checkout-v2"');
-    expect(script).toContain('order-razorpay.mjs?v=20261021-paid-confirmation-v4');
+    expect(script).toMatch(/order-razorpay\.mjs\?v=[\w-]+/);
   });
   it("offers only supported choices and updates the order amount alongside the payment selector",()=>{
     expect(page).toContain('id="payRazorpay"');
