@@ -169,7 +169,7 @@ begin
     'amount_paise',(v_total*100)::bigint,
     'expires_at',now()+interval '25 minutes');
 end;
-$function$
+$function$;
 
 CREATE OR REPLACE FUNCTION public.create_online_order(p_items jsonb, p_customer jsonb, p_delivery_distance_km numeric DEFAULT NULL::numeric)
  RETURNS jsonb
@@ -367,7 +367,7 @@ begin
     'total_amount',v_total
   );
 end;
-$function$
+$function$;
 
 CREATE OR REPLACE FUNCTION public.get_public_invoice(p_token uuid)
  RETURNS jsonb
@@ -420,4 +420,4 @@ AS $function$
           or exists(select 1 from public.payments p
              where p.order_id=o.id and p.method='upi' and p.status='paid'
                and p.verified_by is not null and p.verified_at is not null))));
-$function$
+$function$;
