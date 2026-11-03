@@ -16,7 +16,7 @@ export const publicRootFiles=[
 export const publicDirectories=["admin","staff","assets","src/domain"];
 
 const PUBLIC_ROOT=new Set(publicRootFiles);
-const PUBLIC_DIRS=new Set(publicDirectories);
+
 
 /**
  * Limit local HTTP previews to exactly the same static tree as Pages.
@@ -29,5 +29,5 @@ export function isPublicAssetPath(relative){
   const parts=relative.split("/");
   if(parts.some(part=>!part||part==="."||part===".."||part.startsWith(".")))return false;
   if(parts.length===1)return PUBLIC_ROOT.has(relative);
-  return PUBLIC_DIRS.has(parts[0]);
+  return publicDirectories.some(directory=>relative.startsWith(directory+"/"));
 }
