@@ -88,6 +88,18 @@ describe("staff inventory pagination",()=>{
       .rejects.toThrow("Invalid inventory page limits");
   });
 
+  it("renders a bounded initial table and leaves every variant accessible through Show more",()=>{
+    const html=readFileSync(new URL("../../admin/inventory.html",import.meta.url),"utf8");
+    const code=readFileSync(new URL("../../admin/inventory.js",import.meta.url),"utf8");
+    expect(html).toContain('id="inventoryLoadMore"');
+    expect(code).toContain("const INVENTORY_RENDER_CHUNK=200");
+    expect(code).toContain("const visibleRows=rows.slice(0,visibleInventoryRows)");
+    expect(code).toContain('visibleInventoryRows+=INVENTORY_RENDER_CHUNK');
+    expect(code).toContain('document.getElementById("variantCount").textContent=rows.length');
+    expect(code).toContain('document.getElementById("stockCount").textContent=rows.reduce(');
+    expect(code).toContain('resetInventoryRowCount();renderInventory();');
+  });
+
   it("ignores stale async results when staff rapidly changes shops",()=>{
     const code=readFileSync(new URL("../../admin/inventory.js",import.meta.url),"utf8");
     expect(code).toContain("const epoch=++inventoryLoadEpoch,selectedLocation=inventoryBranchId;");
