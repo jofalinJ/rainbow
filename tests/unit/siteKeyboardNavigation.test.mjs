@@ -34,14 +34,15 @@ describe("sitewide keyboard navigation",()=>{
   for(const page of navigablePages){
     it(`${page} exposes a keyboard-reachable main landmark`,()=>{
       const html=read(page);
-      expect(html).toMatch(/<html\\b[^>]*\\blang="en"/i);
-      expect(html).toMatch(/<meta\\b[^>]*name="viewport"/i);
-      const link=html.match(/<a\\b[^>]*class="skip-link"[^>]*href="#([^"]+)"[^>]*>/i);
+      expect(html).toMatch(/<html\b[^>]*\blang="en"/i);
+      expect(html).toMatch(/<meta\b[^>]*name="viewport"/i);
+      const link=html.match(/<a\b[^>]*class="skip-link"[^>]*>/i);
       expect(link).not.toBeNull();
-      const destination=link?.[1];
+      const destination=link?.[0].match(/\bhref="#([^"]+)"/i)?.[1];
+      expect(destination).toBeTruthy();
       const landmark=page==="admin/login.html"
-        ? html.match(/<div\\b[^>]*\\brole="main"[^>]*>/i)
-        : html.match(/<main\\b[^>]*>/i);
+        ? html.match(/<div\b[^>]*\brole="main"[^>]*>/i)
+        : html.match(/<main\b[^>]*>/i);
       expect(landmark).not.toBeNull();
       expect(landmark?.[0]).toContain(`id="${destination}"`);
       expect(landmark?.[0]).toContain('tabindex="-1"');
@@ -61,7 +62,7 @@ describe("sitewide keyboard navigation",()=>{
   it("makes skip links visible on keyboard focus but invisible on printed invoices",()=>{
     const css=read("design-system.css");
     expect(css).toContain(".skip-link:focus-visible");
-    expect(css).toMatch(/@media print\\s*\\{\\s*\\.skip-link\\s*\\{\\s*display:\\s*none\\s*!important/);
+    expect(css).toMatch(/@media print\s*\{\s*\.skip-link\s*\{\s*display:\s*none\s*!important/);
     expect(read("invoice.html")).toContain('class="skip-link"');
   });
 
