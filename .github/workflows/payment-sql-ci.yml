@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'supabase/migrations/20261021*'
+      - 'supabase/migrations/20261103*'
       - 'tests/sql/**'
       - '.github/workflows/payment-sql-ci.yml'
   workflow_dispatch:
@@ -50,3 +51,7 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261021202500_manual_upi_guest_idempotency.sql
       - name: Verify retry, inventory, expiry, privacy and captured payment rules
         run: psql -v ON_ERROR_STOP=1 -f tests/sql/payment-behavior.sql
+      - name: Install interstate GST in disposable PostgreSQL only
+        run: PGOPTIONS="-c check_function_bodies=off" psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261103183000_interstate_igst_checkout.sql
+      - name: Verify interstate tax and checkout idempotency
+        run: psql -v ON_ERROR_STOP=1 -f tests/sql/interstate-igst-behavior.sql
