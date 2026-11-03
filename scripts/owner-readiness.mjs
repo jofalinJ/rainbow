@@ -74,8 +74,9 @@ export async function inspect({fetcher=fetch,publicConfig}={}){
 
   const headers={apikey:publicConfig.key,Accept:"application/json"};
   const catalogue=[
-    ["catalogue:products","products?select=id&active=eq.true&limit=1","Active catalogue product"],
-    ["catalogue:variants","product_variants?select=id&active=eq.true&limit=1","Active product variant"]
+    ["catalogue:products","products?select=id&active=eq.true&selling_price=gt.0&limit=1","Active priced catalogue product"],
+    ["catalogue:variants","product_variants?select=id&active=eq.true&stock_quantity=gt.0&limit=1","In-stock online product variant"],
+    ["catalogue:images","product_images?select=id&limit=1","Public product photograph"]
   ];
   for(const [id,query,label] of catalogue){
     try{
