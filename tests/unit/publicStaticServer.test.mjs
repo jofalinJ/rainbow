@@ -49,6 +49,8 @@ describe("one public static manifest for build and preview",()=>{
     const builder=readFileSync(path.join(root,"scripts/build-cloudflare.mjs"),"utf8");
     const server=readFileSync(path.join(root,"scripts/static-server.mjs"),"utf8");
     expect(builder).toContain('from "./public-asset-manifest.mjs"');
+    expect(builder).toContain("Unsafe publicly shipped file");
+    expect(builder).toContain("entry.isSymbolicLink()");
     expect(server).toContain('from "./public-asset-manifest.mjs"');
     expect(server).toContain("isPublicAssetPath(relative)");
   });
