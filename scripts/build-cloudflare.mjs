@@ -13,24 +13,10 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import {fileURLToPath} from "node:url";
+import {publicRootFiles,publicDirectories} from "./public-asset-manifest.mjs";
 
 const repo=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"..");
 const output=path.join(repo,"dist-pages");
-
-const publicRootFiles=[
-  "index.html","order.html","product.html","invoice.html","404.html",
-  "reset-password.html","account-recovery.js","recovery-redirect.js","supabase-client.js",
-  "privacy-policy.html","returns-and-refunds.html",
-  "shipping-policy.html","terms-and-conditions.html",
-  "sitemap.html","sitemap.xml","robots.txt",
-  "analytics.js","bill-pdf.js","business-live.js","config.js",
-  "content.css","content.js","mobile-storefront.css","mobile-storefront.js","design-system.css","premium-storefront.css","invoice-template.css","invoice-template.js",
-  "invoice.js","order-pricing.mjs","order.css","order.js",
-  "payment-config.js","order-razorpay.mjs",
-  "product-page.css","product-page.js","shop-catalogue.js",
-  "shop-discovery.js"
-];
-const publicDirectories=["admin","staff","assets","src/domain"];
 
 await fs.rm(output,{recursive:true,force:true});
 await fs.mkdir(output,{recursive:true});
