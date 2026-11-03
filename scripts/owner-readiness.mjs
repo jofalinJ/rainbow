@@ -72,18 +72,33 @@ export async function inspect({fetcher=fetch,publicConfig}={}){
     record("gateway:provider",body.provider==="connected","Gateway provider connection: "+String(body.provider||"unknown"));
   }catch(e){record("gateway:provider",false,"Provider check: "+e.message);}
 
-  const headers={apikey:publicConfig.key,Accept:"application/json"};
-  const catalogue=[
-    ["catalogue:products","products?select=id&active=eq.true&selling_price=gt.0&limit=1","Active priced catalogue product"],
-    ["catalogue:variants","product_variants?select=id&active=eq.true&stock_quantity=gt.0&limit=1","In-stock online product variant"],
-    ["catalogue:images","product_images?select=id&limit=1","Public product photograph"]
-  ];
-  for(const [id,query,label] of catalogue){
-    try{
-      const body=JSON.parse(await responseText(fetcher,SUPABASE+"/rest/v1/"+query,headers));
-      record(id,Array.isArray(body)&&body.length>0,label+" found in public database");
-    }catch(e){record(id,false,label+": "+e.message);}
-  }
+  // A separate product, stock record and image do NOT establish a sellable
+  // item. Inner joins require all three to belong to the same public product.
+  const catalogueQuery=new URLSearchParams({
+    select:"id,selling_price,product_variants!inner(id,stock_quantity,active),product_images!inner(id,public_url)",
+    active:"eq.true",
+    selling_price:"gt.0",
+    "product_variants.active":"eq.true",
+    "product_variants.stock_quantity":"gt.0",
+    "product_images.public_url":"not.is.null",
+    limit:"1"
+  });
+  try{
+    const headers={apikey:publicConfig.key,Accept:"application/json"};
+    const body=JSON.parse(await responseText(fetcher,SUPABASE+"/rest/v1/products?"+catalogueQuery,headers));
+    const sellable=Array.isArray(body)&&body.some(product=>
+      Number.isFinite(Number(product?.selling_price))&&Number(product.selling_price)>0&&
+      Array.isArray(product.product_variants)&&
+      product.product_variants.some(v=>v?.active===true&&Number(v.stock_quantity)>0)&&
+      Array.isArray(product.product_images)&&
+      product.product_images.some(photo=>typeof photo?.public_url==="string"&&
+        photo.public_url.startsWith("https://"))
+    );
+    record("catalogue:sellable",Boolean(sellable),sellable
+      ?"A public product has a price, positive stock and its own photograph."
+      :"No single public product with a valid price, available variant and photograph was found.");
+  }catch(e){record("catalogue:sellable",false,"Sellable catalogue check: "+e.message);}
+
 
   const blockers=checks.filter(c=>!c.ok&&c.severity==="blocker").map(c=>c.id);
   return {
