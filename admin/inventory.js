@@ -2,6 +2,8 @@ let inventoryRules=null;
 async function getInventoryRules(){if(!inventoryRules)inventoryRules=await import("../src/domain/inventoryRules.mjs");return inventoryRules;}
 
 let inventory=[],categories=[],selectedCategoryId=null,inventoryTools=null;
+let inventoryLoadEpoch=0;
+const loadInventoryPages=()=>import("./inventory-page-loader.mjs");
 const ERP_INVENTORY=window.RAINBOW_MULTI_SHOP_ENABLED===true;
 let inventoryBranchId="";
 async function loadInventoryBranchPicker(){
@@ -21,26 +23,48 @@ async function loadInventoryBranchPicker(){
    inventoryBranchId=select.value;
    const inTools=document.getElementById("erpLocation");
    if(inTools){inTools.value=inventoryBranchId;inTools.dispatchEvent(new Event("change"));}
-   try{await loadInventory();}catch(e){console.error("Branch inventory unavailable",e);}
+   try{await loadInventory();}catch(e){
+     console.error("Branch inventory unavailable",e);
+     document.getElementById("inventoryBranchHint").textContent="Could not load this shop. Refresh or try another shop.";
+   }
  });
 }
 
-async function loadInventory(){inventoryRules=await getInventoryRules();categories=await sb("categories?select=id,name,has_color,has_size,has_length,has_thickness,has_gold_amount&active=eq.true&order=name");inventory=await sb("product_variants?select=id,color,size,length_cm,stock_quantity,low_stock_limit,barcode,products(id,product_code,product_name,type,category_id,length_cm,thickness,gold_amount_g)&active=eq.true&order=created_at.desc");if(ERP_INVENTORY){
- const balances=new Map();
- if(inventoryBranchId){
-  for(let page=0;page<100;page++){
-   const {data,error}=await bootSupabase().from("erp_stock_balances")
-     .select("variant_id,on_hand,reserved").eq("location_id",inventoryBranchId)
-     .range(page*500,page*500+499);
-   if(error)throw error;
-   for(const row of data||[])balances.set(row.variant_id,Math.max(0,row.on_hand-row.reserved));
-   if((data||[]).length<500)break;
-   if(page===99)throw Error("Inventory exceeds allowed range.");
-  }
+async function loadInventory(){
+ const epoch=++inventoryLoadEpoch,selectedLocation=inventoryBranchId;
+ const rules=await getInventoryRules();
+ const [nextCategories,pages]=await Promise.all([
+   sb("categories?select=id,name,has_color,has_size,has_length,has_thickness,has_gold_amount&active=eq.true&order=name"),
+   loadInventoryPages()
+ ]);
+ const client=bootSupabase();
+ // Keep each request bounded and its ordering stable; never silently drop
+ // variants beyond the PostgREST single-request row cap.
+ const [nextInventory,balances]=await Promise.all([
+   pages.fetchInventoryVariants(client),
+   ERP_INVENTORY?pages.fetchBranchAvailableBalances(client,selectedLocation):Promise.resolve(new Map())
+ ]);
+ // A fast branch change can overtake a slower query for the previous shop.
+ if(epoch!==inventoryLoadEpoch)return;
+ inventoryRules=rules;
+ categories=nextCategories||[];
+ inventory=ERP_INVENTORY
+   ?nextInventory.map(item=>({...item,stock_quantity:balances.get(item.id)||0}))
+   :nextInventory;
+ const branchHint=document.getElementById("inventoryBranchHint");
+ if(ERP_INVENTORY&&branchHint)branchHint.textContent=selectedLocation
+   ?"Stock and alerts below are specific to the selected shop."
+   :"Choose a shop to view its stock; stock totals are hidden until one is selected.";
+if(!categories.some(c=>c.id===selectedCategoryId))selectedCategoryId=categories[0]?.id||null;
+ renderCategories();
+ if(categories.length)renderInventory();
+ else{
+   document.getElementById("rows").innerHTML="<tr><td>No active categories are available yet.</td></tr>";
+   document.getElementById("selectedCategory").textContent="Inventory";
+   document.getElementById("categoryMeta").textContent="No active categories";
+   for(const id of ["variantCount","stockCount","lowCount","outCount"])
+     document.getElementById(id).textContent="0";
  }
- inventory=inventory.map(item=>({...item,stock_quantity:balances.get(item.id)||0}));
-}
-if(categories.length)selectedCategoryId=selectedCategoryId||categories[0].id;renderCategories();renderInventory();
 if(!inventoryTools){
   const module=await import("./inventory-adjustments.mjs");
   inventoryTools=module.setupInventoryAdjustmentUI({
