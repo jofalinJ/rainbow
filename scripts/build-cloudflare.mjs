@@ -42,6 +42,24 @@ for(const hidden of ["backend","supabase","tests","docs","scripts",".github",
   }
 }
 
+// Copies of public directories must not accidentally ship hidden files,
+// credentials, SQL, maps, internal docs, or symlinks on a future commit.
+const publicExtensions=new Set([
+  ".html",".js",".mjs",".css",".json",".webmanifest",
+  ".svg",".png",".jpg",".jpeg",".webp",".xml",".txt",".woff2"
+]);
+async function validatePublishedTree(directory){
+  for(const entry of await fs.readdir(directory,{withFileTypes:true})){
+    const full=path.join(directory,entry.name);
+    if(entry.name.startsWith(".")||entry.isSymbolicLink())
+      throw new Error("Unsafe publicly shipped file: "+path.relative(output,full));
+    if(entry.isDirectory()){await validatePublishedTree(full);continue;}
+    if(!entry.isFile()||!publicExtensions.has(path.extname(entry.name).toLowerCase()))
+      throw new Error("Unsafe publicly shipped file: "+path.relative(output,full));
+  }
+}
+await validatePublishedTree(output);
+
 for(const required of [
   "index.html","staff/index.html","admin/login.html","admin/manifest.webmanifest",
   "admin/service-worker.js","src/domain/productRules.mjs",
