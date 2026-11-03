@@ -1,4 +1,4 @@
-import {INDIAN_STATES,deliveryFeeForState} from "./order-pricing.mjs";
+import {INDIAN_STATES,deliveryFeeForState,gstComponentsForState} from "./order-pricing.mjs";
 import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=20261103-online-only";
 (() => {
   const CONFIG=window.RAINBOW_SUPABASE_CONFIG||{};
@@ -49,18 +49,22 @@ import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=
     const subtotal=roundMoney(cart.reduce((sum,item)=>sum+Number(item.product.selling_price||0)*Number(item.quantity||0),0));
     const discount=roundMoney(subtotal*.03);
     const taxable=roundMoney(subtotal-discount);
-    const cgst=roundMoney(taxable*.015);
-    const sgst=roundMoney(taxable*.015);
+    const gst=gstComponentsForState(taxable,$("state").value);
+    const {cgst=0,sgst=0,igst=0}=gst||{};
     const shipping=cart.length?deliveryFeeForState($("state").value):null;
-    const total=shipping===null?null:roundMoney(taxable+cgst+sgst+shipping);
+    const total=shipping===null||!gst?null:roundMoney(taxable+cgst+sgst+igst+shipping);
     $("subtotal").textContent=money(subtotal);
     $("discount").textContent=money(discount);
     $("cgst").textContent=money(cgst);
     $("sgst").textContent=money(sgst);
+    $("igst").textContent=money(igst);
+    $("cgstLine").hidden=gst?.mode==="inter";
+    $("sgstLine").hidden=gst?.mode==="inter";
+    $("igstLine").hidden=gst?.mode!=="inter";
     $("delivery").textContent=shipping===null?"Choose state":money(shipping);
     $("total").textContent=total===null?"—":money(total);
     $("totalLabel").textContent="Total";
-    return {subtotal,discount,cgst,sgst,shipping,total};
+    return {subtotal,discount,cgst,sgst,igst,shipping,total};
   }
     function roundMoney(value){return Math.round((Number(value)+Number.EPSILON)*100)/100;}
   function cartItemHasStock(item){
