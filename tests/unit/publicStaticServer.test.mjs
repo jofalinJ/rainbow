@@ -66,7 +66,7 @@ describe("one public static manifest for build and preview",()=>{
         try{
           const r=await fetch(base+"/");
           if(r.status===200){started=true;break;}
-        }catch{}
+        }catch(error){if(i===44)throw error;}
         await new Promise(resolve=>setTimeout(resolve,100));
       }
       expect(started).toBe(true);
