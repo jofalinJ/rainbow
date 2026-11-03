@@ -6,7 +6,7 @@ const home=read("index.html"),checkout=read("order.html"),product=read("product.
 const shopJs=read("content.js"),mobileJs=read("mobile-storefront.js");
 const productJs=read("product-page.js"),checkoutJs=read("order.js");
 const css=read("mobile-storefront.css");
-const dist=read("scripts/build-cloudflare.mjs");
+const dist=read("scripts/public-asset-manifest.mjs");
 const ids=html=>[...html.matchAll(/id="([^"]+)"/g)].map(match=>match[1]);
 
 describe("Rainbow mobile storefront wiring",()=>{
