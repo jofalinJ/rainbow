@@ -59,7 +59,8 @@ describe("existing admin screen multi-shop integration",()=>{
   expect(billing).toContain('p_location:billingLocationId');
   expect(billing).toContain('p_request:currentPosRequest');
   expect(inventory).toContain("ERP_INVENTORY");
-  expect(inventory).toContain("erp_stock_balances");
+  expect(inventory).toContain("pages.fetchBranchAvailableBalances");
+  expect(read("admin/inventory-page-loader.mjs")).toContain("erp_stock_balances");
   expect(products).toContain('for(const id of ["stock","existingStock"])');
   for(const name of ["admin/billing.js","admin/inventory.js","admin/products.js"]){
     expect(()=>new Script(read(name),{filename:name})).not.toThrow();
