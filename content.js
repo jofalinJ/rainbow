@@ -386,14 +386,14 @@
     if(categoryLanding){
       renderPager(true);
       const buckets=categoryBuckets();
-      if(status)status.textContent=buckets.length?"Choose a product type to explore.":"No product types have in-stock products yet.";
+      if(status)status.textContent=buckets.length?"Choose a product type to explore.":"Our online collections are being prepared.";
       grid.innerHTML=buckets.length?buckets.map(bucket=>{
         const product=bucket.products.find(item=>getImage(item))||bucket.products[0];
         const image=product?getThumb(product):"";
         return "<button type='button' class='category-tile"+(!image?" category-tile-text":"")+"' data-category-tile='"+esc(bucket.label)+"' aria-label='Browse "+esc(bucket.label)+"'>"+
           (image?"<span class='category-tile-image'><img src='"+esc(image)+"' alt='' loading='lazy'></span>":"<span class='category-tile-icon' aria-hidden='true'>"+categoryIcon(bucket.label)+"</span>")+
           "<span class='category-tile-copy'><strong>"+esc(bucket.label)+"</strong><small>View collection</small></span></button>";
-      }).join(""):"<div class='product-empty'>Product categories will appear here when in-stock designs are added.</div>";
+      }).join(""):"<div class='product-empty' role='status'>Our online collection is being prepared. <a href='#contact'>Contact our store</a> to ask about available designs.</div>";
       grid.querySelectorAll("[data-category-tile]").forEach(tile=>tile.addEventListener("click",()=>{
         activeCategory=tile.dataset.categoryTile||"";showAllProducts=false;
         track("select_category",{category:activeCategory});resetCatalogue();
@@ -422,7 +422,7 @@
         "<button type='button' class='product-wishlist-button"+(saved?" is-saved":"")+"' data-wishlist-product='"+esc(p.id)+"' aria-label='"+(saved?"Remove ":"Add ")+esc(p.product_name)+(saved?" from":" to")+" wishlist' aria-pressed='"+saved+"'>"+(saved?"♥":"♡")+"</button></div>"+
         "<div class='product-body'><h3 class='product-name'>"+esc(p.product_name)+"</h3><div class='product-type'>"+esc(categoryFor(p))+"</div>"+
         "<div class='product-meta'><strong class='product-price'>"+money(p.selling_price)+"</strong><span class='product-stock "+stockClass+"'>"+stockText+"</span></div><div class='product-card-actions'><button type='button' data-product-open>Quick view</button><a href='product.html?sku="+encodeURIComponent(p.product_code||"")+"'>Details ↗</a></div></div></article>";
-    }).join(""):"<div class='product-empty'>"+(wishlistOnly?"Nothing saved yet. Tap a heart to save a design.":activeSearch?"No matches. Try another search or category.":visualSearchSignature?"No visual matches could be ranked for this image. Try a clearer photo or search by name.":activeCategory?"No "+esc(activeCategory.toLowerCase())+" products are currently in stock.":"No jewellery is available right now.")+"</div>";
+    }).join(""):"<div class='product-empty'>"+(wishlistOnly?"Nothing saved yet. Tap a heart to save a design.":activeSearch?"No matches. Try another search or category.":visualSearchSignature?"No visual matches could be ranked for this image. Try a clearer photo or search by name.":activeCategory?"No "+esc(activeCategory.toLowerCase())+" products are currently in stock.":"Our online catalogue is being prepared. <a href='#contact'>Contact the store</a> for available designs.")+"</div>";
     renderPager(false);
     if(appendOnly)grid.insertAdjacentHTML("beforeend",rendered);
     else if(!products.length&&paging.loading)grid.innerHTML='<div class="catalogue-skeleton" aria-label="Loading jewellery"></div>'.repeat(8);
