@@ -44,23 +44,14 @@
     </section>
     <section class="order-card checkout-panel" aria-labelledby="paymentHeading">
       <div class="checkout-section-title"><span class="checkout-eyebrow">STEP 03 / PAYMENT</span><h2 id="paymentHeading">Payment method</h2></div>
-      <p class="checkout-subtitle checkout-payment-intro">Choose how to pay. The final amount is verified securely.</p>
+      <p class="checkout-subtitle checkout-payment-intro">Pay securely with Razorpay. Your final amount is verified before payment.</p>
       <div class="payment-methods" role="radiogroup" aria-label="Payment method">
         <label class="payment-choice" id="razorpayChoice">
-          <input id="payRazorpay" type="radio" name="paymentMethod" value="razorpay" disabled>
+          <input id="payRazorpay" type="radio" name="paymentMethod" value="razorpay" checked disabled>
           <span class="payment-choice-body">
-            <span class="payment-choice-top"><strong>Pay online</strong><span class="checkout-mode">TEST MODE</span></span>
+            <span class="payment-choice-top"><strong>Pay online</strong><span class="checkout-mode">Connecting</span></span>
             <span class="payment-choice-description">Razorpay · UPI, cards &amp; more</span>
-            <span class="payment-choice-note">Test only — no real charge.</span>
-          </span>
-          <span class="payment-choice-dot" aria-hidden="true"></span>
-        </label>
-        <label class="payment-choice" id="manualUpiChoice">
-          <input id="payUpi" type="radio" name="paymentMethod" value="upi" checked>
-          <span class="payment-choice-body">
-            <span class="payment-choice-top"><strong>UPI transfer</strong><span class="manual-label">Manual</span></span>
-            <span class="payment-choice-description">Scan QR · Enter UPI reference</span>
-            <span class="payment-choice-note">Real payment · Pending until verified.</span>
+            <span class="payment-choice-note">Secure online payment.</span>
           </span>
           <span class="payment-choice-dot" aria-hidden="true"></span>
         </label>
@@ -70,19 +61,9 @@
         <p id="gatewayStatus" class="gateway-status">Checking online payment…</p>
         <button id="retryGateway" type="button" class="payment-retry" hidden>Retry connection ↗</button>
       </div>
-      <div id="razorpayDetails" class="payment-method-detail" hidden>
-        <p class="payment-safety">Razorpay TEST: no money is deducted. Payment is verified by our server.</p>
+      <div id="razorpayDetails" class="payment-method-detail">
+        <p class="payment-safety">Your payment is verified securely before the order is confirmed.</p>
         <label class="checkout-whatsapp-consent"><input id="whatsappReceiptConsent" type="checkbox"> <span>Yes, WhatsApp me my confirmation and invoice link after payment verification (optional).</span></label>
-      </div>
-      <div id="manualPaymentDetails" class="payment-method-detail">
-        <p id="qrUnavailable" class="gateway-status">Select a state to see the payable amount.</p>
-        <div id="checkoutQR" class="payment-qr-card checkout-qr" hidden>
-          <img src="assets/brand/pay.png" alt="Shop UPI QR code. Verify recipient name before paying." width="176" height="176">
-          <div><strong>Scan to pay</strong><p>Confirm the recipient and amount in your UPI app.</p><p class="payment-total">Pay <b id="paymentDueTotal">—</b></p></div>
-        </div>
-        <label id="paymentReferenceGroup" class="payment-reference-label">UPI reference (UTR)
-          <input id="paymentReference" autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="text" minlength="8" maxlength="64" placeholder="Enter after payment" title="8–64 letters, numbers or hyphens">
-        </label>
       </div>
     </section>
   </div>
@@ -100,11 +81,9 @@
       </div>
       <button id="placeOrder" class="btn btn-dark place-order" type="submit" form="deliveryForm" disabled>Checking checkout…</button>
       <p id="orderMsg" class="order-msg" role="status" aria-live="polite"></p>
-      
-      <p class="checkout-test-notice"><strong>Payment note:</strong> Razorpay TEST does not charge real money. Manual UPI transfers real money and requires shop verification.</p>
     </section>
   </aside>
 </div></div></main>
 <footer class="container footer"><span class="footer-brand"><img class="footer-logo" src="assets/brand/rainbow-logo.png" alt="Rainbow Gold Covering logo" width="28" height="28" loading="lazy"><span>RAINBOW GOLD COVERING</span></span><span><a class="instagram-link" href="https://www.instagram.com/rainbow_kollam_gold_covering/" target="_blank" rel="noopener noreferrer">Instagram · @rainbow_kollam_gold_covering</a></span><span class="footer-legal-link"><a href="privacy-policy.html">Privacy Policy</a></span><span class="footer-legal-link"><a href="terms-and-conditions.html">Terms &amp; Conditions</a></span><span class="footer-legal-link"><a href="sitemap.html">Sitemap</a></span></footer>
-<script src="payment-config.js?v=20261021-checkout-v2"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script type="module" src="order.js?v=20261026-delivery-validation"></script>
+<script src="payment-config.js?v=20261021-checkout-v2"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script type="module" src="order.js?v=20261103-online-only"></script>
 </body></html>

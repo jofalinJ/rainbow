@@ -1,5 +1,5 @@
 import {INDIAN_STATES,deliveryFeeForState} from "./order-pricing.mjs";
-import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=20261026-pending-reference";
+import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=20261103-online-only";
 (() => {
   const CONFIG=window.RAINBOW_SUPABASE_CONFIG||{};
   const SUPABASE_URL=String(CONFIG.supabaseUrl||"").trim();
@@ -16,9 +16,7 @@ import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=
   let submitting=false;
   let razorpayReady=false;
   let razorpayMode="test";
-  let paymentChoiceTouched=false;
   let readinessAttempt=0;
-  const selectedPaymentMethod=()=>document.querySelector('input[name="paymentMethod"]:checked')?.value||"upi";
 
   function read(){
     try{
@@ -62,7 +60,6 @@ import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=
     $("delivery").textContent=shipping===null?"Choose state":money(shipping);
     $("total").textContent=total===null?"—":money(total);
     $("totalLabel").textContent="Total";
-    const payTotal=$("paymentDueTotal");if(payTotal)payTotal.textContent=total===null?"—":money(total);
     return {subtotal,discount,cgst,sgst,shipping,total};
   }
     function roundMoney(value){return Math.round((Number(value)+Number.EPSILON)*100)/100;}
@@ -116,31 +113,11 @@ import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=
   function updatePlaceOrderState(){
     const button=$("placeOrder");
     if(!button)return;
-    const reference=String($("paymentReference")?.value||"").trim();
     const shipping=deliveryFeeForState($("state").value);
     const payReady=cart.length>0&&cartVerified&&!cartVerificationFailed&&
       cart.every(cartItemHasStock)&&shipping!==null;
-    const gatewaySelected=selectedPaymentMethod()==="razorpay";
-    const manualSelected=!gatewaySelected;
-    const gatewayDetails=$("razorpayDetails");
-    const manualDetails=$("manualPaymentDetails");
-    if(gatewayDetails)gatewayDetails.hidden=!gatewaySelected;
-    if(manualDetails)manualDetails.hidden=!manualSelected;
-    const qr=$("checkoutQR");
-    const qrMessage=$("qrUnavailable");
-    const referenceGroup=$("paymentReferenceGroup");
-    if(qr)qr.hidden=gatewaySelected||!payReady;
-    if(qrMessage){
-      qrMessage.hidden=gatewaySelected||payReady;
-      qrMessage.textContent=!cart.length?"Add jewellery to your bag before making a payment."
-         :shipping===null?"Select your delivery state to see the total."
-        :"Checking price and stock before showing the UPI QR…";
-    }
-    if(referenceGroup)referenceGroup.hidden=gatewaySelected;
-    button.textContent=submitting?"Processing…":gatewaySelected?
-      (razorpayMode==="live"?"Pay securely →":"Pay securely · TEST →"):"Submit UPI reference →";
-    button.disabled=submitting||!payReady||
-      (gatewaySelected?!razorpayReady:!/^[A-Za-z0-9-]{8,64}$/.test(reference));
+    button.textContent=submitting?"Processing…":razorpayMode==="live"?"Pay securely →":"Pay securely · TEST →";
+    button.disabled=submitting||!payReady||!razorpayReady;
   }
     async function verifyCart(){
     if(!cart.length){cartVerified=true;render();return;}
@@ -253,8 +230,6 @@ import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=
     const email=$("email").value.trim();
     const pin=$("pin").value.trim();
     const address=$("address").value.trim();
-    const paymentMethod=selectedPaymentMethod();
-    const paymentReference=$("paymentReference").value.trim();
     const shipping=deliveryFeeForState($("state").value);
     const customer={
       name,
@@ -264,74 +239,51 @@ import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=
       city:$("city").value.trim(),
       state:$("state").value.trim(),
       address,
-      whatsapp_opt_in:paymentMethod==="razorpay" && $("whatsappReceiptConsent")?.checked===true,
-      payment_method:paymentMethod,
-      payment_reference:paymentReference
+      whatsapp_opt_in:$("whatsappReceiptConsent")?.checked===true,
+      payment_method:"razorpay"
     };
     if(shipping===null){msg("Choose a valid Indian state or union territory for delivery.","error");return;}
-    if(paymentMethod!=="upi" && (paymentMethod!=="razorpay" || !razorpayReady)){
-      msg("This payment method is not available. Choose manual UPI instead.","error");return;
-    }
-    if(paymentMethod==="upi"&&!/^[A-Za-z0-9-]{8,64}$/.test(paymentReference)){
-      msg("Pay with the QR code and enter the UPI transaction reference (8–64 letters or digits).","error");return;
+    if(!razorpayReady){
+      msg("Online payment is temporarily unavailable. Retry the connection before paying.","error");return;
     }
     submitting=true;
     updatePlaceOrderState();
-    msg(paymentMethod==="razorpay"?"Starting secure checkout…":"Submitting your payment reference for verification…");
+    msg("Starting secure checkout…");
     try{
-      if(paymentMethod==="razorpay"){
-        const result=await beginRazorpayPayment({
-          items:cart.map(item=>({variant_id:item.variant_id,quantity:Number(item.quantity)})),
-          customer,
-          displayTotal:totals().total,
-          expectedMode:razorpayMode,
-          onPaymentFailed:reason=>msg("Payment failed: "+reason+" You can retry in Razorpay or close checkout.","error")
-        });
-        if(result.status==="paid"){
-          cart=[];save();
-          $("orderLayout").hidden=true;
-          $("orderSuccess").hidden=false;
-          const safeBill=(()=>{
-            try{
-              const url=new URL(result.invoiceUrl||"");
-              return url.origin==="https://rainbowgoldcovering.com" &&
-                url.pathname==="/invoice.html" &&
-                /^[0-9a-f-]{36}$/i.test(url.searchParams.get("token")||"") ? url.href : null;
-            }catch{return null;}
-          })();
-          $("orderSuccess").innerHTML=(result.mode==="live"?"<h2>Payment verified</h2>":"<h2>TEST payment verified</h2>")+
-            "<p>"+(result.mode==="live"?"Order ":"Test order ")+"<strong>"+esc(result.orderNumber||"—")+
-            "</strong> is confirmed.</p>"+
-            (result.mode==="live"?"<p>Your payment has been securely verified.</p>":"<p>No real money was deducted.</p>")+
-            (safeBill?"<p><a class='btn btn-dark' target='_blank' rel='noopener noreferrer' href='"+esc(safeBill)+
-              "'>View / Print Invoice →</a></p>":"<p>Your invoice is being prepared. Contact the shop with the order number if it does not appear.</p>")+
-            "<p>WhatsApp updates are sent only if you opted in and messaging is available.</p>"+
-            "<a class='btn btn-light' href='index.html#products'>Continue shopping</a>";
-          msg("");
-          focusOrderConfirmation(true);
-        }else if(result.status==="pending"){
-          msg("Payment "+(result.orderNumber?"for order "+result.orderNumber+" ":"")+"is awaiting confirmation. Do not pay again; contact the shop "+(result.orderNumber?"with this order number":"with your payment reference")+" if it remains pending.","error");
-        }else{
-          msg("Payment window closed. Your order was not confirmed. Check your Razorpay payment status before retrying.");
-        }
-        return;
-      }
-      const {data,error}=await sb.rpc("create_online_order",{
-        p_items:cart.map(item=>({variant_id:item.variant_id,quantity:Number(item.quantity)})),
-        p_customer:customer
+      const result=await beginRazorpayPayment({
+        items:cart.map(item=>({variant_id:item.variant_id,quantity:Number(item.quantity)})),
+        customer,
+        displayTotal:totals().total,
+        expectedMode:razorpayMode,
+        onPaymentFailed:reason=>msg("Payment failed: "+reason+" You can retry in Razorpay or close checkout.","error")
       });
-      if(error)throw error;
-      const paymentStep=document.getElementById("paymentStep");
-      const addressStep=document.getElementById("addressStep");
-      if(paymentStep)paymentStep.classList.add("is-active");
-      if(addressStep)addressStep.classList.add("is-complete");
-      cart=[];
-      save();
-      $("orderLayout").hidden=true;
-      $("orderSuccess").hidden=false;
-      $("orderSuccess").innerHTML="<h2>UPI reference submitted</h2><p>Order <strong>"+esc(data.order_number)+"</strong> is pending shop verification. It is not confirmed yet.</p><p>Total: <strong>"+money(data.total_amount)+"</strong>. Keep your UPI receipt until payment is verified.</p><a class='btn btn-dark' href='index.html#products'>Continue shopping</a>";
-      msg("");
-      focusOrderConfirmation();
+      if(result.status==="paid"){
+        cart=[];save();
+        $("orderLayout").hidden=true;
+        $("orderSuccess").hidden=false;
+        const safeBill=(()=>{
+          try{
+            const url=new URL(result.invoiceUrl||"");
+            return url.origin==="https://rainbowgoldcovering.com" &&
+              url.pathname==="/invoice.html" &&
+              /^[0-9a-f-]{36}$/i.test(url.searchParams.get("token")||"") ? url.href : null;
+          }catch{return null;}
+        })();
+        $("orderSuccess").innerHTML=(result.mode==="live"?"<h2>Payment verified</h2>":"<h2>TEST payment verified</h2>")+
+          "<p>"+(result.mode==="live"?"Order ":"Test order ")+"<strong>"+esc(result.orderNumber||"—")+
+          "</strong> is confirmed.</p>"+
+          (result.mode==="live"?"<p>Your payment has been securely verified.</p>":"<p>No real money was deducted.</p>")+
+          (safeBill?"<p><a class='btn btn-dark' target='_blank' rel='noopener noreferrer' href='"+esc(safeBill)+
+            "'>View / Print Invoice →</a></p>":"<p>Your invoice is being prepared. Contact the shop with the order number if it does not appear.</p>")+
+          "<p>WhatsApp updates are sent only if you opted in and messaging is available.</p>"+
+          "<a class='btn btn-light' href='index.html#products'>Continue shopping</a>";
+        msg("");
+        focusOrderConfirmation(true);
+      }else if(result.status==="pending"){
+        msg("Payment "+(result.orderNumber?"for order "+result.orderNumber+" ":"")+"is awaiting confirmation. Do not pay again; contact the shop "+(result.orderNumber?"with this order number":"with your payment reference")+" if it remains pending.","error");
+      }else{
+        msg("Payment window closed. Your order was not confirmed. Check your Razorpay payment status before retrying.");
+      }
     }catch(error){
       console.error("Order creation failed.",error);
       msg(error.message||"We could not submit the payment details. Please check the information and try again.","error");
@@ -346,8 +298,6 @@ import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=
   for(const id of ["name","phone","email","pin","city","state","address"]){
     $(id).addEventListener("input",()=>{$(id).setCustomValidity("");$(id).removeAttribute("aria-invalid");});
   }
-  $("paymentReference").addEventListener("input",updatePlaceOrderState);
-  document.querySelectorAll('input[name="paymentMethod"]').forEach(input=>input.addEventListener("change",()=>{paymentChoiceTouched=true;updatePlaceOrderState();}));
   const stateField=$("state");
   for(const state of INDIAN_STATES)stateField.add(new Option(state,state));
   stateField.addEventListener("change",()=>{totals();updatePlaceOrderState();});
@@ -356,6 +306,10 @@ import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=
   verifyCart();
   async function checkGateway(){
     const attempt=++readinessAttempt;
+    razorpayReady=false;
+    const gateway=$("payRazorpay");
+    if(gateway)gateway.disabled=true;
+    updatePlaceOrderState();
     const connection=$("gatewayConnection");
     const retry=$("retryGateway");
     const message=$("gatewayStatus");
@@ -370,26 +324,16 @@ import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=
     const badge=document.querySelector("#razorpayChoice .checkout-mode");
     const choiceNote=document.querySelector("#razorpayChoice .payment-choice-note");
     const detailsNote=document.querySelector("#razorpayDetails .payment-safety");
-    const footerNote=document.querySelector(".checkout-test-notice");
     if(badge)badge.textContent=razorpayMode==="live"?"LIVE":"TEST MODE";
     if(choiceNote)choiceNote.textContent=razorpayMode==="live"?"Real payment · Protected by Razorpay.":"Test only — no real charge.";
     if(detailsNote)detailsNote.textContent=razorpayMode==="live"?"Your payment is verified securely before the order is confirmed.":"Razorpay TEST: no money is deducted. Payment is verified by our server.";
-    if(footerNote)footerNote.textContent=razorpayMode==="live"
-      ?"Razorpay charges real money. Manual UPI transfers real money and requires shop verification."
-      :"Razorpay TEST does not charge real money. Manual UPI transfers real money and requires shop verification.";
     connection?.classList.add(status.available?"is-online":"is-offline");
     if(message)message.textContent=status.message;
     if(indicator)indicator.title=status.available?"Connected":"Not connected";
     if(retry){retry.hidden=status.available;retry.disabled=false;}
-    const gateway=$("payRazorpay");
-    const manual=$("payUpi");
     if(gateway){
       gateway.disabled=!status.available;
-      if(status.available && !paymentChoiceTouched && manual?.checked){
-        gateway.checked=true;
-      }else if(!status.available && gateway.checked && manual){
-        manual.checked=true;
-      }
+      gateway.checked=true;
     }
     updatePlaceOrderState();
   }

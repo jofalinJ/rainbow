@@ -12,21 +12,23 @@ test("live Rainbow storefront only enables Razorpay when provider credentials ar
     await driver.get(URL+"/order.html?testreadiness="+Date.now());
     const radio=await driver.findElement(By.css("#payRazorpay"));
     const status=await driver.findElement(By.css("#gatewayStatus"));
+    assert.equal((await driver.findElements(By.css('input[name="paymentMethod"]'))).length,1);
+    assert.equal((await driver.findElements(By.css("#payUpi, #manualUpiChoice, #checkoutQR, #paymentReference"))).length,0);
     await driver.wait(async()=>{
-      const message=await status.getText();
-      return message.includes("Razorpay test checkout is connected") || message.includes("Secure Razorpay payments are ready") || message.includes("Razorpay rejected") || message.includes("not enabled") || message.includes("Could not connect") || message.includes("Razorpay could not be verified");
+      // The compact mobile layout hides the successful connection banner.
+      const message=await status.getAttribute("textContent");
+      return /connected|payments are ready|rejected|not enabled|unavailable|Could not connect|could not be verified|did not load/i.test(message);
     },20000,"Gateway never returned a readiness status");
-    const message=await status.getText();
+    const message=await status.getAttribute("textContent");
     const enabled=await radio.isEnabled();
     console.log(JSON.stringify({test:"payment-card",enabled,message}));
+    assert.equal(await radio.isSelected(),true,"The sole online payment method remains selected.");
     if(message.includes("Razorpay test checkout is connected") || message.includes("Secure Razorpay payments are ready")){
       assert.equal(enabled,true,"Provider is connected but the payment card is disabled.");
-      assert.equal(await radio.isSelected(),true);
-    }else if(message.includes("Razorpay rejected")){
-      assert.equal(enabled,false,"Rejected provider credentials must NEVER enable Pay.");
-      assert.equal(await radio.isSelected(),false);
     }else{
-      assert.fail("Gateway readiness was not confirmed: "+message);
+      assert.equal(enabled,false,"Unverified or unavailable provider credentials must NEVER enable payment.");
+      assert.equal(await driver.findElement(By.css("#placeOrder")).isEnabled(),false);
+      assert.equal(await driver.findElement(By.css("#retryGateway")).isDisplayed(),true);
     }
     // No checkout call, order mutation, real UPI transfer or actual payment is performed.
   }finally{await driver.quit();}

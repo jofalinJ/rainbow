@@ -144,17 +144,15 @@ test("checkout shows state delivery options and blocks an empty cart", async () 
     await driver.get(BASE_URL + "/order.html");
     const state = await driver.findElement(By.css("#state"));
     await driver.wait(async () => (await state.findElements(By.css("option"))).length === 37, 10000);
-    const checkout = await driver.findElement(By.css("#checkoutQR"));
-    assert.equal(await checkout.isDisplayed(), false);
+    for(const selector of ["#checkoutQR","#payUpi","#manualUpiChoice","#paymentReferenceGroup","#manualPaymentDetails",".checkout-test-notice"]){
+      assert.equal((await driver.findElements(By.css(selector))).length, 0);
+    }
     assert.equal((await driver.findElements(By.css("#paymentConfirmed"))).length, 0);
     assert.equal((await driver.findElements(By.css("#deliveryNote"))).length, 0);
-    assert.equal((await driver.findElements(By.css('input[name="paymentMethod"]'))).length, 2);
-    const manual=await driver.findElement(By.css("#payUpi"));
-    const manualChoice=await driver.findElement(By.css("#manualUpiChoice"));
-    await driver.executeScript(element=>element.scrollIntoView({block:"center",behavior:"instant"}),manualChoice);
-    await manualChoice.click();
-    assert.equal(await manual.isSelected(), true);
-    assert.equal(await driver.findElement(By.css("#paymentReferenceGroup")).isDisplayed(), true);
+    assert.equal((await driver.findElements(By.css('input[name="paymentMethod"]'))).length, 1);
+    const gateway=await driver.findElement(By.css("#payRazorpay"));
+    assert.equal(await gateway.isSelected(), true);
+    assert.equal(await gateway.getAttribute("value"), "razorpay");
     assert.equal(await driver.findElement(By.css("#whatsappReceiptConsent")).isSelected(), false);
     assert.equal(await driver.findElement(By.css("#placeOrder")).isEnabled(), false);
   });

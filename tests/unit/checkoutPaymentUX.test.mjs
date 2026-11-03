@@ -8,51 +8,51 @@ const gateway=read("order-razorpay.mjs");
 const styles=read("order.css");
 const build=read("scripts/build-cloudflare.mjs");
 
-describe("Rainbow secure checkout release",()=>{
+describe("Rainbow online-only secure checkout release",()=>{
   it("publishes both payment dependencies with the Cloudflare Pages build",()=>{
     expect(build).toContain('"payment-config.js","order-razorpay.mjs"');
     expect(build).toContain('"order.js"');
-    expect(page).toContain('src="payment-config.js?v=20261021-checkout-v2"');
+    expect(page).toMatch(/src="payment-config\.js\?v=[\w-]+"/);
     expect(script).toMatch(/order-razorpay\.mjs\?v=[\w-]+/);
   });
-  it("offers only supported choices and updates the order amount alongside the payment selector",()=>{
-    expect(page).toContain('id="payRazorpay"');
-    expect(page).toContain('id="payUpi"');
-    expect(page).toContain('id="manualPaymentDetails"');
+  it("offers Razorpay alone and retains the summary, optional receipt and verified invoice",()=>{
+    const methods=[...page.matchAll(/<input\b[^>]*name="paymentMethod"[^>]*>/g)].map(match=>match[0]);
+    expect(methods).toHaveLength(1);
+    expect(methods[0]).toContain('id="payRazorpay"');
+    expect(methods[0]).toContain('value="razorpay"');
+    expect(methods[0]).toMatch(/\bchecked\b/);
+    expect(methods[0]).toMatch(/\bdisabled\b/);
     expect(page).toContain('id="razorpayDetails"');
     expect(page).toContain('id="whatsappReceiptConsent"');
     expect(script).toContain('Payment verified</h2>');
     expect(script).toContain('View / Print Invoice');
-    expect(script).toContain('whatsapp_opt_in:paymentMethod==="razorpay"');
     expect(gateway).toContain('invoiceUrl:result.invoiceUrl||null');
     expect(page).toContain('id="summaryHeading"');
     expect(page).toContain('id="placeOrder"');
-    expect(page).not.toMatch(/name="paymentMethod"[^>]*value="cod"/i);
     expect(styles).toContain(".checkout-layout");
     expect(styles).toContain(".checkout-aside");
     expect(styles).toContain("@media(max-width:520px)");
   });
-  it("fails closed and explains outages rather than enabling an unverified gateway",()=>{
-    expect(page).toMatch(/id="payRazorpay"[^>]*disabled/);
-    expect(script).toContain("gateway.disabled=!status.available");
-    expect(script).toContain('manual.checked=true');
-    expect(script).toContain('retryGateway');
+  it("removes the manual transfer controls, warning banner and direct manual-order submission",()=>{
+    for(const id of ["payUpi","manualUpiChoice","manualPaymentDetails","checkoutQR","paymentReference","paymentReferenceGroup"]){
+      expect(page).not.toContain('id="'+id+'"');
+    }
+    expect(page).not.toContain('class="checkout-test-notice"');
+    expect(page).not.toContain("Manual UPI transfers real money");
+    expect(script).not.toMatch(/\.rpc\(\s*["']create_online_order["']/);
+    expect(script).not.toContain('manual.checked=true');
+    expect(script).not.toContain("Choose manual UPI instead");
+  });
+  it("retains independent provider checks, mode matching and expired-checkout recovery",()=>{
     expect(gateway).toContain('razorpayAvailability()');
     expect(gateway).toContain('data.enabled===true && keyMatches');
-     expect(gateway).toContain('gateway.mode!==mode');
-     expect(gateway).toContain('"rainbow_razorpay_live_pending_v1"');
+    expect(gateway).toContain('gateway.mode!==mode');
+    expect(gateway).toContain('"rainbow_razorpay_live_pending_v1"');
     expect(gateway).toContain('cache:"no-store"');
     expect(gateway).toContain("Could not connect to the secure payment service");
     expect(gateway).toContain("/api/razorpay/provider-check?check=");
     expect(gateway).toContain('result.provider==="credentials_rejected"');
     expect(gateway).toContain('data.code==="CHECKOUT_EXPIRED"');
     expect(gateway).toContain('error.code!=="CHECKOUT_EXPIRED"');
-  });
-  it("preserves manual UPI verification and clarifies it can transfer actual money",()=>{
-    expect(page).toContain('id="checkoutQR"');
-    expect(page).toContain('id="paymentReference"');
-    expect(page).toContain('Manual UPI transfers real money and requires shop verification.');
-    expect(script).toContain('rpc("create_online_order"');
-    expect(script).toContain('/^[A-Za-z0-9-]{8,64}$/.test(paymentReference)');
   });
 });
