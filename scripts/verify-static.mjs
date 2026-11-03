@@ -44,4 +44,28 @@ for(const file of await walk(root)){
     if(pattern.test(content))throw new Error("Potential secret material found in "+path.relative(root,file));
   }
 }
+
+// Prevent empty placeholders or retired pictures from silently re-entering the
+// public Pages bundle. Brand art must be used by actual browser-delivered code;
+// references in internal documentation or tests do not count.
+const brandDir=path.join(root,"assets/brand");
+const runtimePaths=(await walk(root)).filter(file=>{
+  const relative=path.relative(root,file).replaceAll(path.sep,"/");
+  if(relative.startsWith(".git/")||relative.startsWith("docs/")||
+     relative.startsWith("tests/")||relative.startsWith("scripts/")||
+     relative.startsWith("backend/")||relative.startsWith("supabase/")||
+     relative.startsWith("dist-pages/"))return false;
+  return /\.(html|js|mjs|css)$/i.test(relative);
+});
+const runtimeCode=(await Promise.all(runtimePaths.map(file=>fs.readFile(file,"utf8")))).join("\n");
+for(const filename of await fs.readdir(brandDir)){
+  const full=path.join(brandDir,filename);
+  const stat=await fs.stat(full);
+  if(!stat.isFile())continue;
+  if(!/\.(png|jpe?g|webp|svg)$/i.test(filename)||stat.size<100)
+    throw new Error("Invalid brand asset / empty placeholder: "+filename);
+  if(!runtimeCode.includes("assets/brand/"+filename))
+    throw new Error("Unreferenced brand asset should not be deployed: "+filename);
+}
+
 console.log("Static build verification passed.");
