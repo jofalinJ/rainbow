@@ -22,7 +22,9 @@ function mock(overrides={}){
     if(path==="/rest/v1/products")
       return result(overrides.products??[{id:"product"}]);
     if(path==="/rest/v1/product_variants")
-      return result(overrides.variants??[{id:"variant"}]);
+      return result(overrides.variants??[{id:"variant",stock_quantity:1}]);
+    if(path==="/rest/v1/product_images")
+      return result(overrides.images??[{id:"image"}]);
     if(path==="/sitemap.xml")
       return result('<?xml version="1.0"?><urlset></urlset>',"application/xml");
     if(path==="/robots.txt")return result("User-agent: *\nAllow: /","text/plain");
@@ -38,8 +40,8 @@ test("release checks use only read-only GET requests and never send secrets",asy
   const r=await inspect({fetcher:m.fetcher,publicConfig:CONFIG});
   assert.equal(r.technicalReady,true);
   assert.equal(r.blockers.length,0);
-  assert.equal(r.checks.length,12);
-  assert.equal(m.requests.length,12);
+  assert.equal(r.checks.length,13);
+  assert.equal(m.requests.length,13);
   assert.match(report(r),/Technical checks: PASS/);
   assert.ok(r.manualGates.some(x=>x.includes("Accountant")));
   assert.ok(!report(r).includes(PUBLIC_KEY));
@@ -49,6 +51,18 @@ test("empty live catalogue blocks a merchant launch",async()=>{
   const r=await inspect({fetcher:mock({products:[],variants:[]}).fetcher,publicConfig:CONFIG});
   assert.equal(r.technicalReady,false);
   assert.deepEqual(r.blockers,["catalogue:products","catalogue:variants"]);
+});
+
+test("a missing product photograph blocks launch",async()=>{
+  const r=await inspect({fetcher:mock({images:[]}).fetcher,publicConfig:CONFIG});
+  assert.ok(r.blockers.includes("catalogue:images"));
+});
+
+test("catalogue query requires positive online stock and selling price",async()=>{
+  const m=mock();
+  await inspect({fetcher:m.fetcher,publicConfig:CONFIG});
+  assert.ok(m.requests.some(url=>url.includes("stock_quantity=gt.0")));
+  assert.ok(m.requests.some(url=>url.includes("selling_price=gt.0")));
 });
 
 test("unavailable checkout page is a release blocker",async()=>{
