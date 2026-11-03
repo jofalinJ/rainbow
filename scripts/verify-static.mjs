@@ -11,7 +11,7 @@ for(const file of required){
   catch{throw new Error("Missing required project file: "+file);}
 }
 
-const htmlFiles=["404.html","reset-password.html","product.html","staff/index.html","admin/index.html","admin/login.html","admin/products.html","admin/inventory.html","admin/staff.html","admin/settings.html","admin/orders.html","admin/billing.html","admin/bills.html","invoice.html","order.html","index.html"];
+const htmlFiles=["404.html","reset-password.html","product.html","staff/index.html","admin/index.html","admin/login.html","admin/products.html","admin/inventory.html","admin/staff.html","admin/settings.html","admin/orders.html","admin/billing.html","admin/bills.html","invoice.html","order.html","index.html","admin/attendance.html","admin/customers.html","admin/my-attendance.html","admin/offline.html","admin/reports.html","privacy-policy.html","returns-and-refunds.html","shipping-policy.html","sitemap.html","terms-and-conditions.html"];
 const refRe=/(?:src|href)=["']([^"']+)["']/gi;
 
 for(const file of htmlFiles){

@@ -4,12 +4,13 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&amp;display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../design-system.css?v=20261103">
+<link rel="stylesheet" href="../design-system.css?v=20261103-a11y">
 <link rel="stylesheet" href="premium.css?v=20261103">
 </head>
 <body>
+<a class="skip-link" href="#mainContent">Skip to main content</a>
 <aside aria-label="Admin sidebar"></aside>
-<main><header><div><p class="eyebrow">OVERVIEW</p><h1>Dashboard</h1></div><button class="profile" onclick="logout()">Sign out</button></header>
+<main id="mainContent" tabindex="-1"><header><div><p class="eyebrow">OVERVIEW</p><h1>Dashboard</h1></div><button class="profile" onclick="logout()">Sign out</button></header>
 <section class="cards"><div><small>Today’s Sales</small><strong id="sales">₹0</strong><span id="salesMeta">Loading…</span></div><div><small>Orders</small><strong id="orders">0</strong><span>Recent orders</span></div><div><small>Products</small><strong id="products">0</strong><span>Active products</span></div><div class="alert"><small>Low Stock</small><strong id="lowCount">0</strong><span>Needs attention</span></div></section>
 <section class="panel" id="branchSummaryPanel" hidden aria-labelledby="branchSummaryTitle" style="margin-top:18px">
 <div class="panelhead"><div><h2 id="branchSummaryTitle">Shop-wise inventory overview</h2><p class="muted">Shared products, separate stock by shop and online allocation. This view remains staged until the billing stock cutover is approved.</p></div><button type="button" id="refreshBranchSummary">Refresh shop totals</button></div>

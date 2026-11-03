@@ -3,10 +3,11 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&amp;display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../design-system.css?v=20261103">
+<link rel="stylesheet" href="../design-system.css?v=20261103-a11y">
 <link rel="stylesheet" href="premium.css?v=20261103">
 </head>
-<body><aside></aside><main>
+<body>
+<a class="skip-link" href="#mainContent">Skip to main content</a><aside></aside><main id="mainContent" tabindex="-1">
 <header><div><p class="eyebrow">BUSINESS OVERVIEW</p><h1>Reports</h1></div><button id="refreshReports" class="profile" type="button">Refresh</button></header>
 <section class="cards"><div><small>Orders</small><strong id="reportOrders">—</strong><span>Visible order records</span></div><div><small>Net sales</small><strong id="reportSales">—</strong><span>Excludes cancelled/refunded orders</span></div><div><small>Today's orders</small><strong id="reportTodayOrders">—</strong><span>Based on local store time</span></div><div><small>Active products</small><strong id="reportProducts">—</strong><span>Available in catalogue</span></div></section>
 <section class="panel" id="branchSummaryPanel" hidden aria-labelledby="branchSummaryTitle" style="margin-top:18px">

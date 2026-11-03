@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&amp;display=swap" rel="stylesheet">
-<link rel="stylesheet" href="design-system.css?v=20261103">
+<link rel="stylesheet" href="design-system.css?v=20261103-a11y">
 <link rel="stylesheet" href="premium-storefront.css?v=20261103">
 </head>
 <body>
@@ -22,7 +22,7 @@
 <a class="btn btn-light" href="index.html#products">← Browse jewellery</a>
 <a class="btn btn-light" href="order.html">My bag <span id="detailCartCount"></span></a>
 </nav></header>
-<main id="main" class="container detail-page">
+<main id="main" class="container detail-page" tabindex="-1">
 <nav class="product-crumb" aria-label="Breadcrumb"><a href="index.html">Home</a> › <a href="index.html#products">Jewellery</a> › <span id="crumbName">Product</span></nav>
 <div id="productLoading" role="status" aria-live="polite">Loading jewellery…</div>
 <div id="productError" class="product-error" role="alert" hidden></div>
