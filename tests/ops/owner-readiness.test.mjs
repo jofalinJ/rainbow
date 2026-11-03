@@ -4,6 +4,10 @@ import {inspect,readPublicConfig,report} from "../../scripts/owner-readiness.mjs
 
 const PUBLIC_KEY="sb_publishable_testing_only";
 const CONFIG={url:"https://ajnicsvtymvvkgepjmmk.supabase.co",key:PUBLIC_KEY};
+const SELLABLE={id:"product",selling_price:100,
+  product_variants:[{id:"variant",active:true,stock_quantity:5}],
+  product_images:[{id:"image",public_url:"https://example.test/jewellery.jpg"}]
+};
 const result=(value,type="application/json")=>
   new Response(typeof value==="string"?value:JSON.stringify(value),{
     status:200,headers:{"content-type":type}
@@ -20,11 +24,7 @@ function mock(overrides={}){
     if(path==="/api/razorpay/provider-check")
       return result(overrides.provider??{provider:"connected"});
     if(path==="/rest/v1/products")
-      return result(overrides.products??[{id:"product"}]);
-    if(path==="/rest/v1/product_variants")
-      return result(overrides.variants??[{id:"variant",stock_quantity:1}]);
-    if(path==="/rest/v1/product_images")
-      return result(overrides.images??[{id:"image"}]);
+      return result(overrides.products??[SELLABLE]);
     if(path==="/sitemap.xml")
       return result('<?xml version="1.0"?><urlset></urlset>',"application/xml");
     if(path==="/robots.txt")return result("User-agent: *\nAllow: /","text/plain");
@@ -40,29 +40,45 @@ test("release checks use only read-only GET requests and never send secrets",asy
   const r=await inspect({fetcher:m.fetcher,publicConfig:CONFIG});
   assert.equal(r.technicalReady,true);
   assert.equal(r.blockers.length,0);
-  assert.equal(r.checks.length,13);
-  assert.equal(m.requests.length,13);
+  assert.equal(r.checks.length,11);
+  assert.equal(m.requests.length,11);
   assert.match(report(r),/Technical checks: PASS/);
   assert.ok(r.manualGates.some(x=>x.includes("Accountant")));
   assert.ok(!report(r).includes(PUBLIC_KEY));
 });
 
 test("empty live catalogue blocks a merchant launch",async()=>{
-  const r=await inspect({fetcher:mock({products:[],variants:[]}).fetcher,publicConfig:CONFIG});
+  const r=await inspect({fetcher:mock({products:[]}).fetcher,publicConfig:CONFIG});
   assert.equal(r.technicalReady,false);
-  assert.deepEqual(r.blockers,["catalogue:products","catalogue:variants"]);
+  assert.deepEqual(r.blockers,["catalogue:sellable"]);
 });
 
-test("a missing product photograph blocks launch",async()=>{
-  const r=await inspect({fetcher:mock({images:[]}).fetcher,publicConfig:CONFIG});
-  assert.ok(r.blockers.includes("catalogue:images"));
+test("a product without a public photograph blocks launch",async()=>{
+  const r=await inspect({fetcher:mock({products:[{...SELLABLE,product_images:[]}]}).fetcher,publicConfig:CONFIG});
+  assert.ok(r.blockers.includes("catalogue:sellable"));
 });
 
-test("catalogue query requires positive online stock and selling price",async()=>{
+test("unrelated products, stock and images must not falsely pass readiness",async()=>{
+  const unmatched=[
+    {...SELLABLE,id:"first",product_images:[]},
+    {...SELLABLE,id:"second",product_variants:[]}
+  ];
+  const r=await inspect({fetcher:mock({products:unmatched}).fetcher,publicConfig:CONFIG});
+  assert.ok(r.blockers.includes("catalogue:sellable"));
+});
+
+test("catalogue query requires joined available stock and photographs",async()=>{
   const m=mock();
   await inspect({fetcher:m.fetcher,publicConfig:CONFIG});
-  assert.ok(m.requests.some(url=>url.includes("stock_quantity=gt.0")));
-  assert.ok(m.requests.some(url=>url.includes("selling_price=gt.0")));
+  const catalogueUrls=m.requests.filter(url=>url.includes("/rest/v1/"));
+  assert.equal(catalogueUrls.length,1,"the scan must check the same product, not unrelated tables");
+  const parsed=new URL(catalogueUrls[0]);
+  assert.ok(parsed.searchParams.get("select").includes("product_variants!inner"));
+  assert.ok(parsed.searchParams.get("select").includes("product_images!inner"));
+  assert.equal(parsed.searchParams.get("product_variants.stock_quantity"),"gt.0");
+  assert.equal(parsed.searchParams.get("product_variants.active"),"eq.true");
+  assert.equal(parsed.searchParams.get("selling_price"),"gt.0");
+  assert.equal(parsed.searchParams.get("product_images.public_url"),"not.is.null");
 });
 
 test("unavailable checkout page is a release blocker",async()=>{
