@@ -1,0 +1,170 @@
+/* Rainbow staff workspace — presentation only. Layout, state and table scrolling
+   remain owned by the existing page styles. Shared tokens: ../design-system.css. */
+@media screen {
+  body {
+    background: var(--cream);
+    color: var(--ink);
+    font-family: var(--font-body);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2 {
+    font-family: var(--font-heading);
+    font-weight: 500;
+    line-height: 1.25;
+    letter-spacing: -.025em;
+    color: var(--ink);
+  }
+  h3 { line-height: 1.35; }
+  header h1 { overflow-wrap: anywhere; }
+  .eyebrow { color: var(--gold-ink); font-weight: 700; letter-spacing: .15em; }
+  .muted, .erp-muted { color: var(--muted); line-height: 1.6; }
+
+  body > aside {
+    background: var(--paper);
+    border-color: var(--line);
+    box-shadow: 4px 0 24px rgba(66, 30, 20, .025);
+  }
+  .brand { color: var(--red-dark); }
+  .brand span, .user small { color: var(--muted); }
+  body > aside nav a {
+    color: #584d46;
+    border-radius: 11px;
+    transition: background-color .18s ease, color .18s ease, box-shadow .18s ease;
+  }
+  body > aside nav a.active {
+    background: #f5e8e5;
+    color: var(--red);
+    box-shadow: inset 3px 0 var(--red);
+  }
+  body > aside nav a:hover { background: #f7eee6; color: var(--red-dark); }
+
+  .panel, .erp-panel, .cards > div {
+    border-color: var(--line);
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: 0 5px 24px rgba(56, 31, 22, .035);
+  }
+  .cards > div { padding: 22px; }
+  .cards strong, .erp-stats strong { color: var(--ink); font-variant-numeric: tabular-nums; }
+  .cards small, .cards span, .stock small, .seller small { color: var(--muted); }
+  .cards .alert strong, .stock strong, .orange { color: #875612; }
+  .panelhead { gap: 16px; }
+  .panelhead a { color: var(--red); text-underline-offset: 3px; }
+  .promotion-management { background: linear-gradient(125deg, #fff, var(--paper)); }
+  .promotion-preview, .promotion-item, .detail-box, .erp-match,
+  .attendance-summary-card, .self-attendance-times > div {
+    border-color: var(--line);
+    border-radius: 13px;
+  }
+
+  button, .profile {
+    font-family: var(--font-body);
+    line-height: 1.45;
+    border-color: #d8c9bc;
+    border-radius: 10px;
+    color: #493a31;
+    transition: background-color .18s ease, border-color .18s ease, box-shadow .18s ease;
+  }
+  button:not(:disabled) { cursor: pointer; }
+  .primary, .promotion-actions .primary, .erp-panel button {
+    background: var(--red);
+    border-color: var(--red);
+    color: #fff;
+    box-shadow: 0 3px 10px rgba(95, 14, 24, .1);
+  }
+  .primary:hover:not(:disabled), .promotion-actions .primary:hover:not(:disabled),
+  .erp-panel button:hover:not(:disabled) {
+    background: var(--red-dark);
+    border-color: var(--red-dark);
+  }
+  .quick button { background: var(--paper); border-color: var(--line); }
+  .panelhead button { color: var(--red); }
+  .danger-button { color: #a41f19; border-color: #e5bcb6; }
+  .wa { color: #21633b; }
+  .map { color: #76521c; }
+
+  input, select, textarea { font-family: var(--font-body); color: var(--ink); }
+  input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="file"]):not([type="range"]),
+  select, textarea {
+    border-color: #d7c9bc;
+    border-radius: 10px;
+    background-color: #fff;
+    line-height: 1.5;
+    transition: border-color .18s ease, box-shadow .18s ease;
+  }
+  input::placeholder, textarea::placeholder { color: #75695f; opacity: 1; }
+  :where(a, button, input, select, textarea):focus-visible {
+    outline: 3px solid var(--gold-ink);
+    outline-offset: 3px;
+  }
+  :is(input, select, textarea):focus-visible { border-color: var(--gold-ink); }
+  :is(.staff-form, .erp-panel, .promotion-controls) label { color: #584b41; }
+
+  .panel th, .staff-table th, .orders-table th, .attendance-table th {
+    color: #65574b;
+    background: var(--paper);
+    border-bottom-color: var(--line);
+    font-weight: 650;
+    letter-spacing: .09em;
+    line-height: 1.5;
+  }
+  .panel td, .staff-table td, .orders-table td, .attendance-table td {
+    border-bottom-color: #eee6de;
+    line-height: 1.6;
+  }
+  .orders-table small, .attendance-person small,
+  .attendance-summary-card span, .self-attendance-times span,
+  .detail-box span, .staff-photo-field small { color: var(--muted); }
+  .modal-card, .stock-dialog, .attendance-photo-dialog {
+    border-radius: 21px;
+    box-shadow: 0 24px 70px rgba(41, 18, 13, .16);
+  }
+
+  /* Login and offline screens use the same palette without changing their forms. */
+  body:has(> .box) {
+    background: radial-gradient(ellipse at 15% 5%, #f1e3cf, transparent 55%), var(--cream);
+    padding-block: 28px;
+    box-sizing: border-box;
+  }
+  .box {
+    border: 1px solid var(--line);
+    border-top: 4px solid var(--red);
+    background: #fff;
+    box-shadow: 0 18px 60px rgba(67, 29, 17, .09);
+    border-radius: 24px;
+  }
+  .box h1 { font-size: calc(26px * var(--type-scale)); line-height: 1.3; }
+  .box p, .box small { color: var(--muted); }
+  .box input { min-height: 50px; }
+  .box button { background: var(--red); color: #fff; min-height: 50px; }
+  .box button:hover:not(:disabled) { background: var(--red-dark); }
+}
+
+@media screen and (min-width: 901px) {
+  body:has(> aside) > main { padding-block: 44px; }
+  .panel:not(.attendance-panel):not(.products-editor) { padding: 26px; }
+}
+
+@media screen and (max-width: 900px) {
+  header { flex-wrap: wrap; gap: 16px; }
+  .panelhead { flex-wrap: wrap; gap: 12px; }
+  .cards > div { padding: 19px; }
+}
+
+@media screen and (max-width: 767px), screen and (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="file"]):not([type="range"]),
+  select, textarea { font-size: max(16px, 1em); }
+}
+
+@media (hover: hover) {
+  button:not(:disabled):not(.primary):not(.erp-panel button):not(.box button):hover {
+    border-color: #b89a78;
+    box-shadow: 0 3px 10px rgba(56, 31, 22, .05);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body > aside nav a, button, input, select, textarea { transition: none; }
+}

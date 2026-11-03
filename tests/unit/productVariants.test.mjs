@@ -53,6 +53,6 @@ describe("product variant creation",()=>{
     expect(message).toBeGreaterThan(end);
     expect(html).toContain('id="existingVariants"');
     expect(html).toContain('id="variantFields"');
-    expect(html).toContain('products-editor.css?v=20261015-variant-v1');
+    expect(html).toMatch(/href="products-editor\.css(?:\?[^"\s]+)?"/);
   });
 });

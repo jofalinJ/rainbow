@@ -175,7 +175,7 @@ const server=http.createServer(async(req,res)=>{
   if(url.pathname==="/admin/config.js")return send(res,new Response("window.RAINBOW_SUPABASE_CONFIG={supabaseUrl:"+JSON.stringify(fakeDb)+",supabasePublishableKey:'fixture-public-only'};",{headers:{"Content-Type":"text/javascript"}}));
   if(url.pathname==="/payment-config.js")return send(res,new Response("window.RAINBOW_PAYMENT_CONFIG={apiBaseUrl:"+JSON.stringify(fakeApi)+"};",{headers:{"Content-Type":"text/javascript"}}));
   const pathname=decodeURIComponent(url.pathname==="/"?"/order.html":url.pathname),file=path.resolve(root,"."+pathname);
-  if(!file.startsWith(root+path.sep)||!/^\/(?:order[^/]*|invoice[^/]*|index\.html|content[^/]*|mobile-storefront[^/]*|config\.js|shop-[^/]*|analytics\.js|business-live\.js|supabase-client\.js|recovery-redirect\.js|assets\/[^?]+)$/.test(pathname))return send(res,json({error:"Not a checkout fixture asset"},404));
+  if(!file.startsWith(root+path.sep)||!/^\/(?:order[^/]*|invoice[^/]*|index\.html|content[^/]*|mobile-storefront[^/]*|design-system\.css|premium-storefront\.css|config\.js|shop-[^/]*|analytics\.js|business-live\.js|supabase-client\.js|recovery-redirect\.js|assets\/[^?]+)$/.test(pathname))return send(res,json({error:"Not a checkout fixture asset"},404));
   let content=await fs.readFile(file);
   if(file.endsWith(".html")){
    let html=content.toString().replace(/<script src="https:\/\/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js@2"><\/script>/g,'<script src="/__fixture/sdk-placeholder.js"></script>');
