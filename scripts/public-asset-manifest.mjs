@@ -14,3 +14,20 @@ export const publicRootFiles=[
   "shop-discovery.js"
 ];
 export const publicDirectories=["admin","staff","assets","src/domain"];
+
+const PUBLIC_ROOT=new Set(publicRootFiles);
+const PUBLIC_DIRS=new Set(publicDirectories);
+
+/**
+ * Limit local HTTP previews to exactly the same static tree as Pages.
+ * Never expose the repository's backend, migrations, tests, source maps,
+ * git metadata, node_modules or hidden files through a preview origin.
+ */
+export function isPublicAssetPath(relative){
+  if(typeof relative!=="string"||!relative||relative.includes("\\")||
+     relative.includes("\0")||relative.startsWith("/"))return false;
+  const parts=relative.split("/");
+  if(parts.some(part=>!part||part==="."||part===".."||part.startsWith(".")))return false;
+  if(parts.length===1)return PUBLIC_ROOT.has(relative);
+  return PUBLIC_DIRS.has(parts[0]);
+}
