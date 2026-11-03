@@ -1,0 +1,33 @@
+name: Owner release preflight (read-only)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    name: Check live site, provider and public catalogue
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check scanner safety tests
+        run: node --test tests/ops/owner-readiness.test.mjs
+      - name: Read-only live preflight
+        id: scan
+        shell: bash
+        run: |
+          node scripts/owner-readiness.mjs --json > owner-readiness-report.json
+          node --input-type=module -e "const fs=await import('node:fs'); const r=JSON.parse(fs.readFileSync('owner-readiness-report.json')); console.log('Technical ready:',r.technicalReady,'Blockers:',r.blockers.join(', ')||'none'); console.log('Manual sign-offs still needed:',r.manualGates.length)"
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: owner-release-readiness-report
+          path: owner-readiness-report.json
+          if-no-files-found: warn
+          retention-days: 30
