@@ -80,7 +80,7 @@ export async function razorpayAvailability(){
         return {available:false,mode:data.mode,message:"Razorpay rejected the configured payment credentials. Online checkout is paused until the shop resolves this."};
       return {available:false,mode:data.mode,message:"Razorpay could not be verified right now. Please retry later."};
     }
-    return {available:false,mode:validMode?data.mode:"test",message:"Razorpay online payment is not enabled on the payment server. Manual UPI remains available."};
+    return {available:false,mode:validMode?data.mode:"test",message:"Online payment is temporarily unavailable. Please retry later or contact the shop."};
   }catch(error){
     console.warn("Razorpay availability request failed",error);
     return {available:false,message:"Could not connect to the secure payment service from this browser. Check your connection or retry."};

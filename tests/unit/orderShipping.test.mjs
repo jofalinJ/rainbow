@@ -34,25 +34,30 @@ describe("state-based shipping preview",()=>{
     expect(migration).toContain("v_payment_method is distinct from 'upi'");
   });
 });
-describe("gateway readiness and manual UPI",()=>{
-  it("keeps the new Razorpay option gated until server confirms availability",()=>{
-    expect(html).toMatch(/id="payRazorpay"[^>]*value="razorpay" disabled/);
+describe("online-only checkout readiness",()=>{
+  it("keeps the sole Razorpay option gated until the server confirms availability",()=>{
+    expect(html).toMatch(/<input\b(?=[^>]*id="payRazorpay")(?=[^>]*value="razorpay")(?=[^>]*\bchecked\b)(?=[^>]*\bdisabled\b)[^>]*>/);
+    expect([...html.matchAll(/<input\b[^>]*name="paymentMethod"[^>]*>/g)]).toHaveLength(1);
     expect(html).toContain('id="gatewayStatus"');
     expect(html).toContain('id="retryGateway"');
     expect(html).toContain('src="payment-config.js?v=20261021-checkout-v2"');
     expect(read("payment-config.js")).toContain('apiBaseUrl:"https://rainbow-api.jofalin2005.workers.dev"');
     expect(js).toContain("razorpayAvailability()");
     expect(js).toContain("gateway.disabled=!status.available");
-    expect(js).toContain('input[name="paymentMethod"]:checked');
+    expect(js).toContain('payment_method:"razorpay"');
+    expect(js).toContain('button.disabled=submitting||!payReady||!razorpayReady');
     expect(js).not.toContain("paymentConfirmed");
   });
-  it("still requires verified stock, shipping and a UPI reference for manual UPI",()=>{
+  it("requires verified stock, shipping and gateway readiness before online payment",()=>{
     expect(js).toContain("shipping!==null");
     expect(js).toContain("cart.every(cartItemHasStock)");
-    expect(js).toContain('paymentMethod==="upi"');
-    expect(js).toContain('/^[A-Za-z0-9-]{8,64}$/.test(paymentReference)');
-    expect(js).toContain('rpc("create_online_order"');
-    expect(html).toContain('id="checkoutQR"');
-    expect(html).toContain('id="paymentReferenceGroup"');
+    expect(js).toContain("if(!cartVerified||cartVerificationFailed)");
+    expect(js).toContain("if(!razorpayReady)");
+    expect(js).toContain("beginRazorpayPayment({");
+    expect(js).toContain("displayTotal:totals().total");
+    expect(js).toContain("expectedMode:razorpayMode");
+    expect(js).not.toContain('rpc("create_online_order"');
+    for(const id of ["payUpi","manualUpiChoice","checkoutQR","paymentReference","paymentReferenceGroup"])
+      expect(html).not.toContain('id="'+id+'"');
   });
 });
