@@ -4,18 +4,17 @@ import {readFileSync} from "node:fs";
 
 function fakeClient(rows,failedPage=-1){
   const calls=[];
+  let rangeCount=0;
   const client={
     from(table){
       calls.push(["from",table]);
-      let page=0;
       const query={
         select(columns){calls.push(["select",columns]);return query;},
         eq(...args){calls.push(["eq",...args]);return query;},
         order(...args){calls.push(["order",...args]);return query;},
         range(first,last){
           calls.push(["range",first,last]);
-          if(page===failedPage)return Promise.resolve({error:{message:"network failure"},data:null});
-          page++;
+          if(rangeCount++===failedPage)return Promise.resolve({error:{message:"network failure"},data:null});
           return Promise.resolve({data:rows.slice(first,last+1),error:null});
         }
       };
