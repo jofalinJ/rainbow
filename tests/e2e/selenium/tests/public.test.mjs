@@ -38,23 +38,48 @@ test("customer product catalogue resolves to a usable state", async () => {
   await runWithDriver("customer-products", async (driver) => {
     await driver.get(BASE_URL + "/");
     const status = await driver.findElement(By.css("#productStatus"));
-    await driver.wait(async () => (await status.getText()).trim() !== "Loading products…", 15000);
+    // The catalogue has a 15-second network timeout; give its explicit empty
+    // or connectivity state enough time to render instead of racing that timer.
+    await driver.wait(async () => {
+      const value=(await status.getText()).trim();
+      return Boolean(value)&&!["Loading products…","Loading jewellery…"].includes(value);
+    },25000);
     const value = (await status.getText()).trim();
     assert.notEqual(value, "Products are temporarily unavailable.");
-    assert.match(value, /choose a product type|no product types|product(s)? available/i);
+    assert.match(value, /choose a product type|no product types|online collections are being prepared|product(s)? available/i);
   });
 });
+
+// The public Supabase API sometimes returns a temporary 429/5xx. Retry
+// transient failures but never hide persistent 4xx permission or auth errors.
+async function getPublicProductCodes(config){
+  const url=config.supabaseUrl+"/rest/v1/products?select=product_code&active=eq.true&limit=1";
+  let lastError;
+  for(let attempt=0;attempt<3;attempt++){
+    try{
+      const response=await fetch(url,{
+        headers:{apikey:config.supabasePublishableKey},
+        signal:AbortSignal.timeout(8000)
+      });
+      if(response.ok)return await response.json();
+      if(![429,500,502,503,504].includes(response.status))
+        assert.fail("Public catalogue denied: HTTP "+response.status);
+      lastError=new Error("Public catalogue temporarily unavailable: HTTP "+response.status);
+    }catch(error){
+      if(error.code==="ERR_ASSERTION")throw error;
+      lastError=error;
+    }
+    if(attempt<2)await new Promise(resolve=>setTimeout(resolve,400*(attempt+1)));
+  }
+  throw lastError||new Error("Public catalogue unavailable after retries");
+}
 
 test("standalone product link loads current catalogue data", async context => {
   await runWithDriver("standalone-product", async driver => {
     await driver.get(BASE_URL + "/");
     const config=await driver.executeScript("return window.RAINBOW_SUPABASE_CONFIG");
     assert.ok(config?.supabaseUrl&&config?.supabasePublishableKey);
-    const response=await fetch(config.supabaseUrl+"/rest/v1/products?select=product_code&active=eq.true&limit=1",{
-      headers:{apikey:config.supabasePublishableKey}
-    });
-    assert.equal(response.ok,true,"Public catalogue should be readable");
-    const products=await response.json();
+    const products=await getPublicProductCodes(config);
     if(!products.length){context.skip("No active product is published.");return;}
     const sku=products[0].product_code;
     await driver.get(BASE_URL+"/product.html");
