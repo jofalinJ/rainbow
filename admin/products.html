@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta name="robots" content="noindex,nofollow"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#8f1520"><link rel="icon" type="image/png" href="../assets/brand/rainbow-logo.png"><title>Rainbow Gold Covering — Products</title><link rel="stylesheet" href="style.css?v=20261103-premium"><link rel="stylesheet" href="products-editor.css?v=20261103-premium"><script src="config.js"></script>
+<html lang="en"><head><meta name="robots" content="noindex,nofollow"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#8f1520"><link rel="icon" type="image/png" href="../assets/brand/rainbow-logo.png"><title>Rainbow Gold Covering — Products</title><link rel="stylesheet" href="style.css?v=20261103-premium"><link rel="stylesheet" href="products-editor.css?v=20261104-product-ease"><script src="config.js"></script>
 <style>
 .entry-grid{display:grid;grid-template-columns:repeat(6,minmax(130px,1fr));gap:12px;align-items:end}
 .entry-grid .wide{grid-column:span 2}.category-editor{max-width:190px;min-width:140px;padding:7px;border:1px solid #eadfd1;border-radius:8px;background:#fff;color:#17120f;font:inherit}.save-category{white-space:nowrap;padding:7px 10px}.save-category:disabled{opacity:.5;cursor:wait}.entry-grid .full{grid-column:1/-1}
@@ -31,8 +31,14 @@
 <a class="skip-link" href="#mainContent">Skip to main content</a>
 <aside aria-label="Admin sidebar"></aside>
 <main id="mainContent" tabindex="-1"><header><div><p class="eyebrow">CATALOG</p><h1>Products</h1></div><button onclick="location.href='index.html'">Dashboard</button></header>
+<nav class="product-page-actions" aria-label="Product page shortcuts">
+ <a href="#productCatalogue">Product list</a>
+ <a href="../#collections" target="_blank" rel="noopener">View online shop <span aria-hidden="true">↗</span><span class="sr-only"> (opens in a new tab)</span></a>
+ <a href="#categoryDisplay">Online display</a>
+ <a href="inventory.html">Manage existing stock</a>
+</nav>
 <section class="panel products-editor" aria-labelledby="editorHeading">
- <div class="product-editor-heading"><div><p class="eyebrow">PRODUCT MANAGEMENT</p><h2 id="editorHeading">Add Product</h2><p>Manage product information, stock, variants and real jewellery photographs.</p></div><a href="#categoryDisplay" class="product-editor-shortcut">Storefront categories ↗</a></div>
+ <div class="product-editor-heading"><div><p class="eyebrow">PRODUCT MANAGEMENT</p><h2 id="editorHeading">Add Product</h2><p>Add a product, choose its shop and opening stock, then manage its online display from the product list.</p></div><a href="#productCatalogue" class="product-editor-shortcut">Find an existing product ↓</a></div>
  <div class="product-mode-tabs" role="group" aria-label="Product editor mode">
    <button type="button" id="newProductBtn" aria-pressed="true">＋ New Product</button>
    <button type="button" id="existingBtn" aria-pressed="false">＋ Add Variant to Existing Product</button>
@@ -54,7 +60,8 @@
     <div class="field optional" id="existingColorField"><label for="existingColor">New Color</label><input id="existingColor" placeholder="e.g. Red or Black"></div>
     <div class="field optional" id="existingSizeField"><label for="existingSize">Size</label><input id="existingSize" value="0" placeholder="e.g. 08"></div>
     <div class="field optional" id="existingLengthField"><label for="existingLength">Length (cm)</label><input id="existingLength" type="number" min="0.01" step=".01" placeholder="e.g. 45.00"></div>
-    <div class="field"><label for="existingStock">Starting stock</label><input id="existingStock" type="number" min="0" step="1" value="0"></div>
+    <div class="field"><label for="existingStock">Starting stock</label><input id="existingStock" type="number" min="0" step="1" value="0" aria-describedby="existingStockHelp"><small id="existingStockHelp" class="field-help">Enter the quantity for this new variant. Use 0 to add stock later.</small></div>
+    <div class="field" id="existingStockLocationField" hidden><label for="existingStockLocation">Stock goes to shop</label><select id="existingStockLocation"><option value="">Choose a shop</option></select></div>
     <div class="field"><label for="existingLow">Low-stock alert at</label><input id="existingLow" type="number" min="0" step="1" value="3"></div>
    </div>
    <div class="product-form-footer"><button type="button" id="saveVariantBtn" class="product-save-button">Save Variant</button><small>A barcode will be created automatically. Existing stock and variants stay unchanged.</small></div>
@@ -68,13 +75,14 @@
     <div class="field"><label for="type">Type</label><select id="type" required></select></div>
     <div class="field"><label for="price">Selling price (₹)</label><input id="price" type="number" min="0" step=".01" required placeholder="0.00"></div>
     <div class="field"><label for="gender">Audience</label><select id="gender" required><option value="women">Women</option><option value="unisex">Unisex — women and men</option><option value="male">Men only</option></select></div>
-    <div class="field publish-toggle"><label><input id="active" type="checkbox" checked> Publish to storefront</label></div>
+    <div class="field publish-toggle"><div><label><input id="active" type="checkbox" checked aria-describedby="publishHelp"> Product enabled</label><small id="publishHelp" class="field-help">Keep enabled to sell in shops. Online display also needs publishing and online stock.</small></div></div>
    </div>
   </section>
   <section class="product-form-section" aria-labelledby="inventoryTitle">
    <div class="product-form-section-head"><div><span class="product-form-step">02</span><h3 id="inventoryTitle">Stock & specifications</h3><p>Additional options appear according to the product category.</p></div></div>
    <div class="entry-grid product-specs-grid">
-    <div class="field" id="stockField"><label for="stock">Initial stock</label><input id="stock" type="number" min="0" step="1" value="0"></div>
+    <div class="field" id="stockField"><label for="stock">Initial stock</label><input id="stock" type="number" min="0" step="1" value="0" aria-describedby="stockHelp"><small id="stockHelp" class="field-help">Enter your opening quantity. Use 0 to add stock later.</small></div>
+    <div class="field" id="stockLocationField" hidden><label for="stockLocation">Stock goes to shop</label><select id="stockLocation"><option value="">Choose a shop</option></select></div>
     <div class="field" id="lowField"><label for="low">Low-stock alert at</label><input id="low" type="number" min="0" step="1" value="3"></div>
     <div class="field optional" id="sizeField"><label for="size">Size</label><input id="size" value="0" placeholder="e.g. 08"></div>
     <div class="field optional" id="colorField"><label for="color">Color</label><input id="color" value="0" placeholder="e.g. Pink"></div>
@@ -95,26 +103,34 @@
   <div class="product-form-footer"><button id="saveProductBtn" type="submit" class="product-save-button">Save Product</button><small>Review all details before saving. Inventory and images will be linked to the product code.</small></div>
  </form>
  <p id="msg" class="product-form-message" role="status" aria-live="polite"></p>
+ <div id="productInsertRecovery" class="opening-stock-recovery" hidden>
+  <p id="productInsertMessage" role="status" aria-live="polite"></p>
+  <div class="opening-stock-recovery-actions"><button type="button" id="verifyProductInsert">Verify saved record</button><a href="#catalogueAdminTitle">Check the product list</a></div>
+ </div>
+ <div id="openingStockRecovery" class="opening-stock-recovery" hidden>
+  <p id="openingStockMessage" role="status" aria-live="polite"></p>
+  <div class="opening-stock-recovery-actions"><button type="button" id="retryOpeningStock">Retry opening stock</button><a id="openingStockInventory" href="inventory.html">Check stock in Inventory</a></div>
+ </div>
 </section>
 <dialog hidden id="onlineListingDialog" aria-labelledby="onlineListingTitle" class="stock-dialog">
-<header class="stock-dialog-head"><h2 id="onlineListingTitle">Online product listing</h2><button type="button" id="closeOnlineListing">Close</button></header>
+<header class="stock-dialog-head"><h2 id="onlineListingTitle">Online publishing (admin)</h2><button type="button" id="closeOnlineListing">Close</button></header>
 <div class="stock-dialog-content"><p id="onlineListingProduct"></p>
 <label class="publish-toggle"><input id="onlineListingVisible" type="checkbox"> Publish this existing product online</label>
 <label>Online price (₹, optional)<input id="onlineListingPrice" type="number" min="0" step="0.01" placeholder="Use master product price"></label>
-<p class="field-help">Online publishing alone doesn't add stock. Move stock from a physical shop to the online allocation in Inventory. This listing is staged and does not yet affect the live website.</p>
+<p class="field-help">Online display needs an enabled product, admin publishing and stock allocated to the online shop through Inventory.</p>
 <button type="button" id="saveOnlineListing" class="save-category">Save online listing</button>
-<p id="onlineListingFeedback" role="status"></p></div></dialog>
-<section class="panel" id="categoryDisplay"><div class="panelhead"><h2>Storefront category display</h2><span>Set the category order and choose which in-stock types can appear in the shop.</span></div><div id="storefrontCategoryRows" class="storefront-category-rows">Loading categories…</div><div class="category-display-save"><button type="button" id="saveStorefrontCategories">Save storefront display</button><span id="storefrontCategoryMessage" role="status"></span></div></section>
-<section class="panel" aria-labelledby="catalogueAdminTitle">
-<div class="panelhead"><div><h2 id="catalogueAdminTitle">Product Catalogue</h2><small>Search and manage products across the full database, 40 at a time.</small></div>
+<p id="onlineListingFeedback" role="status"></p><div class="stock-dialog-actions"><a id="onlineListingStock" href="inventory.html">Manage online stock</a><a href="../#collections" target="_blank" rel="noopener">View online shop ↗</a></div></div></dialog>
+<section class="panel" id="productCatalogue" aria-labelledby="catalogueAdminTitle">
+<div class="panelhead"><div><h2 id="catalogueAdminTitle">Product list</h2><small>Find a product to edit its details, manage stock or check its online display.</small></div>
 <div class="catalogue-controls"><input id="search" data-testid="product-search" type="search" placeholder="Search code, name or type" aria-label="Search entire product database">
-<select id="adminProductStatus" aria-label="Filter product visibility"><option value="all">All statuses</option><option value="published">Published</option><option value="draft">Drafts</option></select></div></div>
+<select id="adminProductStatus" aria-label="Filter product visibility"><option value="all">All statuses</option><option value="published">Enabled</option><option value="draft">Disabled</option></select></div></div>
 <p id="adminCatalogMessage" aria-live="polite"></p>
-<div class="table-wrap"><table><thead><tr><th>Code</th><th>Product</th><th>Category</th><th>Type</th><th>Audience</th><th>Visibility</th><th>Price</th><th>Stock</th><th>Photos</th><th>Action</th></tr></thead><tbody id="rows"></tbody></table></div>
+<div class="table-wrap"><table><thead><tr><th>Code</th><th>Product</th><th>Category</th><th>Type</th><th>Audience</th><th>Product status</th><th>Price</th><th id="catalogueStockHeading">Stock</th><th>Photos</th><th>Action</th></tr></thead><tbody id="rows"></tbody></table></div>
 <nav class="catalogue-pagination" aria-label="Product list pages">
 <button type="button" id="catalogPrev">← Previous</button><span id="catalogPageInfo" role="status" aria-live="polite">Loading products…</span><button type="button" id="catalogNext">Next →</button></nav>
 </section>
-<section class="panel" id="bulkTools" aria-labelledby="bulkTitle"><div class="panelhead"><div><h2 id="bulkTitle">Bulk product tools</h2><small>Validate locally first. Imports start as drafts with zero stock; no existing products are overwritten.</small></div><div><button type="button" id="downloadCsvTemplate">Download CSV template</button><button type="button" id="exportCatalogueCsv">Export catalogue CSV</button></div></div>
+<details class="panel product-extra-tools" id="categoryDisplay"><summary>Online shop categories</summary><div class="product-extra-content"><p>Choose the categories customers can see and arrange their display order.</p><div id="storefrontCategoryRows" class="storefront-category-rows">Loading categories…</div><div class="category-display-save"><button type="button" id="saveStorefrontCategories">Save storefront display</button><span id="storefrontCategoryMessage" role="status"></span></div></div></details>
+<details class="panel product-extra-tools"><summary>Bulk imports &amp; photo uploads</summary><div class="product-extra-content"><section id="bulkTools" aria-labelledby="bulkTitle"><div class="panelhead"><div><h2 id="bulkTitle">Bulk product tools</h2><small>Validate locally first. Imports start as drafts with zero stock; no existing products are overwritten.</small></div><div><button type="button" id="downloadCsvTemplate">Download CSV template</button><button type="button" id="exportCatalogueCsv">Export catalogue CSV</button></div></div>
 <div class="catalogue-bulk-grid">
 <section><h3>1. Import product CSV</h3><p>Up to 500 products per batch, with unique product codes. Export your spreadsheet as UTF-8 CSV.</p><label for="bulkProductCsv">Select CSV</label><input id="bulkProductCsv" type="file" accept=".csv,text/csv">
 <div id="bulkPreview" class="bulk-preview" role="status" aria-live="polite"></div>
@@ -128,9 +144,9 @@
 <button type="button" id="bulkPhotosStart" disabled>Upload validated images</button>
 <button type="button" id="bulkPhotosCancel" disabled>Stop after current photograph</button>
 </section></div>
-<p id="bulkProgress" role="status" aria-live="polite"></p></section>
-<section class="panel" aria-labelledby="opsTitle"><div class="panelhead"><div><h2 id="opsTitle">Catalogue health</h2><small>Read-only diagnostics, no customer information.</small></div><button id="refreshCatalogHealth" type="button">Refresh</button></div>
+<p id="bulkProgress" role="status" aria-live="polite"></p></section></div></details>
+<details class="panel product-extra-tools"><summary>Catalogue health &amp; backup guidance</summary><div class="product-extra-content"><section aria-labelledby="opsTitle"><div class="panelhead"><div><h2 id="opsTitle">Catalogue health</h2><small>Read-only diagnostics, no customer information.</small></div><button id="refreshCatalogHealth" type="button">Refresh</button></div>
 <div class="catalogue-health" id="catalogueHealth" role="status" aria-live="polite">Check available product metrics.</div>
 <p><small>For full disaster recovery, use managed database backups or encrypted <code>pg_dump</code> snapshots; product CSV exports alone are not database backups.</small></p>
-</section>
-</main><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="app.js?v=20261018-unified-shop-staff-v2"></script><script src="image-prep.js?v=20261018"></script><script src="catalogue-ops.js?v=20261018"></script><script src="products.js?v=20261018-staff-role-fix"></script><script src="bulk-products.js?v=20261018-staff-role-fix"></script></body></html>
+</section></div></details>
+</main><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="app.js?v=20261018-unified-shop-staff-v2"></script><script src="image-prep.js?v=20261018"></script><script src="catalogue-ops.js?v=20261018"></script><script src="products.js?v=20261104-product-ease"></script><script src="bulk-products.js?v=20261018-staff-role-fix"></script></body></html>

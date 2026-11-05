@@ -3,6 +3,139 @@ async function getProductRules(){if(!productRules)productRules=await import("../
 const $=id=>document.getElementById(id);
 let cats=[],items=[],editingProductId=null,variantMode=false,selectedImages=[],previewObjectUrls=[],editPhotoFiles=[],editPhotoPreviewUrls=[];
 let cataloguePage=0,cataloguePages=0,catalogueTotal=0,catalogueRevision=0,catalogueBusy=false,catalogueTimer=null,pinnedProduct=null,lastListMs=0;
+let variantSaving=false,productSaving=false,stockLocations=[],openingStockTools=null,pendingOpeningStock=null,openingStockKey="",receivingOpeningStock=false;
+let pendingProductInsert=null,productInsertKey="",verifyingProductInsert=false,insertRecoveryInvalid=false;
+const multiShop=()=>window.RAINBOW_MULTI_SHOP_ENABLED===true;
+async function getOpeningStockTools(){if(!openingStockTools)openingStockTools=await import("./product-opening-stock.mjs");return openingStockTools;}
+function insertRecoveryBlocksSave(){return Boolean(pendingProductInsert)||insertRecoveryInvalid||verifyingProductInsert;}
+function restoreProductInsert(record){
+  const fields={products:["id","category_id","product_name","type","gender","active","selling_price","description","length_cm","thickness","gold_amount_g"],
+    product_variants:["id","product_id","color","size","length_cm","stock_quantity","low_stock_limit"]};
+  const uuid=/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
+  if(!record||!fields[record.table]||!record.body||Array.isArray(record.body)
+    ||!uuid.test(record.body.id)||Object.keys(record.body).some(key=>!fields[record.table].includes(key))
+    ||(record.table==="product_variants"&&!uuid.test(record.body.product_id)))throw new Error("Saved product recovery is invalid.");
+  return {table:record.table,body:JSON.parse(JSON.stringify(record.body))};
+}
+function showPendingProductInsert(error=""){
+  const blocked=insertRecoveryBlocksSave(),card=$("productInsertRecovery");card.hidden=!blocked;
+  if(blocked){
+    $("productInsertMessage").textContent=insertRecoveryInvalid?"A previous save could not be read. Check the product list before reloading or creating another product.":
+      "A product or variant save needs confirmation. Verify the original save before creating another. Stock and photos will not be added by this recovery. "+error;
+    $("verifyProductInsert").disabled=verifyingProductInsert||productSaving||variantSaving||insertRecoveryInvalid;
+    $("saveVariantBtn").disabled=true;
+  }
+  $("saveProductBtn").disabled=productSaving||blocked;
+}
+async function setupProductInsertRecovery(){
+  const user=await getAuthUser();productInsertKey="rainbow_product_insert_v1:"+user.id;
+  $("verifyProductInsert").onclick=retryProductInsert;
+  try{const saved=JSON.parse(sessionStorage.getItem(productInsertKey)||"null");if(saved)pendingProductInsert=restoreProductInsert(saved);}
+  catch{insertRecoveryInvalid=true;}
+  showPendingProductInsert();
+}
+function clearPendingProductInsert(){
+  // Do not permit another insertion if the unresolved marker cannot be cleared.
+  sessionStorage.removeItem(productInsertKey);pendingProductInsert=null;showPendingProductInsert();
+}
+async function submitPendingProductInsert(){
+  const record=pendingProductInsert;if(!record)throw new Error("No saved product request is available.");
+  if(!productInsertKey)throw new Error("Product recovery is not ready. Reload this page before saving.");
+  sessionStorage.setItem(productInsertKey,JSON.stringify(record));
+  let originalError;
+  try{
+    const response=await sb(record.table,{method:"POST",headers:{"Prefer":"return=representation"},body:JSON.stringify(record.body)});
+    if(response?.length===1&&String(response[0].id)===record.body.id){clearPendingProductInsert();return response[0];}
+    originalError=new Error("The save response could not be verified.");
+  }catch(error){originalError=error;}
+  try{
+    const rows=await sb(record.table+"?id=eq."+encodeURIComponent(record.body.id)+"&select=*");
+    if(rows?.length===1&&String(rows[0].id)===record.body.id){clearPendingProductInsert();return rows[0];}
+    // A structured database rejection plus a successful empty read confirms that
+    // this insertion failed. Network failures keep the original identifier.
+    let serverCode="";try{serverCode=JSON.parse(originalError.message)?.code||"";}catch{/* Network errors have no database code. */}
+    if(Array.isArray(rows)&&rows.length===0&&/^[0-9A-Z]{5}$/.test(serverCode)&&serverCode!=="23505")clearPendingProductInsert();
+  }catch{/* Keep the marker until the same record can be verified. */}
+  showPendingProductInsert(originalError.message);
+  throw new Error(originalError.message+(pendingProductInsert?" Use Verify saved record before another save.":""));
+}
+async function retryProductInsert(){
+  if(!pendingProductInsert||verifyingProductInsert||productSaving||variantSaving||insertRecoveryInvalid)return false;
+  verifyingProductInsert=true;showPendingProductInsert();
+  try{
+    const record=pendingProductInsert;
+    // Reuse the exact original ID and payload; a committed insert is recovered
+    // through its primary-key conflict and the read that follows it.
+    const saved=await submitPendingProductInsert();
+    resetEditor();await load();fillExistingProducts();
+    variantMessage((record.table==="products"?"Product "+(saved.product_code||""):"Variant")+
+      " save confirmed. Finish any variant, stock or photos from the existing product; do not create it again.");
+    return true;
+  }catch(error){showPendingProductInsert(error.message);variantMessage(error.message,true);return false;}
+  finally{verifyingProductInsert=false;showPendingProductInsert();if(!insertRecoveryBlocksSave())updateExistingVariantFields();}
+}
+function showPendingStock(error=""){
+  const card=$("openingStockRecovery");card.hidden=!pendingOpeningStock;if(!pendingOpeningStock)return;
+  const op=pendingOpeningStock;
+  $("openingStockMessage").textContent=op.productCode+" is saved. Confirm "+op.quantity+" opening units at "+op.locationName+". "+
+    (error?error+" Retry here to check the same request without adding stock twice.":"Retry checks the same stock request without creating another product.");
+  $("openingStockInventory").href="inventory.html?lookup="+encodeURIComponent(op.productCode);
+  $("retryOpeningStock").disabled=receivingOpeningStock;
+}
+async function retryOpeningStock(){
+  if(!pendingOpeningStock||receivingOpeningStock)return false;
+  receivingOpeningStock=true;showPendingStock();
+  try{
+    sessionStorage.setItem(openingStockKey,JSON.stringify(pendingOpeningStock));
+    const tools=await getOpeningStockTools();await tools.receiveOpeningStock(bootSupabase(),pendingOpeningStock);
+    const op=pendingOpeningStock;
+    // The request remains safe to replay if clearing session storage fails.
+    try{sessionStorage.removeItem(openingStockKey);}catch{/* Server request is idempotent. */}
+    pendingOpeningStock=null;showPendingStock();
+    variantMessage("Opening stock confirmed: "+op.quantity+" units at "+op.locationName+" for "+op.productCode+".");
+    return true;
+  }catch(error){showPendingStock(error.message);return false;}
+  finally{receivingOpeningStock=false;$("retryOpeningStock").disabled=false;}
+}
+async function setupOpeningStock(){
+  if(!multiShop())return;
+  $("retryOpeningStock").onclick=retryOpeningStock;
+  const user=await getAuthUser();openingStockKey="rainbow_opening_stock_v1:"+user.id;
+  try{
+    const saved=JSON.parse(sessionStorage.getItem(openingStockKey)||"null");
+    if(saved)pendingOpeningStock=(await getOpeningStockTools()).restoreOpeningStockOperation(saved);
+  }catch{pendingOpeningStock=null;variantMessage("Previous stock recovery could not be read. Check Inventory before receiving the same stock again.",true);}
+  showPendingStock();
+  let errorMessage="";
+  try{
+    const {data,error}=await bootSupabase().from("erp_locations").select("id,name,kind,active").eq("kind","branch").eq("active",true).order("name");
+    if(error)throw error;stockLocations=data||[];
+  }catch(error){errorMessage="Shop list unavailable. Save with zero stock and add it later in Inventory. "+error.message;}
+  for(const [inputId,selectId,fieldId,helpId] of [["stock","stockLocation","stockLocationField","stockHelp"],["existingStock","existingStockLocation","existingStockLocationField","existingStockHelp"]]){
+    const select=$(selectId);select.replaceChildren(new Option("Choose receiving shop",""));
+    stockLocations.forEach(shop=>select.add(new Option(shop.name,shop.id)));
+    $(fieldId).hidden=false;$(inputId).readOnly=!stockLocations.length;$(inputId).max="100000";
+    $(inputId).title="";
+    $(helpId).textContent=errorMessage||(!stockLocations.length?"No assigned shop. Ask an admin for shop access, or save with zero stock.":"Enter the quantity received at your chosen shop. Online stock is allocated separately in Inventory.");
+  }
+}
+async function readOpeningStock(inputId,selectId,active){
+  if(!multiShop())return null;
+  const tools=await getOpeningStockTools();
+  const plan=tools.validateOpeningStock({quantity:$(inputId).value,locationId:$(selectId).value,locations:stockLocations,active});
+  if(plan.quantity&&pendingOpeningStock)throw new Error("Confirm the previous opening stock request below before adding more stock.");
+  return plan;
+}
+async function recordOpeningStock(product,variantId,plan){
+  if(!plan?.quantity)return "";
+  const tools=await getOpeningStockTools();
+  pendingOpeningStock=tools.makeOpeningStockOperation({product,variantId,quantity:plan.quantity,location:plan.location,requestId:crypto.randomUUID()});
+  try{sessionStorage.setItem(openingStockKey,JSON.stringify(pendingOpeningStock));}
+  catch{showPendingStock("Stock was not sent because recovery could not be saved in this browser.");return " Opening stock is pending; use the recovery panel below.";}
+  showPendingStock();
+  const ok=await retryOpeningStock();
+  return ok?" Opening stock: "+plan.quantity+" units at "+plan.location.name+".":" Opening stock needs confirmation in the recovery panel below.";
+}
 const findCurrentProduct=id=>items.find(x=>String(x.id)===String(id))||(pinnedProduct&&String(pinnedProduct.id)===String(id)?pinnedProduct:null);
 const escHtml=value=>String(value??"").replace(/[&<>"]/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[ch])).split(String.fromCharCode(39)).join("&#39;");
 const IMAGE_BUCKET="product-images";
@@ -23,6 +156,7 @@ function updateFields(){
   if(current&&current.type)$("type").value=current.type;
   if(!c.has_size)$("size").value="0";if(!c.has_color)$("color").value="0";
   setField("stockField",!editingProductId);setField("lowField",!editingProductId);
+  if(multiShop())$("stockLocationField").hidden=Boolean(editingProductId);
   setField("createPhotosField",!editingProductId);setField("editPhotosField",!!editingProductId);
 }
 function orderedPhotos(product){
@@ -51,7 +185,6 @@ function resetEditor(){
   $("existingBtn").setAttribute("aria-pressed","false");$("newProductBtn").setAttribute("aria-pressed","true");
   $("form").style.display="block";$("existingBox").style.display="none";updateFields();
 }
-let variantSaving=false;
 let variantRules=null;
 async function getVariantRules(){
   if(!variantRules)variantRules=await import("../src/domain/variantRules.mjs");
@@ -126,7 +259,7 @@ function updateExistingVariantFields(){
   $("existingColor").value="0";$("existingSize").value="0";$("existingLength").value="";
   $("existingStock").value="0";$("existingLow").value="3";
   const canDifferentiate=Boolean(category&&(category.has_color||category.has_size||category.has_length));
-  $("saveVariantBtn").disabled=variantSaving||!product||!category||(!canDifferentiate&&(product.product_variants||[]).length>0);
+  $("saveVariantBtn").disabled=variantSaving||insertRecoveryBlocksSave()||!product||!category||(!canDifferentiate&&(product.product_variants||[]).length>0);
   const details=$("existingVariantHelp");
   if(details){
     details.textContent=!product?"Choose a product to add its variant."
@@ -139,11 +272,13 @@ function updateExistingVariantFields(){
 }
 async function saveVariant(){
   if(variantSaving)return;
+  if(insertRecoveryBlocksSave()){showPendingProductInsert();variantMessage("Verify the previous saved record before saving a variant.",true);return;}
   const product=findCurrentProduct($("existingProduct").value);
   if(!product){variantMessage("Choose an existing product before saving.",true);return;}
   const category=cats.find(c=>String(c.id)===String(product.category_id));
   if(!category){variantMessage("The selected product category is unavailable.",true);return;}
-  let draft;
+  let draft,openingPlan,savedVariant=null;
+  variantSaving=true;$("saveVariantBtn").disabled=true;
   try{
     const rules=await getVariantRules();
     draft=rules.buildVariantDraft(category,{
@@ -152,33 +287,34 @@ async function saveVariant(){
     });
     const duplicate=(product.product_variants||[]).find(v=>rules.sameVariant(v,draft));
     if(duplicate)throw new Error("This exact variant already exists. Choose a different color, size or length; use Inventory to update existing stock.");
-  }catch(error){variantMessage(error.message,true);return;}
+    openingPlan=await readOpeningStock("existingStock","existingStockLocation",product.active!==false);
+  }catch(error){variantSaving=false;$("saveVariantBtn").disabled=insertRecoveryBlocksSave();variantMessage(error.message,true);return;}
   variantSaving=true;
   $("saveVariantBtn").disabled=true;
   $("saveVariantBtn").textContent="Saving variant…";
   variantMessage("Saving new variant…");
   try{
-    const response=await sb("product_variants",{
-      method:"POST",headers:{"Prefer":"return=representation"},
-      body:JSON.stringify({product_id:product.id,...draft})
-    });
-    if(!Array.isArray(response)||response.length!==1)throw new Error("The new variant could not be verified. Refresh and check the variant list.");
+    savedVariant=await insertProductRecord("product_variants",{id:crypto.randomUUID(),product_id:product.id,...draft,stock_quantity:multiShop()?0:draft.stock_quantity});
+    const stockResult=await recordOpeningStock(product,savedVariant.id,openingPlan);
     await load();
     fillExistingProducts(product.id);
     const attrs=[category.has_color?"color "+draft.color:null,category.has_size?"size "+draft.size:null,
       category.has_length?"length "+draft.length_cm+" cm":null].filter(Boolean).join(" · ");
-    variantMessage("Saved a new variant for "+product.product_code+(attrs?" ("+attrs+")":"")+". Stock: "+draft.stock_quantity+".");
+    variantMessage("Saved a new variant for "+product.product_code+(attrs?" ("+attrs+")":"")+"."+
+      (multiShop()?(stockResult||" No opening stock added."):" Stock: "+draft.stock_quantity+"."));
   }catch(error){
     console.error("Variant save failed",error?.code||"");
-    variantMessage(error?.code==="23505"?"This variant already exists. Choose a different color, size or length."
+    variantMessage(savedVariant?"Variant saved for "+product.product_code+". Refresh the product list and check the opening stock panel; do not add the variant again. "+error.message
+      :error?.code==="23505"?"This variant already exists. Choose a different color, size or length."
       :"Could not save variant: "+(error?.message||"Unknown error"),true);
   }finally{
     variantSaving=false;
     $("saveVariantBtn").textContent="Save Variant";
     const selected=findCurrentProduct($("existingProduct").value);
     const c=selected&&cats.find(x=>String(x.id)===String(selected.category_id));
-    $("saveVariantBtn").disabled=!selected||!c||
+    $("saveVariantBtn").disabled=insertRecoveryBlocksSave()||!selected||!c||
       (!c.has_color&&!c.has_size&&!c.has_length&&(selected.product_variants||[]).length>0);
+    showPendingProductInsert();
   }
 }
 
@@ -283,21 +419,35 @@ async function findSharedProducts(value){
  }catch(error){if(seq===sharedSearchRevision)target.textContent="Search unavailable: "+error.message;}
 }
 async function openOnlineListing(productId){
- const profile=await getMyProfile();if(profile.role!=="admin"||!profile.active){alert("Only admin can edit online listings.");return;}
+ const profile=await getMyProfile();if(!profile.active)return;
+ const isAdmin=profile.role==="admin";
  const p=items.find(x=>String(x.id)===String(productId))||
  (pinnedProduct?.id===productId?pinnedProduct:null);
  if(!p)return;
- onlineSelectedId=p.id;
+ onlineSelectedId=isAdmin?p.id:null;
+ $("onlineListingTitle").textContent="Online display";
  $("onlineListingProduct").textContent=p.product_code+" · "+p.product_name;
- $("onlineListingFeedback").textContent="Loading listing…";
+ $("onlineListingStock").href="inventory.html?lookup="+encodeURIComponent(p.product_code);
+ $("onlineListingVisible").disabled=true;$("saveOnlineListing").hidden=!isAdmin;
+ $("onlineListingVisible").closest("label").hidden=!isAdmin;
+ $("onlineListingPrice").closest("label").hidden=!isAdmin;
+ $("onlineListingPrice").disabled=true;
+ const onlineStock=(p.product_variants||[]).filter(v=>v.active!==false).reduce((n,v)=>n+Number(v.stock_quantity||0),0);
+ const category=cats.find(c=>String(c.id)===String(p.category_id));
+ const summary="Product "+(p.active===false?"disabled":"enabled")+" · Online stock: "+onlineStock+" · Category "+(category?.show_in_storefront===false?"hidden":"visible")+". ";
+ const dialog=$("onlineListingDialog");dialog.hidden=false;dialog.showModal();
+ if(!isAdmin){
+   $("onlineListingVisible").checked=false;$("onlineListingPrice").value="";
+   $("onlineListingFeedback").textContent=summary+"An admin publishes the product online and allocates stock from a shop in Inventory. Shop stock alone does not display it online.";
+   return;
+ }
+ $("onlineListingFeedback").textContent="Loading online settings…";
  const {data,error}=await bootSupabase().from("erp_online_listings")
  .select("published,online_price").eq("product_id",p.id).maybeSingle();
  if(error){$("onlineListingFeedback").textContent="ERP listings aren't available in this environment: "+error.message;}
- else{$("onlineListingFeedback").textContent="";$("onlineListingVisible").checked=Boolean(data?.published);$("onlineListingPrice").value=data?.online_price??"";}
+ else{$("onlineListingFeedback").textContent=summary+"Publish here, then allocate online stock in Inventory.";$("onlineListingVisible").checked=Boolean(data?.published);$("onlineListingPrice").value=data?.online_price??"";}
  $("saveOnlineListing").disabled=Boolean(error);
- $("onlineListingPrice").disabled=true;
- $("onlineListingFeedback").textContent="Online prices currently use the master product price. Allocation must happen in Inventory.";
- $("onlineListingDialog").showModal();
+ $("onlineListingVisible").disabled=Boolean(error);
 }
 async function saveOnlineListing(){
  if(!onlineSelectedId)return;
@@ -313,7 +463,7 @@ async function saveOnlineListing(){
    online_price:null,updated_by:user.id,updated_at:new Date().toISOString()
   },{onConflict:"product_id"});
   if(error)throw error;
-  $("onlineListingFeedback").textContent="Listing settings saved. The current public storefront is unchanged until approved cutover.";
+  $("onlineListingFeedback").textContent="Online listing saved. To appear in the shop, the product must be enabled, its category visible and online stock allocated in Inventory.";
  }catch(error){$("onlineListingFeedback").textContent="Could not save: "+error.message;}
  finally{button.disabled=false;}
 }
@@ -333,12 +483,17 @@ async function init(){
   cats=await sb("categories?select=*&active=eq.true&order=storefront_order.asc,name.asc");
   $("category").innerHTML=cats.map(cat=>'<option value="'+escHtml(cat.id)+'">'+escHtml(cat.name)+"</option>").join("");
   updateFields();setupVariantBox();
+  await setupProductInsertRecovery();
   if(window.RAINBOW_MULTI_SHOP_ENABLED===true){
-    for(const id of ["stock","existingStock"]){
-      const input=$(id);if(input){input.value="0";input.readOnly=true;
-        input.title="Receive opening stock at the selected shop using Inventory.";}}
+    for(const id of ["stock","existingStock"]){$(id).readOnly=false;}
+    $("catalogueStockHeading").textContent="Online stock";
+    await setupOpeningStock();
   }
-  if(window.RAINBOW_MULTI_SHOP_ENABLED===true){$("sharedProductLookupSection").hidden=false;bindSharedProductSearch();}
+  const openCategoryDisplay=()=>{if(location.hash==="#categoryDisplay")$("categoryDisplay").open=true;};
+  window.addEventListener("hashchange",openCategoryDisplay);openCategoryDisplay();
+  document.querySelectorAll('a[href="#categoryDisplay"]').forEach(link=>link.addEventListener("click",()=>{$("categoryDisplay").open=true;}));
+  if(window.RAINBOW_MULTI_SHOP_ENABLED===true)$("sharedProductLookupSection").hidden=false;
+  bindSharedProductSearch();
   $("lookupProductButton")?.addEventListener("click",()=>lookupProductByCode($("lookupProductCode").value));
   $("lookupProductCode")?.addEventListener("keydown",event=>{
     if(event.key==="Enter"){event.preventDefault();lookupProductByCode(event.currentTarget.value);}
@@ -392,10 +547,10 @@ function render(){
     const stock=(p.product_variants||[]).filter(v=>v.active!==false).reduce((sum,v)=>sum+Number(v.stock_quantity||0),0),photos=photoRows(p).length;
     return '<tr><td><b>'+escHtml(p.product_code)+'</b></td><td>'+escHtml(p.product_name)+'</td>'+
       '<td>'+escHtml((cats.find(c=>String(c.id)===String(p.category_id))||{}).name||"")+'</td>'+
-      '<td>'+escHtml(p.type)+'</td><td>'+escHtml(p.gender||"women")+'</td><td>'+(p.active===false?"Draft":"Published")+'</td><td>₹'+Number(p.selling_price).toLocaleString("en-IN")+'</td><td>'+stock+'</td>'+
+      '<td>'+escHtml(p.type)+'</td><td>'+escHtml(p.gender||"women")+'</td><td>'+(p.active===false?"Disabled":"Enabled")+'</td><td>₹'+Number(p.selling_price).toLocaleString("en-IN")+'</td><td>'+stock+'</td>'+
       '<td><span class="photo-count">'+photos+'/5</span><button class="save-category" type="button" data-add-photos="'+escHtml(p.id)+'" '+(photos>=5?'disabled':'')+'>Add photos</button><input type="file" accept="image/*" multiple hidden data-image-input="'+escHtml(p.id)+'"></td>'+
-      '<td><button class="save-category" type="button" data-edit-product="'+escHtml(p.id)+'">Edit product</button> '+
-      (window.RAINBOW_MULTI_SHOP_ENABLED===true?'<button class="save-category" type="button" data-online-product="'+escHtml(p.id)+'">Online</button>':'')+'</td></tr>';
+      '<td><button class="save-category" type="button" data-edit-product="'+escHtml(p.id)+'">Edit product</button> <a class="save-category" href="inventory.html?lookup='+encodeURIComponent(p.product_code)+'">Manage stock</a> '+
+      (window.RAINBOW_MULTI_SHOP_ENABLED===true?'<button class="save-category" type="button" data-online-product="'+escHtml(p.id)+'">Online display</button>':'')+'</td></tr>';
   }).join("")||'<tr><td colspan="10">No products found for the current database filters.</td></tr>';
   bindProductActions();bindImageUploadActions();renderStorefrontCategorySettings();
 }
@@ -526,8 +681,17 @@ async function saveExistingProduct(product,c,validation,productLength){
   const success="Updated "+product.product_code+". Product details saved."+photoResult;
   await load();fillExistingProducts();resetEditor();$("msg").textContent=success;
 }
+async function insertProductRecord(table,body){
+  if(insertRecoveryBlocksSave())throw new Error("Verify the previous saved record before creating another.");
+  pendingProductInsert=restoreProductInsert({table,body});showPendingProductInsert();
+  return submitPendingProductInsert();
+}
 $("form").onsubmit=async e=>{
-  e.preventDefault();$("msg").textContent=editingProductId?"Updating product...":"Saving product...";
+  e.preventDefault();if(productSaving)return;
+  if(insertRecoveryBlocksSave()){showPendingProductInsert();variantMessage("Verify the previous saved record before saving another product.",true);return;}
+  productSaving=true;$("saveProductBtn").disabled=true;
+  $("msg").textContent=editingProductId?"Updating product...":"Saving product...";
+  let createdProduct=null;
   try{
     const c=cats.find(x=>String(x.id)===String($("category").value));if(!c)throw new Error("Choose a category.");
     const productLength=c.has_length?Number($("length").value):null;
@@ -540,25 +704,42 @@ $("form").onsubmit=async e=>{
       if(photoRows(product).length+editPhotoFiles.length>5)throw new Error("A product can have no more than five photos.");
       await saveExistingProduct(product,c,validation,productLength);return;
     }
-    const product=(await sb("products",{method:"POST",headers:{"Prefer":"return=representation"},body:JSON.stringify({
-      category_id:validation.value.categoryId,product_name:validation.value.name,type:validation.value.type,
+    const openingPlan=await readOpeningStock("stock","stockLocation",$("active").checked);
+    const variantRules=await getVariantRules();
+    const variantDraft=variantRules.buildVariantDraft(c,{color:$("color").value,size:$("size").value,length:$("length").value,stock:$("stock").value,low:$("low").value});
+    const product=await insertProductRecord("products",{
+      id:crypto.randomUUID(),category_id:validation.value.categoryId,product_name:validation.value.name,type:validation.value.type,
       gender:$("gender").value,active:$("active").checked,selling_price:validation.value.sellingPrice,description:$("description").value.trim()||null,length_cm:productLength,
       thickness:c.has_thickness?($("thickness").value.trim()||null):null,gold_amount_g:c.has_gold_amount?(Number($("gold").value)||null):null
-    })}))[0];
-    await sb("product_variants",{method:"POST",headers:{"Prefer":"return=minimal"},body:JSON.stringify({
-      product_id:product.id,color:c.has_color?($("color").value||"0"):"0",size:c.has_size?($("size").value||"0"):"0",length_cm:productLength,
-      stock_quantity:Number($("stock").value)||0,low_stock_limit:Number($("low").value??3)
-    })});
-    let uploadedCount=0;
-    for(let i=0;i<selectedImages.length;i++){
-      await uploadAndSavePhoto(selectedImages[i],product,{
-        alt_text:product.product_name+(selectedImages.length>1?" — image "+(i+1):""),
-        is_primary:i===0,sort_order:i
-      });uploadedCount++;
-    }
-    const success="Saved "+product.product_code+(uploadedCount?" with "+uploadedCount+" photo"+(uploadedCount===1?"":"s"):"");
-    await load();fillExistingProducts();resetEditor();$("msg").textContent=success;
-  }catch(error){console.error(error);$("msg").textContent="Error: "+error.message;}
+    });
+    createdProduct=product;
+    const variant=await insertProductRecord("product_variants",{
+      id:crypto.randomUUID(),product_id:product.id,...variantDraft,
+      stock_quantity:multiShop()?0:variantDraft.stock_quantity,low_stock_limit:Number($("low").value??3)
+    });
+    const stockResult=await recordOpeningStock(product,variant.id,openingPlan);
+    let uploadedCount=0,photoResult="";
+    try{
+      for(let i=0;i<selectedImages.length;i++){
+        await uploadAndSavePhoto(selectedImages[i],product,{
+          alt_text:product.product_name+(selectedImages.length>1?" — image "+(i+1):""),
+          is_primary:i===0,sort_order:i
+        });uploadedCount++;
+      }
+    }catch(error){photoResult=" Photo upload stopped after "+uploadedCount+" photo(s): "+error.message+". Use Add photos in the product list to finish.";}
+    const success="Saved "+product.product_code+(uploadedCount?" with "+uploadedCount+" photo"+(uploadedCount===1?"":"s"):"")+"."+stockResult;
+    resetEditor();
+    try{await load();fillExistingProducts();}catch{photoResult=" Refresh the product list to see the saved product.";}
+    $("msg").textContent=success+photoResult;
+  }catch(error){
+    console.error("Product save failed",error?.code||"");
+    if(insertRecoveryBlocksSave()){
+      showPendingProductInsert(error.message);variantMessage("Save needs confirmation. Use Verify saved record below; do not submit another product.",true);
+    }else if(createdProduct){
+      resetEditor();await load().catch(()=>{});fillExistingProducts();
+      variantMessage("Product "+createdProduct.product_code+" is saved, but setup is incomplete: "+error.message+". Find it in the product list and finish its variant or photos; do not create it again.",true);
+    }else variantMessage("Error: "+error.message,true);
+  }finally{productSaving=false;showPendingProductInsert();}
 };
 $("saveStorefrontCategories").onclick=saveStorefrontCategories;
 init().catch(error=>{$("msg").textContent="Error: "+error.message;console.error(error);});
