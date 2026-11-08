@@ -13,7 +13,7 @@ export const publicRootFiles=[
   "product-page.css","product-page.js","shop-catalogue.js",
   "shop-discovery.js"
 ];
-export const publicDirectories=["admin","staff","assets","src/domain"];
+export const publicDirectories=["admin","staff","assets","src/domain","categories","products"];
 
 const PUBLIC_ROOT=new Set(publicRootFiles);
 

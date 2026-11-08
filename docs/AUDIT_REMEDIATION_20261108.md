@@ -19,7 +19,7 @@ Do not insert dummy rows into supabase_migrations.schema_migrations or change pr
 - Confirm correct invoice, sale, refund, rounding, delivery, and gateway totals using a controlled isolated payment test; do not run production payment transactions for testing.
 - The online location had zero available units while two branches held 82 units as of November 8. No production inventory was moved. The merchant should select a physical quantity to allocate and reconcile transfer receipts.
 - Enable leaked-password protection in Supabase Auth if the project's plan supports it; review each SECURITY DEFINER RPC before changing access.
-- SEO category/product prerendering remains in PR #40. Rebase and test before activating automatic sitemap generation.
+- Crawlable product/category pages and generated sitemap are implemented in the staged Cloudflare build and remain disabled unless `RAINBOW_SEO_CATALOGUE_APPROVED=true` is configured on Cloudflare Pages. For scheduled updates, configure the separate GitHub deploy-hook workflow. Inspect live catalogue first.
 
 ## Safe promotion order
 1. Review source changes and payment/tax classification, confirm all required CI checks pass.

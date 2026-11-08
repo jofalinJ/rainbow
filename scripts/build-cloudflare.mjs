@@ -17,6 +17,14 @@ import {publicRootFiles,publicDirectories} from "./public-asset-manifest.mjs";
 
 const repo=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"..");
 const output=path.join(repo,"dist-pages");
+const seoEnabled=process.env.RAINBOW_SEO_CATALOGUE_APPROVED==="true";
+if(seoEnabled){
+  // Read only public published product data: never use service-role credentials.
+  const {publicCatalogue,generateSeo}=await import("./generate-seo-pages.mjs");
+  const result=await generateSeo(await publicCatalogue());
+  console.log("Cloudflare SEO catalogue:",result);
+}
+const optionalGeneratedDirectories=new Set(["categories","products"]);
 
 await fs.rm(output,{recursive:true,force:true});
 await fs.mkdir(output,{recursive:true});
@@ -28,6 +36,11 @@ for(const file of publicRootFiles){
   await fs.copyFile(sourcePath,path.join(output,file));
 }
 for(const dir of publicDirectories){
+  if(optionalGeneratedDirectories.has(dir)){
+    if(!seoEnabled)continue;
+    try{await fs.access(path.join(repo,dir));}
+    catch(error){if(error.code==="ENOENT")continue;throw error;}
+  }
   await fs.cp(path.join(repo,dir),path.join(output,dir),{recursive:true});
 }
 
