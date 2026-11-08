@@ -3,13 +3,12 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&amp;display=swap" rel="stylesheet">
-<link rel="stylesheet" href="design-system.css?v=20261103-a11y">
+<link rel="stylesheet" href="design-system.css?v=20261103">
 <link rel="stylesheet" href="premium-storefront.css?v=20261103-wordmark">
 </head>
 <body>
-<a class="skip-link" href="#mainContent">Skip to main content</a>
 <header class="topbar"><nav class="nav container"><div class="navlinks"><a href="index.html#products">Shop</a><a href="index.html#products">Shop by Type</a><a href="index.html#contact">Contact</a></div><a class="logo" href="index.html"><img class="brand-logo" src="assets/brand/rainbow-logo.png" alt="Rainbow Gold Covering logo" width="42" height="42"><span><strong>RAINBOW</strong><small>GOLD COVERING</small></span></a><div class="nav-actions"><a class="instagram-top" href="https://www.instagram.com/rainbow_kollam_gold_covering/" target="_blank" rel="noopener noreferrer">Instagram ↗</a><a class="cart-top" href="order.html">Cart <span id="cartCount">0</span></a></div></nav></header>
-<main class="order-page" id="mainContent" tabindex="-1"><div class="container">
+<main class="order-page"><div class="container">
 <div class="order-head">
   <div><span class="section-kicker">SECURE CHECKOUT</span><h1>Almost yours.</h1><p>Review your bag, address and payment.</p></div>
   <a class="btn btn-light checkout-back" href="index.html#products">← Continue shopping</a>
@@ -75,8 +74,9 @@
       <div class="order-summary">
         <div><span>Subtotal</span><strong id="subtotal">₹0.00</strong></div>
         <div class="summary-saving"><span>Discount (3%)</span><strong id="discount">₹0.00</strong></div>
-        <div><span>CGST (1.5%)</span><strong id="cgst">₹0.00</strong></div>
-        <div><span>SGST (1.5%)</span><strong id="sgst">₹0.00</strong></div>
+        <div id="cgstLine"><span>CGST (1.5%)</span><strong id="cgst">₹0.00</strong></div>
+        <div id="sgstLine"><span>SGST (1.5%)</span><strong id="sgst">₹0.00</strong></div>
+        <div id="igstLine" hidden><span>IGST (3%)</span><strong id="igst">₹0.00</strong></div>
         <div><span>Delivery</span><strong id="delivery">Choose state</strong></div>
         <div class="grand"><span id="totalLabel">Total including delivery</span><strong id="total">—</strong></div>
       </div>
@@ -86,5 +86,5 @@
   </aside>
 </div></div></main>
 <footer class="container footer"><span class="footer-brand"><img class="footer-logo" src="assets/brand/rainbow-logo.png" alt="Rainbow Gold Covering logo" width="28" height="28" loading="lazy"><span>RAINBOW GOLD COVERING</span></span><span><a class="instagram-link" href="https://www.instagram.com/rainbow_kollam_gold_covering/" target="_blank" rel="noopener noreferrer">Instagram · @rainbow_kollam_gold_covering</a></span><span class="footer-legal-link"><a href="privacy-policy.html">Privacy Policy</a></span><span class="footer-legal-link"><a href="terms-and-conditions.html">Terms &amp; Conditions</a></span><span class="footer-legal-link"><a href="sitemap.html">Sitemap</a></span></footer>
-<script src="payment-config.js?v=20261021-checkout-v2"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script type="module" src="order.js?v=20261103-online-only"></script>
+<script src="payment-config.js?v=20261021-checkout-v2"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script type="module" src="order.js?v=20261103-igst"></script>
 </body></html>

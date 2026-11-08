@@ -26,8 +26,10 @@ window.RainbowInvoice=(()=>{
       "<div class='totals'>"+
       "<div class='line'><span>Subtotal</span><b>"+money(data.subtotal)+"</b></div>"+
       "<div class='line'><span>Discount</span><b>"+money(data.discount_amount)+"</b></div>"+
-      "<div class='line'><span>CGST</span><b>"+money(data.cgst_amount)+"</b></div>"+
-      "<div class='line'><span>SGST</span><b>"+money(data.sgst_amount)+"</b></div>"+
+      (Number(data.igst_amount||0)>0
+        ? "<div class='line'><span>IGST</span><b>"+money(data.igst_amount)+"</b></div>"
+        : "<div class='line'><span>CGST</span><b>"+money(data.cgst_amount)+"</b></div>"+
+          "<div class='line'><span>SGST</span><b>"+money(data.sgst_amount)+"</b></div>")+
       (Number(data.delivery_fee||0)>0?"<div class='line'><span>Delivery</span><b>"+money(data.delivery_fee)+"</b></div>":"")+
       "<div class='line grand'><span>Total</span><b>"+money(data.total_amount)+"</b></div></div>"+
       "<div style='margin-top:12px;font-size:11px'><b>Payment:</b> "+esc(String(data.payment_method||"").replaceAll("_"," "))+"</div>"+
