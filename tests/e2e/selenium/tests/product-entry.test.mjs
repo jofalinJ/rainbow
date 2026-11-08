@@ -34,7 +34,8 @@ function fixtureState(mode){
 function bootstrapFixture(){
   const scope=globalThis;
   scope.RAINBOW_MULTI_SHOP_ENABLED=true;
-  scope.getMyProfile=async()=>({active:true,role:"cashier"});
+  const admin=new URLSearchParams(scope.location.search).get("fixture")==="admin";
+  scope.getMyProfile=async()=>({active:true,role:admin?"admin":"cashier"});
   const localFetch=scope.fetch.bind(scope);
   scope.fetch=(url,options)=>{
     const target=new URL(url,scope.location.href);
@@ -58,6 +59,7 @@ function bootstrapFixture(){
       const query={
         select(){return query;},order(){return query;},range(){return query;},
         eq(column,value){filters.push([column,value]);return query;},
+        async maybeSingle(){const result=await query;return {data:result.data[0]??null,error:result.error};},
         or(expression){search=expression.split(".ilike.%")[1]?.split("%")[0]||"";return query;},
         then(resolve,reject){
           return scope.sb(table+"?fixture-read=true").then(rows=>{
@@ -100,7 +102,7 @@ async function startFixture(){
         const resource=url.searchParams.get("resource"),table=resource.split("?")[0];
         response.setHeader("Content-Type","application/json");
         if(request.method==="GET"){
-          const rows=table==="categories"?state.categories:table==="erp_locations"?state.shops:table==="products"?state.products:null;
+          const rows=table==="categories"?state.categories:table==="erp_locations"?state.shops:table==="products"?state.products:table==="erp_online_listings"?[]:null;
           if(!rows)throw new Error("Unexpected fixture read: "+resource);
           response.end(JSON.stringify(rows));return;
         }
@@ -172,6 +174,16 @@ test("staff product entry accepts opening stock safely using only local fixtures
     const waitMessage=pattern=>driver.wait(async()=>pattern.test(await (await field("msg")).getText()),10000);
     const writes=table=>fixture.state().writes.filter(row=>row.resource===table);
 
+    await context.test("an admin can open the online listing and see how to allocate stock",async()=>{
+      await open("admin");
+      assert.equal(await (await field("onlineListingDialog")).isDisplayed(),false);
+      await driver.findElement(By.css('[data-online-product]')).click();
+      await driver.wait(async()=>await (await field("onlineListingDialog")).isDisplayed(),5000);
+      assert.match(await (await field("onlineListingDialog")).getText(),/Online Store.*confirm receipt/);
+      await (await field("closeOnlineListing")).click();
+      assert.equal(fixture.state().writes.length,0);
+    });
+
     await context.test("Initial stock is editable by keyboard and received in the selected shop",async()=>{
       await open();
       assert.equal(await (await field("stock")).getAttribute("readonly"),null);
@@ -217,7 +229,7 @@ test("staff product entry accepts opening stock safely using only local fixtures
 
     await context.test("a draft with positive opening stock fails before writing",async()=>{
       await open();await fillProduct(25);await chooseShop();await (await field("active")).click();
-      await submitProduct();await waitMessage(/Publish the product/);
+      await submitProduct();await waitMessage(/Make the product active/);
       assert.equal(fixture.state().writes.length,0);
     });
 

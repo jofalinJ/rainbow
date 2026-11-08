@@ -1,6 +1,4 @@
-/* Rainbow Multi-shop ERP. All writes use authenticated Supabase with RLS or privileged RPCs.
-   Staged feature: legacy checkout and local billing still use product_variants.stock_quantity
-   until a separately tested migration switches them to location_stock. */
+/* Rainbow Multi-shop ERP. All writes use authenticated Supabase with RLS or privileged RPCs. */
 (() => {
 "use strict";
 const $ = id => document.getElementById(id);
@@ -227,7 +225,7 @@ async function publish() {
    product_id:state.selected.p.id,published:$("erpPublished").checked,
    online_price:null,updated_by:state.user.id,updated_at:new Date().toISOString()
   },{onConflict:"product_id"}));
-  notify("Online listing settings saved in the new ERP catalogue. Legacy storefront is unchanged until cutover.");
+  notify("Online listing settings saved. The storefront shows active products with available online stock.");
  }catch(e){notify(e.message,true);}
  finally{button.disabled=false;}
 }
@@ -430,10 +428,13 @@ async function init() {
   await refreshLocations();
   if(!state.locations.length){notify("No shops assigned. Ask the admin to assign your staff account.",true);return;}
   $("erpLocation").addEventListener("change",()=>{
-   const root=document.getElementById("inventoryBranchSelect");
-   if(root && root.value!==$("erpLocation").value){
-     root.value=$("erpLocation").value;
-     root.dispatchEvent(new Event("change"));
+   const workingLocation=chosenLocation();
+   const branchPicker=$("inventoryBranchSelect");
+   // The stock table only supports physical shops. Keep its selection when working online.
+   if(workingLocation?.kind==="branch" && branchPicker && branchPicker.value!==workingLocation.id &&
+      Array.from(branchPicker.options).some(option=>option.value===workingLocation.id)){
+     branchPicker.value=workingLocation.id;
+     branchPicker.dispatchEvent(new Event("change"));
    }
    if(state.selected)refreshSelected().catch(e=>notify(e.message,true));
    reloadPending().catch(e=>notify(e.message,true));

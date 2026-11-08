@@ -33,7 +33,7 @@ describe("product opening stock",()=>{
     expect(plan({multiShop:false,locations:[],active:false}).quantity).toBe(25);
   });
   it("requires publishing before positive branch stock and permits zero-stock drafts",()=>{
-    expect(()=>plan({active:false})).toThrow(/Publish the product/);
+    expect(()=>plan({active:false})).toThrow(/Make the product active/);
     expect(plan({active:false,quantity:"0"}).quantity).toBe(0);
   });
   it("inserts at zero online stock then receives the exact quantity into the chosen branch",async()=>{
