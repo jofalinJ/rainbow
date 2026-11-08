@@ -1,0 +1,28 @@
+name: Cloudflare SEO catalogue scheduled refresh
+
+on:
+  schedule:
+    - cron: "23 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  trigger-approved-deploy:
+    if: vars.RAINBOW_SEO_CATALOGUE_APPROVED == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Request Cloudflare Pages rebuild with current online catalogue
+        env:
+          DEPLOY_HOOK: ${{ secrets.CLOUDFLARE_PAGES_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$DEPLOY_HOOK" ]; then
+            echo "::error::Set CLOUDFLARE_PAGES_DEPLOY_HOOK_URL to a Cloudflare Pages deploy hook."
+            exit 1
+          fi
+          case "$DEPLOY_HOOK" in
+            https://api.cloudflare.com/client/v4/pages/webhooks/deploy_hooks/*) ;;
+            *) echo "::error::Invalid Cloudflare Pages deploy hook"; exit 1 ;;
+          esac
+          curl --fail --show-error --silent --retry 2 -X POST "$DEPLOY_HOOK"

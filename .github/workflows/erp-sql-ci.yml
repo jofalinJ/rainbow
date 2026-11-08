@@ -4,6 +4,8 @@ on:
     paths:
       - 'supabase/migrations/2026102521*'
       - 'tests/sql/erp-*'
+      - 'tests/sql/online-publication-rls.sql'
+      - 'supabase/migrations/20261108*'
       - '.github/workflows/erp-sql-ci.yml'
   workflow_dispatch:
 permissions:
@@ -58,3 +60,5 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261025222000_erp_enable_after_deploy.sql
           psql -v ON_ERROR_STOP=1 -c "select enabled from app_private.erp_activation_state where singleton"
           psql -v ON_ERROR_STOP=1 -c "select has_function_privilege('authenticated','public.create_local_sale(jsonb,jsonb,text)','EXECUTE') as old_billing_allowed"
+      - name: Verify anonymous, customer and staff product visibility in disposable ERP database
+        run: psql -v ON_ERROR_STOP=1 -f tests/sql/online-publication-rls.sql

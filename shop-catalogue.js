@@ -2,14 +2,14 @@
 (function(root){
  "use strict";
  const PAGE_SIZE=24,MAX_PAGE_SIZE=48;
- const SELECT_FIELDS="id,product_code,product_name,type,gender,display_priority,category_id,categories(name,storefront_order,show_in_storefront),selling_price,description,length_cm,thickness,gold_amount_g,created_at,product_variants!inner(id,stock_quantity,color,size,length_cm,active),product_images(id,public_url,storage_path,is_primary,sort_order)";
+ const SELECT_FIELDS="id,product_code,product_name,type,gender,display_priority,category_id,categories(name,storefront_order,show_in_storefront),selling_price,description,length_cm,thickness,gold_amount_g,created_at,product_variants!inner(id,stock_quantity,color,size,length_cm,active),erp_online_listings!inner(published),product_images(id,public_url,storage_path,is_primary,sort_order)";
  const cleanSearch=value=>String(value||"").trim().replace(/[^\p{L}\p{N}\s-]/gu," ").replace(/\s+/g," ").slice(0,70);
  const clamp=(v,fallback=PAGE_SIZE)=>Number.isInteger(Number(v))?Math.max(1,Math.min(MAX_PAGE_SIZE,Number(v))):fallback;
  const finitePrice=value=>value!==""&&value!==null&&Number.isFinite(Number(value))&&Number(value)>=0?Number(value):null;
  function buildQuery(client,filters={}){
    const limit=clamp(filters.limit),offset=Math.max(0,Math.min(100000,Math.floor(Number(filters.offset)||0)));
    let query=client.from("products").select(SELECT_FIELDS,{count:"exact"})
-     .eq("active",true).eq("product_variants.active",true).gt("product_variants.stock_quantity",0);
+     .eq("active",true).eq("erp_online_listings.published",true).eq("product_variants.active",true).gt("product_variants.stock_quantity",0);
    const search=cleanSearch(filters.search);
    if(search){
      const term=search.replaceAll(" ","%");

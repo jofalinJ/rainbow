@@ -11,7 +11,7 @@
  if(!sku||sku.length>100){showError("This design link is incomplete. Browse available jewellery instead.");return;}
  if(!window.supabase?.createClient||!cfg.supabaseUrl||!cfg.supabasePublishableKey){showError("Catalogue temporarily unavailable. Please try again later.");return;}
  const client=window.supabase.createClient(cfg.supabaseUrl,cfg.supabasePublishableKey);
- const fields="id,product_code,product_name,type,selling_price,description,active,length_cm,thickness,gold_amount_g,product_images(public_url,storage_path,is_primary,sort_order),product_variants(id,stock_quantity,color,size,length_cm,active)";
+ const fields="id,product_code,product_name,type,selling_price,description,active,length_cm,thickness,gold_amount_g,product_images(public_url,storage_path,is_primary,sort_order),product_variants(id,stock_quantity,color,size,length_cm,active),erp_online_listings!inner(published)";
  const imagesOf=p=>(p.product_images||[]).filter(i=>i.public_url).sort((a,b)=>Number(Boolean(b.is_primary))-Number(Boolean(a.is_primary))||Number(a.sort_order||0)-Number(b.sort_order||0)).slice(0,5);
  const inStock=p=>(p.product_variants||[]).filter(v=>v.active!==false&&Number(v.stock_quantity)>0);
  const variantLabel=v=>[v.color&&v.color!=="0"?"Colour: "+v.color:"",v.size&&v.size!=="0"?"Size: "+v.size:"",v.length_cm?"Length: "+v.length_cm+" cm":""].filter(Boolean).join(" · ")||"Standard";
@@ -29,7 +29,7 @@
    if(!selected)return;
    const qty=Number($("detailQty").value);
    if(!Number.isInteger(qty)||qty<1||qty>Number(selected.stock_quantity)){set("detailMessage","Choose an available quantity.");return;}
-   const items=buy?[]:cart();
+   const items=cart();
    const existing=items.find(item=>String(item.variant_id)===String(selected.id));
    const current=Number(existing?.quantity||0);
    if(current+qty>Number(selected.stock_quantity)){set("detailMessage","Only "+selected.stock_quantity+" available; reduce the quantity.");return;}
@@ -56,7 +56,7 @@
    $("detailRelated").hidden=grid.children.length===0;
  }
  try{
-   const {data,error}=await client.from("products").select(fields).eq("product_code",sku).eq("active",true).maybeSingle();
+   const {data,error}=await client.from("products").select(fields).eq("product_code",sku).eq("active",true).eq("erp_online_listings.published",true).maybeSingle();
    if(error)throw error;if(!data){showError("This design is unavailable or no longer listed.");return;}
    product=data;const variants=inStock(product);const images=imagesOf(product);
    set("crumbName",product.product_name);set("detailCategory",product.type||"Jewellery");set("detailName",product.product_name);
@@ -131,6 +131,6 @@
    document.head.append(json);
    $("productLoading").hidden=true;$("productDetail").hidden=false;
    refreshCart();window.RainbowAnalytics?.track("view_item",{item_id:product.product_code});
-   if(product.type){const related=await client.from("products").select(fields).eq("active",true).eq("type",product.type).neq("id",product.id).limit(8);if(!related.error)renderRelated(related.data||[]);}
+   if(product.type){const related=await client.from("products").select(fields).eq("active",true).eq("erp_online_listings.published",true).eq("type",product.type).neq("id",product.id).limit(8);if(!related.error)renderRelated(related.data||[]);}
  }catch(error){console.error("Product detail fetch failed",error);showError("We couldn't load this design. Please check your connection and try again.");}
 })();

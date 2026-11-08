@@ -8,3 +8,19 @@ export function deliveryFeeForState(value){
   if(!state)return null;
   return state==="Tamil Nadu"?50:100;
 }
+
+/**
+ * Customer-facing GST preview for shipping from Tamil Nadu.
+ * The authoritative server applies the same destination split at reservation.
+ * Merchant is responsible for verifying product-specific HSN and applicable rates.
+ */
+export function gstComponentsForState(taxableAmount,state){
+  const normalized=String(state||"").trim().toLowerCase();
+  const match=INDIAN_STATES.find(name=>name.toLowerCase()===normalized);
+  if(!match||!Number.isFinite(taxableAmount)||taxableAmount<0)return null;
+  const round=amount=>Math.round((amount+Number.EPSILON)*100)/100;
+  if(match==="Tamil Nadu")return {
+    cgst:round(taxableAmount*.015),sgst:round(taxableAmount*.015),igst:0,mode:"intra"
+  };
+  return {cgst:0,sgst:0,igst:round(taxableAmount*.03),mode:"inter"};
+}
