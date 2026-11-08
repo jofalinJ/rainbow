@@ -6,7 +6,7 @@ export function buildOpeningStockPlan({quantity,multiShop,locations=[],locationI
   if(!Number.isSafeInteger(value)||value>maximum)throw new Error("Initial stock must be "+maximum.toLocaleString("en-IN")+" or less.");
   const location=locations.find(row=>String(row.id)===String(locationId)&&row.kind==="branch"&&row.active!==false);
   if(enabled&&value>0){
-    if(active===false)throw new Error("Publish the product before adding initial shop stock, or start with zero stock.");
+    if(active===false)throw new Error("Make the product active before adding initial shop stock, or start with zero stock.");
     if(!location)throw new Error("Choose an assigned shop for the initial stock. Ask the admin for shop access if none are available.");
   }
   return {quantity:value,multiShop:enabled,locationId:location?.id||"",locationName:location?.name||""};

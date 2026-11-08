@@ -1,7 +1,7 @@
 let productRules=null;
 async function getProductRules(){if(!productRules)productRules=await import("../src/domain/productRules.mjs");return productRules;}
 let openingStockRules=null,openingStockShops=[];
-async function getOpeningStockRules(){if(!openingStockRules)openingStockRules=await import("./product-opening-stock.mjs");return openingStockRules;}
+async function getOpeningStockRules(){if(!openingStockRules)openingStockRules=await import("./product-opening-stock.mjs?v=20261108");return openingStockRules;}
 const $=id=>document.getElementById(id);
 let cats=[],items=[],editingProductId=null,variantMode=false,selectedImages=[],previewObjectUrls=[],editPhotoFiles=[],editPhotoPreviewUrls=[];
 let productSaving=false,pendingProductSave=null,pendingVariantSave=null,lockedEntryControls=[];
@@ -369,7 +369,7 @@ async function saveOnlineListing(){
    online_price:null,updated_by:user.id,updated_at:new Date().toISOString()
   },{onConflict:"product_id"});
   if(error)throw error;
-  $("onlineListingFeedback").textContent="Listing settings saved. The current public storefront is unchanged until approved cutover.";
+  $("onlineListingFeedback").textContent="Online listing settings saved. The storefront shows active products with available online stock.";
  }catch(error){$("onlineListingFeedback").textContent="Could not save: "+error.message;}
  finally{button.disabled=false;}
 }
@@ -444,7 +444,7 @@ function render(){
     const stock=(p.product_variants||[]).filter(v=>v.active!==false).reduce((sum,v)=>sum+Number(v.stock_quantity||0),0),photos=photoRows(p).length;
     return '<tr><td><b>'+escHtml(p.product_code)+'</b></td><td>'+escHtml(p.product_name)+'</td>'+
       '<td>'+escHtml((cats.find(c=>String(c.id)===String(p.category_id))||{}).name||"")+'</td>'+
-      '<td>'+escHtml(p.type)+'</td><td>'+escHtml(p.gender||"women")+'</td><td>'+(p.active===false?"Draft":"Published")+'</td><td>₹'+Number(p.selling_price).toLocaleString("en-IN")+'</td><td>'+stock+'</td>'+
+      '<td>'+escHtml(p.type)+'</td><td>'+escHtml(p.gender||"women")+'</td><td>'+(p.active===false?"Draft":"Active")+'</td><td>₹'+Number(p.selling_price).toLocaleString("en-IN")+'</td><td>'+stock+'</td>'+
       '<td><span class="photo-count">'+photos+'/5</span><button class="save-category" type="button" data-add-photos="'+escHtml(p.id)+'" '+(photos>=5?'disabled':'')+'>Add photos</button><input type="file" accept="image/*" multiple hidden data-image-input="'+escHtml(p.id)+'"></td>'+
       '<td><button class="save-category" type="button" data-edit-product="'+escHtml(p.id)+'">Edit product</button> '+
       (window.RAINBOW_MULTI_SHOP_ENABLED===true?'<button class="save-category" type="button" data-online-product="'+escHtml(p.id)+'">Online</button>':'')+'</td></tr>';
