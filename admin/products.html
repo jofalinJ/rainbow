@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta name="robots" content="noindex,nofollow"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#8f1520"><link rel="icon" type="image/png" href="../assets/brand/rainbow-logo.png"><title>Rainbow Gold Covering — Products</title><link rel="stylesheet" href="style.css?v=20261103-premium"><link rel="stylesheet" href="products-editor.css?v=20261103-premium"><script src="config.js"></script>
+<html lang="en"><head><meta name="robots" content="noindex,nofollow"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#8f1520"><link rel="icon" type="image/png" href="../assets/brand/rainbow-logo.png"><title>Rainbow Gold Covering — Products</title><link rel="stylesheet" href="style.css?v=20261103-premium"><link rel="stylesheet" href="products-editor.css?v=20261105-opening-stock"><script src="config.js"></script>
 <style>
 .entry-grid{display:grid;grid-template-columns:repeat(6,minmax(130px,1fr));gap:12px;align-items:end}
 .entry-grid .wide{grid-column:span 2}.category-editor{max-width:190px;min-width:140px;padding:7px;border:1px solid #eadfd1;border-radius:8px;background:#fff;color:#17120f;font:inherit}.save-category{white-space:nowrap;padding:7px 10px}.save-category:disabled{opacity:.5;cursor:wait}.entry-grid .full{grid-column:1/-1}
@@ -37,6 +37,10 @@
    <button type="button" id="newProductBtn" aria-pressed="true">＋ New Product</button>
    <button type="button" id="existingBtn" aria-pressed="false">＋ Add Variant to Existing Product</button>
    <button type="button" id="cancelEditBtn" hidden>Cancel Edit</button>
+ </div>
+ <div class="field opening-stock-shop" id="openingStockShopField" hidden>
+   <label for="openingStockShop">Shop for opening stock</label><select id="openingStockShop" aria-describedby="openingStockShopHelp"></select>
+   <small id="openingStockShopHelp" class="field-help">Opening stock is received into this shop. Online stock is allocated separately in Inventory.</small>
  </div>
  <section id="existingBox" class="variant-editor-panel" style="display:none" aria-labelledby="variantEditorTitle">
    <div class="product-form-section-head"><div><h3 id="variantEditorTitle">New product variant</h3><p>Keep the existing product name, price and photos. Add only the unique color, size or length and its stock.</p></div></div>
@@ -133,4 +137,4 @@
 <div class="catalogue-health" id="catalogueHealth" role="status" aria-live="polite">Check available product metrics.</div>
 <p><small>For full disaster recovery, use managed database backups or encrypted <code>pg_dump</code> snapshots; product CSV exports alone are not database backups.</small></p>
 </section>
-</main><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="app.js?v=20261018-unified-shop-staff-v2"></script><script src="image-prep.js?v=20261018"></script><script src="catalogue-ops.js?v=20261018"></script><script src="products.js?v=20261018-staff-role-fix"></script><script src="bulk-products.js?v=20261018-staff-role-fix"></script></body></html>
+</main><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="app.js?v=20261018-unified-shop-staff-v2"></script><script src="image-prep.js?v=20261018"></script><script src="catalogue-ops.js?v=20261018"></script><script src="products.js?v=20261018-staff-role-fix-20261105-opening-stock"></script><script src="bulk-products.js?v=20261018-staff-role-fix"></script></body></html>

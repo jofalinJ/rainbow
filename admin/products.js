@@ -1,7 +1,50 @@
 let productRules=null;
 async function getProductRules(){if(!productRules)productRules=await import("../src/domain/productRules.mjs");return productRules;}
+let openingStockRules=null,openingStockShops=[];
+async function getOpeningStockRules(){if(!openingStockRules)openingStockRules=await import("./product-opening-stock.mjs");return openingStockRules;}
 const $=id=>document.getElementById(id);
 let cats=[],items=[],editingProductId=null,variantMode=false,selectedImages=[],previewObjectUrls=[],editPhotoFiles=[],editPhotoPreviewUrls=[];
+let productSaving=false,pendingProductSave=null,pendingVariantSave=null,lockedEntryControls=[];
+function lockProductEntry(){
+  if(lockedEntryControls.length)return;
+  lockedEntryControls=Array.from(document.querySelectorAll(".products-editor input,.products-editor select,.products-editor textarea,.products-editor button"),node=>[node,node.disabled]);
+  lockedEntryControls.forEach(([node])=>{node.disabled=true;});
+}
+function unlockProductEntry(){
+  lockedEntryControls.forEach(([node,disabled])=>{node.disabled=disabled;});lockedEntryControls=[];
+}
+async function loadOpeningStockShops(){
+  if(window.RAINBOW_MULTI_SHOP_ENABLED!==true)return;
+  const select=$("openingStockShop");
+  $("openingStockShopField").hidden=false;
+  select.replaceChildren(new Option("Choose shop",""));
+  try{
+    openingStockShops=await sb("erp_locations?select=id,name,kind,active&kind=eq.branch&active=eq.true&order=name");
+    for(const shop of openingStockShops)select.add(new Option(shop.name,shop.id));
+    if(openingStockShops.length===1)select.value=openingStockShops[0].id;
+    if(!openingStockShops.length)$("openingStockShopHelp").textContent="No assigned shop. You can save with zero stock; ask an admin to assign a shop before receiving stock.";
+  }catch(error){
+    $("openingStockShopHelp").textContent="Could not load shops. Refresh before entering opening stock, or save with zero stock.";
+  }
+}
+function planOpeningStock(rules,quantity,active){
+  return rules.buildOpeningStockPlan({quantity,active,multiShop:window.RAINBOW_MULTI_SHOP_ENABLED===true,
+    locations:openingStockShops,locationId:$("openingStockShop").value});
+}
+async function saveOpeningStockVariant(operation){
+  const rules=await getOpeningStockRules();
+  return rules.saveVariantStockOperation(operation,{
+    insertVariant:payload=>sb("product_variants",{method:"POST",headers:{"Prefer":"return=representation"},body:JSON.stringify(payload)}),
+    receiveStock:async params=>{
+      const {data,error}=await bootSupabase().rpc("erp_adjust_stock",params);
+      if(error)throw error;return data;
+    }
+  });
+}
+function pendingSaveMessage(product,error){
+  return product.product_code+" is already saved. Saving is incomplete: "+error.message+
+    ". Keep this page open and press Save again to retry safely. Check Inventory before receiving stock elsewhere.";
+}
 let cataloguePage=0,cataloguePages=0,catalogueTotal=0,catalogueRevision=0,catalogueBusy=false,catalogueTimer=null,pinnedProduct=null,lastListMs=0;
 const findCurrentProduct=id=>items.find(x=>String(x.id)===String(id))||(pinnedProduct&&String(pinnedProduct.id)===String(id)?pinnedProduct:null);
 const escHtml=value=>String(value??"").replace(/[&<>"]/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[ch])).split(String.fromCharCode(39)).join("&#39;");
@@ -13,6 +56,7 @@ function setField(id,show){
   wrapper.querySelectorAll("input,select,textarea,button").forEach(control=>{control.disabled=!show;});
 }
 function updateFields(){
+  $("openingStockShopField").hidden=window.RAINBOW_MULTI_SHOP_ENABLED!==true||!!editingProductId;
   const c=cats.find(x=>String(x.id)===String($("category").value));if(!c)return;
   const current=editingProductId?findCurrentProduct(editingProductId):null;
   setField("sizeField",!!c.has_size&&!editingProductId);setField("colorField",!!c.has_color&&!editingProductId);
@@ -44,6 +88,7 @@ function showImages(fileList){
   $("msg").textContent=files.length+" of 5 photos selected.";
 }
 function resetEditor(){
+  if(pendingProductSave||pendingVariantSave)return;
   editingProductId=null;variantMode=false;selectedImages=[];editPhotoFiles=[];clearImagePreviews();clearEditPhotoPreviews();
   $("form").reset();$("gender").value="women";$("active").checked=true;$("cameraFile").value="";$("fileFile").value="";$("preview").innerHTML="";
   $("editPhotoFiles").value="";$("editCurrentPhotos").innerHTML="";$("size").value="0";$("color").value="0";$("stock").value=0;$("low").value=3;
@@ -82,6 +127,7 @@ function setupVariantBox(){
   $("editPhotoFiles").onchange=handleEditPhotoSelection;
 }
 function fillExistingProducts(preferredId=""){
+  if(lockedEntryControls.length)return;
   const select=$("existingProduct");
   const previous=preferredId||select.value;
   select.replaceChildren(new Option("Choose an existing product…",""));
@@ -138,47 +184,55 @@ function updateExistingVariantFields(){
   displayExistingVariants(product,category);
 }
 async function saveVariant(){
-  if(variantSaving)return;
-  const product=findCurrentProduct($("existingProduct").value);
+  if(variantSaving||productSaving||pendingProductSave)return;
+  const product=pendingVariantSave?.product||findCurrentProduct($("existingProduct").value);
   if(!product){variantMessage("Choose an existing product before saving.",true);return;}
   const category=cats.find(c=>String(c.id)===String(product.category_id));
   if(!category){variantMessage("The selected product category is unavailable.",true);return;}
-  let draft;
+  let draft,operation=pendingVariantSave?.operation;
+  variantSaving=true;lockProductEntry();
   try{
-    const rules=await getVariantRules();
-    draft=rules.buildVariantDraft(category,{
-      color:$("existingColor").value,size:$("existingSize").value,
-      length:$("existingLength").value,stock:$("existingStock").value,low:$("existingLow").value
-    });
-    const duplicate=(product.product_variants||[]).find(v=>rules.sameVariant(v,draft));
-    if(duplicate)throw new Error("This exact variant already exists. Choose a different color, size or length; use Inventory to update existing stock.");
-  }catch(error){variantMessage(error.message,true);return;}
-  variantSaving=true;
+    if(!operation){
+      const rules=await getVariantRules(),stockRules=await getOpeningStockRules();
+      draft=rules.buildVariantDraft(category,{
+        color:$("existingColor").value,size:$("existingSize").value,
+        length:$("existingLength").value,stock:$("existingStock").value,low:$("existingLow").value
+      });
+      const duplicate=(product.product_variants||[]).find(v=>rules.sameVariant(v,draft));
+      if(duplicate)throw new Error("This exact variant already exists. Choose a different color, size or length; use Inventory to update existing stock.");
+      const opening=planOpeningStock(stockRules,$("existingStock").value,product.active!==false);
+      operation=stockRules.createVariantStockOperation({productId:product.id,draft,opening,requestId:crypto.randomUUID()});
+    }
+  }catch(error){variantSaving=false;unlockProductEntry();variantMessage(error.message,true);return;}
   $("saveVariantBtn").disabled=true;
   $("saveVariantBtn").textContent="Saving variant…";
   variantMessage("Saving new variant…");
   try{
-    const response=await sb("product_variants",{
-      method:"POST",headers:{"Prefer":"return=representation"},
-      body:JSON.stringify({product_id:product.id,...draft})
-    });
-    if(!Array.isArray(response)||response.length!==1)throw new Error("The new variant could not be verified. Refresh and check the variant list.");
+    await saveOpeningStockVariant(operation);
     await load();
+    pendingVariantSave=null;unlockProductEntry();
     fillExistingProducts(product.id);
+    draft=operation.payload;
     const attrs=[category.has_color?"color "+draft.color:null,category.has_size?"size "+draft.size:null,
       category.has_length?"length "+draft.length_cm+" cm":null].filter(Boolean).join(" · ");
-    variantMessage("Saved a new variant for "+product.product_code+(attrs?" ("+attrs+")":"")+". Stock: "+draft.stock_quantity+".");
+    variantMessage("Saved a new variant for "+product.product_code+(attrs?" ("+attrs+")":"")+". Stock: "+operation.opening.quantity+
+      (operation.opening.multiShop&&operation.opening.quantity>0?" at "+operation.opening.locationName:"")+".");
   }catch(error){
     console.error("Variant save failed",error?.code||"");
-    variantMessage(error?.code==="23505"?"This variant already exists. Choose a different color, size or length."
-      :"Could not save variant: "+(error?.message||"Unknown error"),true);
+    if(operation.variant){
+      pendingVariantSave={product,operation};variantMessage(pendingSaveMessage(product,error),true);
+    }else{
+      unlockProductEntry();
+      variantMessage(error?.code==="23505"?"This variant already exists. Choose a different color, size or length."
+        :"Could not save variant: "+(error?.message||"Unknown error"),true);
+    }
   }finally{
     variantSaving=false;
     $("saveVariantBtn").textContent="Save Variant";
     const selected=findCurrentProduct($("existingProduct").value);
     const c=selected&&cats.find(x=>String(x.id)===String(selected.category_id));
-    $("saveVariantBtn").disabled=!selected||!c||
-      (!c.has_color&&!c.has_size&&!c.has_length&&(selected.product_variants||[]).length>0);
+    $("saveVariantBtn").disabled=!pendingVariantSave&&(!selected||!c||
+      (!c.has_color&&!c.has_size&&!c.has_length&&(selected.product_variants||[]).length>0));
   }
 }
 
@@ -272,8 +326,10 @@ async function findSharedProducts(value){
    try{const url=new URL(href);if(url.protocol==="https:"){const img=document.createElement("img");img.src=url.href;img.alt="";img.loading="lazy";img.style.cssText="height:42px;width:42px;object-fit:contain;border-radius:8px";wrap.append(img);}}catch{/* No remote image preview for missing or invalid URLs. */}
    const button=document.createElement("button");button.type="button";button.textContent="Reuse product";button.className="save-category";
    button.addEventListener("click",async()=>{
+    if(lockedEntryControls.length)return;
     if(!variantMode)$("existingBtn").click();
     const matched=await lookupProductByCode(p.product_code);
+    if(lockedEntryControls.length)return;
     if(matched){$("existingProduct").value=matched.id;updateExistingVariantFields();$("sharedProductResults").textContent="Selected "+p.product_code+"; existing variants and images are reused.";}
    });
    const manage=document.createElement("a");manage.href="inventory.html?lookup="+encodeURIComponent(p.product_code);
@@ -333,11 +389,7 @@ async function init(){
   cats=await sb("categories?select=*&active=eq.true&order=storefront_order.asc,name.asc");
   $("category").innerHTML=cats.map(cat=>'<option value="'+escHtml(cat.id)+'">'+escHtml(cat.name)+"</option>").join("");
   updateFields();setupVariantBox();
-  if(window.RAINBOW_MULTI_SHOP_ENABLED===true){
-    for(const id of ["stock","existingStock"]){
-      const input=$(id);if(input){input.value="0";input.readOnly=true;
-        input.title="Receive opening stock at the selected shop using Inventory.";}}
-  }
+  await loadOpeningStockShops();
   if(window.RAINBOW_MULTI_SHOP_ENABLED===true){$("sharedProductLookupSection").hidden=false;bindSharedProductSearch();}
   $("lookupProductButton")?.addEventListener("click",()=>lookupProductByCode($("lookupProductCode").value));
   $("lookupProductCode")?.addEventListener("keydown",event=>{
@@ -482,6 +534,7 @@ async function addPhotosToProduct(productId,input){
   finally{input.value="";}
 }
 function startEditProduct(productId){
+  if(productSaving||variantSaving||pendingProductSave||pendingVariantSave)return;
   const product=items.find(p=>String(p.id)===String(productId));if(!product)return;
   editingProductId=String(product.id);variantMode=false;selectedImages=[];editPhotoFiles=[];clearImagePreviews();clearEditPhotoPreviews();
   $("cameraFile").value="";$("fileFile").value="";$("preview").innerHTML="";$("editPhotoFiles").value="";$("form").reset();
@@ -524,11 +577,33 @@ async function saveExistingProduct(product,c,validation,productLength){
     }catch(error){photoResult=" Photo upload stopped after "+Number(error.photosAdded||0)+" new photo(s): "+error.message;}
   }
   const success="Updated "+product.product_code+". Product details saved."+photoResult;
-  await load();fillExistingProducts();resetEditor();$("msg").textContent=success;
+  await load();unlockProductEntry();fillExistingProducts();resetEditor();$("msg").textContent=success;
+}
+async function finishNewProductSave(){
+  const saved=pendingProductSave,{product,operation,images}=saved;
+  await saveOpeningStockVariant(operation);
+  if(!saved.photosComplete){
+    try{
+      while(saved.uploadedCount<images.length){
+        const i=saved.uploadedCount;
+        await uploadAndSavePhoto(images[i],product,{
+          alt_text:product.product_name+(images.length>1?" — image "+(i+1):""),is_primary:i===0,sort_order:i
+        });saved.uploadedCount++;
+      }
+    }catch(error){saved.photoResult=" Photo upload stopped after "+saved.uploadedCount+" confirmed photo(s): "+error.message+". Review photos before adding more.";}
+    saved.photosComplete=true;
+  }
+  const opening=operation.opening;
+  const success="Saved "+product.product_code+(saved.uploadedCount?" with "+saved.uploadedCount+" photo"+(saved.uploadedCount===1?"":"s"):"")+
+    (opening.multiShop&&opening.quantity>0?". Opening stock: "+opening.quantity+" at "+opening.locationName+".":"")+(saved.photoResult||"");
+  await load();pendingProductSave=null;unlockProductEntry();fillExistingProducts();resetEditor();$("msg").textContent=success;
 }
 $("form").onsubmit=async e=>{
-  e.preventDefault();$("msg").textContent=editingProductId?"Updating product...":"Saving product...";
+  e.preventDefault();if(productSaving||variantSaving||pendingVariantSave)return;
+  productSaving=true;lockProductEntry();$("saveProductBtn").disabled=true;
+  $("msg").textContent=editingProductId?"Updating product...":"Saving product...";
   try{
+    if(pendingProductSave){await finishNewProductSave();return;}
     const c=cats.find(x=>String(x.id)===String($("category").value));if(!c)throw new Error("Choose a category.");
     const productLength=c.has_length?Number($("length").value):null;
     if(c.has_length&&(!Number.isFinite(productLength)||productLength<=0))throw new Error("Enter the product length in centimetres.");
@@ -540,25 +615,25 @@ $("form").onsubmit=async e=>{
       if(photoRows(product).length+editPhotoFiles.length>5)throw new Error("A product can have no more than five photos.");
       await saveExistingProduct(product,c,validation,productLength);return;
     }
+    const stockRules=await getOpeningStockRules(),opening=planOpeningStock(stockRules,$("stock").value,$("active").checked);
+    const low=Number($("low").value);
+    if(!$("low").value.trim()||!Number.isSafeInteger(low)||low<0||low>2147483647)throw new Error("Low-stock alert must be a whole number of zero or more.");
+    const variantDraft={color:c.has_color?($("color").value||"0"):"0",size:c.has_size?($("size").value||"0"):"0",length_cm:productLength,
+      stock_quantity:opening.quantity,low_stock_limit:Number($("low").value??3)};
     const product=(await sb("products",{method:"POST",headers:{"Prefer":"return=representation"},body:JSON.stringify({
       category_id:validation.value.categoryId,product_name:validation.value.name,type:validation.value.type,
       gender:$("gender").value,active:$("active").checked,selling_price:validation.value.sellingPrice,description:$("description").value.trim()||null,length_cm:productLength,
       thickness:c.has_thickness?($("thickness").value.trim()||null):null,gold_amount_g:c.has_gold_amount?(Number($("gold").value)||null):null
     })}))[0];
-    await sb("product_variants",{method:"POST",headers:{"Prefer":"return=minimal"},body:JSON.stringify({
-      product_id:product.id,color:c.has_color?($("color").value||"0"):"0",size:c.has_size?($("size").value||"0"):"0",length_cm:productLength,
-      stock_quantity:Number($("stock").value)||0,low_stock_limit:Number($("low").value??3)
-    })});
-    let uploadedCount=0;
-    for(let i=0;i<selectedImages.length;i++){
-      await uploadAndSavePhoto(selectedImages[i],product,{
-        alt_text:product.product_name+(selectedImages.length>1?" — image "+(i+1):""),
-        is_primary:i===0,sort_order:i
-      });uploadedCount++;
-    }
-    const success="Saved "+product.product_code+(uploadedCount?" with "+uploadedCount+" photo"+(uploadedCount===1?"":"s"):"");
-    await load();fillExistingProducts();resetEditor();$("msg").textContent=success;
-  }catch(error){console.error(error);$("msg").textContent="Error: "+error.message;}
+    pendingProductSave={product,operation:stockRules.createVariantStockOperation({productId:product.id,draft:variantDraft,opening,requestId:crypto.randomUUID()}),images:[...selectedImages],uploadedCount:0};
+    await finishNewProductSave();
+  }catch(error){
+    console.error(error);$("msg").textContent=pendingProductSave?pendingSaveMessage(pendingProductSave.product,error):"Error: "+error.message;
+  }finally{
+    productSaving=false;
+    if(!pendingProductSave)unlockProductEntry();
+    $("saveProductBtn").disabled=false;
+  }
 };
 $("saveStorefrontCategories").onclick=saveStorefrontCategories;
 init().catch(error=>{$("msg").textContent="Error: "+error.message;console.error(error);});

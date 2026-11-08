@@ -61,7 +61,8 @@ describe("existing admin screen multi-shop integration",()=>{
   expect(inventory).toContain("ERP_INVENTORY");
   expect(inventory).toContain("pages.fetchBranchAvailableBalances");
   expect(read("admin/inventory-page-loader.mjs")).toContain("erp_stock_balances");
-  expect(products).toContain('for(const id of ["stock","existingStock"])');
+  expect(products).toContain('rpc("erp_adjust_stock",params)');
+  expect(products).not.toContain('input.readOnly=true');
   for(const name of ["admin/billing.js","admin/inventory.js","admin/products.js"]){
     expect(()=>new Script(read(name),{filename:name})).not.toThrow();
   }

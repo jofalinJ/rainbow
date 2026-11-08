@@ -4,6 +4,7 @@
 
 - **Unit:** Vitest for domain rules.
 - **Integration:** Vitest + Supabase against a dedicated non-production database.
+- **Product entry browser fixture:** Real product HTML/JS in Chrome with local authentication, catalogue and inventory fixtures. Runs in every PR without credentials or production requests.
 - **Public browser E2E:** Selenium + Chrome against the deployed customer site. This is now run automatically by a separate workflow after a successful GitHub Pages deployment.
 - **Authenticated browser E2E:** Selenium + Chrome against a dedicated test Supabase environment. This remains gated because it requires private test credentials and must never touch production.
 - **Static build verification:** required files, local assets and obvious secret detection.
@@ -15,6 +16,7 @@
 `npm run lint`
 `npm run build`
 `npm run test:unit`
+`npm run test:product-entry:fixture`
 `npm run test:integration`
 `npm run test:e2e:public`
 `npm run test:e2e:authenticated`
@@ -52,3 +54,5 @@ The integration and authenticated E2E workflows reject the production Supabase U
 - When the isolated test environment is configured: Supabase integration + authenticated Selenium E2E.
 - Selenium failures upload screenshots/logs.
 - Authenticated tests never silently fall back to production.
+
+The product-entry fixture covers editable initial stock, shop selection, new products and variants, zero-stock drafts, permission failures and retries after an uncertain receipt response. Multi-shop variants are inserted at zero online stock; opening quantities use the existing authorized shop receipt function. No schema migration is required for the input fix.

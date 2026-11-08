@@ -27,6 +27,7 @@
 .products-editor .field textarea{min-height:85px;resize:vertical}
 .products-editor .field input:focus-visible,.products-editor .field select:focus-visible,.products-editor .field textarea:focus-visible,.products-editor button:focus-visible,.products-editor a:focus-visible{outline:3px solid #d1a257;outline-offset:2px}
 .products-editor .field input:disabled,.products-editor .field select:disabled{background:#f8f7f5}
+.opening-stock-shop{margin:16px 0}
 .products-editor .product-details-grid > .product-name-field{grid-column:span 6}
 .products-editor .product-details-grid > .publish-toggle{grid-column:span 6;display:flex;align-items:center}
 .products-editor .publish-toggle label{display:flex;align-items:center;gap:10px;min-height:44px;margin:0;cursor:pointer}

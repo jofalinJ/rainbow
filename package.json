@@ -12,6 +12,7 @@
     "test:unit": "vitest run tests/unit",
     "test:integration": "vitest run tests/integration",
     "test:checkout:fixture": "node --test tests/fixtures/checkout-flow.test.mjs",
+    "test:product-entry:fixture": "node --test tests/e2e/selenium/tests/product-entry.test.mjs",
     "test:e2e": "node scripts/run-e2e-local.mjs",
     "test:e2e:public": "node --test tests/e2e/selenium/tests/public.test.mjs",
     "test:e2e:authenticated": "node --test tests/e2e/selenium/tests/staff.test.mjs",
