@@ -67,6 +67,9 @@ async function validatePublishedTree(directory){
     if(entry.name.startsWith(".")||entry.isSymbolicLink())
       throw new Error("Unsafe publicly shipped file: "+path.relative(output,full));
     if(entry.isDirectory()){await validatePublishedTree(full);continue;}
+    const relative=path.relative(output,full).replaceAll(path.sep,"/");
+    if(/^(?:categories|products)\//.test(relative)&&entry.name!=="index.html")
+      throw new Error("Unexpected generated SEO asset: "+relative);
     if(!entry.isFile()||!publicExtensions.has(path.extname(entry.name).toLowerCase()))
       throw new Error("Unsafe publicly shipped file: "+path.relative(output,full));
   }

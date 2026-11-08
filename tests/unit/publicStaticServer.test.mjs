@@ -30,6 +30,12 @@ describe("one public static manifest for build and preview",()=>{
     }
     expect(publicRootFiles).toContain("order-razorpay.mjs");
     expect(publicDirectories).toContain("admin");
+    for(const file of ["categories/index.html","categories/earrings/index.html",
+      "categories/earrings/page/2/index.html","products/chain-abc/index.html"])
+      expect(isPublicAssetPath(file),file).toBe(true);
+    for(const file of ["categories/token.js","products/secret.json",
+      "products/item/../../backend/index.js","categories/hidden/.env"])
+      expect(isPublicAssetPath(file),file).toBe(false);
   });
 
   it("refuses backend, SQL, private files, dotfiles and traversal",()=>{

@@ -30,6 +30,9 @@ function safePath(urlPath){
   let relative=decoded.replace(/^\/+/,"")||"index.html";
   if(["admin","admin/","staff","staff/"].includes(relative))
     relative=relative.replace(/\/$/,"")+"/index.html";
+  // Preview clean SEO URLs exactly as Cloudflare Pages resolves directory indexes.
+  if(/^(?:categories|products)(?:\/[a-z0-9-]+)*\/?$/.test(relative))
+    relative=relative.replace(/\/$/,"")+"/index.html";
   if(!isPublicAssetPath(relative))return null;
   const full=path.resolve(root,relative);
   if(!full.startsWith(root+path.sep))return null;
