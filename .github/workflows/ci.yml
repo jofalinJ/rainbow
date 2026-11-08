@@ -22,10 +22,17 @@ jobs:
       - run: npm run test:unit
       - run: node --test tests/ops/owner-readiness.test.mjs
       - run: npm run test:checkout:fixture
+      - name: Product entry browser regression (local fixtures only)
+        run: npm run test:product-entry:fixture
       - run: npm run build
       - run: npm run build:pages
       - run: test -f dist-pages/index.html && test -f dist-pages/staff/index.html && test -f dist-pages/admin/login.html && test ! -e dist-pages/backend && test ! -e dist-pages/supabase && test ! -e dist-pages/tests
       - run: npm run security
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: product-entry-fixture-failure-artifacts
+          path: test-results/selenium
 
   integration:
     name: Supabase integration (isolated environment)
