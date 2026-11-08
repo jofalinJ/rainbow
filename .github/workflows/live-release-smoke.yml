@@ -1,0 +1,43 @@
+name: Live storefront release verification
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'order.html'
+      - 'order.js'
+      - 'product-page.js'
+      - 'shop-catalogue.js'
+      - '.github/workflows/live-release-smoke.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  public-release:
+    name: Confirm updated public storefront assets
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check deployed checkout and publication controls (read-only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          site="https://rainbowgoldcovering.com"
+          for attempt in $(seq 1 18); do
+            if checkout=$(curl --fail --silent --show-error --max-time 12 "$site/order.html") &&
+               pricing=$(curl --fail --silent --show-error --max-time 12 "$site/order.js") &&
+               catalogue=$(curl --fail --silent --show-error --max-time 12 "$site/shop-catalogue.js") &&
+               detail=$(curl --fail --silent --show-error --max-time 12 "$site/product-page.js"); then
+              if grep -Fq 'id="igstLine"' <<< "$checkout" &&
+                 grep -Fq 'gstComponentsForState' <<< "$pricing" &&
+                 grep -Fq '.eq("erp_online_listings.published",true)' <<< "$catalogue" &&
+                 grep -Fq '.eq("erp_online_listings.published",true)' <<< "$detail"; then
+                echo "Live checkout and published-only catalogue assets verified."
+                exit 0
+              fi
+            fi
+            if [ "$attempt" -lt 18 ]; then sleep 10; fi
+          done
+          echo "::error::Live domain is stale or missing the released checkout/publication controls."
+          exit 1
