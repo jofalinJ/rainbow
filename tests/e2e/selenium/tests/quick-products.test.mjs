@@ -319,9 +319,9 @@ test("admin can add existing shop stock to an unpublished draft, publish it, and
   assert.equal(await (await field("onlineVisibilityQty")).getAttribute("max"),"1");
   assert.match(await (await field("onlineVisibilityCurrent")).getText(),/2 available/);
   await driver.executeScript(()=>{
-   const el=document.getElementById("onlineVisibilityQty");
+   const el=globalThis.document.getElementById("onlineVisibilityQty");
    el.value="2";
-   document.getElementById("onlineVisibilityForm").dispatchEvent(new Event("submit",{bubbles:true,cancelable:true}));
+   globalThis.document.getElementById("onlineVisibilityForm").dispatchEvent(new Event("submit",{bubbles:true,cancelable:true}));
   });
   await driver.wait(async()=>/only 1 available/.test(await (await field("onlineVisibilityFeedback")).getText()),8000);
   data=await driver.executeScript("return globalThis.__qa");
