@@ -11,12 +11,9 @@ import chrome from "selenium-webdriver/chrome.js";
 // fake objects in the browser; this never touches the merchant database.
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"../../../..");
 const categoryId="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
-const shopId="bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
-const onlineId="cccccccc-cccc-4ccc-8ccc-cccccccccccc";
-const userId="dddddddd-dddd-4ddd-8ddd-dddddddddddd";
 
 function browserFixture(){
- const role=new URLSearchParams(location.search).get("role")==="admin"?"admin":"cashier";
+ const role=new URLSearchParams(globalThis.location.search).get("role")==="admin"?"admin":"cashier";
  const categories=[{id:"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",name:"Chain",code_prefix:"CH",has_color:false,has_size:false,has_length:false,storefront_order:1,active:true,show_in_storefront:true}];
  const locations=[{id:"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",name:"Fixture shop",kind:"branch",active:true}];
  if(role==="admin")locations.push({id:"cccccccc-cccc-4ccc-8ccc-cccccccccccc",name:"Online Store",kind:"online",active:true});
@@ -24,7 +21,7 @@ function browserFixture(){
  let next=1;
  const staff=[{user_id:"dddddddd-dddd-4ddd-8ddd-dddddddddddd",active:true,archived_at:null,role}];
  const state={role,products,writes,uploadPaths,categories,locations};
- window.__qa=state;
+ globalThis.__qa=state;
  const dataResult=data=>({data,error:null});
  const allRows=name=>{
   if(name==="categories")return categories;
@@ -102,8 +99,8 @@ function browserFixture(){
   })},
   rpc:async name=>{throw Error("ERP RPC must not run during a zero-stock draft: "+name);}
  };
- window.RAINBOW_SUPABASE_CONFIG={supabaseUrl:"https://example.invalid",supabasePublishableKey:"fixture-not-a-secret"};
- window.supabase={createClient:()=>client};
+ globalThis.RAINBOW_SUPABASE_CONFIG={supabaseUrl:"https://example.invalid",supabasePublishableKey:"fixture-not-a-secret"};
+ globalThis.supabase={createClient:()=>client};
 }
 async function serve(){
  const server=createServer(async(req,res)=>{
@@ -160,7 +157,7 @@ test("Quick Products is photo-first; staff can save a draft on a 390px screen wi
   const photoInput=await field("productPhotos");
   await driver.executeScript(input=>{
    const file=new File([new Uint8Array([137,80,78,71,13,10,26,10])],"chain.png",{type:"image/png"});
-   const data=new DataTransfer();data.items.add(file);input.files=data.files;
+   const data=new globalThis.DataTransfer();data.items.add(file);input.files=data.files;
    input.dispatchEvent(new Event("change",{bubbles:true}));
   },photoInput);
   assert.equal((await driver.findElements(By.css("#photoGallery .photo-tile"))).length,1);
@@ -169,7 +166,7 @@ test("Quick Products is photo-first; staff can save a draft on a 390px screen wi
   await (await field("ownerPrice")).sendKeys("450");
   await (await field("saveDraft")).click();
   await driver.wait(async()=>/Saved for owner approval/.test(await (await field("editMessage")).getText()),15000);
-  const data=await driver.executeScript("return window.__qa");
+  const data=await driver.executeScript("return globalThis.__qa");
   assert.equal(data.products.length,1);
   assert.equal(data.products[0].product_images.length,1);
   assert.equal(data.products[0].product_variants[0].stock_quantity,0);
