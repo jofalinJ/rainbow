@@ -16,7 +16,7 @@ You don't need to fill in shop stock, description, size or an optional product c
 
 Staff with active shop accounts can create and edit unpublished drafts, upload images and record **new, physically counted** branch stock in **More options**. If stock already exists in Inventory, **do not enter it as new stock again**.
 
-Only the **admin/owner** can use **Show Online** or **Hide Online** in **Categories & Online**, or move branch stock to the Online Store. If online stock is already available, Show Online publishes directly. Otherwise, the admin chooses a source shop, variant and quantity of **stock already counted in Inventory**, and the app transfers that stock before marking the item published. If no stock is recorded, the app does not invent any: receive it in Inventory first. An online product becomes purchasable only after publication **and** available Online Store stock. This protects against selling shop stock twice.
+Only the **admin/owner** can use **Show Online**, **Hide Online**, or **＋ Add Online Stock** in **Categories & Online (Online Push)**. To add online stock from existing shop inventory, choose a product, click **＋ Add Online Stock**, select the product variant, review the available quantities at each shop, select the physical shop and the number of pieces to transfer, then confirm. The selected quantity is deducted from that physical shop and transferred to the Online Store using the existing ERP dispatch/receipt workflow. The dialog shows the current online quantity, any reserved stock, and the maximum transferable shop quantity. A draft remains hidden when you use **Add Online Stock**; choose **Show Online** once the photo, positive price, and stock are ready. An already-published product can be topped up without publishing again. **Show Online** can also transfer recorded stock and publish in a single action when required. If no shop stock is available, receive real stock into Inventory first; neither button creates stock. An online product becomes purchasable only after publication and available Online Store stock.
 
 If the category requires a length, the editor asks the admin for that specification before publication.
 
@@ -28,7 +28,9 @@ The owner can open **Categories & Online** to see every saved design grouped by 
 
 - **Saved but not visible online:** This is expected for a draft. Check publication and Online Store stock.
 - **No product photo:** Add a genuine photo before publishing (maximum six per product).
-- **Cannot add stock:** Open **More options**, select the actual physical shop, and confirm the counted quantity. Staff can only receive stock at an authorized shop.
+- **No existing stock available to move online:** Receive/count pieces at the physical shop in **Inventory** first. The **Add Online Stock** dialog never creates stock.
+- **Need to add more stock to an already published product:** Open **Categories & Online → ＋ Add Online Stock**, choose the shop and transfer quantity. Do not re-enter opening stock.
+- **Cannot add new physical stock:** Open **More options** in Quick Add or use **Inventory**, choose the actual shop, and confirm the counted quantity. Staff can only receive stock at an authorized shop.
 - **Session expired:** Sign in again through the existing staff login.
 - **Lost connection during Save:** Check **Products** before retrying; the editor attempts to reuse any product record already created.
 
