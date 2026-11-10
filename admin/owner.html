@@ -7,11 +7,11 @@
 <meta name="theme-color" content="#8B0000">
 <link rel="icon" href="../assets/brand/rainbow-logo.png" type="image/png">
 <title>Staff Products | Rainbow Gold Covering</title>
-<link rel="stylesheet" href="owner.css?v=20261110-easy-entry">
+<link rel="stylesheet" href="owner.css?v=20261110-category-online">
 <script src="config.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script defer src="image-prep.js?v=20261110"></script>
-<script defer src="owner.js?v=20261110-easy-entry"></script>
+<script defer src="owner.js?v=20261110-category-online"></script>
 </head>
 <body>
 <div id="startup" role="status" class="startup">Checking your shop staff account…</div>
@@ -28,7 +28,7 @@
   <button type="button" data-screen="editor" class="active">＋ Add Product</button>
   <button type="button" data-screen="products">Products <span id="draftBadge" class="count">0 drafts</span></button>
   <button type="button" data-screen="dashboard">Dashboard</button>
-  <button type="button" data-screen="categories">Categories</button>
+  <button type="button" data-screen="categories">Categories &amp; Online</button>
   <a href="../index.html" target="_blank" rel="noopener">Visit Store ↗</a>
   <span class="nav-section">OTHER STAFF TOOLS</span>
   <a href="products.html">Advanced Products</a>
@@ -55,7 +55,7 @@
   <section class="panel"><h2>Needs attention</h2><div id="needsAttention" class="attention-list">Loading…</div></section>
  </section>
  <section id="screen-products" class="screen" hidden>
-  <div class="page-heading"><div><p class="eyebrow">CATALOGUE</p><h1>Products</h1><p>Edit, publish, or take products off the website.</p></div><button class="primary" type="button" data-screen="editor">＋ Add Product</button></div>
+  <div class="page-heading"><div><p class="eyebrow">CATALOGUE</p><h1>Products</h1><p>All saved products. Use Categories &amp; Online to choose what customers see.</p></div><button class="primary" type="button" data-screen="editor">＋ Add Product</button></div>
   <div class="filter-bar">
    <label class="grow">Search products<input id="ownerSearch" type="search" placeholder="Name or product code" autocomplete="off"></label>
    <label>Show<select id="ownerFilter"><option value="all">All</option><option value="published">Published</option><option value="draft">Drafts</option><option value="out">Out of stock</option><option value="photos">Missing photos</option><option value="archived">Archived</option></select></label>
@@ -106,11 +106,35 @@
   </form>
  </section>
  <section id="screen-categories" class="screen" hidden>
-  <div class="page-heading"><div><p class="eyebrow">CATEGORIES</p><h1>Product categories</h1><p>Add, rename or reorder. Categories in use cannot be deleted.</p></div></div>
-  <form id="categoryForm" class="panel category-form"><label>New category name<input id="categoryName" maxlength="70" required placeholder="e.g. Pendant"></label><button type="submit" class="primary">Add category</button></form>
+  <div class="page-heading"><div><p class="eyebrow">PRODUCTS BY CATEGORY</p><h1>Categories &amp; Online</h1><p>Every saved product appears under its category. The owner chooses what goes onto the website.</p></div></div>
+  <section class="panel category-catalogue-panel" aria-labelledby="categoryCatalogueHeading">
+   <h2 id="categoryCatalogueHeading">Saved products &amp; online visibility</h2>
+   <p class="quick-tip">A product must have a photo, a price and available online stock before customers can see or buy it. Shop stock is not automatically online stock.</p>
+   <div class="filter-bar category-toolbar">
+    <label>Category<select id="categoryCatalogueFilter"><option value="all">All categories</option></select></label>
+    <label class="grow">Find a product<input id="categoryCatalogueSearch" type="search" placeholder="Search name or product code" autocomplete="off"></label>
+   </div>
+   <div id="categoryCatalogueList" class="category-product-groups" aria-live="polite">Loading saved products…</div>
+   <button type="button" class="secondary" id="categoryLoadMore" hidden>Load more products</button>
+  </section>
+  <section class="panel category-management-panel"><h2>Manage categories</h2><p>Admins can add, rename and reorder categories. Existing products and their categories are preserved.</p>
+  <form id="categoryForm" class="category-form"><label>New category name<input id="categoryName" maxlength="70" required placeholder="e.g. Pendant"></label><button type="submit" class="primary">Add category</button></form>
   <div id="categoryList" class="category-list"></div>
+  </section>
  </section>
 
+<dialog id="onlineVisibilityDialog" class="online-visibility-dialog" aria-labelledby="onlineVisibilityTitle">
+ <form id="onlineVisibilityForm">
+  <h2 id="onlineVisibilityTitle">Show product online</h2>
+  <p id="onlineVisibilityProduct"></p>
+  <p class="quick-tip">This product has no available Online Store stock. Transfer only stock already recorded at a real shop. No new stock will be created.</p>
+  <label>Physical shop <select id="onlineVisibilitySource" required></select></label>
+  <label>Product variant <select id="onlineVisibilityVariant" required></select></label>
+  <label>Quantity to sell online <input id="onlineVisibilityQty" type="number" min="1" max="100000" step="1" inputmode="numeric" required value="1"></label>
+  <p id="onlineVisibilityFeedback" class="field-error" aria-live="polite"></p>
+  <div class="dialog-actions"><button type="button" class="secondary" id="onlineVisibilityCancel">Cancel</button><button type="submit" class="primary" id="onlineVisibilityConfirm">Transfer stock &amp; show online</button></div>
+ </form>
+</dialog>
 </main>
 <div id="ownerToast" class="toast" hidden role="status" aria-live="polite"></div>
 </div>
