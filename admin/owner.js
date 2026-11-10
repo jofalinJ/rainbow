@@ -578,6 +578,9 @@ function applyRoleUI(){
  $("inlineCategory").hidden=!owner;
  $("saveDraft").disabled=!editor;
  $("saveDraft").textContent=owner?"Save as draft":"Save product for approval";
+ $("saveDraft").classList.toggle("primary",!owner);
+ $("saveDraft").classList.toggle("secondary",owner);
+ $("saveDraft").style.gridColumn=owner?"auto":"1/-1";
  $("publishNow").disabled=!owner;
  $("publishNow").title=owner?"Publish to the online store":"Only the owner can publish products.";
  $("ownerName").disabled=!editor;$("ownerCategory").disabled=!editor;
