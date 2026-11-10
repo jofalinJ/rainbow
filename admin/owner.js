@@ -269,8 +269,8 @@ function readInput(publish){
  if(!/^\d+$/.test(stockRaw)||!Number.isSafeInteger(stock)||stock>100000){fieldError("Stock","Enter zero or a whole number up to 100,000.");ok=false;}
  if(code&&!/^[a-z0-9][a-z0-9/_-]{1,39}$/i.test(code)){fieldError("Name","Product code must be 2–40 letters, digits, /, - or _.");ok=false;}
  if(publish&&state.gallery.length===0){fieldError("Photos","Add at least one photo to publish.");ok=false;}
- const length=$("ownerLength")?Number($("ownerLength").value):null;
- if(cat?.has_length&&(!Number.isFinite(length)||length<=0)){message("Enter a valid length in centimetres.",true);ok=false;}
+ const length=$("ownerLength")&&$("ownerLength").value.trim()?Number($("ownerLength").value):null;
+ if(cat?.has_length&&((publish&&(!Number.isFinite(length)||length<=0))||(length!==null&&(!Number.isFinite(length)||length<=0)))){message("Enter a valid length in centimetres before publishing.",true);ok=false;}
  if(!state.editorId&&stock>0&&!$("ownerStockConfirm").checked){fieldError("Stock","Confirm that this stock is physically available.");ok=false;}
  if(stock>0&&!$("ownerSource").value){fieldError("Stock","Choose the shop holding the stock.");ok=false;}
  return ok?{cat,name,price,stock,code,length,color:$("ownerColor")?.value.trim()||"0",size:$("ownerSize")?.value.trim()||"0",description:$("ownerDescription").value.trim()||null,source:$("ownerSource").value}:null;
@@ -408,6 +408,9 @@ async function saveProduct(mode){
    variant=await createVariant(product,data);
    // A failed save can be retried in this tab without creating a second variant.
    product.product_variants=[variant];
+  }else if(data.cat.has_length&&data.length>0&&Number(variant.length_cm)!==data.length){
+   await result(state.client.from("product_variants").update({length_cm:data.length}).eq("id",variant.id));
+   variant.length_cm=data.length;
   }
   await saveGallery({...product,product_name:data.name});
   if(data.stock>0&&!state.receivedNew&&state.editorId&&(!previous||state.products.every(p=>p.id!==state.editorId)))await receiveInitialStock(product,variant,data);
