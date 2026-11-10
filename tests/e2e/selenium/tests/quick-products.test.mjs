@@ -165,7 +165,13 @@ test("Quick Products is photo-first; staff can save a draft on a 390px screen wi
   assert.equal(await (await field("ownerCategory")).getAttribute("value"),categoryId);
   await (await field("ownerPrice")).sendKeys("450");
   await (await field("saveDraft")).click();
-  await driver.wait(async()=>/Saved for owner approval/.test(await (await field("editMessage")).getText()),15000);
+  await driver.wait(async()=>await (await field("screen-categories")).isDisplayed(),15000);
+  assert.equal((await driver.findElements(By.css(".category-product-row"))).length,1);
+  assert.match(await (await field("categoryCatalogueList")).getText(),/Fixture gold covering chain/);
+  assert.match(await (await field("categoryCatalogueList")).getText(),/Not online/);
+  assert.match(await (await field("categoryCatalogueList")).getText(),/Owner controls online visibility/);
+  assert.equal((await driver.findElements(By.css(".category-product-actions button.primary"))).length,0,
+   "Staff must not be offered a privileged Show Online action");
   const data=await driver.executeScript("return globalThis.__qa");
   assert.equal(data.products.length,1);
   assert.equal(data.products[0].product_images.length,1);
