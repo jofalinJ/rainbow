@@ -13,13 +13,19 @@ describe("owner quick publishing integrates with the existing shop",()=>{
   expect(html).toContain('id="publishNow"');
   expect(html).toContain('id="productPhotos"');
   expect(html).toContain('id="ownerStockConfirm"');
+  expect(html).toContain('id="roleAccessNote"');
+  expect(html).toContain('id="ownerBulkBar"');
+  expect(html).toContain('href="billing.html"');
+  expect(html).toContain('href="inventory.html"');
   expect(html).not.toContain("storefront-header");
   expect(html).not.toContain("storefront-footer");
  });
  it("enforces owner role and never uses service role keys in browser code",()=>{
   const js=read("admin/owner.js");
   expect(js).toContain('state.client.auth.getUser()');
-  expect(js).toContain('profile.role!=="admin"');
+  expect(js).toContain('["admin","inventory_staff","cashier"].includes(profile.role)');
+  expect(js).toContain('permission==="publish"&&!canPublish()');
+  expect(js).toContain('permission==="catalog_write"&&!canEdit()');
   expect(js).toContain('await verifyOwner()');
   expect(js).toContain('createSignedUploadUrl');
   expect(js).toContain('uploadToSignedUrl');
@@ -34,6 +40,9 @@ describe("owner quick publishing integrates with the existing shop",()=>{
   expect(js).toContain('erp_receive_transfer');
   expect(js).toContain('erp_online_listings');
   expect(js).toContain('stableOperationId');
+  expect(js).toContain('if(!canPublish())return sum+Math.max(0,Number(v.stock_quantity||0))');
+  expect(js).toContain('if(canPublish())await publication(created,false)');
+  expect(js).toContain('else if(!previous&&canPublish())await publication(product,false)');
   expect(js).not.toContain('.update({stock_quantity:');
   const shop=read("shop-catalogue.js");
   expect(shop).toContain('.eq("erp_online_listings.published",true)');
@@ -56,10 +65,18 @@ describe("owner quick publishing integrates with the existing shop",()=>{
   expect(sql).not.toMatch(/drop\s+table/i);
   expect(sql).not.toMatch(/delete\s+from\s+public\./i);
  });
+ it("shows the quick-product entry point in existing staff navigation",()=>{
+  const html=read("admin/products.html");
+  expect(html).toContain('href="owner.html"');
+  const js=read("admin/owner.js");
+  expect(js).toContain('document.querySelectorAll("[data-screen=\'editor\']")');
+  expect(js).toContain('document.querySelectorAll("[data-admin-only]")');
+  expect(js).toContain('Only the owner can publish products');
+ });
  it("keeps returning admins in the owner area without open redirects",()=>{
   const login=read("admin/login.html");
   expect(login).toContain('get("next")==="owner.html"');
   const admin=read("admin/app.js");
-  expect(admin).toContain('{label:"Quick Publish",href:"owner.html",roles:["admin"]}');
+  expect(admin).toContain('{label:"Quick Products",href:"owner.html",roles:["admin","inventory_staff","cashier"]}');
  });
 });
