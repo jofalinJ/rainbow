@@ -73,4 +73,6 @@ commit;
 -- No new tables or service-role keys are required. Existing tables:
 -- public.products (rupee prices), product_variants (online stock mirror),
 -- product_images, categories, erp_online_listings, erp_stock_balances.
--- Only authenticated admin users can write, under the pre-existing RLS policies.
+-- Existing RLS lets authorized inventory staff prepare product drafts and photos.
+-- Only admins may publish online listings; ERP stock operations continue to
+-- enforce assigned-shop authorization and verified checkout reservation guards.
