@@ -31,6 +31,7 @@ jobs:
             echo "Checking deployed staff assets: attempt ${attempt}/28"
             if html=$(curl -L --fail --silent --show-error --max-time 12 "${site}/admin/owner.html?release=${GITHUB_SHA}") &&
                script=$(curl -L --fail --silent --show-error --max-time 12 "${site}/admin/owner.js?release=${GITHUB_SHA}") &&
+               styling=$(curl -L --fail --silent --show-error --max-time 12 "${site}/admin/owner.css?release=${GITHUB_SHA}") &&
                nav=$(curl -L --fail --silent --show-error --max-time 12 "${site}/admin/app.js?v=20261110-quick-products") &&
                products=$(curl -L --fail --silent --show-error --max-time 12 "${site}/admin/products.html?release=${GITHUB_SHA}") &&
                billing=$(curl -L --fail --silent --show-error --max-time 12 "${site}/admin/billing.html?release=${GITHUB_SHA}") &&
@@ -38,6 +39,12 @@ jobs:
               if grep -Fq 'id="roleAccessNote"' <<< "$html" &&
                  grep -Fq 'id="publishNow"' <<< "$html" &&
                  grep -Fq 'id="ownerStockConfirm"' <<< "$html" &&
+                 grep -Fq 'id="ownerMoreDetails"' <<< "$html" &&
+                 grep -Fq 'Just three fields' <<< "$html" &&
+                 grep -Fq 'Save product for approval' <<< "$html" &&
+                 ! grep -Fiq 'salesforce' <<< "$html" &&
+                 grep -Fq 'resetEditor();show("editor");' <<< "$script" &&
+                 grep -Fq '#startup[hidden]{display:none!important}' <<< "$styling" &&
                  grep -Fq 'const canPublish=()=>state.role==="admin"' <<< "$script" &&
                  grep -Fq 'applyRoleUI();' <<< "$script" &&
                  grep -Fq 'Quick Products' <<< "$nav" &&
