@@ -258,13 +258,14 @@ function readInput(publish){
  clearErrors();
  const cat=categoryById($("ownerCategory").value);
  const name=$("ownerName").value.trim();
- const priceRaw=$("ownerPrice").value.trim(),price=Number(priceRaw);
+ const priceRaw=$("ownerPrice").value.trim(),price=$("ownerPrice").value.trim()===""?0:Number($("ownerPrice").value.trim());
  const stockRaw=$("ownerStock").value.trim(),stock=Number(stockRaw);
  const code=$("ownerSku").disabled?"":$("ownerSku").value.trim();
  let ok=true;
- if(!name){fieldError("Name","Enter the product name.");ok=false;}
+ if(publish&&!name){fieldError("Name","Enter the product name before publishing.");ok=false;}
  if(!cat){fieldError("Category","Choose a category.");ok=false;}
- if(!priceRaw||!Number.isFinite(price)||price<=0||price>10000000||!/^\d+(\.\d{1,2})?$/.test(priceRaw)){fieldError("Price","Enter a valid price above ₹0.");ok=false;}
+ const validPrice=priceRaw===""||(/^\d+(\.\d{1,2})?$/.test(priceRaw)&&Number.isFinite(price)&&price>=0&&price<=10000000);
+ if(!validPrice||(publish&&(!priceRaw||price<=0))){fieldError("Price",publish?"Enter a price above ₹0.":"Enter a valid rupee amount or leave it blank.");ok=false;}
  if(!/^\d+$/.test(stockRaw)||!Number.isSafeInteger(stock)||stock>100000){fieldError("Stock","Enter zero or a whole number up to 100,000.");ok=false;}
  if(code&&!/^[a-z0-9][a-z0-9/_-]{1,39}$/i.test(code)){fieldError("Name","Product code must be 2–40 letters, digits, /, - or _.");ok=false;}
  if(publish&&state.gallery.length===0){fieldError("Photos","Add at least one photo to publish.");ok=false;}
