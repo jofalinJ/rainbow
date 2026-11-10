@@ -1,0 +1,49 @@
+name: Live Quick Products release verification
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'admin/owner.html'
+      - 'admin/owner.js'
+      - 'admin/owner.css'
+      - 'admin/app.js'
+      - '.github/workflows/staff-quick-products-live-smoke.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Confirm live staff quick catalogue (read-only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    steps:
+      - name: Verify Cloudflare serves the released staff assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          site="https://rainbowgoldcovering.com"
+          for attempt in $(seq 1 28); do
+            echo "Checking deployed staff assets: attempt ${attempt}/28"
+            if html=$(curl -L --fail --silent --show-error --max-time 12 "${site}/admin/owner.html?release=${GITHUB_SHA}") &&
+               script=$(curl -L --fail --silent --show-error --max-time 12 "${site}/admin/owner.js?release=${GITHUB_SHA}") &&
+               nav=$(curl -L --fail --silent --show-error --max-time 12 "${site}/admin/app.js?release=${GITHUB_SHA}") &&
+               login=$(curl -L --fail --silent --show-error --max-time 12 "${site}/admin/login.html?release=${GITHUB_SHA}"); then
+              if grep -Fq 'id="roleAccessNote"' <<< "$html" &&
+                 grep -Fq 'id="publishNow"' <<< "$html" &&
+                 grep -Fq 'id="ownerStockConfirm"' <<< "$html" &&
+                 grep -Fq 'const canPublish=()=>state.role==="admin"' <<< "$script" &&
+                 grep -Fq 'applyRoleUI();' <<< "$script" &&
+                 grep -Fq 'Quick Products' <<< "$nav" &&
+                 grep -Fq 'Staff / Admin Login' <<< "$login"; then
+                echo "Live Cloudflare staff catalogue assets verified. No sign-in, stock, or payment mutation was attempted."
+                exit 0
+              fi
+              echo "Cloudflare has not served the new Quick Products release yet."
+            fi
+            if [ "$attempt" -lt 28 ]; then sleep 12; fi
+          done
+          echo "::error::Live staff assets are stale or incomplete. Check Cloudflare Pages deployment and branch settings."
+          exit 1
