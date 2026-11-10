@@ -190,8 +190,8 @@ function renderProducts(){
    toast("Price and online stock saved.");await refresh();
   });
   if(canEdit()&&(canPublish()||!published(p))&&!p.archived_at)addButton("Edit",()=>edit(p.id));
-  if(canPublish())addButton(published(p)?"Hide Online":"Show Online",async()=>{
-   if(published(p)){await mutate(()=>unpublish(p),"publish");toast("Hidden from online shop.");await refresh();}
+  if(canPublish())addButton(visibleOnStorefront(p)?"Hide Online":"Show Online",async()=>{
+   if(visibleOnStorefront(p)){await mutate(()=>unpublish(p),"publish");toast("Hidden from online shop.");await refresh();}
    else await prepareShowOnline(p);
   });
   if(p.archived_at&&canPublish()){
@@ -512,7 +512,11 @@ async function saveProduct(mode){
    if(available===0)message("Published, but no online stock was allocated. It will appear once stock is transferred.",true);
    else message("Published successfully. This product is now on the website.");
    toast(available>0?"Product published to the store.":"Published but out of stock online.",product.product_code);
-  }else{message("Saved for owner approval. The product is not online yet.");toast("Product saved for approval.",product.product_code,true);}
+  }else{
+   $("categoryCatalogueFilter").value=data.cat.id;state.categoryLimit=48;show("categories");
+   message("Saved for owner approval. The product is not online yet.");
+   toast("Product saved under "+data.cat.name+".",product.product_code,true);
+  }
   state.gallery=photosOf(saved||{}).map(photo=>({existing:true,id:photo.id,url:safeURL(photo.public_url),path:photo.storage_path}));
   renderGallery();
  }catch(error){
@@ -527,6 +531,80 @@ async function duplicateProduct(p){
  for(const photo of photosOf(p))await result(state.client.from("product_images").insert({product_id:created.id,storage_path:photo.storage_path,public_url:photo.public_url,alt_text:p.product_name,is_primary:photo.is_primary,sort_order:photo.sort_order}));
  if(canPublish())await publication(created,false);
  toast("Duplicated as a draft. Stock was not copied.");
+}
+function renderCategoryCatalogue(){
+ const host=$("categoryCatalogueList");host.replaceChildren();
+ const categoryFilter=$("categoryCatalogueFilter").value;
+ const search=$("categoryCatalogueSearch").value.toLowerCase().trim();
+ const filteredProducts=state.products.filter(p=>
+  (categoryFilter==="all"||p.category_id===categoryFilter)&&
+  (!search||(p.product_name+" "+p.product_code).toLowerCase().includes(search)));
+ filteredProducts.sort((a,b)=>{
+  const aCat=categoryById(a.category_id),bCat=categoryById(b.category_id);
+  return Number(aCat?.storefront_order||9999)-Number(bCat?.storefront_order||9999)
+   ||String(aCat?.name||"Other").localeCompare(String(bCat?.name||"Other"))
+   ||String(a.product_name).localeCompare(String(b.product_name));
+ });
+ const visible=filteredProducts.slice(0,state.categoryLimit);
+ $("categoryLoadMore").hidden=visible.length===filteredProducts.length;
+ if(!visible.length){
+  const empty=document.createElement("p");empty.className="empty-list";
+  empty.textContent="No products in this category yet. Add one using Quick Add.";
+  host.append(empty);return;
+ }
+ let lastCategoryId=null,group=null;
+ for(const product of visible){
+  if(product.category_id!==lastCategoryId||group===null){
+   lastCategoryId=product.category_id;
+   const category=categoryById(product.category_id);
+   const container=document.createElement("section");container.className="category-product-group";
+   const heading=document.createElement("h3");heading.textContent=category?.name||"Uncategorized";
+   const count=document.createElement("small");count.textContent=" · "+filteredProducts.filter(p=>p.category_id===product.category_id).length+" products";
+   heading.append(count);container.append(heading);host.append(container);group=container;
+  }
+  const card=document.createElement("div");card.className="category-product-row";
+  const imgSrc=safeURL(photosOf(product)[0]?.public_url);
+  const image=document.createElement("div");image.className="category-product-cover";
+  if(imgSrc){const img=document.createElement("img");img.src=imgSrc;img.alt="";img.loading="lazy";image.append(img);}
+  else image.textContent="No photo";
+  const info=document.createElement("div");info.className="category-product-info";
+  const title=document.createElement("strong");title.textContent=product.product_name;
+  const meta=document.createElement("small");meta.textContent=product.product_code+" · "+money(product.selling_price);
+  const status=document.createElement("span");status.className="status "+(visibleOnStorefront(product)?"published":product.archived_at?"archived":"draft");
+  status.textContent=product.archived_at?"Archived":visibleOnStorefront(product)?"Visible online":published(product)?"Published · needs online stock":"Not online";
+  const help=document.createElement("small");help.className="category-product-help";
+  if(!photosOf(product).length)help.textContent="Add a photo before publishing.";
+  else if(published(product)&&!visibleOnStorefront(product))help.textContent="Online stock required to appear on the store.";
+  else if(!published(product))help.textContent="Saved in catalogue · not displayed to customers.";
+  info.append(title,meta,status,help);
+  const actions=document.createElement("div");actions.className="category-product-actions";
+  if(canPublish()){
+   const button=document.createElement("button");button.type="button";
+   const online=visibleOnStorefront(product);
+   button.textContent=online?"Hide Online":"Show Online";button.className=online?"secondary":"primary";
+   button.disabled=!!product.archived_at||!product.active;
+   button.setAttribute("aria-label",button.textContent+" for "+product.product_name);
+   button.onclick=()=>safeAction(async()=>{
+    if(online){
+     await mutate(()=>unpublish(product),"publish");
+     await refresh();toast("Product hidden from online store.");
+    }else await prepareShowOnline(product);
+   });
+   actions.append(button);
+  }else{
+   const note=document.createElement("small");note.className="owner-approval-label";
+   note.textContent=visibleOnStorefront(product)?"Visible online":"Owner controls online visibility";actions.append(note);
+  }
+  if(canEdit()&&!product.archived_at&&(canPublish()||!published(product))){
+   const editButton=document.createElement("button");editButton.type="button";editButton.textContent="Edit";
+   editButton.onclick=()=>edit(product.id);actions.append(editButton);
+  }
+  if(visibleOnStorefront(product)){
+   const link=document.createElement("a");link.href="../product.html?sku="+encodeURIComponent(product.product_code);
+   link.textContent="View in store";link.target="_blank";link.rel="noopener";actions.append(link);
+  }
+  card.append(image,info,actions);group.append(card);
+ }
 }
 function renderCategories(){
  const host=$("categoryList");host.replaceChildren();
@@ -607,6 +685,9 @@ async function init(){
  $("drawerBackdrop").onclick=closeMenu;
  $("ownerSearch").oninput=()=>{state.limit=24;renderProducts();};
  $("ownerFilter").onchange=()=>{state.limit=24;state.selected.clear();renderProducts();};
+ $("categoryCatalogueFilter").onchange=()=>{state.categoryLimit=48;renderCategoryCatalogue();};
+ $("categoryCatalogueSearch").oninput=()=>{state.categoryLimit=48;renderCategoryCatalogue();};
+ $("categoryLoadMore").onclick=()=>{state.categoryLimit+=48;renderCategoryCatalogue();};
  $("loadMore").onclick=()=>{state.limit+=24;renderProducts();};
  $("selectAll").onchange=event=>{filtered().slice(0,state.limit).forEach(p=>{if(event.target.checked)state.selected.add(p.id);else state.selected.delete(p.id);});renderProducts();};
  $("bulkApply").onclick=applyBulk;
@@ -620,6 +701,19 @@ async function init(){
  $("ownerProductForm").onsubmit=event=>{event.preventDefault();saveProduct(event.submitter?.dataset.save||"draft");};
  $("categoryForm").onsubmit=event=>{event.preventDefault();safeAction(async()=>{const created=await addCategory($("categoryName").value.trim());$("categoryName").value="";toast("Category created.");if(state.screen==="editor")$("ownerCategory").value=created.id;});};
  $("inlineCategory").onclick=()=>{const name=prompt("New category name")?.trim();if(!name)return;safeAction(async()=>{await addCategory(name);toast("Category created and selected.");});};
+ $("onlineVisibilityCancel").onclick=()=>{$("onlineVisibilityDialog").close();state.visibilityProductId=null;};
+ $("onlineVisibilityForm").onsubmit=event=>{
+  event.preventDefault();
+  if(state.busy)return;
+  $("onlineVisibilityFeedback").textContent="";
+  safeAction(async()=>{
+   const button=$("onlineVisibilityConfirm");button.disabled=true;
+   try{await confirmOnlineVisibility();}
+   catch(error){$("onlineVisibilityFeedback").textContent=friendly(error);throw error;}
+   finally{button.disabled=false;}
+  });
+ };
+
  resetEditor();show("editor");
 }
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",()=>init().catch(fatal),{once:true});
