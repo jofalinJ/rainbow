@@ -6,13 +6,19 @@ describe("owner quick publishing integrates with the existing shop",()=>{
  it("uses its own mobile menu and leaves storefront navigation out of the admin shell",()=>{
   const html=read("admin/owner.html");
   expect(html).toContain('name="robots" content="noindex,nofollow,noarchive"');
-  for(const label of ["Dashboard","Products","Add Product","Categories","Salesforce Sync","Visit Store","Logout"])
+  for(const label of ["Dashboard","Products","Add Product","Categories","Visit Store","Logout"])
    expect(html).toContain(label);
   expect(html).toContain('id="menuToggle"');
   expect(html).toContain('id="saveDraft"');
   expect(html).toContain('id="publishNow"');
   expect(html).toContain('id="productPhotos"');
   expect(html).toContain('id="ownerStockConfirm"');
+  expect(html).toContain('id="ownerMoreDetails"');
+  expect(html).toContain('data-screen="editor" class="active"');
+  expect(html).toContain('Save product for approval');
+  expect(html).toContain('Just three fields');
+  expect(html.indexOf('id="ownerName"')).toBeLessThan(html.indexOf('id="ownerMoreDetails"'));
+  expect(html).not.toMatch(/salesforce/i);
   expect(html).toContain('id="roleAccessNote"');
   expect(html).toContain('id="ownerBulkBar"');
   expect(html).toContain('href="billing.html"');
@@ -31,7 +37,13 @@ describe("owner quick publishing integrates with the existing shop",()=>{
   expect(js).toContain('uploadToSignedUrl');
   expect(js).not.toContain("SUPABASE_SERVICE_ROLE_KEY");
   expect(js).not.toContain("ADMIN_SESSION_SECRET");
-  expect(js).not.toContain('SalesforceAccessToken');
+  expect(js).not.toMatch(/salesforce/i);
+  expect(js).toContain('resetEditor();show("editor");');
+  expect(js).toContain('toast("Product saved for approval.",product.product_code,true)');
+  expect(js).toContain('$("ownerMoreDetails").open=false');
+  expect(js).toContain('if(!name){fieldError("Name"');
+  expect(js).toContain('if(!validPrice||!priceRaw||price<=0)');
+  expect(js).toContain('$("saveDraft").style.gridColumn=owner?"auto":"1/-1"');
  });
  it("publishes through existing ERP stock transfer and reserves no stock locally",()=>{
   const js=read("admin/owner.js");
@@ -55,6 +67,8 @@ describe("owner quick publishing integrates with the existing shop",()=>{
   expect(css).toContain("--red:#8B0000");
   expect(css).toContain("--gold:#C9A227");
   expect(css).toContain("position:sticky");
+  expect(css).toContain("#startup[hidden]{display:none!important}");
+  expect(css).toContain(".optional-details");
  });
  it("migration safely extends the live schema rather than replacing it",()=>{
   const sql=read("supabase/migrations/20261110213000_owner_quick_publish.sql");

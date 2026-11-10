@@ -1,37 +1,35 @@
-# Rainbow Gold Covering — Staff and Owner Product Guide
+# Rainbow Gold Covering — Quick Products (staff and owner)
 
-**New owner screen:** `https://rainbowgoldcovering.com/admin/owner.html` (after the release is deployed).
+**Live address:** https://rainbowgoldcovering.com/admin/owner.html
 
-## Before you start (one-time setup)
-The developer must first apply `supabase/migrations/20261110213000_owner_quick_publish.sql` to the existing Supabase project, test the catalogue on a safe staging site, then deploy the owner page. Until that happens, keep using the existing admin site.
+Use the existing staff login at https://rainbowgoldcovering.com/admin/login.html.
 
-## Sign in
-1. On your phone, open the owner link above.
-2. Sign in using **your existing shop admin username/email and password**. All active shop staff may open the quick catalogue. Admins can publish and manage online stock; the unified Staff role can prepare drafts, upload photos and record authorized shop opening stock.
-3. Open the top-left **☰** menu to switch between Dashboard, Products, Add Product and Categories. On a computer, use the left menu.
+## Add a product — three simple steps
 
-## Add and publish a product
-1. Tap **＋ Add Product**.
-2. Tap **Camera or gallery**. Choose up to **6 genuine product photos**. The first is the cover photo; use ← or → to reorder and × to remove.
-3. Type the **product name**, choose a **category**, add a description and enter the **price in rupees**. The product code is created automatically unless you supply one.
-4. Enter **Online stock** and choose which **physical shop** is providing the pieces. Only enter stock that you actually have and have set aside for online sales; tick the confirmation box. If the pieces are already recorded at a shop, edit a draft or use Inventory rather than recording them again.
-5. Tap **Publish now**. The app saves the product and transfers the specified pieces to **Online Store** using the existing stock system. When confirmed, tap **View on store**. Tap **Add another** to create the next product with the same category.
+1. Open **Quick Products** from the staff menu. The **Add Product** screen opens first.
+2. Tap **Take photo or choose** to add a jewellery photo. Enter the **product name**, choose its **category**, and enter its **price in ₹**. The product code is generated automatically.
+3. Tap **Save product for approval**. The product becomes a hidden draft, not a customer-visible listing. Tap **Add another** to create the next product, retaining the chosen category.
 
-**Not ready to publish?** Tap **Save as draft** instead. Drafts are hidden from public shopping and can be completed from **Products** later.
+You don't need to fill in shop stock, description, size or an optional product code to save a draft. Open **More options** only when you have those details. A draft can be saved without a photo, but at least one photo is required before publishing.
 
-## Change a product
-- Open **Products**, search by name or code, then tap **Edit**. Change the price, description, photos or relevant details and save.
-- You can change the online price and stock directly on a published one-variant product. Online stock is always transferred to or from an actual physical shop; it is not a free-number adjustment.
-- Tap **Unpublish** to hide it. Available online pieces return to the selected shop. If a checkout has reserved pieces, finish or expire that checkout first.
-- Use **Duplicate** to copy a design without copying its stock. **Archive** hides a product while preserving its history. **Restore as draft** brings an archived design back for review.
+## What happens next
 
-## If your product is not appearing
-Check that it has **a photo, price above ₹0, a published listing and available Online Store stock**. The dashboard shows published-but-out-of-stock products. Physical-shop stock alone is not online availability. Use **Inventory** to resolve transfers or reservations. If the screen reports insufficient stock, do not invent quantities—check the actual shop inventory.
+Staff with active shop accounts can create and edit unpublished drafts, upload images and record **new, physically counted** branch stock in **More options**. If stock already exists in Inventory, **do not enter it as new stock again**.
 
-## Categories and Salesforce
-Admins can use **Categories** to add, rename or reorder categories. Staff can view categories and select existing ones for drafts. A category cannot be deleted while products use it. Salesforce is **not connected** to this shop and is not needed to publish products.
+Only the **admin/owner** can publish, unpublish and move branch stock to the Online Store. An online product becomes purchasable only after publication **and** allocation of available Online Store stock. This protects against selling branch stock twice.
 
-## Safety
-Never share your admin password. Do not press Publish twice while a save is in progress. If your connection drops, return to **Products** and check for the newly saved code before attempting another product. Customer payments are handled separately by the existing verified Razorpay checkout system.
+If the category requires a length, the editor asks the admin for that specification before publication.
 
-**Help:** The **Quick Products** link is available in the shared staff menu alongside Billing, Inventory, Orders and Customers. The original detailed Products and Inventory screens remain available for advanced stock and variant operations.
+## Owner controls
+
+The owner can open **Products** to review staff drafts, edit them and tap **Publish**. For online availability, allocate stock from a physical branch via the existing ERP stock-transfer process. A published product with zero online stock remains unavailable to buyers. Existing **Advanced Products** and **Inventory** screens continue to handle complex variants, bulk tasks and stock operations.
+
+## Troubleshooting
+
+- **Saved but not visible online:** This is expected for a draft. Check publication and Online Store stock.
+- **No product photo:** Add a genuine photo before publishing (maximum six per product).
+- **Cannot add stock:** Open **More options**, select the actual physical shop, and confirm the counted quantity. Staff can only receive stock at an authorized shop.
+- **Session expired:** Sign in again through the existing staff login.
+- **Lost connection during Save:** Check **Products** before retrying; the editor attempts to reuse any product record already created.
+
+The original billing, inventory, orders and customers tools are unchanged. Customer payments continue through verified Razorpay checkout.

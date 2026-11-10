@@ -17,7 +17,7 @@ const friendly = error => {
  if(/duplicate|unique/i.test(message))return "That product code or category already exists.";
  return message.length>220?message.slice(0,220)+"…":message;
 };
-function toast(message,sku=""){
+function toast(message,sku="",draft=false){
  const box=$("ownerToast");box.replaceChildren();
  const title=document.createElement("strong");title.textContent=message;box.append(title);
  if(sku){
@@ -25,7 +25,8 @@ function toast(message,sku=""){
   const link=document.createElement("a");link.href="../product.html?sku="+encodeURIComponent(sku);link.textContent="View on store";link.target="_blank";link.rel="noopener";
   const another=document.createElement("button");another.type="button";another.textContent="Add another";
   another.onclick=()=>{const category=$("ownerCategory").value;resetEditor(category);show("editor");box.hidden=true;};
-  actions.append(link,another);box.append(actions);
+  if(!draft)actions.append(link);
+  actions.append(another);box.append(actions);
  }
  box.hidden=false;
 }
@@ -232,7 +233,9 @@ function cleanupPreviews(){state.gallery.filter(g=>!g.existing&&g.url?.startsWit
 function resetEditor(category=""){
  cleanupPreviews();state.editorId=null;state.gallery=[];state.deleted=[];state.receivedNew=false;
  $("ownerProductForm").reset();$("productPhotos").value="";$("ownerStock").value="0";$("ownerStock").disabled=!canEdit();$("ownerSku").disabled=!canEdit();
+ $("ownerMoreDetails").open=false;
  if(category)$("ownerCategory").value=category;
+ else if($("ownerCategory").options.length===2)$("ownerCategory").selectedIndex=1;
  $("ownerStockConfirm").checked=false;$("ownerStockConfirm").disabled=false;
  $("editorTitle").textContent="Add a product";clearErrors();message("");renderExtras();renderGallery();$("publishNow").disabled=!canPublish();
 }
@@ -286,17 +289,17 @@ function readInput(publish){
  const stockRaw=$("ownerStock").value.trim(),stock=Number(stockRaw);
  const code=$("ownerSku").disabled?"":$("ownerSku").value.trim();
  let ok=true;
- if(publish&&!name){fieldError("Name","Enter the product name before publishing.");ok=false;}
+ if(!name){fieldError("Name","Enter the product name.");ok=false;}
  if(!cat){fieldError("Category","Choose a category.");ok=false;}
  const validPrice=priceRaw===""||(/^\d+(\.\d{1,2})?$/.test(priceRaw)&&Number.isFinite(price)&&price>=0&&price<=10000000);
- if(!validPrice||(publish&&(!priceRaw||price<=0))){fieldError("Price",publish?"Enter a price above ₹0.":"Enter a valid rupee amount or leave it blank.");ok=false;}
+ if(!validPrice||!priceRaw||price<=0){fieldError("Price","Enter a selling price above ₹0.");ok=false;}
  if(!/^\d+$/.test(stockRaw)||!Number.isSafeInteger(stock)||stock>100000){fieldError("Stock","Enter zero or a whole number up to 100,000.");ok=false;}
  if(code&&!/^[a-z0-9][a-z0-9/_-]{1,39}$/i.test(code)){fieldError("Name","Product code must be 2–40 letters, digits, /, - or _.");ok=false;}
  if(publish&&state.gallery.length===0){fieldError("Photos","Add at least one photo to publish.");ok=false;}
  const length=$("ownerLength")&&$("ownerLength").value.trim()?Number($("ownerLength").value):null;
- if(cat?.has_length&&((publish&&(!Number.isFinite(length)||length<=0))||(length!==null&&(!Number.isFinite(length)||length<=0)))){message("Enter a valid length in centimetres before publishing.",true);ok=false;}
- if(!state.editorId&&stock>0&&!$("ownerStockConfirm").checked){fieldError("Stock","Confirm that this stock is physically available.");ok=false;}
- if(stock>0&&!$("ownerSource").value){fieldError("Stock","Choose the shop holding the stock.");ok=false;}
+ if(cat?.has_length&&((publish&&(!Number.isFinite(length)||length<=0))||(length!==null&&(!Number.isFinite(length)||length<=0)))){message("Open More options and enter a valid length in centimetres.",true);$("ownerMoreDetails").open=true;ok=false;}
+ if(!state.editorId&&stock>0&&!$("ownerStockConfirm").checked){fieldError("Stock","Confirm that this new stock was counted.");$("ownerMoreDetails").open=true;ok=false;}
+ if(stock>0&&!$("ownerSource").value){fieldError("Stock","Choose the shop holding this stock.");$("ownerMoreDetails").open=true;ok=false;}
  return ok?{cat,name,price,stock,code,length,color:$("ownerColor")?.value.trim()||"0",size:$("ownerSize")?.value.trim()||"0",description:$("ownerDescription").value.trim()||null,source:$("ownerSource").value}:null;
 }
 async function uploadPhoto(file,code){
@@ -453,7 +456,7 @@ async function saveProduct(mode){
    if(available===0)message("Published, but no online stock was allocated. It will appear once stock is transferred.",true);
    else message("Published successfully. This product is now on the website.");
    toast(available>0?"Product published to the store.":"Published but out of stock online.",product.product_code);
-  }else{message("Draft saved. It is not visible to customers.");toast("Draft saved.");}
+  }else{message("Saved for owner approval. The product is not online yet.");toast("Product saved for approval.",product.product_code,true);}
   state.gallery=photosOf(saved||{}).map(photo=>({existing:true,id:photo.id,url:safeURL(photo.public_url),path:photo.storage_path}));
   renderGallery();
  }catch(error){
@@ -561,19 +564,23 @@ async function init(){
  $("ownerProductForm").onsubmit=event=>{event.preventDefault();saveProduct(event.submitter?.dataset.save||"draft");};
  $("categoryForm").onsubmit=event=>{event.preventDefault();safeAction(async()=>{const created=await addCategory($("categoryName").value.trim());$("categoryName").value="";toast("Category created.");if(state.screen==="editor")$("ownerCategory").value=created.id;});};
  $("inlineCategory").onclick=()=>{const name=prompt("New category name")?.trim();if(!name)return;safeAction(async()=>{await addCategory(name);toast("Category created and selected.");});};
- show("dashboard");
+ resetEditor();show("editor");
 }
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",()=>init().catch(fatal),{once:true});
 else init().catch(fatal);
 function applyRoleUI(){
  const editor=canEdit(),owner=canPublish();
- $("roleAccessNote").textContent=owner?"Owner: publishing, categories and online stock management."
-  :editor?"Staff: add photos and prepare drafts. Owner approval is needed to publish or allocate online stock."
+ $("roleAccessNote").textContent=owner?"Owner account: save drafts or publish with online stock."
+  :editor?"Staff: add a photo, name, category and price. Save for the owner to publish."
   :"Staff product access is unavailable.";
  $("ownerBulkBar").hidden=!owner;
  $("categoryForm").hidden=!owner;
  $("inlineCategory").hidden=!owner;
  $("saveDraft").disabled=!editor;
+ $("saveDraft").textContent=owner?"Save as draft":"Save product for approval";
+ $("saveDraft").classList.toggle("primary",!owner);
+ $("saveDraft").classList.toggle("secondary",owner);
+ $("saveDraft").style.gridColumn=owner?"auto":"1/-1";
  $("publishNow").disabled=!owner;
  $("publishNow").title=owner?"Publish to the online store":"Only the owner can publish products.";
  $("ownerName").disabled=!editor;$("ownerCategory").disabled=!editor;
@@ -585,7 +592,7 @@ function applyRoleUI(){
  document.querySelectorAll("[data-admin-only]").forEach(node=>node.hidden=!owner);
  document.querySelectorAll("[data-non-admin]").forEach(node=>node.hidden=owner);
  if(!owner){
-  $("ownerStockLabel").firstChild.textContent="Shop opening stock ";
+  $("ownerStockLabel").firstChild.textContent="Shop opening stock (optional) ";
   $("ownerStockHint").textContent="New products stay as drafts. Stock goes to your assigned shop; the owner later allocates it online.";
  }
 }
