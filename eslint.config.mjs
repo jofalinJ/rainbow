@@ -22,6 +22,11 @@ export default [
     rules:{...js.configs.recommended.rules}
   },
   {
+    files:["admin/owner.js"],
+    languageOptions:{ecmaVersion:"latest",sourceType:"script",globals:{...globals.browser}},
+    rules:{...js.configs.recommended.rules}
+  },
+  {
     files:["admin/app.js"],
     languageOptions:{ecmaVersion:"latest",sourceType:"script",globals:{...globals.browser}},
     rules:{...js.configs.recommended.rules,"no-unused-vars":"off","no-undef":"off"}
