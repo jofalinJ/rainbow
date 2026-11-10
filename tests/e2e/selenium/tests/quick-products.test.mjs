@@ -248,6 +248,12 @@ test("owner Show Online publishes counted stock and Hide Online safely reverses 
   let data=await driver.executeScript("return globalThis.__qa");
   assert.equal(data.transfers.length,0,"Existing online stock must not be received twice");
   assert.ok(data.writes.some(w=>w.table==="erp_online_listings"&&w.values.published===true));
+  await driver.executeScript("arguments[0].click()",await action("Add Online Stock"));
+  await driver.wait(async()=>/No recorded shop stock/.test(await (await field("onlineVisibilityAvailable")).getText()),8000);
+  assert.equal(await (await field("onlineVisibilityConfirm")).isEnabled(),false,"No physical stock must disable transfer");
+  data=await driver.executeScript("return globalThis.__qa");
+  assert.equal(data.transfers.length,0,"Viewing zero-stock branches must never create stock");
+  await (await field("onlineVisibilityCancel")).click();
 
   await driver.get(fixture.base+"/admin/owner.html?role=admin&seed=shop");
   await openCategory();
