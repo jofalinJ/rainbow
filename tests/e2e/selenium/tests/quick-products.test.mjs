@@ -208,6 +208,8 @@ test("Quick Products is photo-first; staff can save a draft on a 390px screen wi
   assert.match(await (await field("categoryCatalogueList")).getText(),/Owner controls online visibility/);
   assert.equal((await driver.findElements(By.css(".category-product-actions button.primary"))).length,0,
    "Staff must not be offered a privileged Show Online action");
+  assert.equal((await driver.findElements(By.xpath("//button[contains(text(),'Add Online Stock')]"))).length,0,
+   "Staff cannot transfer online stock");
   const data=await driver.executeScript("return globalThis.__qa");
   assert.equal(data.products.length,1);
   assert.equal(data.products[0].product_images.length,1);
@@ -255,6 +257,9 @@ test("owner Show Online publishes counted stock and Hide Online safely reverses 
   assert.equal(data.writes.filter(w=>w.table==="erp_online_listings").length,0,
    "Product must stay unpublished until stock transfer succeeds");
   assert.equal(data.transfers.length,0,"Opening the dialog must not mutate stock");
+  await driver.wait(async()=>await (await field("onlineVisibilityConfirm")).isEnabled(),7000);
+  assert.match(await (await field("onlineVisibilitySource")).getText(),/3 available/);
+  assert.equal(await (await field("onlineVisibilityQty")).getAttribute("max"),"3");
   await (await field("onlineVisibilityConfirm")).click();
   await driver.wait(async()=>/Visible online/.test(await (await field("categoryCatalogueList")).getText()),10000);
   data=await driver.executeScript("return globalThis.__qa");
@@ -268,5 +273,67 @@ test("owner Show Online publishes counted stock and Hide Online safely reverses 
   data=await driver.executeScript("return globalThis.__qa");
   assert.equal(data.transfers.length,2,"Hide Online returns stock to the physical shop");
   assert.ok(data.writes.some(w=>w.table==="erp_online_listings"&&w.values.published===false));
+ }finally{if(driver)await driver.quit();await fixture.close();}
+});
+
+test("admin can add existing shop stock to an unpublished draft, publish it, and top it up without inventing stock",async()=>{
+ const fixture=await serve();
+ const options=new chrome.Options().addArguments("--headless=new","--no-sandbox","--disable-dev-shm-usage",
+  "--disable-background-networking","--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1","--window-size=390,850");
+ let driver;
+ try{
+  driver=await new Builder().forBrowser("chrome").setChromeOptions(options).build();
+  await driver.manage().window().setRect({width:390,height:850});
+  const field=id=>driver.findElement(By.id(id));
+  const action=label=>driver.findElement(By.xpath("//div[contains(@class,'category-product-actions')]/button[contains(text(),'"+label+"')]"));
+  const press=async label=>driver.executeScript("arguments[0].click()",await action(label));
+  const balance=async()=>driver.executeScript("return globalThis.__qa.balances.map(b=>({...b}))");
+  await driver.get(fixture.base+"/admin/owner.html?role=admin&seed=shop");
+  await driver.wait(async()=>await (await field("ownerApp")).isDisplayed(),12000);
+  await driver.executeScript("arguments[0].click()",await driver.findElement(By.css('[data-screen="categories"]')));
+  await press("Add Online Stock");
+  await driver.wait(async()=>await (await field("onlineVisibilityConfirm")).isEnabled(),8000);
+  assert.match(await (await field("onlineVisibilityAvailable")).getText(),/3 pieces available/);
+  assert.match(await (await field("onlineVisibilityCurrent")).getText(),/0 available/);
+  assert.match(await (await field("onlineVisibilityAfter")).getText(),/stays hidden/);
+  assert.equal(await (await field("onlineVisibilityQty")).getAttribute("max"),"3");
+  await (await field("onlineVisibilityQty")).clear();
+  await (await field("onlineVisibilityQty")).sendKeys("2");
+  await (await field("onlineVisibilityConfirm")).click();
+  await driver.wait(async()=>/Added 2 existing piece/.test(await (await field("ownerToast")).getText()),10000);
+  let data=await driver.executeScript("return globalThis.__qa");
+  assert.equal(data.transfers.length,1);
+  assert.equal(data.transfers[0].params.p_quantity,2);
+  assert.equal(data.writes.filter(w=>w.table==="erp_online_listings").length,0,"Stock-only action must not publish a draft");
+  assert.deepEqual((await balance()).map(b=>b.on_hand),[1,2]);
+  assert.match(await (await field("categoryCatalogueList")).getText(),/Not online/);
+
+  await press("Show Online");
+  await driver.wait(async()=>/Visible online/.test(await (await field("categoryCatalogueList")).getText()),10000);
+  data=await driver.executeScript("return globalThis.__qa");
+  assert.equal(data.transfers.length,1,"Publishing already-online stock should not transfer anything again");
+  assert.ok(data.writes.some(w=>w.table==="erp_online_listings"&&w.values.published===true));
+
+  await press("Add Online Stock");
+  await driver.wait(async()=>await (await field("onlineVisibilityConfirm")).isEnabled(),8000);
+  assert.equal(await (await field("onlineVisibilityQty")).getAttribute("max"),"1");
+  assert.match(await (await field("onlineVisibilityCurrent")).getText(),/2 available/);
+  await driver.executeScript(()=>{
+   const el=document.getElementById("onlineVisibilityQty");
+   el.value="2";
+   document.getElementById("onlineVisibilityForm").dispatchEvent(new Event("submit",{bubbles:true,cancelable:true}));
+  });
+  await driver.wait(async()=>/only 1 available/.test(await (await field("onlineVisibilityFeedback")).getText()),8000);
+  data=await driver.executeScript("return globalThis.__qa");
+  assert.equal(data.transfers.length,1,"Oversized top-up must be rejected");
+  await (await field("onlineVisibilityQty")).clear();
+  await (await field("onlineVisibilityQty")).sendKeys("1");
+  await (await field("onlineVisibilityConfirm")).click();
+  await driver.wait(async()=>/Added 1 existing piece/.test(await (await field("ownerToast")).getText()),10000);
+  data=await driver.executeScript("return globalThis.__qa");
+  assert.equal(data.transfers.length,2);
+  assert.deepEqual((await balance()).map(b=>b.on_hand),[0,3]);
+  assert.ok(data.writes.filter(w=>w.table==="erp_online_listings"&&w.values.published===true).length===1,
+   "Top-up must not cause a second publish or duplicate listing");
  }finally{if(driver)await driver.quit();await fixture.close();}
 });
