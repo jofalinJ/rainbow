@@ -523,7 +523,7 @@ async function applyBulk(){
      if(action==="publish")await publishExisting(p);
      else if(action==="unpublish")await unpublish(p);
      else if(action==="category")await result(state.client.from("products").update({category_id:target.id}).eq("id",p.id));
-    });
+    },"publish");
     completed++;
    }catch(error){errors.push(p.product_code+": "+friendly(error));}
   }
@@ -541,6 +541,7 @@ async function init(){
  }
  await refresh();
  $("startup").hidden=true;$("ownerApp").hidden=false;
+ applyRoleUI();
  document.querySelectorAll("[data-screen]").forEach(button=>button.addEventListener("click",()=>{if(button.dataset.screen==="editor"&&state.screen!=="editor")resetEditor($("ownerCategory").value);show(button.dataset.screen);}));
  $("ownerLogout").onclick=async()=>{await state.client.auth.signOut();location.replace("login.html");};
  $("menuToggle").onclick=()=>{const open=$("ownerMenu").classList.toggle("is-open");$("drawerBackdrop").hidden=!open;$("menuToggle").setAttribute("aria-expanded",String(open));};
@@ -564,5 +565,29 @@ async function init(){
 }
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",()=>init().catch(fatal),{once:true});
 else init().catch(fatal);
-function fatal(error){console.error(error);$("startup").textContent="Owner catalogue unavailable: "+friendly(error);}
+function applyRoleUI(){
+ const editor=canEdit(),owner=canPublish();
+ $("roleAccessNote").textContent=owner?"Owner: publishing, categories and online stock management."
+  :editor?"Inventory staff: add photos and prepare drafts. Owner approval is needed to publish or allocate online stock."
+  :"Cashier: catalogue viewing only. Inventory staff can prepare drafts.";
+ $("ownerBulkBar").hidden=!owner;
+ $("categoryForm").hidden=!owner;
+ $("inlineCategory").hidden=!owner;
+ $("saveDraft").disabled=!editor;
+ $("publishNow").disabled=!owner;
+ $("publishNow").title=owner?"Publish to the online store":"Only the owner can publish products.";
+ $("ownerName").disabled=!editor;$("ownerCategory").disabled=!editor;
+ $("ownerDescription").disabled=!editor;$("ownerPrice").disabled=!editor;
+ $("ownerStock").disabled=!editor;$("ownerSource").disabled=!editor;
+ $("ownerSku").disabled=!editor;$("productPhotos").disabled=!editor;
+ $("ownerStockConfirm").disabled=!editor;
+ document.querySelectorAll("[data-screen='editor']").forEach(button=>button.hidden=!editor);
+ document.querySelectorAll("[data-admin-only]").forEach(node=>node.hidden=!owner);
+ document.querySelectorAll("[data-non-admin]").forEach(node=>node.hidden=owner);
+ if(!owner){
+  $("ownerStockLabel").firstChild.textContent="Shop opening stock ";
+  $("ownerStockHint").textContent="New products stay as drafts. Stock goes to your assigned shop; the owner later allocates it online.";
+ }
+}
+function fatal(error){console.error(error);$("startup").textContent="Staff catalogue unavailable: "+friendly(error);}
 })();
