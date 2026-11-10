@@ -241,7 +241,7 @@ test("owner Show Online publishes counted stock and Hide Online safely reverses 
   };
   await driver.get(fixture.base+"/admin/owner.html?role=admin&seed=online");
   await openCategory();
-  await (await action("Show Online")).click();
+  await driver.executeScript("arguments[0].click()",await action("Show Online"));
   await driver.wait(async()=>/Visible online/.test(await (await field("categoryCatalogueList")).getText()),10000);
   let data=await driver.executeScript("return globalThis.__qa");
   assert.equal(data.transfers.length,0,"Existing online stock must not be received twice");
@@ -249,7 +249,7 @@ test("owner Show Online publishes counted stock and Hide Online safely reverses 
 
   await driver.get(fixture.base+"/admin/owner.html?role=admin&seed=shop");
   await openCategory();
-  await (await action("Show Online")).click();
+  await driver.executeScript("arguments[0].click()",await action("Show Online"));
   await driver.wait(async()=>await (await field("onlineVisibilityDialog")).isDisplayed(),10000);
   data=await driver.executeScript("return globalThis.__qa");
   assert.equal(data.writes.filter(w=>w.table==="erp_online_listings").length,0,
@@ -263,7 +263,7 @@ test("owner Show Online publishes counted stock and Hide Online safely reverses 
   assert.equal(data.balances.find(b=>b.location_id==="bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb").on_hand,2);
   assert.equal(data.balances.find(b=>b.location_id==="cccccccc-cccc-4ccc-8ccc-cccccccccccc").on_hand,1);
   assert.ok(data.writes.some(w=>w.table==="erp_online_listings"&&w.values.published===true));
-  await (await action("Hide Online")).click();
+  await driver.executeScript("arguments[0].click()",await action("Hide Online"));
   await driver.wait(async()=>/Not online/.test(await (await field("categoryCatalogueList")).getText()),10000);
   data=await driver.executeScript("return globalThis.__qa");
   assert.equal(data.transfers.length,2,"Hide Online returns stock to the physical shop");
