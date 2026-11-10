@@ -131,7 +131,7 @@ function renderDashboard(){
  attention.forEach(p=>{
   const article=document.createElement("div");article.className="attention-item";
   const name=document.createElement("span");name.textContent=p.product_name+" — missing photos";
-  const button=document.createElement("button");button.type="button";button.textContent="Add photos";button.onclick=()=>edit(p.id);
+  const button=document.createElement("button");button.type="button";button.textContent=canEdit()?"Add photos":"Owner review";button.disabled=!canEdit();button.onclick=()=>edit(p.id);
   article.append(name,button);el.append(article);
  });
 }
@@ -150,6 +150,7 @@ function filtered(){
 }
 function renderProducts(){
  const host=$("ownerProducts");host.replaceChildren();
+ $("ownerBulkBar").hidden=!canPublish();
  const rows=filtered().slice(0,state.limit);
  $("loadMore").hidden=filtered().length<=state.limit;
  $("bulkCount").textContent=state.selected.size+" selected";
@@ -157,7 +158,7 @@ function renderProducts(){
  if(!rows.length){const empty=document.createElement("p");empty.className="empty-list";empty.textContent="No matching products. Change the filter or add a product.";host.append(empty);return;}
  rows.forEach(p=>{
   const article=document.createElement("article");article.className="product-card";
-  const check=document.createElement("input");check.type="checkbox";check.checked=state.selected.has(p.id);check.setAttribute("aria-label","Select "+p.product_name);check.onchange=()=>{check.checked?state.selected.add(p.id):state.selected.delete(p.id);renderProducts();};
+  const check=document.createElement("input");check.type="checkbox";check.hidden=!canPublish();check.checked=state.selected.has(p.id);check.setAttribute("aria-label","Select "+p.product_name);check.onchange=()=>{check.checked?state.selected.add(p.id):state.selected.delete(p.id);renderProducts();};
   const cover=document.createElement("div");cover.className="product-cover";
   const src=safeURL(photosOf(p)[0]?.public_url);
   if(src){const img=document.createElement("img");img.className="product-cover";img.src=src;img.alt="";img.loading="lazy";cover.append(img);}else cover.textContent="No photo";
@@ -169,32 +170,40 @@ function renderProducts(){
   info.append(name,details,status,stock);
   const quick=document.createElement("div");quick.className="product-quick";
   const priceLabel=document.createElement("label");priceLabel.textContent="Price ₹";
-  const price=document.createElement("input");price.type="number";price.min="0.01";price.step="0.01";price.value=Number(p.selling_price);price.setAttribute("aria-label","Price for "+p.product_name);priceLabel.append(price);
+  const price=document.createElement("input");price.type="number";price.min="0.01";price.step="0.01";price.disabled=!canPublish();price.value=Number(p.selling_price);price.setAttribute("aria-label","Price for "+p.product_name);priceLabel.append(price);
   const stockLabel=document.createElement("label");stockLabel.textContent="Online stock";
-  const target=document.createElement("input");target.type="number";target.min="0";target.step="1";target.max="100000";target.value=String(onlineStock(p));target.disabled=variantsOf(p).length!==1||!published(p);target.title=!published(p)?"Publish before allocating online stock.":target.disabled?"Use Inventory for multi-variant products":"";stockLabel.append(target);
+  const target=document.createElement("input");target.type="number";target.min="0";target.step="1";target.max="100000";target.value=String(onlineStock(p));target.disabled=!canPublish()||variantsOf(p).length!==1||!published(p);target.title=!published(p)?"Publish before allocating online stock.":target.disabled?"Use Inventory for multi-variant products":"";stockLabel.append(target);
   quick.append(priceLabel,stockLabel);
   const actions=document.createElement("div");actions.className="product-actions";
   const addButton=(text,handler)=>{const btn=document.createElement("button");btn.type="button";btn.textContent=text;btn.onclick=()=>safeAction(handler);actions.append(btn);};
-  addButton("Save price/stock",async()=>{
+  if(canPublish())addButton("Save price/stock",async()=>{
    const priceValue=Number(price.value),qty=Number(target.value);
    if(!Number.isFinite(priceValue)||priceValue<=0)throw new Error("Price must be greater than zero.");
    if(!target.disabled&&(!Number.isSafeInteger(qty)||qty<0))throw new Error("Stock must be zero or more.");
    await mutate(async()=>{await result(state.client.from("products").update({selling_price:priceValue}).eq("id",p.id));if(!target.disabled)await setOnlineQuantity(p,qty);});
    toast("Price and online stock saved.");await refresh();
   });
-  addButton("Edit",()=>edit(p.id));
-  addButton(published(p)?"Unpublish":"Publish",async()=>{if(published(p)){await mutate(()=>unpublish(p));toast("Removed from the online store.");}else{await mutate(()=>publishExisting(p));toast("Publication saved. Online availability: "+onlineStock(p)+".",p.product_code);}await refresh();});
-  if(p.archived_at){
+  if(canEdit()&&(canPublish()||!published(p))&&!p.archived_at)addButton("Edit",()=>edit(p.id));
+  if(canPublish())addButton(published(p)?"Unpublish":"Publish",async()=>{
+   if(published(p)){await mutate(()=>unpublish(p),"publish");toast("Removed from the online store.");}
+   else{await mutate(()=>publishExisting(p),"publish");toast("Publication saved.",p.product_code);}
+   await refresh();
+  });
+  if(p.archived_at&&canPublish()){
    addButton("Restore as draft",async()=>{
     await mutate(async()=>{
      await result(state.client.from("products").update({archived_at:null,active:true}).eq("id",p.id));
      await publication(p,false);
-    });
+    },"publish");
     toast("Restored as a draft.");await refresh();
    });
-  }else{
-   addButton("Duplicate",async()=>{await mutate(()=>duplicateProduct(p));await refresh();});
-   addButton("Archive",async()=>{if(!confirm("Archive "+p.product_name+"? It will disappear from the website, but its history remains."))return;await mutate(async()=>{await unpublish(p);await result(state.client.from("products").update({active:false,archived_at:new Date().toISOString()}).eq("id",p.id));});toast("Product archived.");await refresh();});
+  }else if(!p.archived_at){
+   if(canEdit())addButton("Duplicate",async()=>{await mutate(()=>duplicateProduct(p));await refresh();});
+   if(canPublish())addButton("Archive",async()=>{
+    if(!confirm("Archive "+p.product_name+"? It will disappear from the website, but its history remains."))return;
+    await mutate(async()=>{await unpublish(p);await result(state.client.from("products").update({active:false,archived_at:new Date().toISOString()}).eq("id",p.id));},"publish");
+    toast("Product archived.");await refresh();
+   });
   }
   article.append(check,cover,info,quick,actions);host.append(article);
  });
@@ -222,13 +231,14 @@ function renderExtras(){
 function cleanupPreviews(){state.gallery.filter(g=>!g.existing&&g.url?.startsWith("blob:")).forEach(g=>URL.revokeObjectURL(g.url));}
 function resetEditor(category=""){
  cleanupPreviews();state.editorId=null;state.gallery=[];state.deleted=[];state.receivedNew=false;
- $("ownerProductForm").reset();$("productPhotos").value="";$("ownerStock").value="0";$("ownerSku").disabled=false;
+ $("ownerProductForm").reset();$("productPhotos").value="";$("ownerStock").value="0";$("ownerStock").disabled=!canEdit();$("ownerSku").disabled=!canEdit();
  if(category)$("ownerCategory").value=category;
  $("ownerStockConfirm").checked=false;$("ownerStockConfirm").disabled=false;
- $("editorTitle").textContent="Add a product";clearErrors();message("");renderExtras();renderGallery();
+ $("editorTitle").textContent="Add a product";clearErrors();message("");renderExtras();renderGallery();$("publishNow").disabled=!canPublish();
 }
 function edit(productId){
  const p=state.products.find(x=>x.id===productId);if(!p)return;
+ if(!canEdit()||(!canPublish()&&published(p))){toast("Only the owner can edit published products.");return;}
  resetEditor(p.category_id);state.editorId=p.id;
  $("editorTitle").textContent="Edit "+p.product_name;
  $("ownerName").value=p.product_name;
@@ -240,7 +250,7 @@ function edit(productId){
  if($("ownerSize"))$("ownerSize").value=v?.size==="0"?"":v?.size||"";
  if($("ownerLength"))$("ownerLength").value=v?.length_cm||"";
  $("ownerStock").value=String(onlineStock(p));
- if(variantsOf(p).length!==1){$("ownerStock").disabled=true;message("This product has several variants. Edit stock in Inventory; other details can still be updated.",true);}else $("ownerStock").disabled=false;
+ if(variantsOf(p).length!==1||!canPublish()){$("ownerStock").disabled=true;message("Use Inventory to update existing stock. Owner permission is required for online allocation.",true);}else $("ownerStock").disabled=false;
  $("ownerStockConfirm").checked=true;$("ownerStockConfirm").disabled=true;
  state.gallery=photosOf(p).map(row=>({existing:true,id:row.id,url:safeURL(row.public_url),path:row.storage_path}));
  renderGallery();show("editor");
@@ -300,7 +310,7 @@ async function uploadPhoto(file,code){
  const created=[];
  try{
   for(const entry of uploads){
-   // Creation of this short-lived token is authorized by Supabase Storage RLS (admin only).
+   // Creation of this short-lived token is authorized by the existing Supabase Storage RLS.
    const signed=await result(bucket.createSignedUploadUrl(entry.path));
    const put=await bucket.uploadToSignedUrl(entry.path,signed.token,entry.blob,{contentType:entry.type,cacheControl:"31536000"});
    if(put.error)throw put.error;
