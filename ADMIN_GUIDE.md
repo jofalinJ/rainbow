@@ -1,4 +1,4 @@
-# Rainbow Gold Covering — Owner Product Publishing Guide
+# Rainbow Gold Covering — Staff and Owner Product Guide
 
 **New owner screen:** `https://rainbowgoldcovering.com/admin/owner.html` (after the release is deployed).
 
@@ -7,7 +7,7 @@ The developer must first apply `supabase/migrations/20261110213000_owner_quick_p
 
 ## Sign in
 1. On your phone, open the owner link above.
-2. Sign in using **your existing shop admin username/email and password**. Only an active Admin account may publish.
+2. Sign in using **your existing shop admin username/email and password**. All active shop staff may open the quick catalogue. Admins can publish and manage online stock; inventory staff can prepare drafts and shop opening stock; cashiers may view.
 3. Open the top-left **☰** menu to switch between Dashboard, Products, Add Product and Categories. On a computer, use the left menu.
 
 ## Add and publish a product
@@ -29,9 +29,9 @@ The developer must first apply `supabase/migrations/20261110213000_owner_quick_p
 Check that it has **a photo, price above ₹0, a published listing and available Online Store stock**. The dashboard shows published-but-out-of-stock products. Physical-shop stock alone is not online availability. Use **Inventory** to resolve transfers or reservations. If the screen reports insufficient stock, do not invent quantities—check the actual shop inventory.
 
 ## Categories and Salesforce
-Use **Categories** to add, rename or reorder categories. A category cannot be deleted while products use it. Salesforce is **not connected** to this shop and is not needed to publish products.
+Admins can use **Categories** to add, rename or reorder categories. Inventory staff can view categories and select existing ones for drafts. A category cannot be deleted while products use it. Salesforce is **not connected** to this shop and is not needed to publish products.
 
 ## Safety
 Never share your admin password. Do not press Publish twice while a save is in progress. If your connection drops, return to **Products** and check for the newly saved code before attempting another product. Customer payments are handled separately by the existing verified Razorpay checkout system.
 
-**Help:** The original detailed Products and Inventory screens are still available from the main admin menu for advanced stock and variant operations.
+**Help:** The **Quick Products** link is available in the shared staff menu alongside Billing, Inventory, Orders and Customers. The original detailed Products and Inventory screens remain available for advanced stock and variant operations.
