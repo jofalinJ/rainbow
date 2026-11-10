@@ -1,4 +1,4 @@
-/* Owner-only catalogue. Existing Supabase Auth + RLS are the authority; this UI never holds server secrets. */
+/* Shared shop staff catalogue. Supabase Auth, RLS and ERP RPCs remain authoritative. */
 (() => {
 "use strict";
 const $ = id => document.getElementById(id);
@@ -7,13 +7,13 @@ const MAX_IMAGES = 6;
 const MAX_BYTES = 5 * 1024 * 1024;
 const money = amount => new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR",maximumFractionDigits:2}).format(Number(amount)||0);
 const id = () => crypto.randomUUID();
-const state = {client:null,user:null,categories:[],locations:[],online:null,products:[],balances:[],screen:"dashboard",editorId:null,gallery:[],deleted:[],receivedNew:false,busy:false,limit:24,selected:new Set()};
+const state = {client:null,user:null,role:null,categories:[],locations:[],online:null,products:[],balances:[],screen:"dashboard",editorId:null,gallery:[],deleted:[],receivedNew:false,busy:false,limit:24,selected:new Set()};
 const safeURL = value => {try{const u=new URL(value);return u.protocol==="https:"?u.href:"";}catch{return"";}};
 const friendly = error => {
  const message=String(error?.message||error||"Unknown error");
  if(/insufficient|no stock|unreserved/i.test(message))return "Not enough available stock at the chosen shop. Check Inventory and try again.";
  if(/reserved|in.transit/i.test(message))return "Some stock belongs to a pending order or transfer. Finish that in Inventory first.";
- if(/permission|not authorized|policy|42501/i.test(message))return "Your owner account is not authorized for this action.";
+ if(/permission|not authorized|policy|42501/i.test(message))return "Your account cannot perform this action. Ask the owner for approval.";
  if(/duplicate|unique/i.test(message))return "That product code or category already exists.";
  return message.length>220?message.slice(0,220)+"…":message;
 };
@@ -37,14 +37,20 @@ function stableOperationId(key){
  catch{return id();}
 }
 function clearOperation(key){try{sessionStorage.removeItem(key);}catch{ /* Storage may be disabled. */ }}
-async function verifyOwner(){
+const canEdit=()=>state.role==="admin"||state.role==="inventory_staff";
+const canPublish=()=>state.role==="admin";
+async function verifyOwner(permission="view"){
  const {data,error}=await state.client.auth.getUser();
  if(error||!data?.user)throw new Error("Please sign in.");
  const profile=await result(state.client.from("staff_profiles").select("role,active,archived_at").eq("user_id",data.user.id).maybeSingle());
- if(!profile||!profile.active||profile.archived_at||profile.role!=="admin")throw new Error("Only an active owner/admin can use this page.");
- state.user=data.user;return data.user;
+ if(!profile||!profile.active||profile.archived_at||!["admin","inventory_staff","cashier"].includes(profile.role))
+   throw new Error("An active shop staff account is required.");
+ state.user=data.user;state.role=profile.role;
+ if(permission==="catalog_write"&&!canEdit())throw new Error("Only inventory staff and admins can change drafts.");
+ if(permission==="publish"&&!canPublish())throw new Error("Only the owner can publish or allocate online stock.");
+ return data.user;
 }
-async function mutate(action){await verifyOwner();return action();}
+async function mutate(action,permission="catalog_write"){await verifyOwner(permission);return action();}
 function closeMenu(){const menu=$("ownerMenu");menu.classList.remove("is-open");$("drawerBackdrop").hidden=true;$("menuToggle").setAttribute("aria-expanded","false");}
 function show(screen){
  state.screen=screen;
@@ -62,7 +68,13 @@ function photosOf(p){return (p.product_images||[]).slice().sort((a,b)=>Number(!!
 function listingOf(p){const raw=p.erp_online_listings;return Array.isArray(raw)?raw[0]:raw;}
 function published(p){return !p.archived_at&&p.active!==false&&listingOf(p)?.published===true;}
 function onlineStock(p){
- return variantsOf(p).reduce((sum,v)=>{const b=state.balances.find(row=>row.variant_id===v.id);return sum+Math.max(0,Number(b?.on_hand||0)-Number(b?.reserved||0));},0);
+ return variantsOf(p).reduce((sum,v)=>{
+  // Non-admin staff cannot read the online ERP balance. The stock_quantity
+  // mirror is the customer-visible online availability and is read-only here.
+  if(!canPublish())return sum+Math.max(0,Number(v.stock_quantity||0));
+  const b=state.balances.find(row=>row.variant_id===v.id);
+  return sum+Math.max(0,Number(b?.on_hand||0)-Number(b?.reserved||0));
+ },0);
 }
 function onlineHeld(p){return variantsOf(p).reduce((sum,v)=>sum+Number(state.balances.find(row=>row.variant_id===v.id)?.reserved||0),0);}
 function badge(p){
@@ -90,9 +102,11 @@ async function refresh(){
  ]);
  state.categories=categories||[];state.locations=locations||[];
  state.online=state.locations.find(x=>x.kind==="online")||null;
- if(!state.online)throw new Error("Online Store inventory location is not configured.");
+ if(!state.online&&canPublish())throw new Error("Online Store inventory location is not configured.");
  state.products=products||[];
- state.balances=await fetchAll("erp_stock_balances","location_id,variant_id,on_hand,reserved",q=>q.eq("location_id",state.online.id));
+ state.balances=canPublish()&&state.online
+  ?await fetchAll("erp_stock_balances","location_id,variant_id,on_hand,reserved",q=>q.eq("location_id",state.online.id))
+  :[];
  const cats=$("ownerCategory");const previous=cats.value;
  cats.replaceChildren(new Option("Select a category",""));
  for(const c of state.categories.filter(c=>c.active))cats.add(new Option(c.name,c.id));
