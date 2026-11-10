@@ -37,7 +37,7 @@ function stableOperationId(key){
  catch{return id();}
 }
 function clearOperation(key){try{sessionStorage.removeItem(key);}catch{ /* Storage may be disabled. */ }}
-const canEdit=()=>state.role==="admin"||state.role==="inventory_staff";
+const canEdit=()=>["admin","inventory_staff","cashier"].includes(state.role);
 const canPublish=()=>state.role==="admin";
 async function verifyOwner(permission="view"){
  const {data,error}=await state.client.auth.getUser();
@@ -46,7 +46,7 @@ async function verifyOwner(permission="view"){
  if(!profile||!profile.active||profile.archived_at||!["admin","inventory_staff","cashier"].includes(profile.role))
    throw new Error("An active shop staff account is required.");
  state.user=data.user;state.role=profile.role;
- if(permission==="catalog_write"&&!canEdit())throw new Error("Only inventory staff and admins can change drafts.");
+ if(permission==="catalog_write"&&!canEdit())throw new Error("Only active staff can change product drafts.");
  if(permission==="publish"&&!canPublish())throw new Error("Only the owner can publish or allocate online stock.");
  return data.user;
 }
@@ -568,8 +568,8 @@ else init().catch(fatal);
 function applyRoleUI(){
  const editor=canEdit(),owner=canPublish();
  $("roleAccessNote").textContent=owner?"Owner: publishing, categories and online stock management."
-  :editor?"Inventory staff: add photos and prepare drafts. Owner approval is needed to publish or allocate online stock."
-  :"Cashier: catalogue viewing only. Inventory staff can prepare drafts.";
+  :editor?"Staff: add photos and prepare drafts. Owner approval is needed to publish or allocate online stock."
+  :"Staff product access is unavailable.";
  $("ownerBulkBar").hidden=!owner;
  $("categoryForm").hidden=!owner;
  $("inlineCategory").hidden=!owner;
