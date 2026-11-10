@@ -410,7 +410,7 @@ async function saveProduct(mode){
  state.busy=true;const buttons=[$("saveDraft"),$("publishNow")];buttons.forEach(b=>b.disabled=true);
  message(publish?"Publishing product…":"Saving draft…");
  try{
-  await verifyOwner();
+  await verifyOwner(publish?"publish":"catalog_write");
   // A previous save may have created the DB row before a photo transfer failed.
   // Recover it instead of inserting the product a second time.
   let previous=state.products.find(p=>p.id===state.editorId);
@@ -418,6 +418,7 @@ async function saveProduct(mode){
    previous=await result(state.client.from("products").select("id,product_code,product_name,category_id,active,selling_price,product_variants(id,product_id,stock_quantity,color,size,length_cm,active),product_images(id,public_url,storage_path,is_primary,sort_order),erp_online_listings(published)").eq("id",state.editorId).maybeSingle());
    if(!previous)throw new Error("The previously created product was not found. Refresh the catalogue before trying again.");
   }
+  if(previous&&!canPublish()&&published(previous))throw new Error("Only the owner can edit published products.");
   let product=previous,variant=previous?variantOf(previous):null;
   const payload={category_id:data.cat.id,product_name:data.name,type:previous?.type||data.cat.name,gender:previous?.gender||"women",description:data.description,selling_price:data.price,length_cm:data.cat.has_length?data.length:null};
   if(!product){
@@ -444,7 +445,7 @@ async function saveProduct(mode){
    if(!$("ownerStock").disabled)await setOnlineQuantity({...product,product_variants:[variant]},data.stock);
   }else if(published(previous||{})){
    await unpublish(previous);
-  }else if(!previous)await publication(product,false);
+  }else if(!previous&&canPublish())await publication(product,false);
   await refresh();
   const saved=state.products.find(p=>p.id===product.id);
   if(publish){
@@ -459,13 +460,14 @@ async function saveProduct(mode){
   console.error("Owner save failed",error);
   message("Could not complete: "+friendly(error)+". Check the product list before retrying.",true);
   // Preserve the editor and selected photos for a safe retry.
- }finally{state.busy=false;buttons.forEach(b=>b.disabled=false);}
+ }finally{state.busy=false;$("saveDraft").disabled=!canEdit();$("publishNow").disabled=!canPublish();}
 }
 async function duplicateProduct(p){
  const created=await result(state.client.from("products").insert({category_id:p.category_id,product_name:p.product_name+" (Copy)",type:p.type,selling_price:p.selling_price,description:p.description,gender:p.gender,active:true}).select("id,product_code").single());
  for(const v of variantsOf(p))await result(state.client.from("product_variants").insert({product_id:created.id,color:v.color,size:v.size,length_cm:v.length_cm,stock_quantity:0,active:true}));
  for(const photo of photosOf(p))await result(state.client.from("product_images").insert({product_id:created.id,storage_path:photo.storage_path,public_url:photo.public_url,alt_text:p.product_name,is_primary:photo.is_primary,sort_order:photo.sort_order}));
- await publication(created,false);toast("Duplicated as a draft. Stock was not copied.");
+ if(canPublish())await publication(created,false);
+ toast("Duplicated as a draft. Stock was not copied.");
 }
 function renderCategories(){
  const host=$("categoryList");host.replaceChildren();
@@ -476,10 +478,10 @@ function renderCategories(){
   const detail=document.createElement("small");detail.textContent=count+" products";
   const add=(text,disabled,fn)=>{const b=document.createElement("button");b.type="button";b.textContent=text;b.disabled=disabled;b.onclick=()=>safeAction(fn);row.append(b);};
   row.append(name,detail);
-  add("↑",index===0,()=>moveCategory(index,-1));
-  add("↓",index===state.categories.length-1,()=>moveCategory(index,1));
-  add("Rename",false,async()=>{const changed=prompt("New category name",cat.name)?.trim();if(!changed||changed===cat.name)return;await mutate(()=>result(state.client.from("categories").update({name:changed}).eq("id",cat.id)));await refresh();});
-  add("Delete",count>0,async()=>{if(!confirm("Delete unused category "+cat.name+"?"))return;await mutate(()=>result(state.client.from("categories").delete().eq("id",cat.id)));await refresh();});
+  add("↑",!canPublish()||index===0,()=>moveCategory(index,-1));
+  add("↓",!canPublish()||index===state.categories.length-1,()=>moveCategory(index,1));
+  add("Rename",!canPublish(),async()=>{const changed=prompt("New category name",cat.name)?.trim();if(!changed||changed===cat.name)return;await mutate(()=>result(state.client.from("categories").update({name:changed}).eq("id",cat.id)),"publish");await refresh();});
+  add("Delete",!canPublish()||count>0,async()=>{if(!confirm("Delete unused category "+cat.name+"?"))return;await mutate(()=>result(state.client.from("categories").delete().eq("id",cat.id)),"publish");await refresh();});
   host.append(row);
  });
 }
@@ -492,13 +494,13 @@ async function moveCategory(index,delta){
    await result(state.client.from("categories").update({storefront_order:indexB}).eq("id",a.id));
    await result(state.client.from("categories").update({storefront_order:indexA}).eq("id",b.id));
   }
- });
+ },"publish");
  await refresh();
 }
 async function addCategory(name){
  if(!name||name.length>70)throw new Error("Enter a category name up to 70 characters.");
  const prefix="RG"+name.toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,3)+String(Math.floor(Math.random()*900)+100);
- const created=await mutate(()=>result(state.client.from("categories").insert({name,code_prefix:prefix,has_color:false,has_size:false,has_length:false,has_thickness:false,has_gold_amount:false,active:true,storefront_order:(Math.max(0,...state.categories.map(c=>Number(c.storefront_order)||0))+10),show_in_storefront:true}).select("id").single()));
+ const created=await mutate(()=>result(state.client.from("categories").insert({name,code_prefix:prefix,has_color:false,has_size:false,has_length:false,has_thickness:false,has_gold_amount:false,active:true,storefront_order:(Math.max(0,...state.categories.map(c=>Number(c.storefront_order)||0))+10),show_in_storefront:true}).select("id").single()),"publish");
  await refresh();$("ownerCategory").value=created.id;renderExtras();return created;
 }
 async function applyBulk(){
