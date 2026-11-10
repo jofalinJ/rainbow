@@ -8,6 +8,7 @@ on:
       - 'admin/owner.js'
       - 'admin/owner.css'
       - 'admin/app.js'
+      - 'admin/*.html'
       - '.github/workflows/staff-quick-products-live-smoke.yml'
   workflow_dispatch:
 
@@ -29,7 +30,9 @@ jobs:
             echo "Checking deployed staff assets: attempt ${attempt}/28"
             if html=$(curl -L --fail --silent --show-error --max-time 12 "${site}/admin/owner.html?release=${GITHUB_SHA}") &&
                script=$(curl -L --fail --silent --show-error --max-time 12 "${site}/admin/owner.js?release=${GITHUB_SHA}") &&
-               nav=$(curl -L --fail --silent --show-error --max-time 12 "${site}/admin/app.js?release=${GITHUB_SHA}") &&
+               nav=$(curl -L --fail --silent --show-error --max-time 12 "${site}/admin/app.js?v=20261110-quick-products") &&
+               products=$(curl -L --fail --silent --show-error --max-time 12 "${site}/admin/products.html?release=${GITHUB_SHA}") &&
+               billing=$(curl -L --fail --silent --show-error --max-time 12 "${site}/admin/billing.html?release=${GITHUB_SHA}") &&
                login=$(curl -L --fail --silent --show-error --max-time 12 "${site}/admin/login.html?release=${GITHUB_SHA}"); then
               if grep -Fq 'id="roleAccessNote"' <<< "$html" &&
                  grep -Fq 'id="publishNow"' <<< "$html" &&
@@ -37,6 +40,8 @@ jobs:
                  grep -Fq 'const canPublish=()=>state.role==="admin"' <<< "$script" &&
                  grep -Fq 'applyRoleUI();' <<< "$script" &&
                  grep -Fq 'Quick Products' <<< "$nav" &&
+                 grep -Fq 'app.js?v=20261110-quick-products' <<< "$products" &&
+                 grep -Fq 'app.js?v=20261110-quick-products' <<< "$billing" &&
                  grep -Fq 'Staff / Admin Login' <<< "$login"; then
                 echo "Live Cloudflare staff catalogue assets verified. No sign-in, stock, or payment mutation was attempted."
                 exit 0

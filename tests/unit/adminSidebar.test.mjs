@@ -126,4 +126,15 @@ describe("shared admin sidebar", () => {
     expect(labels).toContain("Staff");
     expect(labels).toContain("Inventory");
   });
+  it("loads the cache-busted Quick Products navigation on every existing staff page",()=>{
+    const pages=["attendance.html","billing.html","bills.html","customers.html",
+      "index.html","inventory.html","my-attendance.html","orders.html",
+      "products.html","reports.html","settings.html","staff.html"];
+    for(const page of pages){
+      const html=readFileSync(path.resolve("admin",page),"utf8");
+      expect(html).toContain("app.js?v=20261110-quick-products");
+      expect(html).not.toContain("app.js?v=20261018-unified-shop-staff-v2");
+    }
+  });
+
 });
