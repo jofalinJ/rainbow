@@ -79,13 +79,34 @@ describe("owner quick publishing integrates with the existing shop",()=>{
   const js=read("admin/owner.js");
   const publish=js.slice(js.indexOf("async function confirmOnlineVisibility()"),js.indexOf("async function saveProduct(mode)"));
   expect(publish).toContain('await verifyOwner("publish")');
-  expect(publish).toContain('qty>current.onHand-current.reserved');
+  expect(publish).toContain('qty>balance.onHand-balance.reserved');
   expect(publish).toContain('await transfer(source,state.online.id,variantId,qty');
   expect(publish.indexOf('await transfer(')).toBeLessThan(publish.indexOf('await publication(product,true)'));
   expect(js).toContain('async function publishExisting(product)');
   expect(js).toContain('if(!balances.some(b=>b.onHand>b.reserved))');
   expect(js).toContain('if(!canPublish())return sum+Math.max(0,Number(v.stock_quantity||0))');
   expect(js).not.toContain('.update({stock_quantity:');
+ });
+ it("offers admin-only online top-ups from recorded physical stock with current shop availability",()=>{
+  const html=read("admin/owner.html"),js=read("admin/owner.js"),css=read("admin/owner.css");
+  for(const id of ["onlineVisibilityAvailable","onlineVisibilityCurrent","onlineVisibilitySource",
+      "onlineVisibilityVariant","onlineVisibilityQty","onlineVisibilityConfirm"]){
+   expect(html).toContain('id="'+id+'"');
+  }
+  expect(html).toContain("Add Online Stock");
+  expect(html).toContain("Online Push");
+  expect(js).toContain('addStock.textContent="＋ Add Online Stock"');
+  expect(js).toContain('addStock.onclick=()=>safeAction(()=>openOnlineStockDialog(product,"stock"))');
+  expect(js).toContain('state.shopBalances=new Map(');
+  expect(js).toContain('await Promise.all([');
+  expect(js).toContain('async function loadOnlineStockAvailability()');
+  expect(js).toContain('function updateShopStockPreview()');
+  expect(js).toContain('available<1;source.add(opt)');
+  expect(js).toContain('qty.max=String(Math.min(100000,available))');
+  expect(js).toContain('if(mode==="show")await publication(product,true)');
+  expect(js).toContain('if(qty>balance.onHand-balance.reserved)');
+  expect(js).not.toContain('.update({stock_quantity:');
+  expect(css).toContain(".online-visibility-dialog .stock-preview");
  });
  it("supports phone-width layouts and touch-friendly controls",()=>{
   const css=read("admin/owner.css");

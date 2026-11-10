@@ -7,7 +7,7 @@ const MAX_IMAGES = 6;
 const MAX_BYTES = 5 * 1024 * 1024;
 const money = amount => new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR",maximumFractionDigits:2}).format(Number(amount)||0);
 const id = () => crypto.randomUUID();
-const state = {client:null,user:null,role:null,categories:[],locations:[],online:null,products:[],balances:[],screen:"dashboard",editorId:null,gallery:[],deleted:[],receivedNew:false,busy:false,limit:24,categoryLimit:48,visibilityProductId:null,selected:new Set()};
+const state = {client:null,user:null,role:null,categories:[],locations:[],online:null,products:[],balances:[],screen:"dashboard",editorId:null,gallery:[],deleted:[],receivedNew:false,busy:false,limit:24,categoryLimit:48,visibilityProductId:null,visibilityMode:"show",stockCheckSeq:0,shopBalances:new Map(),selected:new Set()};
 const safeURL = value => {try{const u=new URL(value);return u.protocol==="https:"?u.href:"";}catch{return"";}};
 const friendly = error => {
  const message=String(error?.message||error||"Unknown error");
@@ -190,6 +190,7 @@ function renderProducts(){
    toast("Price and online stock saved.");await refresh();
   });
   if(canEdit()&&(canPublish()||!published(p))&&!p.archived_at)addButton("Edit",()=>edit(p.id));
+  if(canPublish()&&!p.archived_at&&p.active!==false)addButton("Add Online Stock",()=>openOnlineStockDialog(p,"stock"));
   if(canPublish())addButton(visibleOnStorefront(p)?"Hide Online":"Show Online",async()=>{
    if(visibleOnStorefront(p)){await mutate(()=>unpublish(p),"publish");toast("Hidden from online shop.");await refresh();}
    else await prepareShowOnline(p);
@@ -423,44 +424,128 @@ async function prepareShowOnline(product){
   await publication(product,true);await refresh();
   toast("Product is now visible online.",product.product_code);return;
  }
- const dialog=$("onlineVisibilityDialog");
- state.visibilityProductId=product.id;
- $("onlineVisibilityTitle").textContent="Show "+product.product_name+" online";
- $("onlineVisibilityProduct").textContent=product.product_code+" · "+money(product.selling_price);
+ await openOnlineStockDialog(product,"show");
+}
+async function openOnlineStockDialog(product,mode="stock"){
+ await verifyOwner("publish");
+ if(!product||product.archived_at||product.active===false)throw new Error("Restore or enable this product before moving stock online.");
+ if(!variantsOf(product).length)throw new Error("Add an active variant in Advanced Products first.");
+ if(mode==="show")validateOnlineProduct(product);
+ if(!state.online)throw new Error("Online Store inventory location is not configured.");
+ state.visibilityProductId=product.id;state.visibilityMode=mode;
+ state.shopBalances=new Map();
+ $("onlineVisibilityTitle").textContent=mode==="show"?"Move shop stock & show online":"Add Online Stock";
+ $("onlineVisibilityProduct").textContent=product.product_name+" · "+product.product_code+" · "+money(product.selling_price);
+ $("onlineVisibilityHint").textContent=mode==="show"
+  ?"Choose pieces already recorded at a physical shop. They will move into the Online Store before the listing becomes visible."
+  :"Move existing pieces from a physical shop to the Online Store. This reduces that shop's stock; it does not create new stock.";
+ $("onlineVisibilityAfter").textContent=mode==="show"
+  ?"After the transfer succeeds, this product will be shown to customers."
+  :published(product)
+   ?"This product is already published. Transferred pieces will become available to online shoppers."
+   :"This is a draft. The pieces will move online, but the product stays hidden until you choose Show Online.";
+ $("onlineVisibilityConfirm").textContent=mode==="show"?"Transfer stock & show online":"Add Online Stock";
  $("onlineVisibilityFeedback").textContent="";
  $("onlineVisibilityQty").value="1";
- const source=$("onlineVisibilitySource");
- source.replaceChildren(new Option("Select shop stock",""));
- for(const loc of state.locations.filter(loc=>loc.active&&loc.kind==="branch"))
-  source.add(new Option(loc.name,loc.id));
- if(source.options.length===2)source.selectedIndex=1;
+ const source=$("onlineVisibilitySource");source.replaceChildren(new Option("Checking shop stock…",""));
  const variants=$("onlineVisibilityVariant");variants.replaceChildren();
- for(const variant of variantsOf(product))
-  variants.add(new Option([variant.color,variant.size,variant.length_cm?variant.length_cm+" cm":""].filter(x=>x&&x!=="0").join(" · ")||"Standard",variant.id));
- if(!source.value)$("onlineVisibilityFeedback").textContent="Set up a physical shop with recorded stock in Inventory first.";
+ for(const v of variantsOf(product))
+  variants.add(new Option([v.color,v.size,v.length_cm?v.length_cm+" cm":""].filter(x=>x&&x!=="0").join(" · ")||"Standard",v.id));
+ const dialog=$("onlineVisibilityDialog");
  dialog.showModal();
+ await loadOnlineStockAvailability();
+}
+async function loadOnlineStockAvailability(){
+ const dialog=$("onlineVisibilityDialog");
+ const request=++state.stockCheckSeq;
+ const variantId=$("onlineVisibilityVariant").value;
+ const source=$("onlineVisibilitySource"),qty=$("onlineVisibilityQty"),confirm=$("onlineVisibilityConfirm");
+ const oldSource=source.value;
+ source.disabled=true;qty.disabled=true;confirm.disabled=true;
+ $("onlineVisibilityCurrent").textContent="Checking Online Store stock…";
+ $("onlineVisibilityAvailable").textContent="Checking recorded shop stock…";
+ $("onlineVisibilityFeedback").textContent="";
+ const branches=state.locations.filter(l=>l.active&&l.kind==="branch");
+ try{
+  const [onlineBalance,...branchBalances]=await Promise.all([
+   freshBalance(variantId,state.online.id),
+   ...branches.map(l=>freshBalance(variantId,l.id))
+  ]);
+  if(request!==state.stockCheckSeq||!dialog.open)return;
+  state.shopBalances=new Map(branches.map((branch,i)=>[branch.id,branchBalances[i]]));
+  const freeOnline=Math.max(0,onlineBalance.onHand-onlineBalance.reserved);
+  $("onlineVisibilityCurrent").textContent="Online Store: "+freeOnline+" available · "+onlineBalance.reserved+" reserved";
+  source.replaceChildren(new Option("Select shop with stock",""));
+  for(let i=0;i<branches.length;i++){
+   const balance=branchBalances[i],available=Math.max(0,balance.onHand-balance.reserved);
+   const opt=new Option(branches[i].name+" — "+available+" available",branches[i].id);
+   opt.disabled=available<1;source.add(opt);
+  }
+  const availableBranches=branches.map((branch,i)=>({id:branch.id,available:Math.max(0,branchBalances[i].onHand-branchBalances[i].reserved)}))
+   .filter(b=>b.available>0);
+  if(availableBranches.length){
+   const selected=availableBranches.some(b=>b.id===oldSource)?oldSource:availableBranches[0].id;
+   source.value=selected;
+  }else source.value="";
+  source.disabled=!availableBranches.length;
+  updateShopStockPreview();
+ }catch(error){
+  if(request!==state.stockCheckSeq||!dialog.open)return;
+  $("onlineVisibilityCurrent").textContent="Online stock cannot be checked.";
+  $("onlineVisibilityAvailable").textContent="Could not read shop inventory. Check Inventory and try again.";
+  $("onlineVisibilityFeedback").textContent=friendly(error);
+  confirm.disabled=true;qty.disabled=true;
+ }
+}
+function updateShopStockPreview(){
+ const sourceId=$("onlineVisibilitySource").value;
+ const balance=state.shopBalances.get(sourceId);
+ const available=balance?Math.max(0,balance.onHand-balance.reserved):0;
+ const source=$("onlineVisibilitySource"),qty=$("onlineVisibilityQty"),confirm=$("onlineVisibilityConfirm");
+ qty.max=String(Math.min(100000,available));
+ qty.disabled=available===0;confirm.disabled=available===0;
+ if(available){
+  if(!Number.isSafeInteger(Number(qty.value))||Number(qty.value)<1||Number(qty.value)>available)
+   qty.value="1";
+  $("onlineVisibilityAvailable").textContent="This shop: "+available+" pieces available to transfer"+(balance.reserved?" · "+balance.reserved+" reserved":"")+".";
+ }else{
+  qty.value="";
+  $("onlineVisibilityAvailable").textContent="No available stock for this variant in the selected shop. Receive physical stock in Inventory first.";
+  if(!source.value)$("onlineVisibilityAvailable").textContent="No recorded shop stock for this variant. Receive it in Inventory before transferring.";
+ }
 }
 async function confirmOnlineVisibility(){
- const product=state.products.find(p=>p.id===state.visibilityProductId);
- await verifyOwner("publish");validateOnlineProduct(product);
+ const product=state.products.find(p=>p.id===state.visibilityProductId),mode=state.visibilityMode;
+ await verifyOwner("publish");
+ if(!product||product.archived_at||product.active===false)throw new Error("This product is no longer active.");
+ if(mode==="show")validateOnlineProduct(product);
  const source=$("onlineVisibilitySource").value,variantId=$("onlineVisibilityVariant").value;
  const qty=Number($("onlineVisibilityQty").value);
- if(!state.locations.some(loc=>loc.id===source&&loc.kind==="branch"))
-  throw new Error("Choose a physical source shop.");
+ if(!state.locations.some(loc=>loc.id===source&&loc.active&&loc.kind==="branch"))
+  throw new Error("Choose a physical shop with available stock.");
  if(!variantsOf(product).some(v=>v.id===variantId))
-  throw new Error("Choose a valid product variant.");
+  throw new Error("Choose a valid active product variant.");
  if(!Number.isSafeInteger(qty)||qty<1||qty>100000)
   throw new Error("Enter a whole number of pieces between 1 and 100,000.");
- const current=await freshBalance(variantId,source);
- if(qty>current.onHand-current.reserved)
-  throw new Error("That shop has only "+Math.max(0,current.onHand-current.reserved)+" available pieces. Check Inventory.");
- await transfer(source,state.online.id,variantId,qty,"Owner allocated recorded shop stock to online storefront");
- const now=await freshBalance(variantId,state.online.id);
- if(now.onHand<=now.reserved)
-  throw new Error("The transfer has not finished. Check Inventory before publishing.");
- await publication(product,true);
- $("onlineVisibilityDialog").close();state.visibilityProductId=null;
- await refresh();toast("Product is now visible online.",product.product_code);
+ const balance=await freshBalance(variantId,source);
+ if(qty>balance.onHand-balance.reserved)
+  throw new Error("That shop has only "+Math.max(0,balance.onHand-balance.reserved)+" available pieces. Check Inventory.");
+ let transferred=false;
+ try{
+  await transfer(source,state.online.id,variantId,qty,"Admin transferred recorded shop stock to online store");
+  transferred=true;
+  const onlineBalance=await freshBalance(variantId,state.online.id);
+  if(onlineBalance.onHand<=onlineBalance.reserved)
+   throw new Error("The transfer is not yet available online. Check Inventory before trying again.");
+  if(mode==="show")await publication(product,true);
+ }catch(error){
+  if(transferred)throw new Error("Stock was transferred online, but the final verification or publication did not finish. Check Inventory before retrying. "+friendly(error));
+  throw error;
+ }
+ $("onlineVisibilityDialog").close();state.visibilityProductId=null;state.stockCheckSeq++;
+ await refresh();
+ toast(mode==="show"?"Product now visible with "+qty+" online piece(s)."
+  :"Added "+qty+" existing piece(s) to Online Store.",product.product_code,mode!=="show"&&!published(product));
 }
 async function saveProduct(mode){
  const publish=mode==="publish",data=readInput(publish);
@@ -569,7 +654,7 @@ function renderCategoryCatalogue(){
   else image.textContent="No photo";
   const info=document.createElement("div");info.className="category-product-info";
   const title=document.createElement("strong");title.textContent=product.product_name;
-  const meta=document.createElement("small");meta.textContent=product.product_code+" · "+money(product.selling_price);
+  const meta=document.createElement("small");meta.textContent=product.product_code+" · "+money(product.selling_price)+" · Online: "+onlineStock(product)+" pcs";
   const status=document.createElement("span");status.className="status "+(visibleOnStorefront(product)?"published":product.archived_at?"archived":"draft");
   status.textContent=product.archived_at?"Archived":visibleOnStorefront(product)?"Visible online":published(product)?"Published · needs online stock":"Not online";
   const help=document.createElement("small");help.className="category-product-help";
@@ -591,6 +676,13 @@ function renderCategoryCatalogue(){
     }else await prepareShowOnline(product);
    });
    actions.append(button);
+   if(!product.archived_at&&product.active!==false){
+    const addStock=document.createElement("button");addStock.type="button";addStock.className="secondary";
+    addStock.textContent="＋ Add Online Stock";
+    addStock.setAttribute("aria-label","Add Online Stock from existing shop stock for "+product.product_name);
+    addStock.onclick=()=>safeAction(()=>openOnlineStockDialog(product,"stock"));
+    actions.append(addStock);
+   }
   }else{
    const note=document.createElement("small");note.className="owner-approval-label";
    note.textContent=visibleOnStorefront(product)?"Visible online":"Owner controls online visibility";actions.append(note);
@@ -701,7 +793,10 @@ async function init(){
  $("ownerProductForm").onsubmit=event=>{event.preventDefault();saveProduct(event.submitter?.dataset.save||"draft");};
  $("categoryForm").onsubmit=event=>{event.preventDefault();safeAction(async()=>{const created=await addCategory($("categoryName").value.trim());$("categoryName").value="";toast("Category created.");if(state.screen==="editor")$("ownerCategory").value=created.id;});};
  $("inlineCategory").onclick=()=>{const name=prompt("New category name")?.trim();if(!name)return;safeAction(async()=>{await addCategory(name);toast("Category created and selected.");});};
- $("onlineVisibilityCancel").onclick=()=>{$("onlineVisibilityDialog").close();state.visibilityProductId=null;};
+ $("onlineVisibilityCancel").onclick=()=>{$("onlineVisibilityDialog").close();state.visibilityProductId=null;state.stockCheckSeq++;};
+ $("onlineVisibilityVariant").onchange=()=>{loadOnlineStockAvailability();};
+ $("onlineVisibilitySource").onchange=updateShopStockPreview;
+ $("onlineVisibilityDialog").addEventListener("close",()=>{state.stockCheckSeq++;state.visibilityProductId=null;});
  $("onlineVisibilityForm").onsubmit=event=>{
   event.preventDefault();
   if(state.busy)return;
