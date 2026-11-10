@@ -60,6 +60,33 @@ describe("owner quick publishing integrates with the existing shop",()=>{
   expect(shop).toContain('.eq("erp_online_listings.published",true)');
   expect(shop).toContain('.gt("product_variants.stock_quantity",0)');
  });
+ it("lists every saved product under categories and restricts online controls to the owner",()=>{
+  const html=read("admin/owner.html"),js=read("admin/owner.js"),css=read("admin/owner.css");
+  for(const id of ["categoryCatalogueFilter","categoryCatalogueSearch","categoryCatalogueList",
+     "onlineVisibilityDialog","onlineVisibilitySource","onlineVisibilityVariant","onlineVisibilityQty"]){
+    expect(html).toContain('id="'+id+'"');
+  }
+  expect(html).toContain("Categories &amp; Online");
+  expect(js).toContain("function renderCategoryCatalogue()");
+  expect(js).toContain('button.textContent=online?"Hide Online":"Show Online"');
+  expect(js).toContain('if(canPublish()){');
+  expect(js).toContain('note.textContent=visibleOnStorefront(product)?"Visible online":"Owner controls online visibility"');
+  expect(js).toContain('show("categories");');
+  expect(js).toContain('state.categoryLimit=48');
+  expect(css).toContain(".category-product-row");
+ });
+ it("publishes only after counted shop stock transfer, not by editing the online stock mirror",()=>{
+  const js=read("admin/owner.js");
+  const publish=js.slice(js.indexOf("async function confirmOnlineVisibility()"),js.indexOf("async function saveProduct(mode)"));
+  expect(publish).toContain('await verifyOwner("publish")');
+  expect(publish).toContain('qty>current.onHand-current.reserved');
+  expect(publish).toContain('await transfer(source,state.online.id,variantId,qty');
+  expect(publish.indexOf('await transfer(')).toBeLessThan(publish.indexOf('await publication(product,true)'));
+  expect(js).toContain('async function publishExisting(product)');
+  expect(js).toContain('if(!balances.some(b=>b.onHand>b.reserved))');
+  expect(js).toContain('if(!canPublish())return sum+Math.max(0,Number(v.stock_quantity||0))');
+  expect(js).not.toContain('.update({stock_quantity:');
+ });
  it("supports phone-width layouts and touch-friendly controls",()=>{
   const css=read("admin/owner.css");
   expect(css).toContain("@media(max-width:520px)");
