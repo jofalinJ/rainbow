@@ -71,7 +71,7 @@ describe("owner quick publishing integrates with the existing shop",()=>{
   const js=read("admin/owner.js");
   expect(js).toContain('document.querySelectorAll("[data-screen=\'editor\']")');
   expect(js).toContain('document.querySelectorAll("[data-admin-only]")');
-  expect(js).toContain('Only the owner can publish products');
+  expect(js).toContain('Only the owner can publish or allocate online stock.');
  });
  it("keeps returning admins in the owner area without open redirects",()=>{
   const login=read("admin/login.html");
