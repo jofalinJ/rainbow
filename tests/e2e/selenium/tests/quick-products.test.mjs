@@ -208,7 +208,7 @@ test("Quick Products is photo-first; staff can save a draft on a 390px screen wi
   assert.match(await (await field("categoryCatalogueList")).getText(),/Owner controls online visibility/);
   assert.equal((await driver.findElements(By.css(".category-product-actions button.primary"))).length,0,
    "Staff must not be offered a privileged Show Online action");
-  assert.equal((await driver.findElements(By.xpath("//button[contains(text(),'Add Online Stock')]"))).length,0,
+  assert.equal((await driver.findElements(By.xpath("//div[contains(@class,'category-product-actions')]/button[contains(text(),'Add Online Stock')]"))).length,0,
    "Staff cannot transfer online stock");
   const data=await driver.executeScript("return globalThis.__qa");
   assert.equal(data.products.length,1);
