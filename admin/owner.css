@@ -136,3 +136,13 @@ button[hidden],.optional-details[hidden]{display:none!important}
  .category-product-actions a{min-height:44px;display:inline-flex;align-items:center}
  .online-visibility-dialog{padding:17px}
 }
+
+/* Online Push: clear quantities and shop-origin checks before transferring ERP stock. */
+.online-visibility-dialog .stock-preview{border-radius:9px;background:#fff;padding:10px 12px;margin:9px 0 13px;border:1px solid var(--line);font-size:13px;line-height:1.55;color:#4b3a30}
+.online-visibility-dialog #onlineVisibilityCurrent{background:#fff7e8;font-weight:700}
+.online-visibility-dialog #onlineVisibilityAvailable{background:#f7faf6}
+.online-visibility-dialog select:disabled,.online-visibility-dialog input:disabled{opacity:.65;cursor:not-allowed}
+.online-visibility-dialog #onlineVisibilityHint{margin-bottom:16px}
+.online-visibility-dialog .dialog-actions button:disabled{opacity:.5;cursor:not-allowed}
+.category-product-actions button{min-height:44px}
+.category-product-info strong{max-width:100%}
