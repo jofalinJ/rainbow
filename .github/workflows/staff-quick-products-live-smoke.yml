@@ -42,7 +42,11 @@ jobs:
                  grep -Fq 'id="ownerMoreDetails"' <<< "$html" &&
                  grep -Fq 'id="categoryCatalogueList"' <<< "$html" &&
                  grep -Fq 'id="onlineVisibilityDialog"' <<< "$html" &&
-                 grep -Fq 'owner.js?v=20261110-category-online' <<< "$html" &&
+                 grep -Fq 'owner.js?v=20261110-online-stock' <<< "$html" &&
+                 grep -Fq 'id="onlineVisibilityAvailable"' <<< "$html" &&
+                 grep -Fq 'id="onlineVisibilityCurrent"' <<< "$html" &&
+                 grep -Fq 'addStock.textContent="＋ Add Online Stock"' <<< "$script" &&
+                 grep -Fq 'async function loadOnlineStockAvailability()' <<< "$script" &&
                  grep -Fq 'function renderCategoryCatalogue()' <<< "$script" &&
                  grep -Fq 'button.textContent=online?"Hide Online":"Show Online"' <<< "$script" &&
                  grep -Fq 'Just three fields' <<< "$html" &&
