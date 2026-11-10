@@ -7,11 +7,11 @@
 <meta name="theme-color" content="#8B0000">
 <link rel="icon" href="../assets/brand/rainbow-logo.png" type="image/png">
 <title>Staff Products | Rainbow Gold Covering</title>
-<link rel="stylesheet" href="owner.css?v=20261110-category-online">
+<link rel="stylesheet" href="owner.css?v=20261110-online-stock">
 <script src="config.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script defer src="image-prep.js?v=20261110"></script>
-<script defer src="owner.js?v=20261110-category-online"></script>
+<script defer src="owner.js?v=20261110-online-stock"></script>
 </head>
 <body>
 <div id="startup" role="status" class="startup">Checking your shop staff account…</div>
@@ -106,10 +106,10 @@
   </form>
  </section>
  <section id="screen-categories" class="screen" hidden>
-  <div class="page-heading"><div><p class="eyebrow">PRODUCTS BY CATEGORY</p><h1>Categories &amp; Online</h1><p>Every saved product appears under its category. The owner chooses what goes onto the website.</p></div></div>
+  <div class="page-heading"><div><p class="eyebrow">PRODUCTS BY CATEGORY</p><h1>Categories &amp; Online</h1><p>Every saved product appears under its category. The owner can show it online and add online stock from an existing shop.</p></div></div>
   <section class="panel category-catalogue-panel" aria-labelledby="categoryCatalogueHeading">
-   <h2 id="categoryCatalogueHeading">Saved products &amp; online visibility</h2>
-   <p class="quick-tip">A product must have a photo, a price and available online stock before customers can see or buy it. Shop stock is not automatically online stock.</p>
+   <h2 id="categoryCatalogueHeading">Online Push · Products by category</h2>
+   <p class="quick-tip">Use <strong>Add Online Stock</strong> to move existing pieces from a physical shop. It deducts those pieces from shop availability; it never creates new stock. Use <strong>Show Online</strong> to publish once a photo, price and online stock are ready.</p>
    <div class="filter-bar category-toolbar">
     <label>Category<select id="categoryCatalogueFilter"><option value="all">All categories</option></select></label>
     <label class="grow">Find a product<input id="categoryCatalogueSearch" type="search" placeholder="Search name or product code" autocomplete="off"></label>
@@ -125,14 +125,17 @@
 
 <dialog id="onlineVisibilityDialog" class="online-visibility-dialog" aria-labelledby="onlineVisibilityTitle">
  <form id="onlineVisibilityForm">
-  <h2 id="onlineVisibilityTitle">Show product online</h2>
+  <h2 id="onlineVisibilityTitle">Add Online Stock</h2>
   <p id="onlineVisibilityProduct"></p>
-  <p class="quick-tip">This product has no available Online Store stock. Transfer only stock already recorded at a real shop. No new stock will be created.</p>
-  <label>Physical shop <select id="onlineVisibilitySource" required></select></label>
-  <label>Product variant <select id="onlineVisibilityVariant" required></select></label>
-  <label>Quantity to sell online <input id="onlineVisibilityQty" type="number" min="1" max="100000" step="1" inputmode="numeric" required value="1"></label>
+  <p class="quick-tip" id="onlineVisibilityHint">Move existing, recorded pieces from a physical shop to the Online Store. This does not create new stock.</p>
+  <label>Variant <select id="onlineVisibilityVariant" required></select></label>
+  <p id="onlineVisibilityCurrent" class="stock-preview" role="status">Checking online stock…</p>
+  <label>Take existing stock from <select id="onlineVisibilitySource" required></select></label>
+  <p id="onlineVisibilityAvailable" class="stock-preview" role="status">Checking available shop stock…</p>
+  <label>Quantity to move online <input id="onlineVisibilityQty" type="number" min="1" max="100000" step="1" inputmode="numeric" required value="1"></label>
+  <p id="onlineVisibilityAfter" class="stock-preview">When you move stock, it is deducted from the physical shop.</p>
   <p id="onlineVisibilityFeedback" class="field-error" aria-live="polite"></p>
-  <div class="dialog-actions"><button type="button" class="secondary" id="onlineVisibilityCancel">Cancel</button><button type="submit" class="primary" id="onlineVisibilityConfirm">Transfer stock &amp; show online</button></div>
+  <div class="dialog-actions"><button type="button" class="secondary" id="onlineVisibilityCancel">Cancel</button><button type="submit" class="primary" id="onlineVisibilityConfirm">Add Online Stock</button></div>
  </form>
 </dialog>
 </main>
