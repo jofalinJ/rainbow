@@ -39,7 +39,7 @@ describe("owner quick publishing integrates with the existing shop",()=>{
   expect(js).not.toContain("ADMIN_SESSION_SECRET");
   expect(js).not.toMatch(/salesforce/i);
   expect(js).toContain('resetEditor();show("editor");');
-  expect(js).toContain('toast("Product saved for approval.",product.product_code,true)');
+  expect(js).toContain('toast("Product saved under "+data.cat.name+".",product.product_code,true)');
   expect(js).toContain('$("ownerMoreDetails").open=false');
   expect(js).toContain('if(!name){fieldError("Name"');
   expect(js).toContain('if(!validPrice||!priceRaw||price<=0)');
