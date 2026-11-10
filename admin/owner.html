@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="theme-color" content="#8B0000">
+<link rel="icon" href="../assets/brand/rainbow-logo.png" type="image/png">
+<title>Staff Products | Rainbow Gold Covering</title>
+<link rel="stylesheet" href="owner.css?v=1">
+<script src="config.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script defer src="image-prep.js?v=20261110"></script>
+<script defer src="owner.js?v=1"></script>
+</head>
+<body>
+<div id="startup" role="status" class="startup">Checking your shop staff account…</div>
+<div id="ownerApp" hidden>
+<header class="mobile-header">
+ <button id="menuToggle" class="icon-button" type="button" aria-expanded="false" aria-controls="ownerMenu" aria-label="Open owner menu">☰</button>
+ <img src="../assets/brand/rainbow-logo.png" alt="" width="36" height="36">
+ <strong>RAINBOW GOLD COVERING</strong>
+</header>
+<div id="drawerBackdrop" class="backdrop" hidden></div>
+<aside id="ownerMenu" class="owner-sidebar" aria-label="Staff product menu">
+ <div class="owner-brand"><img src="../assets/brand/rainbow-logo.png" alt="" width="48" height="48"><div>RAINBOW<br>GOLD COVERING<small>Staff &amp; owner product tools</small></div></div>
+ <nav aria-label="Product catalogue sections">
+  <button type="button" data-screen="dashboard" class="active">Dashboard</button>
+  <button type="button" data-screen="products">Products <span id="draftBadge" class="count">0 drafts</span></button>
+  <button type="button" data-screen="editor">＋ Add Product</button>
+  <button type="button" data-screen="categories">Categories</button>
+  <button type="button" data-screen="salesforce">Salesforce Sync</button>
+  <a href="../index.html" target="_blank" rel="noopener">Visit Store ↗</a>
+  <span class="nav-section">OTHER STAFF TOOLS</span>
+  <a href="products.html">Advanced Products</a>
+  <a href="inventory.html">Inventory</a>
+  <a href="billing.html">Billing</a>
+  <a href="orders.html">Orders</a>
+  <a href="customers.html">Customers</a>
+  <a href="my-attendance.html" data-non-admin>My Attendance</a>
+  <a href="index.html" data-admin-only>Admin Dashboard</a>
+  <button type="button" id="ownerLogout">Logout</button>
+ </nav>
+ <p class="nav-note">Signed in with the existing Rainbow staff account. Publishing follows shop permissions.</p>
+</aside>
+<main id="ownerMain" tabindex="-1">
+ <p id="roleAccessNote" class="permission-note" role="status" aria-live="polite"></p>
+ <section id="screen-dashboard" class="screen">
+  <div class="page-heading"><div><p class="eyebrow">STAFF CATALOGUE</p><h1>Catalogue dashboard</h1><p>Products and online availability at a glance.</p></div><button class="primary" type="button" data-screen="editor">＋ Add Product</button></div>
+  <div class="stats" id="statTiles">
+   <div><small>Published</small><strong id="statPublished">–</strong></div>
+   <div><small>Drafts</small><strong id="statDraft">–</strong></div>
+   <div><small>Out of stock online</small><strong id="statOut">–</strong></div>
+   <div><small>Low online stock (1–2)</small><strong id="statLow">–</strong></div>
+  </div>
+  <section class="panel"><h2>Needs attention</h2><div id="needsAttention" class="attention-list">Loading…</div></section>
+ </section>
+ <section id="screen-products" class="screen" hidden>
+  <div class="page-heading"><div><p class="eyebrow">CATALOGUE</p><h1>Products</h1><p>Edit, publish, or take products off the website.</p></div><button class="primary" type="button" data-screen="editor">＋ Add Product</button></div>
+  <div class="filter-bar">
+   <label class="grow">Search products<input id="ownerSearch" type="search" placeholder="Name or product code" autocomplete="off"></label>
+   <label>Show<select id="ownerFilter"><option value="all">All</option><option value="published">Published</option><option value="draft">Drafts</option><option value="out">Out of stock</option><option value="photos">Missing photos</option><option value="archived">Archived</option></select></label>
+  </div>
+  <div id="ownerBulkBar" class="bulk-bar"><label><input id="selectAll" type="checkbox"> Select visible</label><select id="bulkAction" aria-label="Bulk action"><option value="">Bulk action…</option><option value="publish">Publish</option><option value="unpublish">Unpublish</option><option value="category">Change category</option></select><button type="button" id="bulkApply">Apply to selected</button><span id="bulkCount">0 selected</span></div>
+  <div id="ownerProducts" class="product-list">Loading products…</div>
+  <button type="button" id="loadMore" class="secondary" hidden>Load more</button>
+ </section>
+ <section id="screen-editor" class="screen" hidden>
+  <div class="page-heading"><div><p class="eyebrow">QUICK PRODUCT ENTRY</p><h1 id="editorTitle">Add a product</h1><p>Photos first. Staff prepare drafts; owner approval publishes products.</p></div><button type="button" class="secondary" id="clearEditor">Start fresh</button></div>
+  <form id="ownerProductForm" novalidate>
+   <section class="panel">
+    <h2>1. Product photos <small>First photo is the cover · up to 6</small></h2>
+    <div class="upload-zone" id="dropZone">
+     <input id="productPhotos" type="file" accept="image/jpeg,image/png,image/webp" multiple>
+     <label for="productPhotos" class="secondary upload-label">📷 Camera or gallery</label><small>You can also drop photos here on a computer. JPG, PNG and WebP, 5 MB per file.</small>
+    </div>
+    <div id="photoGallery" class="photo-gallery" aria-live="polite"></div>
+    <p class="field-error" id="errorPhotos"></p>
+   </section>
+   <section class="panel">
+    <h2>2. Product details</h2>
+    <div class="form-grid">
+     <label class="wide">Product name <input id="ownerName" maxlength="160" required placeholder="e.g. Classic Thali Chain"><small class="field-error" id="errorName"></small></label>
+     <label>Category <select id="ownerCategory" required></select><small class="field-error" id="errorCategory"></small></label>
+     <button type="button" class="secondary inline-create" id="inlineCategory">＋ New category</button>
+     <label class="wide">Description <textarea id="ownerDescription" maxlength="4000" rows="3" placeholder="Design, colour, finish, warranty and size"></textarea></label>
+     <label>Price in ₹ <input id="ownerPrice" type="number" inputmode="decimal" step="0.01" min="0.01" max="10000000" required placeholder="e.g. 450"><small class="field-error" id="errorPrice"></small></label>
+     <label id="ownerStockLabel">Online stock <input id="ownerStock" type="number" inputmode="numeric" min="0" max="100000" step="1" value="0"><small class="field-error" id="errorStock"></small></label>
+     <label>Source shop <select id="ownerSource" required></select><small id="ownerStockHint">Stock is allocated from this shop to Online Store. It cannot be sold twice.</small></label>
+     <label>Product code (optional) <input id="ownerSku" maxlength="40" pattern="[A-Za-z0-9/_-]+" placeholder="Created automatically"><small>Leave blank to generate a code.</small></label>
+     <div id="variantExtras" class="extras wide"></div>
+    </div>
+    <label class="stock-confirm"><input id="ownerStockConfirm" type="checkbox"> I confirm this new stock is physically available at the selected shop.</label>
+    <p class="stock-note" data-admin-only>New stock is recorded at the selected shop, then transferred to Online Store. For existing products, the number shown is their current online stock.</p>
+    <p class="stock-note" data-non-admin hidden>New stock stays at your assigned shop. The owner publishes drafts and decides how many pieces to allocate online.</p>
+   </section>
+   <div id="editMessage" class="form-message" role="status" aria-live="polite"></div>
+   <div class="sticky-actions"><button type="submit" class="secondary" data-save="draft" id="saveDraft">Save as draft</button><button type="submit" class="primary" data-save="publish" id="publishNow">Publish now</button></div>
+  </form>
+ </section>
+ <section id="screen-categories" class="screen" hidden>
+  <div class="page-heading"><div><p class="eyebrow">CATEGORIES</p><h1>Product categories</h1><p>Add, rename or reorder. Categories in use cannot be deleted.</p></div></div>
+  <form id="categoryForm" class="panel category-form"><label>New category name<input id="categoryName" maxlength="70" required placeholder="e.g. Pendant"></label><button type="submit" class="primary">Add category</button></form>
+  <div id="categoryList" class="category-list"></div>
+ </section>
+ <section id="screen-salesforce" class="screen" hidden>
+  <div class="page-heading"><div><p class="eyebrow">OPTIONAL INTEGRATION</p><h1>Salesforce Sync</h1></div></div>
+  <div class="panel"><h2>Salesforce not connected</h2><p>This shop uses Supabase and Cloudflare. No Salesforce adapter or credentials exist in the current repository. You can add and publish products manually without Salesforce.</p><button type="button" disabled>Import from Salesforce (not connected)</button></div>
+ </section>
+</main>
+<div id="ownerToast" class="toast" hidden role="status" aria-live="polite"></div>
+</div>
+</body></html>
