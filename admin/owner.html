@@ -7,11 +7,11 @@
 <meta name="theme-color" content="#8B0000">
 <link rel="icon" href="../assets/brand/rainbow-logo.png" type="image/png">
 <title>Staff Products | Rainbow Gold Covering</title>
-<link rel="stylesheet" href="owner.css?v=1">
+<link rel="stylesheet" href="owner.css?v=20261110-easy-entry">
 <script src="config.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script defer src="image-prep.js?v=20261110"></script>
-<script defer src="owner.js?v=1"></script>
+<script defer src="owner.js?v=20261110-easy-entry"></script>
 </head>
 <body>
 <div id="startup" role="status" class="startup">Checking your shop staff account…</div>
@@ -23,13 +23,12 @@
 </header>
 <div id="drawerBackdrop" class="backdrop" hidden></div>
 <aside id="ownerMenu" class="owner-sidebar" aria-label="Staff product menu">
- <div class="owner-brand"><img src="../assets/brand/rainbow-logo.png" alt="" width="48" height="48"><div>RAINBOW<br>GOLD COVERING<small>Staff &amp; owner product tools</small></div></div>
+ <div class="owner-brand"><img src="../assets/brand/rainbow-logo.png" alt="" width="48" height="48"><div>RAINBOW<br>GOLD COVERING<small>Quick product entry</small></div></div>
  <nav aria-label="Product catalogue sections">
-  <button type="button" data-screen="dashboard" class="active">Dashboard</button>
+  <button type="button" data-screen="editor" class="active">＋ Add Product</button>
   <button type="button" data-screen="products">Products <span id="draftBadge" class="count">0 drafts</span></button>
-  <button type="button" data-screen="editor">＋ Add Product</button>
+  <button type="button" data-screen="dashboard">Dashboard</button>
   <button type="button" data-screen="categories">Categories</button>
-  <button type="button" data-screen="salesforce">Salesforce Sync</button>
   <a href="../index.html" target="_blank" rel="noopener">Visit Store ↗</a>
   <span class="nav-section">OTHER STAFF TOOLS</span>
   <a href="products.html">Advanced Products</a>
@@ -66,36 +65,44 @@
   <button type="button" id="loadMore" class="secondary" hidden>Load more</button>
  </section>
  <section id="screen-editor" class="screen" hidden>
-  <div class="page-heading"><div><p class="eyebrow">QUICK PRODUCT ENTRY</p><h1 id="editorTitle">Add a product</h1><p>Photos first. Staff prepare drafts; owner approval publishes products.</p></div><button type="button" class="secondary" id="clearEditor">Start fresh</button></div>
+  <div class="page-heading"><div><p class="eyebrow">QUICK ADD</p><h1 id="editorTitle">Add a product</h1><p>Photo, name, category and price. Save it for the owner to put online.</p></div><button type="button" class="secondary" id="clearEditor">Start fresh</button></div>
+  <div class="quick-steps" aria-label="How to add a product"><span>1 · Photo</span><span>2 · Details</span><span>3 · Save</span></div>
   <form id="ownerProductForm" novalidate>
-   <section class="panel">
-    <h2>1. Product photos <small>First photo is the cover · up to 6</small></h2>
+   <section class="panel quick-photo-panel">
+    <h2>1. Add a photo <small>You can add up to 6 photos</small></h2>
     <div class="upload-zone" id="dropZone">
      <input id="productPhotos" type="file" accept="image/jpeg,image/png,image/webp" multiple>
-     <label for="productPhotos" class="secondary upload-label">📷 Camera or gallery</label><small>You can also drop photos here on a computer. JPG, PNG and WebP, 5 MB per file.</small>
+     <label for="productPhotos" class="primary upload-label">📷 Take photo or choose</label>
+     <small>The first photo appears on the shop. JPG, PNG or WebP, up to 5 MB each.</small>
     </div>
     <div id="photoGallery" class="photo-gallery" aria-live="polite"></div>
     <p class="field-error" id="errorPhotos"></p>
    </section>
-   <section class="panel">
-    <h2>2. Product details</h2>
-    <div class="form-grid">
-     <label class="wide">Product name <input id="ownerName" maxlength="160" required placeholder="e.g. Classic Thali Chain"><small class="field-error" id="errorName"></small></label>
+   <section class="panel quick-details-panel">
+    <h2>2. Basic details <small>Just three fields</small></h2>
+    <div class="form-grid quick-core">
+     <label class="wide">Product name <input id="ownerName" maxlength="160" required autocomplete="off" placeholder="e.g. Classic Thali Chain"><small class="field-error" id="errorName"></small></label>
      <label>Category <select id="ownerCategory" required></select><small class="field-error" id="errorCategory"></small></label>
+     <label>Price (₹) <input id="ownerPrice" type="number" inputmode="decimal" step="0.01" min="0.01" max="10000000" required placeholder="e.g. 450"><small class="field-error" id="errorPrice"></small></label>
+    </div>
+    <p class="quick-tip">Product code is automatic. You can save without stock; it will not appear in the online shop until the owner publishes it and allocates stock.</p>
+   </section>
+   <details id="ownerMoreDetails" class="panel optional-details">
+    <summary>More options <small>Shop stock, description, size and product code</small></summary>
+    <div class="form-grid">
+     <label class="wide">Description (optional) <textarea id="ownerDescription" maxlength="4000" rows="2" placeholder="Design, finish or warranty"></textarea></label>
+     <label id="ownerStockLabel">Shop opening stock (optional) <input id="ownerStock" type="number" inputmode="numeric" min="0" max="100000" step="1" value="0"><small class="field-error" id="errorStock"></small></label>
+     <label>Source shop <select id="ownerSource"></select><small id="ownerStockHint">Only choose a shop if you enter new physical stock. To allocate stock already recorded, use Inventory.</small></label>
+     <label class="wide">Product code (optional) <input id="ownerSku" maxlength="40" pattern="[A-Za-z0-9/_-]+" placeholder="Leave blank to generate automatically"></label>
      <button type="button" class="secondary inline-create" id="inlineCategory">＋ New category</button>
-     <label class="wide">Description <textarea id="ownerDescription" maxlength="4000" rows="3" placeholder="Design, colour, finish, warranty and size"></textarea></label>
-     <label>Price in ₹ <input id="ownerPrice" type="number" inputmode="decimal" step="0.01" min="0.01" max="10000000" required placeholder="e.g. 450"><small class="field-error" id="errorPrice"></small></label>
-     <label id="ownerStockLabel">Online stock <input id="ownerStock" type="number" inputmode="numeric" min="0" max="100000" step="1" value="0"><small class="field-error" id="errorStock"></small></label>
-     <label>Source shop <select id="ownerSource" required></select><small id="ownerStockHint">Stock is allocated from this shop to Online Store. It cannot be sold twice.</small></label>
-     <label>Product code (optional) <input id="ownerSku" maxlength="40" pattern="[A-Za-z0-9/_-]+" placeholder="Created automatically"><small>Leave blank to generate a code.</small></label>
      <div id="variantExtras" class="extras wide"></div>
     </div>
-    <label class="stock-confirm"><input id="ownerStockConfirm" type="checkbox"> I confirm this new stock is physically available at the selected shop.</label>
-    <p class="stock-note" data-admin-only>New stock is recorded at the selected shop, then transferred to Online Store. For existing products, the number shown is their current online stock.</p>
-    <p class="stock-note" data-non-admin hidden>New stock stays at your assigned shop. The owner publishes drafts and decides how many pieces to allocate online.</p>
-   </section>
+    <label class="stock-confirm"><input id="ownerStockConfirm" type="checkbox"> I have physically counted this new shop stock (only for non-zero opening stock).</label>
+    <p class="stock-note" data-admin-only>Opening stock is received at the selected physical shop. When publishing, the owner chooses how many units to allocate online. Never enter stock again if it is already recorded.</p>
+    <p class="stock-note" data-non-admin hidden>New stock stays at your assigned physical shop. The owner will publish and allocate online quantities separately.</p>
+   </details>
    <div id="editMessage" class="form-message" role="status" aria-live="polite"></div>
-   <div class="sticky-actions"><button type="submit" class="secondary" data-save="draft" id="saveDraft">Save as draft</button><button type="submit" class="primary" data-save="publish" id="publishNow">Publish now</button></div>
+   <div class="sticky-actions"><button type="submit" class="primary" data-save="draft" id="saveDraft">Save product for approval</button><button type="submit" class="secondary" data-save="publish" id="publishNow" data-admin-only>Publish now</button></div>
   </form>
  </section>
  <section id="screen-categories" class="screen" hidden>
@@ -103,10 +110,7 @@
   <form id="categoryForm" class="panel category-form"><label>New category name<input id="categoryName" maxlength="70" required placeholder="e.g. Pendant"></label><button type="submit" class="primary">Add category</button></form>
   <div id="categoryList" class="category-list"></div>
  </section>
- <section id="screen-salesforce" class="screen" hidden>
-  <div class="page-heading"><div><p class="eyebrow">OPTIONAL INTEGRATION</p><h1>Salesforce Sync</h1></div></div>
-  <div class="panel"><h2>Salesforce not connected</h2><p>This shop uses Supabase and Cloudflare. No Salesforce adapter or credentials exist in the current repository. You can add and publish products manually without Salesforce.</p><button type="button" disabled>Import from Salesforce (not connected)</button></div>
- </section>
+
 </main>
 <div id="ownerToast" class="toast" hidden role="status" aria-live="polite"></div>
 </div>
