@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex,nofollow,noarchive">
 <meta name="theme-color" content="#8B0000">
 <link rel="icon" href="../assets/brand/rainbow-logo.png" type="image/png">
-<title>Owner Catalogue | Rainbow Gold Covering</title>
+<title>Staff Products | Rainbow Gold Covering</title>
 <link rel="stylesheet" href="owner.css?v=1">
 <script src="config.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -14,7 +14,7 @@
 <script defer src="owner.js?v=1"></script>
 </head>
 <body>
-<div id="startup" role="status" class="startup">Checking your owner account…</div>
+<div id="startup" role="status" class="startup">Checking your shop staff account…</div>
 <div id="ownerApp" hidden>
 <header class="mobile-header">
  <button id="menuToggle" class="icon-button" type="button" aria-expanded="false" aria-controls="ownerMenu" aria-label="Open owner menu">☰</button>
@@ -22,22 +22,31 @@
  <strong>RAINBOW GOLD COVERING</strong>
 </header>
 <div id="drawerBackdrop" class="backdrop" hidden></div>
-<aside id="ownerMenu" class="owner-sidebar" aria-label="Owner menu">
- <div class="owner-brand"><img src="../assets/brand/rainbow-logo.png" alt="" width="48" height="48"><div>RAINBOW<br>GOLD COVERING<small>Owner catalogue</small></div></div>
- <nav aria-label="Owner catalogue sections">
+<aside id="ownerMenu" class="owner-sidebar" aria-label="Staff product menu">
+ <div class="owner-brand"><img src="../assets/brand/rainbow-logo.png" alt="" width="48" height="48"><div>RAINBOW<br>GOLD COVERING<small>Staff &amp; owner product tools</small></div></div>
+ <nav aria-label="Product catalogue sections">
   <button type="button" data-screen="dashboard" class="active">Dashboard</button>
   <button type="button" data-screen="products">Products <span id="draftBadge" class="count">0 drafts</span></button>
   <button type="button" data-screen="editor">＋ Add Product</button>
   <button type="button" data-screen="categories">Categories</button>
   <button type="button" data-screen="salesforce">Salesforce Sync</button>
   <a href="../index.html" target="_blank" rel="noopener">Visit Store ↗</a>
+  <span class="nav-section">OTHER STAFF TOOLS</span>
+  <a href="products.html">Advanced Products</a>
+  <a href="inventory.html">Inventory</a>
+  <a href="billing.html">Billing</a>
+  <a href="orders.html">Orders</a>
+  <a href="customers.html">Customers</a>
+  <a href="my-attendance.html" data-non-admin>My Attendance</a>
+  <a href="index.html" data-admin-only>Admin Dashboard</a>
   <button type="button" id="ownerLogout">Logout</button>
  </nav>
- <p class="nav-note">Admin access is verified using your existing secure shop login.</p>
+ <p class="nav-note">Signed in with the existing Rainbow staff account. Publishing follows shop permissions.</p>
 </aside>
 <main id="ownerMain" tabindex="-1">
+ <p id="roleAccessNote" class="permission-note" role="status" aria-live="polite"></p>
  <section id="screen-dashboard" class="screen">
-  <div class="page-heading"><div><p class="eyebrow">OWNER HOME</p><h1>Catalogue dashboard</h1><p>Products and online availability at a glance.</p></div><button class="primary" type="button" data-screen="editor">＋ Add Product</button></div>
+  <div class="page-heading"><div><p class="eyebrow">STAFF CATALOGUE</p><h1>Catalogue dashboard</h1><p>Products and online availability at a glance.</p></div><button class="primary" type="button" data-screen="editor">＋ Add Product</button></div>
   <div class="stats" id="statTiles">
    <div><small>Published</small><strong id="statPublished">–</strong></div>
    <div><small>Drafts</small><strong id="statDraft">–</strong></div>
@@ -52,12 +61,12 @@
    <label class="grow">Search products<input id="ownerSearch" type="search" placeholder="Name or product code" autocomplete="off"></label>
    <label>Show<select id="ownerFilter"><option value="all">All</option><option value="published">Published</option><option value="draft">Drafts</option><option value="out">Out of stock</option><option value="photos">Missing photos</option><option value="archived">Archived</option></select></label>
   </div>
-  <div class="bulk-bar"><label><input id="selectAll" type="checkbox"> Select visible</label><select id="bulkAction" aria-label="Bulk action"><option value="">Bulk action…</option><option value="publish">Publish</option><option value="unpublish">Unpublish</option><option value="category">Change category</option></select><button type="button" id="bulkApply">Apply to selected</button><span id="bulkCount">0 selected</span></div>
+  <div id="ownerBulkBar" class="bulk-bar"><label><input id="selectAll" type="checkbox"> Select visible</label><select id="bulkAction" aria-label="Bulk action"><option value="">Bulk action…</option><option value="publish">Publish</option><option value="unpublish">Unpublish</option><option value="category">Change category</option></select><button type="button" id="bulkApply">Apply to selected</button><span id="bulkCount">0 selected</span></div>
   <div id="ownerProducts" class="product-list">Loading products…</div>
   <button type="button" id="loadMore" class="secondary" hidden>Load more</button>
  </section>
  <section id="screen-editor" class="screen" hidden>
-  <div class="page-heading"><div><p class="eyebrow">QUICK PRODUCT ENTRY</p><h1 id="editorTitle">Add a product</h1><p>Photos first. Save a draft or put it on the store.</p></div><button type="button" class="secondary" id="clearEditor">Start fresh</button></div>
+  <div class="page-heading"><div><p class="eyebrow">QUICK PRODUCT ENTRY</p><h1 id="editorTitle">Add a product</h1><p>Photos first. Inventory staff prepare drafts; owner approval publishes products.</p></div><button type="button" class="secondary" id="clearEditor">Start fresh</button></div>
   <form id="ownerProductForm" novalidate>
    <section class="panel">
     <h2>1. Product photos <small>First photo is the cover · up to 6</small></h2>
@@ -76,8 +85,8 @@
      <button type="button" class="secondary inline-create" id="inlineCategory">＋ New category</button>
      <label class="wide">Description <textarea id="ownerDescription" maxlength="4000" rows="3" placeholder="Design, colour, finish, warranty and size"></textarea></label>
      <label>Price in ₹ <input id="ownerPrice" type="number" inputmode="decimal" step="0.01" min="0.01" max="10000000" required placeholder="e.g. 450"><small class="field-error" id="errorPrice"></small></label>
-     <label>Online stock <input id="ownerStock" type="number" inputmode="numeric" min="0" max="100000" step="1" value="0"><small class="field-error" id="errorStock"></small></label>
-     <label>Source shop <select id="ownerSource" required></select><small>Stock is allocated from this shop to Online Store. It cannot be sold twice.</small></label>
+     <label id="ownerStockLabel">Online stock <input id="ownerStock" type="number" inputmode="numeric" min="0" max="100000" step="1" value="0"><small class="field-error" id="errorStock"></small></label>
+     <label>Source shop <select id="ownerSource" required></select><small id="ownerStockHint">Stock is allocated from this shop to Online Store. It cannot be sold twice.</small></label>
      <label>Product code (optional) <input id="ownerSku" maxlength="40" pattern="[A-Za-z0-9/_-]+" placeholder="Created automatically"><small>Leave blank to generate a code.</small></label>
      <div id="variantExtras" class="extras wide"></div>
     </div>
