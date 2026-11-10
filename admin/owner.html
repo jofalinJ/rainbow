@@ -90,8 +90,9 @@
      <label>Product code (optional) <input id="ownerSku" maxlength="40" pattern="[A-Za-z0-9/_-]+" placeholder="Created automatically"><small>Leave blank to generate a code.</small></label>
      <div id="variantExtras" class="extras wide"></div>
     </div>
-    <label class="stock-confirm"><input id="ownerStockConfirm" type="checkbox"> I have physically set aside the entered new stock for the online store.</label>
-    <p class="stock-note">New stock is recorded at the selected shop, then transferred to Online Store. For existing products, the number shown is their current online stock.</p>
+    <label class="stock-confirm"><input id="ownerStockConfirm" type="checkbox"> I confirm this new stock is physically available at the selected shop.</label>
+    <p class="stock-note" data-admin-only>New stock is recorded at the selected shop, then transferred to Online Store. For existing products, the number shown is their current online stock.</p>
+    <p class="stock-note" data-non-admin hidden>New stock stays at your assigned shop. The owner publishes drafts and decides how many pieces to allocate online.</p>
    </section>
    <div id="editMessage" class="form-message" role="status" aria-live="polite"></div>
    <div class="sticky-actions"><button type="submit" class="secondary" data-save="draft" id="saveDraft">Save as draft</button><button type="submit" class="primary" data-save="publish" id="publishNow">Publish now</button></div>
