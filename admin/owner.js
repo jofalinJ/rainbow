@@ -32,6 +32,12 @@ function toast(message,sku=""){
 }
 function message(text,error=false){const el=$("editMessage");el.textContent=text;el.style.color=error?"#a40000":"#27683d";}
 async function result(promise){const {data,error}=await promise;if(error)throw new Error(error.message||"Database request failed");return data;}
+function operationKey(type,parts){return "rainbow-owner-"+type+"-"+parts.map(String).join("-");}
+function stableOperationId(key){
+ try{let request=sessionStorage.getItem(key);if(!request){request=id();sessionStorage.setItem(key,request);}return request;}
+ catch{return id();}
+}
+function clearOperation(key){try{sessionStorage.removeItem(key);}catch{ /* Storage may be disabled. */ }}
 async function verifyOwner(){
  const {data,error}=await state.client.auth.getUser();
  if(error||!data?.user)throw new Error("Please sign in.");
@@ -152,7 +158,7 @@ function renderProducts(){
   const priceLabel=document.createElement("label");priceLabel.textContent="Price ₹";
   const price=document.createElement("input");price.type="number";price.min="0.01";price.step="0.01";price.value=Number(p.selling_price);price.setAttribute("aria-label","Price for "+p.product_name);priceLabel.append(price);
   const stockLabel=document.createElement("label");stockLabel.textContent="Online stock";
-  const target=document.createElement("input");target.type="number";target.min="0";target.step="1";target.max="100000";target.value=String(onlineStock(p));target.disabled=variantsOf(p).length!==1;target.title=target.disabled?"Use Inventory for multi-variant products":"";stockLabel.append(target);
+  const target=document.createElement("input");target.type="number";target.min="0";target.step="1";target.max="100000";target.value=String(onlineStock(p));target.disabled=variantsOf(p).length!==1||!published(p);target.title=!published(p)?"Publish before allocating online stock.":target.disabled?"Use Inventory for multi-variant products":"";stockLabel.append(target);
   quick.append(priceLabel,stockLabel);
   const actions=document.createElement("div");actions.className="product-actions";
   const addButton=(text,handler)=>{const btn=document.createElement("button");btn.type="button";btn.textContent=text;btn.onclick=()=>safeAction(handler);actions.append(btn);};
@@ -298,11 +304,7 @@ async function saveGallery(product){
  for(let i=0;i<keep.length;i++){
   await result(state.client.from("product_images").update({sort_order:i,is_primary:i===0}).eq("id",keep[i].id).eq("product_id",product.id));
  }
- // Reused photos from Duplicate must not be deleted while another product references them.
- for(const photo of state.deleted){
-  const matches=await result(state.client.from("product_images").select("id",{count:"exact",head:true}).eq("storage_path",photo.path));
-  if(!matches){} // The metadata deletion above is authoritative; storage cleanup is best-effort.
- }
+ // Storage objects may be shared by duplicated products; remove metadata only.
  state.deleted=[];
 }
 async function createVariant(product,data){
@@ -311,9 +313,11 @@ async function createVariant(product,data){
 }
 async function receiveInitialStock(product,variant,data){
  if(state.receivedNew||data.stock===0)return;
- const params={p_location:data.source,p_variant:variant.id,p_delta:data.stock,p_reason:"Owner confirmed new stock for online catalogue",p_request:id()};
+ const key=operationKey("receive",[product.id,variant.id,data.source,data.stock]);
+ const params={p_location:data.source,p_variant:variant.id,p_delta:data.stock,p_reason:"Owner confirmed new stock for online catalogue",p_request:stableOperationId(key)};
  await result(state.client.rpc("erp_adjust_stock",params));
  state.receivedNew=true;
+ clearOperation(key);
 }
 async function freshBalance(variant,location){
  const row=await result(state.client.from("erp_stock_balances").select("on_hand,reserved").eq("location_id",location).eq("variant_id",variant).maybeSingle());
@@ -321,9 +325,10 @@ async function freshBalance(variant,location){
 }
 async function transfer(from,to,variant,qty,reason){
  if(qty<=0)return;
- const dispatch=await result(state.client.rpc("erp_dispatch_transfer",{p_from:from,p_to:to,p_variant:variant,p_quantity:qty,p_reason:reason,p_request:id()}));
- if(dispatch.state==="received")return;
- await result(state.client.rpc("erp_receive_transfer",{p_transfer:dispatch.transfer_id}));
+ const key=operationKey("transfer",[from,to,variant,qty]);
+ const dispatch=await result(state.client.rpc("erp_dispatch_transfer",{p_from:from,p_to:to,p_variant:variant,p_quantity:qty,p_reason:reason,p_request:stableOperationId(key)}));
+ if(dispatch.state!=="received")await result(state.client.rpc("erp_receive_transfer",{p_transfer:dispatch.transfer_id}));
+ clearOperation(key);
 }
 async function setOnlineQuantity(product,target){
  const list=variantsOf(product);
@@ -356,6 +361,15 @@ async function publishExisting(product){
  if(!product.product_name||Number(product.selling_price)<=0||photosOf(product).length===0)throw new Error("Enter a name, positive price, and at least one photo before publishing.");
  await result(state.client.from("products").update({active:true}).eq("id",product.id));
  await publication(product,true);
+ // A published listing with no allocated inventory is hidden by storefront search.
+ if(onlineStock(product)===0&&variantsOf(product).length===1){
+  const proposed=prompt("How many units should appear in the online store? Enter 0 to keep it out of stock.","0");
+  if(proposed!==null&&/^[0-9]{1,6}$/.test(proposed)&&Number(proposed)>0){
+   const quantity=Number(proposed);
+   if(quantity>100000)throw new Error("Maximum online stock is 100,000 units.");
+   await setOnlineQuantity(product,quantity);
+  }
+ }
 }
 async function saveProduct(mode){
  const publish=mode==="publish",data=readInput(publish);
@@ -365,7 +379,13 @@ async function saveProduct(mode){
  message(publish?"Publishing product…":"Saving draft…");
  try{
   await verifyOwner();
-  const previous=state.products.find(p=>p.id===state.editorId);
+  // A previous save may have created the DB row before a photo transfer failed.
+  // Recover it instead of inserting the product a second time.
+  let previous=state.products.find(p=>p.id===state.editorId);
+  if(state.editorId&&!previous){
+   previous=await result(state.client.from("products").select("id,product_code,product_name,category_id,active,selling_price,product_variants(id,product_id,stock_quantity,color,size,length_cm,active),product_images(id,public_url,storage_path,is_primary,sort_order),erp_online_listings(published)").eq("id",state.editorId).maybeSingle());
+   if(!previous)throw new Error("The previously created product was not found. Refresh the catalogue before trying again.");
+  }
   let product=previous,variant=previous?variantOf(previous):null;
   const payload={category_id:data.cat.id,product_name:data.name,type:previous?.type||data.cat.name,gender:previous?.gender||"women",description:data.description,selling_price:data.price,length_cm:data.cat.has_length?data.length:null};
   if(!product){
@@ -382,7 +402,7 @@ async function saveProduct(mode){
    product.product_variants=[variant];
   }
   await saveGallery({...product,product_name:data.name});
-  if(!previous&&data.stock>0)await receiveInitialStock(product,variant,data);
+  if(data.stock>0&&!state.receivedNew&&state.editorId&&(!previous||state.products.every(p=>p.id!==state.editorId)))await receiveInitialStock(product,variant,data);
   if(publish){
    // Unpublished items remain invisible until the actual online transfer completes.
    await publication(product,true);
