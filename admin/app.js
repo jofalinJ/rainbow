@@ -9,7 +9,7 @@ async function getMyProfile(){const user=await getAuthUser();const {data,error}=
 async function sb(path,options={}){const session=await requireSession();const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),15000);try{const r=await fetch(SUPABASE_URL+"/rest/v1/"+path,{...options,headers:{apikey:SUPABASE_ANON_KEY,Authorization:"Bearer "+session.access_token,"Content-Type":"application/json",...(options.headers||{})},signal:controller.signal});const body=await r.text();if(!r.ok)throw new Error(body||("Request failed: "+r.status));if(!body.trim())return null;return JSON.parse(body);}catch(e){if(e.name==="AbortError")throw new Error("Supabase request timed out. Check your connection.");throw e;}finally{clearTimeout(timer);}}
 const ADMIN_NAV_ITEMS=[
   {label:"Dashboard",href:"index.html",roles:["admin"]},
-  {label:"Quick Publish",href:"owner.html",roles:["admin"]},
+  {label:"Quick Products",href:"owner.html",roles:["admin","inventory_staff","cashier"]},
   {label:"Products",href:"products.html",roles:["admin","cashier","inventory_staff"]},
   {label:"Inventory",href:"inventory.html",roles:["admin","cashier","inventory_staff"]},
   {label:"Bills",href:"bills.html",roles:["admin","cashier","inventory_staff"]},
