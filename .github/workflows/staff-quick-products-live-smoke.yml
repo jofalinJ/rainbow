@@ -40,6 +40,11 @@ jobs:
                  grep -Fq 'id="publishNow"' <<< "$html" &&
                  grep -Fq 'id="ownerStockConfirm"' <<< "$html" &&
                  grep -Fq 'id="ownerMoreDetails"' <<< "$html" &&
+                 grep -Fq 'id="categoryCatalogueList"' <<< "$html" &&
+                 grep -Fq 'id="onlineVisibilityDialog"' <<< "$html" &&
+                 grep -Fq 'owner.js?v=20261110-category-online' <<< "$html" &&
+                 grep -Fq 'function renderCategoryCatalogue()' <<< "$script" &&
+                 grep -Fq 'button.textContent=online?"Hide Online":"Show Online"' <<< "$script" &&
                  grep -Fq 'Just three fields' <<< "$html" &&
                  grep -Fq 'Save product for approval' <<< "$html" &&
                  ! grep -Fiq 'salesforce' <<< "$html" &&

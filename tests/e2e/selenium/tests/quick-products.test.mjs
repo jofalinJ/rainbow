@@ -17,10 +17,26 @@ function browserFixture(){
  const categories=[{id:"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",name:"Chain",code_prefix:"CH",has_color:false,has_size:false,has_length:false,storefront_order:1,active:true,show_in_storefront:true}];
  const locations=[{id:"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",name:"Fixture shop",kind:"branch",active:true}];
  if(role==="admin")locations.push({id:"cccccccc-cccc-4ccc-8ccc-cccccccccccc",name:"Online Store",kind:"online",active:true});
- const products=[],writes=[],uploadPaths=[];
+ const products=[],writes=[],uploadPaths=[],balances=[],transfers=[];
+ const seed=new URLSearchParams(globalThis.location.search).get("seed");
+ if(role==="admin"&&(seed==="online"||seed==="shop")){
+  const variantId="ffffffff-ffff-4fff-8fff-fffffffffff1";
+  products.push({
+   id:"ffffffff-ffff-4fff-8fff-fffffffffff0",product_code:"QATEST00001",
+   product_name:"Fixture saved chain",selling_price:450,category_id:categories[0].id,
+   active:true,archived_at:null,created_at:new Date().toISOString(),
+   product_images:[{id:"ffffffff-ffff-4fff-8fff-fffffffffff2",public_url:"https://example.invalid/chain.webp",is_primary:true,sort_order:0}],
+   product_variants:[{id:variantId,product_id:"ffffffff-ffff-4fff-8fff-fffffffffff0",active:true,color:"0",size:"0",stock_quantity:seed==="online"?2:0}],
+   erp_online_listings:[]
+  });
+  balances.push(
+   {location_id:locations[0].id,variant_id:variantId,on_hand:seed==="shop"?3:0,reserved:0},
+   {location_id:locations[1].id,variant_id:variantId,on_hand:seed==="online"?2:0,reserved:0}
+  );
+ }
  let next=1;
  const staff=[{user_id:"dddddddd-dddd-4ddd-8ddd-dddddddddddd",active:true,archived_at:null,role}];
- const state={role,products,writes,uploadPaths,categories,locations};
+ const state={role,products,writes,uploadPaths,categories,locations,balances,transfers};
  globalThis.__qa=state;
  const dataResult=data=>({data,error:null});
  const allRows=name=>{
@@ -28,7 +44,7 @@ function browserFixture(){
   if(name==="erp_locations")return locations;
   if(name==="products")return products;
   if(name==="staff_profiles")return staff;
-  if(name==="erp_stock_balances")return [];
+  if(name==="erp_stock_balances")return balances;
   if(name==="erp_online_listings")return products.flatMap(p=>p.erp_online_listings);
   if(name==="product_images")return products.flatMap(p=>p.product_images);
   if(name==="product_variants")return products.flatMap(p=>p.product_variants);
@@ -97,7 +113,27 @@ function browserFixture(){
    getPublicUrl:item=>dataResult({publicUrl:"https://example.invalid/"+item}),
    remove:async()=>dataResult([])
   })},
-  rpc:async name=>{throw Error("ERP RPC must not run during a zero-stock draft: "+name);}
+  rpc:async(name,params)=>{
+    if(name==="erp_dispatch_transfer"&&role==="admin"){
+     const src=balances.find(b=>b.location_id===params.p_from&&b.variant_id===params.p_variant);
+     if(!src||params.p_quantity>src.on_hand-src.reserved)throw Error("Fixture cannot transfer uncounted stock");
+     src.on_hand-=params.p_quantity;
+     const id="local-transfer-"+transfers.length;
+     transfers.push({id,params});
+     return dataResult({state:"dispatched",transfer_id:id});
+    }
+    if(name==="erp_receive_transfer"&&role==="admin"){
+     const transfer=transfers.find(t=>t.id===params.p_transfer);
+     if(!transfer)throw Error("Unknown fixture transfer");
+     const to=balances.find(b=>b.location_id===transfer.params.p_to&&b.variant_id===transfer.params.p_variant);
+     if(!to)throw Error("Missing destination stock location");
+     to.on_hand+=transfer.params.p_quantity;
+     const variant=products.flatMap(p=>p.product_variants).find(v=>v.id===transfer.params.p_variant);
+     variant.stock_quantity=balances.find(b=>b.location_id===locations.find(l=>l.kind==="online").id&&b.variant_id===variant.id).on_hand;
+     return dataResult({state:"received",transfer_id:transfer.id});
+    }
+    throw Error("Unexpected ERP fixture RPC: "+name);
+   }
  };
  globalThis.RAINBOW_SUPABASE_CONFIG={supabaseUrl:"https://example.invalid",supabasePublishableKey:"fixture-not-a-secret"};
  globalThis.supabase={createClient:()=>client};
@@ -165,7 +201,13 @@ test("Quick Products is photo-first; staff can save a draft on a 390px screen wi
   assert.equal(await (await field("ownerCategory")).getAttribute("value"),categoryId);
   await (await field("ownerPrice")).sendKeys("450");
   await (await field("saveDraft")).click();
-  await driver.wait(async()=>/Saved for owner approval/.test(await (await field("editMessage")).getText()),15000);
+  await driver.wait(async()=>await (await field("screen-categories")).isDisplayed(),15000);
+  assert.equal((await driver.findElements(By.css(".category-product-row"))).length,1);
+  assert.match(await (await field("categoryCatalogueList")).getText(),/Fixture gold covering chain/);
+  assert.match(await (await field("categoryCatalogueList")).getText(),/Not online/);
+  assert.match(await (await field("categoryCatalogueList")).getText(),/Owner controls online visibility/);
+  assert.equal((await driver.findElements(By.css(".category-product-actions button.primary"))).length,0,
+   "Staff must not be offered a privileged Show Online action");
   const data=await driver.executeScript("return globalThis.__qa");
   assert.equal(data.products.length,1);
   assert.equal(data.products[0].product_images.length,1);
@@ -177,5 +219,54 @@ test("Quick Products is photo-first; staff can save a draft on a 390px screen wi
   await driver.findElement(By.css("#ownerToast .toast-actions button")).click();
   assert.equal(await (await field("ownerName")).getAttribute("value"),"");
   assert.equal(await (await field("ownerCategory")).getAttribute("value"),categoryId);
+ }finally{if(driver)await driver.quit();await fixture.close();}
+});
+
+test("owner Show Online publishes counted stock and Hide Online safely reverses it",async()=>{
+ const fixture=await serve();
+ const options=new chrome.Options().addArguments("--headless=new","--no-sandbox","--disable-dev-shm-usage",
+  "--disable-background-networking","--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1","--window-size=390,850");
+ let driver;
+ try{
+  driver=await new Builder().forBrowser("chrome").setChromeOptions(options).build();
+  await driver.manage().window().setRect({width:390,height:850});
+  const field=id=>driver.findElement(By.id(id));
+  const categories=()=>driver.findElement(By.css('[data-screen="categories"]'));
+  const action=label=>driver.findElement(By.xpath("//div[contains(@class,'category-product-actions')]/button[contains(text(),'"+label+"')]"));
+  const openCategory=async()=>{
+   await driver.wait(async()=>await (await field("ownerApp")).isDisplayed(),12000);
+   await driver.executeScript("arguments[0].click()",await categories());
+   await driver.wait(async()=>await (await field("categoryCatalogueList")).isDisplayed(),6000);
+   assert.equal((await driver.findElements(By.css(".category-product-row"))).length,1);
+  };
+  await driver.get(fixture.base+"/admin/owner.html?role=admin&seed=online");
+  await openCategory();
+  await driver.executeScript("arguments[0].click()",await action("Show Online"));
+  await driver.wait(async()=>/Visible online/.test(await (await field("categoryCatalogueList")).getText()),10000);
+  let data=await driver.executeScript("return globalThis.__qa");
+  assert.equal(data.transfers.length,0,"Existing online stock must not be received twice");
+  assert.ok(data.writes.some(w=>w.table==="erp_online_listings"&&w.values.published===true));
+
+  await driver.get(fixture.base+"/admin/owner.html?role=admin&seed=shop");
+  await openCategory();
+  await driver.executeScript("arguments[0].click()",await action("Show Online"));
+  await driver.wait(async()=>await (await field("onlineVisibilityDialog")).isDisplayed(),10000);
+  data=await driver.executeScript("return globalThis.__qa");
+  assert.equal(data.writes.filter(w=>w.table==="erp_online_listings").length,0,
+   "Product must stay unpublished until stock transfer succeeds");
+  assert.equal(data.transfers.length,0,"Opening the dialog must not mutate stock");
+  await (await field("onlineVisibilityConfirm")).click();
+  await driver.wait(async()=>/Visible online/.test(await (await field("categoryCatalogueList")).getText()),10000);
+  data=await driver.executeScript("return globalThis.__qa");
+  assert.equal(data.transfers.length,1);
+  assert.equal(data.transfers[0].params.p_quantity,1);
+  assert.equal(data.balances.find(b=>b.location_id==="bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb").on_hand,2);
+  assert.equal(data.balances.find(b=>b.location_id==="cccccccc-cccc-4ccc-8ccc-cccccccccccc").on_hand,1);
+  assert.ok(data.writes.some(w=>w.table==="erp_online_listings"&&w.values.published===true));
+  await driver.executeScript("arguments[0].click()",await action("Hide Online"));
+  await driver.wait(async()=>/Not online/.test(await (await field("categoryCatalogueList")).getText()),10000);
+  data=await driver.executeScript("return globalThis.__qa");
+  assert.equal(data.transfers.length,2,"Hide Online returns stock to the physical shop");
+  assert.ok(data.writes.some(w=>w.table==="erp_online_listings"&&w.values.published===false));
  }finally{if(driver)await driver.quit();await fixture.close();}
 });

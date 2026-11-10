@@ -7,7 +7,7 @@ const MAX_IMAGES = 6;
 const MAX_BYTES = 5 * 1024 * 1024;
 const money = amount => new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR",maximumFractionDigits:2}).format(Number(amount)||0);
 const id = () => crypto.randomUUID();
-const state = {client:null,user:null,role:null,categories:[],locations:[],online:null,products:[],balances:[],screen:"dashboard",editorId:null,gallery:[],deleted:[],receivedNew:false,busy:false,limit:24,selected:new Set()};
+const state = {client:null,user:null,role:null,categories:[],locations:[],online:null,products:[],balances:[],screen:"dashboard",editorId:null,gallery:[],deleted:[],receivedNew:false,busy:false,limit:24,categoryLimit:48,visibilityProductId:null,selected:new Set()};
 const safeURL = value => {try{const u=new URL(value);return u.protocol==="https:"?u.href:"";}catch{return"";}};
 const friendly = error => {
  const message=String(error?.message||error||"Unknown error");
@@ -59,7 +59,7 @@ function show(screen){
  document.querySelectorAll("[data-screen]").forEach(el=>{el.classList.toggle("active",el.dataset.screen===screen);if(el.classList.contains("active"))el.setAttribute("aria-current","page");else el.removeAttribute("aria-current");});
  closeMenu();window.scrollTo({top:0,behavior:"auto"});
  if(screen==="products")renderProducts();
- if(screen==="categories")renderCategories();
+ if(screen==="categories"){renderCategories();renderCategoryCatalogue();}
  if(screen==="dashboard")renderDashboard();
 }
 function categoryById(value){return state.categories.find(c=>c.id===value);}
@@ -77,6 +77,7 @@ function onlineStock(p){
   return sum+Math.max(0,Number(b?.on_hand||0)-Number(b?.reserved||0));
  },0);
 }
+function visibleOnStorefront(p){return published(p)&&variantsOf(p).some(v=>Number(v.stock_quantity)>0)&&Number(p.selling_price)>0&&photosOf(p).length>0;}
 function onlineHeld(p){return variantsOf(p).reduce((sum,v)=>sum+Number(state.balances.find(row=>row.variant_id===v.id)?.reserved||0),0);}
 function badge(p){
  if(p.archived_at)return ["Archived","archived"];
@@ -102,6 +103,10 @@ async function refresh(){
   fetchAll("products","id,product_code,product_name,description,selling_price,category_id,type,gender,active,archived_at,created_at,product_images(id,public_url,storage_path,is_primary,sort_order),product_variants(id,product_id,stock_quantity,color,size,length_cm,active),erp_online_listings(published,online_price)",q=>q.order("created_at",{ascending:false}))
  ]);
  state.categories=categories||[];state.locations=locations||[];
+ const categorySelect=$("categoryCatalogueFilter"),selectedCategory=categorySelect.value;
+ categorySelect.replaceChildren(new Option("All categories","all"));
+ for(const cat of state.categories)categorySelect.add(new Option(cat.name,cat.id));
+ categorySelect.value=state.categories.some(c=>c.id===selectedCategory)?selectedCategory:"all";
  state.online=state.locations.find(x=>x.kind==="online")||null;
  if(!state.online&&canPublish())throw new Error("Online Store inventory location is not configured.");
  state.products=products||[];
@@ -118,7 +123,7 @@ async function refresh(){
  else if(source.options.length===2)source.selectedIndex=1;
  const drafts=state.products.filter(p=>!p.archived_at&&!published(p)).length;
  $("draftBadge").textContent=drafts+" drafts";
- renderDashboard();renderProducts();renderCategories();renderExtras();
+ renderDashboard();renderProducts();renderCategories();renderCategoryCatalogue();renderExtras();
 }
 function renderDashboard(){
  const live=state.products.filter(p=>published(p));
@@ -185,10 +190,9 @@ function renderProducts(){
    toast("Price and online stock saved.");await refresh();
   });
   if(canEdit()&&(canPublish()||!published(p))&&!p.archived_at)addButton("Edit",()=>edit(p.id));
-  if(canPublish())addButton(published(p)?"Unpublish":"Publish",async()=>{
-   if(published(p)){await mutate(()=>unpublish(p),"publish");toast("Removed from the online store.");}
-   else{await mutate(()=>publishExisting(p),"publish");toast("Publication saved.",p.product_code);}
-   await refresh();
+  if(canPublish())addButton(visibleOnStorefront(p)?"Hide Online":"Show Online",async()=>{
+   if(visibleOnStorefront(p)){await mutate(()=>unpublish(p),"publish");toast("Hidden from online shop.");await refresh();}
+   else await prepareShowOnline(p);
   });
   if(p.archived_at&&canPublish()){
    addButton("Restore as draft",async()=>{
@@ -383,28 +387,80 @@ async function publication(product,flag){
 async function unpublish(product){
  if(!published(product))return;
  const branch=$("ownerSource").value||state.locations.find(x=>x.kind==="branch")?.id;
- if(!branch)throw new Error("Set up a physical shop before unpublishing.");
- for(const v of variantsOf(product)){
-  const balance=await freshBalance(v.id,state.online.id);
-  if(balance.reserved>0)throw new Error("An online order still reserves stock. Finish the order before unpublishing.");
-  if(balance.onHand>0)await transfer(state.online.id,branch,v.id,balance.onHand,"Owner returned stock before unpublishing");
- }
+ const balances=await Promise.all(variantsOf(product).map(async v=>({variant:v,balance:await freshBalance(v.id,state.online.id)})));
+ if(balances.some(({balance})=>balance.reserved>0))
+  throw new Error("An online checkout has reserved this product. Resolve the reservation before hiding it.");
+ if(balances.some(({balance})=>balance.onHand>0)&&!branch)
+  throw new Error("Choose a physical shop to return the online stock.");
+ // Hide the product before returning available pieces to the physical shop.
  await publication(product,false);
+ for(const {variant,balance} of balances){
+  if(balance.onHand>0)await transfer(state.online.id,branch,variant.id,balance.onHand,"Owner returned stock after hiding product");
+ }
+}
+function validateOnlineProduct(product){
+ if(!product||product.archived_at)throw new Error("This product is archived. Restore it first.");
+ if(!product.active)throw new Error("This product is inactive. Edit it before publishing.");
+ if(!product.product_name?.trim()||Number(product.selling_price)<=0||photosOf(product).length===0)
+  throw new Error("Add a product name, positive price and at least one photo before showing it online.");
+ if(!variantsOf(product).length)throw new Error("Add an active product variant in Advanced Products.");
+ const category=categoryById(product.category_id);
+ if(!category?.active)throw new Error("The selected category is inactive. Enable it before publishing.");
 }
 async function publishExisting(product){
- if(product.archived_at)throw new Error("Restore the archived product before publishing.");
- if(!product.product_name||Number(product.selling_price)<=0||photosOf(product).length===0)throw new Error("Enter a name, positive price, and at least one photo before publishing.");
- await result(state.client.from("products").update({active:true}).eq("id",product.id));
+ validateOnlineProduct(product);
+ if(!state.online)throw new Error("Online Store location is not configured.");
+ const balances=await Promise.all(variantsOf(product).map(v=>freshBalance(v.id,state.online.id)));
+ if(!balances.some(b=>b.onHand>b.reserved))
+  throw new Error("Allocate existing stock to the Online Store before publishing this product.");
  await publication(product,true);
- // A published listing with no allocated inventory is hidden by storefront search.
- if(onlineStock(product)===0&&variantsOf(product).length===1){
-  const proposed=prompt("How many units should appear in the online store? Enter 0 to keep it out of stock.","0");
-  if(proposed!==null&&/^[0-9]{1,6}$/.test(proposed)&&Number(proposed)>0){
-   const quantity=Number(proposed);
-   if(quantity>100000)throw new Error("Maximum online stock is 100,000 units.");
-   await setOnlineQuantity(product,quantity);
-  }
+}
+async function prepareShowOnline(product){
+ await verifyOwner("publish");validateOnlineProduct(product);
+ if(!state.online)throw new Error("Online Store location is not configured.");
+ const onlineBalances=await Promise.all(variantsOf(product).map(v=>freshBalance(v.id,state.online.id)));
+ if(onlineBalances.some(b=>b.onHand>b.reserved)){
+  await publication(product,true);await refresh();
+  toast("Product is now visible online.",product.product_code);return;
  }
+ const dialog=$("onlineVisibilityDialog");
+ state.visibilityProductId=product.id;
+ $("onlineVisibilityTitle").textContent="Show "+product.product_name+" online";
+ $("onlineVisibilityProduct").textContent=product.product_code+" · "+money(product.selling_price);
+ $("onlineVisibilityFeedback").textContent="";
+ $("onlineVisibilityQty").value="1";
+ const source=$("onlineVisibilitySource");
+ source.replaceChildren(new Option("Select shop stock",""));
+ for(const loc of state.locations.filter(loc=>loc.active&&loc.kind==="branch"))
+  source.add(new Option(loc.name,loc.id));
+ if(source.options.length===2)source.selectedIndex=1;
+ const variants=$("onlineVisibilityVariant");variants.replaceChildren();
+ for(const variant of variantsOf(product))
+  variants.add(new Option([variant.color,variant.size,variant.length_cm?variant.length_cm+" cm":""].filter(x=>x&&x!=="0").join(" · ")||"Standard",variant.id));
+ if(!source.value)$("onlineVisibilityFeedback").textContent="Set up a physical shop with recorded stock in Inventory first.";
+ dialog.showModal();
+}
+async function confirmOnlineVisibility(){
+ const product=state.products.find(p=>p.id===state.visibilityProductId);
+ await verifyOwner("publish");validateOnlineProduct(product);
+ const source=$("onlineVisibilitySource").value,variantId=$("onlineVisibilityVariant").value;
+ const qty=Number($("onlineVisibilityQty").value);
+ if(!state.locations.some(loc=>loc.id===source&&loc.kind==="branch"))
+  throw new Error("Choose a physical source shop.");
+ if(!variantsOf(product).some(v=>v.id===variantId))
+  throw new Error("Choose a valid product variant.");
+ if(!Number.isSafeInteger(qty)||qty<1||qty>100000)
+  throw new Error("Enter a whole number of pieces between 1 and 100,000.");
+ const current=await freshBalance(variantId,source);
+ if(qty>current.onHand-current.reserved)
+  throw new Error("That shop has only "+Math.max(0,current.onHand-current.reserved)+" available pieces. Check Inventory.");
+ await transfer(source,state.online.id,variantId,qty,"Owner allocated recorded shop stock to online storefront");
+ const now=await freshBalance(variantId,state.online.id);
+ if(now.onHand<=now.reserved)
+  throw new Error("The transfer has not finished. Check Inventory before publishing.");
+ await publication(product,true);
+ $("onlineVisibilityDialog").close();state.visibilityProductId=null;
+ await refresh();toast("Product is now visible online.",product.product_code);
 }
 async function saveProduct(mode){
  const publish=mode==="publish",data=readInput(publish);
@@ -456,7 +512,11 @@ async function saveProduct(mode){
    if(available===0)message("Published, but no online stock was allocated. It will appear once stock is transferred.",true);
    else message("Published successfully. This product is now on the website.");
    toast(available>0?"Product published to the store.":"Published but out of stock online.",product.product_code);
-  }else{message("Saved for owner approval. The product is not online yet.");toast("Product saved for approval.",product.product_code,true);}
+  }else{
+   $("categoryCatalogueFilter").value=data.cat.id;state.categoryLimit=48;show("categories");
+   message("Saved for owner approval. The product is not online yet.");
+   toast("Product saved under "+data.cat.name+".",product.product_code,true);
+  }
   state.gallery=photosOf(saved||{}).map(photo=>({existing:true,id:photo.id,url:safeURL(photo.public_url),path:photo.storage_path}));
   renderGallery();
  }catch(error){
@@ -471,6 +531,80 @@ async function duplicateProduct(p){
  for(const photo of photosOf(p))await result(state.client.from("product_images").insert({product_id:created.id,storage_path:photo.storage_path,public_url:photo.public_url,alt_text:p.product_name,is_primary:photo.is_primary,sort_order:photo.sort_order}));
  if(canPublish())await publication(created,false);
  toast("Duplicated as a draft. Stock was not copied.");
+}
+function renderCategoryCatalogue(){
+ const host=$("categoryCatalogueList");host.replaceChildren();
+ const categoryFilter=$("categoryCatalogueFilter").value;
+ const search=$("categoryCatalogueSearch").value.toLowerCase().trim();
+ const filteredProducts=state.products.filter(p=>
+  (categoryFilter==="all"||p.category_id===categoryFilter)&&
+  (!search||(p.product_name+" "+p.product_code).toLowerCase().includes(search)));
+ filteredProducts.sort((a,b)=>{
+  const aCat=categoryById(a.category_id),bCat=categoryById(b.category_id);
+  return Number(aCat?.storefront_order||9999)-Number(bCat?.storefront_order||9999)
+   ||String(aCat?.name||"Other").localeCompare(String(bCat?.name||"Other"))
+   ||String(a.product_name).localeCompare(String(b.product_name));
+ });
+ const visible=filteredProducts.slice(0,state.categoryLimit);
+ $("categoryLoadMore").hidden=visible.length===filteredProducts.length;
+ if(!visible.length){
+  const empty=document.createElement("p");empty.className="empty-list";
+  empty.textContent="No products in this category yet. Add one using Quick Add.";
+  host.append(empty);return;
+ }
+ let lastCategoryId=null,group=null;
+ for(const product of visible){
+  if(product.category_id!==lastCategoryId||group===null){
+   lastCategoryId=product.category_id;
+   const category=categoryById(product.category_id);
+   const container=document.createElement("section");container.className="category-product-group";
+   const heading=document.createElement("h3");heading.textContent=category?.name||"Uncategorized";
+   const count=document.createElement("small");count.textContent=" · "+filteredProducts.filter(p=>p.category_id===product.category_id).length+" products";
+   heading.append(count);container.append(heading);host.append(container);group=container;
+  }
+  const card=document.createElement("div");card.className="category-product-row";
+  const imgSrc=safeURL(photosOf(product)[0]?.public_url);
+  const image=document.createElement("div");image.className="category-product-cover";
+  if(imgSrc){const img=document.createElement("img");img.src=imgSrc;img.alt="";img.loading="lazy";image.append(img);}
+  else image.textContent="No photo";
+  const info=document.createElement("div");info.className="category-product-info";
+  const title=document.createElement("strong");title.textContent=product.product_name;
+  const meta=document.createElement("small");meta.textContent=product.product_code+" · "+money(product.selling_price);
+  const status=document.createElement("span");status.className="status "+(visibleOnStorefront(product)?"published":product.archived_at?"archived":"draft");
+  status.textContent=product.archived_at?"Archived":visibleOnStorefront(product)?"Visible online":published(product)?"Published · needs online stock":"Not online";
+  const help=document.createElement("small");help.className="category-product-help";
+  if(!photosOf(product).length)help.textContent="Add a photo before publishing.";
+  else if(published(product)&&!visibleOnStorefront(product))help.textContent="Online stock required to appear on the store.";
+  else if(!published(product))help.textContent="Saved in catalogue · not displayed to customers.";
+  info.append(title,meta,status,help);
+  const actions=document.createElement("div");actions.className="category-product-actions";
+  if(canPublish()){
+   const button=document.createElement("button");button.type="button";
+   const online=visibleOnStorefront(product);
+   button.textContent=online?"Hide Online":"Show Online";button.className=online?"secondary":"primary";
+   button.disabled=!!product.archived_at||!product.active;
+   button.setAttribute("aria-label",button.textContent+" for "+product.product_name);
+   button.onclick=()=>safeAction(async()=>{
+    if(online){
+     await mutate(()=>unpublish(product),"publish");
+     await refresh();toast("Product hidden from online store.");
+    }else await prepareShowOnline(product);
+   });
+   actions.append(button);
+  }else{
+   const note=document.createElement("small");note.className="owner-approval-label";
+   note.textContent=visibleOnStorefront(product)?"Visible online":"Owner controls online visibility";actions.append(note);
+  }
+  if(canEdit()&&!product.archived_at&&(canPublish()||!published(product))){
+   const editButton=document.createElement("button");editButton.type="button";editButton.textContent="Edit";
+   editButton.onclick=()=>edit(product.id);actions.append(editButton);
+  }
+  if(visibleOnStorefront(product)){
+   const link=document.createElement("a");link.href="../product.html?sku="+encodeURIComponent(product.product_code);
+   link.textContent="View in store";link.target="_blank";link.rel="noopener";actions.append(link);
+  }
+  card.append(image,info,actions);group.append(card);
+ }
 }
 function renderCategories(){
  const host=$("categoryList");host.replaceChildren();
@@ -551,6 +685,9 @@ async function init(){
  $("drawerBackdrop").onclick=closeMenu;
  $("ownerSearch").oninput=()=>{state.limit=24;renderProducts();};
  $("ownerFilter").onchange=()=>{state.limit=24;state.selected.clear();renderProducts();};
+ $("categoryCatalogueFilter").onchange=()=>{state.categoryLimit=48;renderCategoryCatalogue();};
+ $("categoryCatalogueSearch").oninput=()=>{state.categoryLimit=48;renderCategoryCatalogue();};
+ $("categoryLoadMore").onclick=()=>{state.categoryLimit+=48;renderCategoryCatalogue();};
  $("loadMore").onclick=()=>{state.limit+=24;renderProducts();};
  $("selectAll").onchange=event=>{filtered().slice(0,state.limit).forEach(p=>{if(event.target.checked)state.selected.add(p.id);else state.selected.delete(p.id);});renderProducts();};
  $("bulkApply").onclick=applyBulk;
@@ -564,6 +701,19 @@ async function init(){
  $("ownerProductForm").onsubmit=event=>{event.preventDefault();saveProduct(event.submitter?.dataset.save||"draft");};
  $("categoryForm").onsubmit=event=>{event.preventDefault();safeAction(async()=>{const created=await addCategory($("categoryName").value.trim());$("categoryName").value="";toast("Category created.");if(state.screen==="editor")$("ownerCategory").value=created.id;});};
  $("inlineCategory").onclick=()=>{const name=prompt("New category name")?.trim();if(!name)return;safeAction(async()=>{await addCategory(name);toast("Category created and selected.");});};
+ $("onlineVisibilityCancel").onclick=()=>{$("onlineVisibilityDialog").close();state.visibilityProductId=null;};
+ $("onlineVisibilityForm").onsubmit=event=>{
+  event.preventDefault();
+  if(state.busy)return;
+  $("onlineVisibilityFeedback").textContent="";
+  safeAction(async()=>{
+   const button=$("onlineVisibilityConfirm");button.disabled=true;
+   try{await confirmOnlineVisibility();}
+   catch(error){$("onlineVisibilityFeedback").textContent=friendly(error);throw error;}
+   finally{button.disabled=false;}
+  });
+ };
+
  resetEditor();show("editor");
 }
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",()=>init().catch(fatal),{once:true});
