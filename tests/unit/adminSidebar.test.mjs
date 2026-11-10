@@ -102,6 +102,14 @@ describe("shared admin sidebar", () => {
     expect(aside.querySelector(".user").children.find(child => child.tagName === "small")?.textContent).toBe("Staff");
   });
 
+  it.each(["admin","inventory_staff","cashier"])("opens Quick Products inside the existing %s staff navigation", async role => {
+    const {aside,location,verify}=sidebarFor(role,"owner.html");
+    await verify();
+    expect(location.href).toBe("");
+    const current=aside.querySelector("nav").children.find(x=>x.getAttribute("aria-current")==="page");
+    expect(current?.textContent).toBe("Quick Products");
+  });
+
   it.each(["inventory_staff", "cashier"])("blocks %s from admin-only staff management", async role => {
     const { aside, location, verify } = sidebarFor(role, "staff.html");
     await verify();
