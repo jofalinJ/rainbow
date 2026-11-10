@@ -79,7 +79,7 @@ describe("owner quick publishing integrates with the existing shop",()=>{
   const js=read("admin/owner.js");
   const publish=js.slice(js.indexOf("async function confirmOnlineVisibility()"),js.indexOf("async function saveProduct(mode)"));
   expect(publish).toContain('await verifyOwner("publish")');
-  expect(publish).toContain('qty>current.onHand-current.reserved');
+  expect(publish).toContain('qty>balance.onHand-balance.reserved');
   expect(publish).toContain('await transfer(source,state.online.id,variantId,qty');
   expect(publish.indexOf('await transfer(')).toBeLessThan(publish.indexOf('await publication(product,true)'));
   expect(js).toContain('async function publishExisting(product)');
