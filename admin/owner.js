@@ -9,7 +9,6 @@ const money = amount => new Intl.NumberFormat("en-IN",{style:"currency",currency
 const id = () => crypto.randomUUID();
 const state = {client:null,user:null,categories:[],locations:[],online:null,products:[],balances:[],screen:"dashboard",editorId:null,gallery:[],deleted:[],receivedNew:false,busy:false,limit:24,selected:new Set()};
 const safeURL = value => {try{const u=new URL(value);return u.protocol==="https:"?u.href:"";}catch{return"";}};
-const htmlEscape = s => String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const friendly = error => {
  const message=String(error?.message||error||"Unknown error");
  if(/insufficient|no stock|unreserved/i.test(message))return "Not enough available stock at the chosen shop. Check Inventory and try again.";
@@ -171,7 +170,15 @@ function renderProducts(){
   });
   addButton("Edit",()=>edit(p.id));
   addButton(published(p)?"Unpublish":"Publish",async()=>{if(published(p)){await mutate(()=>unpublish(p));toast("Removed from the online store.");}else{await mutate(()=>publishExisting(p));toast("Publication saved. Online availability: "+onlineStock(p)+".",p.product_code);}await refresh();});
-  if(!p.archived_at){
+  if(p.archived_at){
+   addButton("Restore as draft",async()=>{
+    await mutate(async()=>{
+     await result(state.client.from("products").update({archived_at:null,active:true}).eq("id",p.id));
+     await publication(p,false);
+    });
+    toast("Restored as a draft.");await refresh();
+   });
+  }else{
    addButton("Duplicate",async()=>{await mutate(()=>duplicateProduct(p));await refresh();});
    addButton("Archive",async()=>{if(!confirm("Archive "+p.product_name+"? It will disappear from the website, but its history remains."))return;await mutate(async()=>{await unpublish(p);await result(state.client.from("products").update({active:false,archived_at:new Date().toISOString()}).eq("id",p.id));});toast("Product archived.");await refresh();});
   }
