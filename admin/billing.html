@@ -168,9 +168,10 @@ main>header h1{font-size:calc(30px * var(--type-scale));letter-spacing:-.8px}
 <label>Full Name<input id="customerName" placeholder="Walk-in customer"></label>
 <label>WhatsApp / Phone<input id="customerPhone" inputmode="tel" placeholder="Optional"></label>
 <label>Email<input id="customerEmail" type="email" placeholder="Optional"></label>
-<label>PIN Code<input id="customerPin" inputmode="numeric" placeholder="Optional"></label>
+<label>PIN Code<input id="customerPin" inputmode="numeric" autocomplete="postal-code" maxlength="6" placeholder="6 digits"><small id="billingPinLookupStatus" class="pin-lookup-status" role="status" aria-live="polite"></small></label>
 <label>City<input id="customerCity" placeholder="Optional"></label>
 <label>State<input id="customerState" placeholder="Optional"></label>
+<label id="billingPinLocalityWrap" class="full pin-locality" hidden>Town / post office (optional)<select id="billingPinLocality" aria-label="Choose customer locality"></select></label>
 <label class="full">Address<textarea id="customerAddress" rows="2" placeholder="Optional"></textarea></label>
 </div>
 </section>
@@ -194,5 +195,6 @@ main>header h1{font-size:calc(30px * var(--type-scale));letter-spacing:-.8px}
 <script src="app.js?v=20261111-online-products"></script>
 <script src="billing.js?v=20261111-scanner"></script>
 <script src="billing-scanner.js?v=20261111"></script>
+<script type="module" src="billing-pin.mjs?v=20261111"></script>
 </body>
 </html>
