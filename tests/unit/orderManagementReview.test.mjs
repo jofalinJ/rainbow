@@ -24,7 +24,7 @@ describe("complete online order review",()=>{
     }
     expect(styles).toContain(".order-detail-warning");
     expect(styles).toContain(".orders-table{min-width:900px");
-    expect(page).toContain("orders.js?v=20261021-refund-review-v1");
+    expect(page).toContain("orders.js?v=20261111-igst-display");
     expect(orders).toContain("needsPaymentReconciliation(o)");
     expect(orders).toContain("Review captured payment / refund");
     expect(orders).toContain("Do not ship or send a paid-order notification");
