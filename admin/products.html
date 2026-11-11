@@ -85,6 +85,7 @@
     <div class="field optional" id="lengthField"><label for="length">Length (cm)</label><input id="length" type="number" min="0.01" step=".01" placeholder="e.g. 45.00"></div>
     <div class="field optional" id="thicknessField"><label for="thickness">Thickness</label><input id="thickness" placeholder="e.g. Medium"></div>
     <div class="field optional" id="goldField"><label for="gold">Gold amount (g)</label><input id="gold" type="number" min="0" step=".01"></div>
+     <div class="field"><label for="warrantyMonths">Product warranty</label><select id="warrantyMonths" aria-describedby="warrantyHelp"><option value="">Not specified</option><option value="8">8 months</option><option value="12">1 year</option><option value="18">1 year 6 months</option><option value="24">2 years</option><option value="36">3 years</option><option value="48">4 years</option><option value="60">5 years</option></select><small class="field-help" id="warrantyHelp">Choose the actual warranty offered for this product. Leave blank if none is specified.</small></div>
    </div>
   </section>
   <section class="product-form-section" aria-labelledby="photosTitle">
@@ -137,4 +138,4 @@
 <div class="catalogue-health" id="catalogueHealth" role="status" aria-live="polite">Check available product metrics.</div>
 <p><small>For full disaster recovery, use managed database backups or encrypted <code>pg_dump</code> snapshots; product CSV exports alone are not database backups.</small></p>
 </section>
-</main><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="app.js?v=20261111-online-products"></script><script src="image-prep.js?v=20261018"></script><script src="catalogue-ops.js?v=20261018"></script><script src="products.js?v=20261018-staff-role-fix-20261108-online-stock"></script><script src="bulk-products.js?v=20261018-staff-role-fix"></script></body></html>
+</main><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="app.js?v=20261111-online-products"></script><script src="image-prep.js?v=20261018"></script><script src="catalogue-ops.js?v=20261018"></script><script src="products.js?v=20261111-warranty"></script><script src="bulk-products.js?v=20261018-staff-role-fix"></script></body></html>
