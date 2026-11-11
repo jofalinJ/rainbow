@@ -178,8 +178,10 @@ test("checkout shows state delivery options and blocks an empty cart", async () 
     const gateway=await driver.findElement(By.css("#payRazorpay"));
     assert.equal(await gateway.isSelected(), true);
     assert.equal(await gateway.getAttribute("value"), "razorpay");
-    // The optional WhatsApp block and the retired online discount were removed.
-    assert.equal((await driver.findElements(By.css("#whatsappReceiptConsent"))).length,0);
+    // Invoice delivery consent is optional and must not be preselected.
+    const receiptConsent=await driver.findElement(By.css("#whatsappReceiptConsent"));
+    assert.equal(await receiptConsent.isSelected(),false);
+    assert.equal(await receiptConsent.getAttribute("type"),"checkbox");
     assert.equal((await driver.findElements(By.css("#razorpayDetails"))).length,0);
     assert.equal((await driver.findElements(By.css("#discount"))).length,0);
     assert.equal(await driver.findElement(By.css("#placeOrder")).isEnabled(), false);
