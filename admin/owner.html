@@ -14,7 +14,7 @@
 <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script defer src="app.js?v=20261111-sidebar-ready"></script>
 <script defer src="image-prep.js?v=20261110"></script>
-<script defer src="owner.js?v=20261111-warranty"></script>
+<script defer src="owner.js?v=20261112-stock-flow-warranty"></script>
 </head>
 <body>
 <aside aria-label="Admin sidebar"></aside>
@@ -102,13 +102,18 @@
   <div class="page-heading"><div><p class="eyebrow">ONLINE PRODUCTS</p><h1>Online Push</h1><p>Every saved product appears under its category. The owner can show it online and add online stock from an existing shop.</p></div></div>
   <section class="panel category-catalogue-panel" aria-labelledby="categoryCatalogueHeading">
    <h2 id="categoryCatalogueHeading">Online Push · Products by category</h2>
-   <p class="quick-tip">Use <strong>Add Online Stock</strong> to move existing pieces from a physical shop. It deducts those pieces from shop availability; it never creates new stock. Use <strong>Show Online</strong> to publish once a photo, price and online stock are ready. The online price is automatically 2.5% above the shop price, rounded to the nearest whole rupee.</p>
+   <p class="quick-tip">Use <strong>Add Online Stock</strong> to move existing pieces from a physical shop. It deducts those pieces from shop availability; it never creates new stock. When a draft has stock at a shop, <strong>Show Online</strong> publishes and moves stock in one operation. The online price is automatically 2.5% above the shop price, rounded to the nearest whole rupee.</p>
    <div class="filter-bar category-toolbar">
     <label>Category<select id="categoryCatalogueFilter"><option value="all">All categories</option></select></label>
     <label class="grow">Find a product<input id="categoryCatalogueSearch" type="search" placeholder="Search name or product code" autocomplete="off"></label>
    </div>
    <div id="categoryCatalogueList" class="category-product-groups" aria-live="polite">Loading saved products…</div>
    <button type="button" class="secondary" id="categoryLoadMore" hidden>Load more products</button>
+  </section>
+  <section class="panel" id="pendingOnlinePanel" data-admin-only hidden>
+   <div class="pending-online-header"><div><h2>Online transfers awaiting receipt</h2><p>These pieces were deducted from a shop but have not yet arrived in Online Store stock. Confirm only after verifying the transfer.</p></div>
+   <button type="button" class="secondary" id="pendingOnlineRefresh">Refresh</button></div>
+   <div id="pendingOnlineList" aria-live="polite">Checking transfers…</div>
   </section>
   <section class="panel category-management-panel"><h2>Manage categories</h2><p>Admins can add, rename and reorder categories. Existing products and their categories are preserved.</p>
   <form id="categoryForm" class="category-form"><label>New category name<input id="categoryName" maxlength="70" required placeholder="e.g. Pendant"></label><button type="submit" class="primary">Add category</button></form>
