@@ -13,11 +13,11 @@ describe("Storefront branding, checkout pricing and product warranties",()=>{
   expect(html).not.toContain("Discount (3%)");
   expect(html).not.toContain('id="discount"');
   expect(html).not.toContain('id="razorpayDetails"');
-  expect(html).not.toContain('id="whatsappReceiptConsent"');
+  expect(html).toContain('id="whatsappReceiptConsent"');
   expect(js).not.toContain("subtotal*.03");
   expect(js).not.toContain('$("discount")');
   expect(js).toContain("const taxable=subtotal;");
-  expect(js).toContain("whatsapp_opt_in:false");
+  expect(js).toContain('whatsapp_opt_in:$("whatsappReceiptConsent")?.checked===true');
   expect(js).toContain('pricing_revision:"no-discount-20261111"');
   expect(js).toContain("gstComponentsForState(taxable");
  });
