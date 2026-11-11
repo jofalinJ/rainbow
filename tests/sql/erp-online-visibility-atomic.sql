@@ -28,7 +28,7 @@ begin
 end $$;
 
 -- Insufficient branch stock must roll back the publication attempt too.
-do $
+do $$
 begin
  begin
   perform public.erp_allocate_online(
@@ -48,7 +48,7 @@ begin
   where variant_id='dddddddd-dddd-4ddd-8ddd-dddddddddddd')<>6 then
   raise exception 'Failed allocation changed total stock';
  end if;
-end $;
+end $$;
 
 -- Publishing a valid draft and moving 2 units succeeds as ONE transaction.
 select public.erp_allocate_online(
