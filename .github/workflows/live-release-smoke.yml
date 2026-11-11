@@ -30,14 +30,15 @@ jobs:
                catalogue=$(curl --fail --silent --show-error --max-time 12 "$site/shop-catalogue.js") &&
                detail=$(curl --fail --silent --show-error --max-time 12 "$site/product-page.js"); then
               if grep -Fq 'id="igstLine"' <<< "$checkout" &&
-                 grep -Fq 'gstComponentsForState' <<< "$pricing" &&
-                 grep -Fq '.eq("erp_online_listings.published",true)' <<< "$catalogue" &&
-                 grep -Fq '.eq("erp_online_listings.published",true)' <<< "$detail"; then
-                echo "Live checkout and published-only catalogue assets verified."
+                 grep -Fq 'order.js?v=20261111-online-price' <<< "$checkout" &&
+                 grep -Fq 'const onlinePrice=Number(listing?.online_price??product.selling_price);' <<< "$pricing" &&
+                 grep -Fq 'online==null?product.selling_price:online' <<< "$catalogue" &&
+                 grep -Fq 'listing?.online_price??p.selling_price' <<< "$detail"; then
+                echo "Live checkout and 2.5% rounded online-pricing storefront assets verified."
                 exit 0
               fi
             fi
             if [ "$attempt" -lt 18 ]; then sleep 10; fi
           done
-          echo "::error::Live domain is stale or missing the released checkout/publication controls."
+          echo "::error::Live domain is stale or missing the released 2.5% online-pricing controls."
           exit 1
