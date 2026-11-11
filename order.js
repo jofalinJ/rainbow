@@ -285,7 +285,6 @@ import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=
           (result.mode==="live"?"<p>Your payment has been securely verified.</p>":"<p>No real money was deducted.</p>")+
           (safeBill?"<p><a class='btn btn-dark' target='_blank' rel='noopener noreferrer' href='"+esc(safeBill)+
             "'>View / Print Invoice →</a></p>":"<p>Your invoice is being prepared. Contact the shop with the order number if it does not appear.</p>")+
-          "<p>WhatsApp updates are sent only if you opted in and messaging is available.</p>"+
           "<a class='btn btn-light' href='index.html#products'>Continue shopping</a>";
         msg("");
         focusOrderConfirmation(true);
