@@ -110,6 +110,16 @@ main>header h1{font-size:calc(30px * var(--type-scale));letter-spacing:-.8px}
 .offline-pos-link{display:inline-flex;align-items:center;min-height:44px;padding:9px 14px;border:1px solid #9a4a43;border-radius:9px;background:#fff;color:#8b0000;font-size:13px;font-weight:700;text-decoration:none}
 #offlineSetupStatus{font-size:12px;min-height:18px}
 #offlineSetupStatus.error{color:#ad2926}
+.offline-setup-form{margin-top:13px;padding:14px;border:1px solid #e1c7a7;border-radius:12px;background:#fffdfa}
+.offline-setup-form[hidden],#offlineConfirmWrap[hidden]{display:none!important}
+.offline-setup-form label{display:block;margin:10px 0 5px;font-size:13px;font-weight:700;color:#5b3328}
+.offline-setup-form input{display:block;width:min(430px,100%);min-height:44px;border:1px solid #cbb49d;border-radius:8px;padding:9px 12px;background:#fff;font-size:16px}
+.offline-setup-form input:focus-visible{outline:2px solid #8b0000;outline-offset:2px}
+.offline-setup-form .offline-pos-actions{margin-top:12px}
+.offline-setup-form .offline-form-hint{font-size:12px;line-height:1.5;color:#67513f}
+.offline-setup-form button{min-height:44px}
+.offline-setup-form button[type=submit]{background:#8b0000;color:#fff;border-color:#8b0000}
+#offlineSetupMode{margin:5px 0 7px}
 </style>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -133,10 +143,24 @@ main>header h1{font-size:calc(30px * var(--type-scale));letter-spacing:-.8px}
  <strong>Offline cash billing</strong>
  <p>Prepare this device while connected. When internet drops, save provisional cash receipts and synchronize them when it returns. Use one offline billing device per shop to reduce overselling.</p>
  <div class="offline-pos-actions">
-  <button id="prepareOffline" type="button">Prepare / refresh offline billing</button>
+  <button id="prepareOffline" type="button" aria-controls="offlineSetupForm" aria-expanded="false">Prepare / refresh offline billing</button>
   <a class="offline-pos-link" href="offline-pos.html">Open offline billing</a>
  </div>
- <p id="offlineSetupStatus" role="status" aria-live="polite"></p>
+ <form id="offlineSetupForm" class="offline-setup-form" hidden novalidate aria-label="Secure offline billing setup">
+   <p id="offlineSetupMode">Create an offline-device passphrase to encrypt your shop's catalogue and pending cash sales.</p>
+   <label for="offlineDevicePassphrase">Offline-device passphrase</label>
+   <input id="offlineDevicePassphrase" name="offline-device-passphrase" type="password" minlength="10" required autocomplete="new-password" autocapitalize="off" spellcheck="false" aria-describedby="offlinePassphraseHint">
+   <p id="offlinePassphraseHint" class="offline-form-hint">At least 10 characters. This is not your staff login password. Keep it safe: you need it to unlock offline billing.</p>
+   <div id="offlineConfirmWrap">
+     <label for="offlineConfirmPassphrase">Confirm offline-device passphrase</label>
+     <input id="offlineConfirmPassphrase" name="offline-device-passphrase-confirm" type="password" minlength="10" autocomplete="new-password" autocapitalize="off" spellcheck="false">
+   </div>
+   <div class="offline-pos-actions">
+     <button id="offlineSetupSubmit" type="submit">Prepare offline billing</button>
+     <button id="offlineSetupCancel" type="button">Cancel</button>
+   </div>
+  </form>
+  <p id="offlineSetupStatus" role="status" aria-live="polite"></p>
 </div>
 <div class="panelhead"><div><h2>Products</h2><span class="muted">Search name, code, type or scan/type a barcode</span></div></div>
 <div id="erpBillingLocationBox" hidden style="padding:12px 14px;background:#fbf5ef;border:1px solid #e8dfd6;border-radius:12px;margin-bottom:14px">
@@ -216,7 +240,7 @@ main>header h1{font-size:calc(30px * var(--type-scale));letter-spacing:-.8px}
 <script src="app.js?v=20261111-online-products"></script>
 <script src="billing.js?v=20261111-scanner"></script>
 <script src="billing-scanner.js?v=20261111"></script>
-<script type="module" src="offline-pos-bridge.mjs?v=20261111"></script>
+<script type="module" src="offline-pos-bridge.mjs?v=20261111-inline-setup"></script>
 <script type="module" src="billing-pin.mjs?v=20261111"></script>
 </body>
 </html>

@@ -80,6 +80,10 @@ jobs:
                  grep -Fq 'app.js?v=20261111-online-products' <<< "$billing" &&
                  grep -Fq 'id="startScanner"' <<< "$billing" &&
                  grep -Fq 'id="prepareOffline"' <<< "$billing" &&
+                 grep -Fq 'id="offlineSetupForm"' <<< "$billing" &&
+                 grep -Fq 'id="offlineDevicePassphrase"' <<< "$billing" &&
+                 grep -Fq 'id="offlineConfirmPassphrase"' <<< "$billing" &&
+                 grep -Fq 'offline-pos-bridge.mjs?v=20261111-inline-setup' <<< "$billing" &&
                  grep -Fq 'offline-pos-bridge.mjs?v=20261111' <<< "$billing" &&
                  grep -Fq 'id="unlockForm"' <<< "$offline" &&
                  grep -Fq 'id="cashCollected"' <<< "$offline" &&
