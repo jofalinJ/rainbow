@@ -91,8 +91,8 @@ test("inline offline passphrase setup and refresh work when prompt() is blocked"
   assert.equal(await trigger.isDisplayed(),false,"Staff must not see admin provisioning controls");
   // Even a forced click cannot bypass the live role check.
   await driver.executeScript(()=>{
-    document.getElementById("prepareOffline").hidden=false;
-    document.getElementById("prepareOffline").click();
+    globalThis.document.getElementById("prepareOffline").hidden=false;
+    globalThis.document.getElementById("prepareOffline").click();
   });
   await driver.wait(async()=>/Only an active admin/i.test(await driver.findElement(By.id("offlineSetupStatus")).getText()),8000);
   assert.equal(await (await driver.findElement(By.id("offlineSetupForm"))).isDisplayed(),false);
