@@ -32,7 +32,9 @@ async function refreshLocations() {
  state.locations=rows || [];
  options($("erpLocation"),rows.map(x=>({id:x.id,label:x.name+" ("+x.kind+")"})),"Select working location");
  if(rows.length && !$("erpLocation").value)$("erpLocation").value=rows.find(x=>x.kind==="branch")?.id||rows[0].id;
- options($("erpDestination"),rows.map(x=>({id:x.id,label:x.name})),"Choose destination");
+ // Do not dispatch directly into Online Store from this two-step branch form.
+ // The owner Online Push flow handles publication and receipt atomically.
+ options($("erpDestination"),rows.filter(x=>x.kind==="branch").map(x=>({id:x.id,label:x.name})),"Choose receiving shop");
  if(state.admin) {
   options($("erpPurchaseDestination"),rows.filter(x=>x.kind==="branch").map(x=>({id:x.id,label:x.name})),"Choose receiving shop");
  }
@@ -186,7 +188,10 @@ async function saveAdjustment(event) {
 async function dispatchTransfer(event) {
  event.preventDefault();const from=chosenLocation()?.id,to=$("erpDestination").value,v=state.selected?.v;
  const qty=$("erpTransferQty").value,reason=$("erpTransferReason").value.trim();
- if(!from||!to||from===to||!v||!positiveInt(qty)||reason.length<8){notify("Choose a different destination, quantity and reason.",true);return;}
+ if(chosenLocation()?.kind!=="branch"||state.locations.find(x=>x.id===to)?.kind!=="branch"){
+  notify("Use Online Push to move stock into Online Store. This form is only for physical shops.",true);return;
+ }
+ if(!from||!to||from===to||!v||!positiveInt(qty)||reason.length<8){notify("Choose a different physical shop, quantity and reason.",true);return;}
  const btn=$("erpTransferSave");btn.disabled=true;
  const sig=[from,to,v.id,qty,reason].join("|");
  if(!btn.dataset.sig||btn.dataset.sig!==sig){btn.dataset.sig=sig;btn.dataset.request=uuid();}

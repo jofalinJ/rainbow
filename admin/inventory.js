@@ -70,11 +70,14 @@ if(!categories.some(c=>c.id===selectedCategoryId))selectedCategoryId=categories[
      document.getElementById(id).textContent="0";
  }
 if(!inventoryTools){
-  const module=await import("./inventory-adjustments.mjs");
-  inventoryTools=module.setupInventoryAdjustmentUI({
+  const module=await import(ERP_INVENTORY?"./erp-quick-stock.mjs":"./inventory-adjustments.mjs");
+  const configuration={
     getVariant:id=>inventory.find(item=>String(item.id)===String(id)),
     onUpdated:loadInventory
-  });
+  };
+  inventoryTools=ERP_INVENTORY
+    ?module.setupErpQuickStockUI({...configuration,getLocationId:()=>inventoryBranchId})
+    :module.setupInventoryAdjustmentUI(configuration);
 }}
 function renderCategories(){document.getElementById("categoryTabs").innerHTML=categories.map(c=>'<button type="button" class="'+(c.id===selectedCategoryId?"active":"")+'" data-id="'+esc(c.id)+'">'+esc(c.name)+'</button>').join("");document.querySelectorAll("#categoryTabs button").forEach(b=>b.onclick=()=>{selectedCategoryId=b.dataset.id;resetInventoryRowCount();renderCategories();renderInventory();});}
 function getInventoryStatus(v){const s=inventoryRules.getStockStatus(v.stock_quantity,v.low_stock_limit);return[s.label,s.tone];}
@@ -87,19 +90,12 @@ if(more){
   more.hidden=visibleRows.length>=rows.length;
   more.textContent="Show more ("+visibleRows.length+" of "+rows.length+" variants)";
 }
-document.getElementById("rows").innerHTML=visibleRows.map(v=>{const p=v.products||{},[label,cls]=getInventoryStatus(v);let cells="<td><b>"+esc(p.product_code||"—")+"</b></td><td>"+esc(p.product_name||"—")+"</td><td>"+esc(p.type||"—")+"</td>";if(cat.has_color)cells+="<td>"+esc(v.color||"0")+"</td>";if(cat.has_size)cells+="<td>"+esc(v.size||"0")+"</td>";if(cat.has_length)cells+="<td>"+((v.length_cm??p.length_cm)==null?"—":esc(v.length_cm??p.length_cm)+" cm")+"</td>";if(cat.has_thickness)cells+="<td>"+esc(p.thickness||"—")+"</td>";if(cat.has_gold_amount)cells+="<td>"+(p.gold_amount_g==null?"—":esc(p.gold_amount_g)+" g")+"</td>";cells+="<td><b>"+Number(v.stock_quantity||0)+"</b></td><td>"+Number(v.low_stock_limit||0)+"</td><td><span class='"+cls+"'>"+label+"</span></td><td>"+esc(v.barcode||"—")+"</td>";cells+="<td><button type='button' class='stock-row-button' data-manage-stock='"+esc(v.id)+"'>Manage stock</button></td>";return"<tr>"+cells+"</tr>"}).join("")||"<tr><td colspan='"+columns.length+"'>No products found in this category.</td></tr>";
+document.getElementById("rows").innerHTML=visibleRows.map(v=>{const p=v.products||{},[label,cls]=getInventoryStatus(v);let cells="<td><b>"+esc(p.product_code||"—")+"</b></td><td>"+esc(p.product_name||"—")+"</td><td>"+esc(p.type||"—")+"</td>";if(cat.has_color)cells+="<td>"+esc(v.color||"0")+"</td>";if(cat.has_size)cells+="<td>"+esc(v.size||"0")+"</td>";if(cat.has_length)cells+="<td>"+((v.length_cm??p.length_cm)==null?"—":esc(v.length_cm??p.length_cm)+" cm")+"</td>";if(cat.has_thickness)cells+="<td>"+esc(p.thickness||"—")+"</td>";if(cat.has_gold_amount)cells+="<td>"+(p.gold_amount_g==null?"—":esc(p.gold_amount_g)+" g")+"</td>";cells+="<td><b>"+Number(v.stock_quantity||0)+"</b></td><td>"+Number(v.low_stock_limit||0)+"</td><td><span class='"+cls+"'>"+label+"</span></td><td>"+esc(v.barcode||"—")+"</td>";cells+="<td><button type='button' class='stock-row-button' data-manage-stock='"+esc(v.id)+"'>＋ Add stock</button></td>";return"<tr>"+cells+"</tr>"}).join("")||"<tr><td colspan='"+columns.length+"'>No products found in this category.</td></tr>";
 document.querySelectorAll("[data-manage-stock]").forEach(button=>{
   button.addEventListener("click",()=>{
-    if(!ERP_INVENTORY){inventoryTools?.open(button.dataset.manageStock,button);return;}
-    const variant=inventory.find(x=>String(x.id)===String(button.dataset.manageStock));
-    const details=document.getElementById("branchInventoryTools");
-    if(details)details.open=true;
-    const search=document.getElementById("erpSearch");
-    if(search && variant?.products?.product_code){
-      search.value=variant.products.product_code;
-      document.getElementById("erpSearchBtn")?.click();
-    }
-    details?.scrollIntoView({behavior:"smooth",block:"start"});
+    // ERP-live uses a simple quantity-only modal; it never changes online stock.
+    // The server retains authoritative branch balances and an audit event.
+    inventoryTools?.open(button.dataset.manageStock,button);
   });
 });
 }

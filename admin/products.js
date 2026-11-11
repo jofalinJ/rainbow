@@ -450,7 +450,12 @@ function render(){
 }
 function bindProductActions(){
  document.querySelectorAll("[data-edit-product]").forEach(button=>{button.onclick=()=>startEditProduct(button.dataset.editProduct);});
- document.querySelectorAll("[data-online-product]").forEach(button=>{button.onclick=()=>openOnlineListing(button.dataset.onlineProduct).catch(error=>console.warn("Online listing unavailable",error));});
+ document.querySelectorAll("[data-online-product]").forEach(button=>{button.onclick=()=>{
+  const product=items.find(row=>String(row.id)===String(button.dataset.onlineProduct));
+  if(!product)return;
+  // Single owner workflow handles publication and physical-to-online stock atomically.
+  location.href="owner.html?screen=categories&lookup="+encodeURIComponent(product.product_code);
+};});
 }
 function bindImageUploadActions(){
   document.querySelectorAll("[data-add-photos]").forEach(button=>{button.onclick=()=>{const input=button.closest("td")?.querySelector("[data-image-input]");if(input)input.click();};});

@@ -80,8 +80,10 @@ describe("owner quick publishing integrates with the existing shop",()=>{
   const publish=js.slice(js.indexOf("async function confirmOnlineVisibility()"),js.indexOf("async function saveProduct(mode)"));
   expect(publish).toContain('await verifyOwner("publish")');
   expect(publish).toContain('qty>balance.onHand-balance.reserved');
-  expect(publish).toContain('await transfer(source,state.online.id,variantId,qty');
-  expect(publish.indexOf('await transfer(')).toBeLessThan(publish.indexOf('await publication(product,true)'));
+  expect(publish).toContain('await transferOnline(product,source,variantId,qty,mode==="show")');
+  expect(js).toContain('rpc("erp_allocate_online"');
+  expect(js).toContain('rpc("erp_recall_and_hide_online"');
+  expect(publish).not.toContain('await publication(product,true)');
   expect(js).toContain('async function publishExisting(product)');
   expect(js).toContain('if(!balances.some(b=>b.onHand>b.reserved))');
   expect(js).toContain('if(!canPublish())return sum+Math.max(0,Number(v.stock_quantity||0))');
@@ -103,7 +105,7 @@ describe("owner quick publishing integrates with the existing shop",()=>{
   expect(js).toContain('function updateShopStockPreview()');
   expect(js).toContain('available<1;source.add(opt)');
   expect(js).toContain('qty.max=String(Math.min(100000,available))');
-  expect(js).toContain('if(mode==="show")await publication(product,true)');
+  expect(js).toContain('await transferOnline(product,source,variantId,qty,mode==="show")');
   expect(js).toContain('if(qty>balance.onHand-balance.reserved)');
   expect(js).not.toContain('.update({stock_quantity:');
   expect(css).toContain(".online-visibility-dialog .stock-preview");

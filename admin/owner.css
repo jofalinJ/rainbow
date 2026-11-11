@@ -194,3 +194,20 @@ html.owner-ready body>aside{
  html.owner-ready #ownerApp:not([hidden]),
  html.owner-ready body>aside{animation:none!important}
 }
+
+
+/* Pending online transfers are visible only in the owner Online Push screen. */
+.pending-online-header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.pending-online-header h2{margin:0 0 8px}
+.pending-online-header p{margin:0;color:#70625b;line-height:1.5;max-width:780px}
+.pending-online-row{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:14px 0;border-top:1px solid #eee2d7}
+.pending-online-row:first-child{margin-top:14px}
+.pending-online-row strong,.pending-online-row small{display:block}
+.pending-online-row small{margin-top:4px;color:#70625b}
+.pending-online-row button{flex-shrink:0}
+@media(max-width:650px){.pending-online-header,.pending-online-row{flex-direction:column;align-items:stretch}.pending-online-row button{width:100%}}
+
+
+.return-shop-choice{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 0;color:#63564d;font-size:.9rem}
+.return-shop-choice select{background:#fff;border:1px solid #d9c8b8;border-radius:9px;padding:9px 11px;min-height:44px;max-width:100%}
+@media(max-width:650px){.return-shop-choice{align-items:stretch;flex-direction:column}.return-shop-choice select{width:100%}}

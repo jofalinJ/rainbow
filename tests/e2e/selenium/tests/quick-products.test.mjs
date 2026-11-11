@@ -46,6 +46,7 @@ function browserFixture(){
   if(name==="staff_profiles")return staff;
   if(name==="erp_stock_balances")return balances;
   if(name==="erp_online_listings")return products.flatMap(p=>p.erp_online_listings);
+  if(name==="erp_transfers")return transfers;
   if(name==="product_images")return products.flatMap(p=>p.product_images);
   if(name==="product_variants")return products.flatMap(p=>p.product_variants);
   throw new Error("Unexpected fixture table "+name);
@@ -114,6 +115,53 @@ function browserFixture(){
    remove:async()=>dataResult([])
   })},
   rpc:async(name,params)=>{
+    if(name==="erp_allocate_online"&&role==="admin"){
+     const product=products.find(p=>p.id===params.p_product);
+     const variant=product?.product_variants.find(v=>v.id===params.p_variant);
+     const source=balances.find(b=>b.location_id===params.p_from&&b.variant_id===params.p_variant);
+     const online=locations.find(l=>l.kind==="online");
+     const destination=balances.find(b=>b.location_id===online?.id&&b.variant_id===params.p_variant);
+     if(!variant||!source||!destination)throw Error("Missing fixture product or stock location");
+     if(params.p_quantity<1||params.p_quantity>source.on_hand-source.reserved)
+      throw Error("Insufficient available stock at source shop");
+     if(params.p_publish){
+      const values={product_id:product.id,published:true};
+      writes.push({table:"erp_online_listings",action:"upsert",values});
+      const row=product.erp_online_listings[0];
+      if(row)Object.assign(row,values);else product.erp_online_listings.push({...values});
+     }else if(!product.erp_online_listings[0]?.published){
+      throw Error("Publish product before online stock");
+     }
+     source.on_hand-=params.p_quantity;
+     destination.on_hand+=params.p_quantity;
+     variant.stock_quantity=destination.on_hand-destination.reserved;
+     const id="local-atomic-"+transfers.length;
+     transfers.push({id,status:"received",params:{
+       p_from:params.p_from,p_to:online.id,p_variant:params.p_variant,
+       p_quantity:params.p_quantity
+     }});
+     return dataResult({state:"received",transfer_id:id,already_applied:false});
+    }
+    if(name==="erp_recall_and_hide_online"&&role==="admin"){
+     const product=products.find(p=>p.id===params.p_product);
+     const online=locations.find(l=>l.kind==="online");
+     if(!product||!online)throw Error("Unknown product or Online Store");
+     let returned=0;
+     for(const variant of product.product_variants){
+      const source=balances.find(b=>b.location_id===online.id&&b.variant_id===variant.id);
+      const destination=balances.find(b=>b.location_id===params.p_destination&&b.variant_id===variant.id);
+      if(!source||!destination)throw Error("Unknown shop balance");
+      if(source.reserved>0)throw Error("Cannot hide reserved online stock");
+      const qty=source.on_hand;
+      source.on_hand=0;destination.on_hand+=qty;variant.stock_quantity=0;returned+=qty;
+      if(qty)transfers.push({id:"local-recall-"+transfers.length,status:"received",
+       params:{p_from:online.id,p_to:params.p_destination,p_variant:variant.id,p_quantity:qty}});
+     }
+     const values={product_id:product.id,published:false};
+     writes.push({table:"erp_online_listings",action:"upsert",values});
+     if(product.erp_online_listings[0])Object.assign(product.erp_online_listings[0],values);
+     return dataResult({state:"hidden",returned});
+    }
     if(name==="erp_dispatch_transfer"&&role==="admin"){
      const src=balances.find(b=>b.location_id===params.p_from&&b.variant_id===params.p_variant);
      if(!src||params.p_quantity>src.on_hand-src.reserved)throw Error("Fixture cannot transfer uncounted stock");
@@ -285,7 +333,7 @@ test("owner Show Online publishes counted stock and Hide Online safely reverses 
  }finally{if(driver)await driver.quit();await fixture.close();}
 });
 
-test("admin can add existing shop stock to an unpublished draft, publish it, and top it up without inventing stock",async()=>{
+test("admin can publish a draft and allocate stock atomically, then top up from the remaining physical shop",async()=>{
  const fixture=await serve();
  const options=new chrome.Options().addArguments("--headless=new","--no-sandbox","--disable-dev-shm-usage",
   "--disable-background-networking","--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1","--window-size=390,850");
@@ -304,24 +352,21 @@ test("admin can add existing shop stock to an unpublished draft, publish it, and
   await driver.wait(async()=>await (await field("onlineVisibilityConfirm")).isEnabled(),8000);
   assert.match(await (await field("onlineVisibilityAvailable")).getText(),/3 pieces available/);
   assert.match(await (await field("onlineVisibilityCurrent")).getText(),/0 available/);
-  assert.match(await (await field("onlineVisibilityAfter")).getText(),/stays hidden/);
+  assert.match(await (await field("onlineVisibilityAfter")).getText(),/shown to customers/);
   assert.equal(await (await field("onlineVisibilityQty")).getAttribute("max"),"3");
+  let data=await driver.executeScript("return globalThis.__qa");
+  assert.equal(data.writes.filter(w=>w.table==="erp_online_listings").length,0,
+   "Opening a stock dialog must not publish or move pieces");
   await (await field("onlineVisibilityQty")).clear();
   await (await field("onlineVisibilityQty")).sendKeys("2");
   await (await field("onlineVisibilityConfirm")).click();
-  await driver.wait(async()=>/Added 2 existing piece/.test(await (await field("ownerToast")).getText()),10000);
-  let data=await driver.executeScript("return globalThis.__qa");
-  assert.equal(data.transfers.length,1);
-  assert.equal(data.transfers[0].params.p_quantity,2);
-  assert.equal(data.writes.filter(w=>w.table==="erp_online_listings").length,0,"Stock-only action must not publish a draft");
-  assert.deepEqual((await balance()).map(b=>b.on_hand),[1,2]);
-  assert.match(await (await field("categoryCatalogueList")).getText(),/Not online/);
-
-  await press("Show Online");
   await driver.wait(async()=>/Visible online/.test(await (await field("categoryCatalogueList")).getText()),10000);
   data=await driver.executeScript("return globalThis.__qa");
-  assert.equal(data.transfers.length,1,"Publishing already-online stock should not transfer anything again");
-  assert.ok(data.writes.some(w=>w.table==="erp_online_listings"&&w.values.published===true));
+  assert.equal(data.transfers.length,1);
+  assert.equal(data.transfers[0].params.p_quantity,2);
+  assert.deepEqual((await balance()).map(b=>b.on_hand),[1,2]);
+  assert.equal(data.writes.filter(w=>w.table==="erp_online_listings"&&w.values.published===true).length,1,
+   "One atomic operation must publish the draft exactly once");
 
   await press("Add Online Stock");
   await driver.wait(async()=>await (await field("onlineVisibilityConfirm")).isEnabled(),8000);
@@ -342,7 +387,7 @@ test("admin can add existing shop stock to an unpublished draft, publish it, and
   data=await driver.executeScript("return globalThis.__qa");
   assert.equal(data.transfers.length,2);
   assert.deepEqual((await balance()).map(b=>b.on_hand),[0,3]);
-  assert.ok(data.writes.filter(w=>w.table==="erp_online_listings"&&w.values.published===true).length===1,
-   "Top-up must not cause a second publish or duplicate listing");
+  assert.equal(data.writes.filter(w=>w.table==="erp_online_listings"&&w.values.published===true).length,1,
+   "Top-up must not republish or duplicate a listing");
  }finally{if(driver)await driver.quit();await fixture.close();}
 });
