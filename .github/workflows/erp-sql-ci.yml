@@ -8,7 +8,9 @@ on:
       - 'supabase/migrations/20261108*'
       - 'supabase/migrations/20261110*'
       - 'supabase/migrations/2026111113*'
+      - 'supabase/migrations/2026111200*'
       - 'tests/sql/owner-quick-publish.sql'
+      - 'tests/sql/erp-online-visibility-atomic.sql'
       - '.github/workflows/erp-sql-ci.yml'
   workflow_dispatch:
 permissions:
@@ -73,5 +75,9 @@ jobs:
         run: PGOPTIONS="-c check_function_bodies=off" psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261111130000_online_markup_2_5_percent.sql
       - name: Check price markup, repricing, rounding and product separation
         run: psql -v ON_ERROR_STOP=1 -f tests/sql/online-markup-erp.sql
+      - name: Stage atomic online stock visibility RPCs
+        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261112000000_atomic_online_stock_visibility.sql
+      - name: Test owner stock addition, atomic publish, transfer receipt, hide, retries and permissions
+        run: psql -v ON_ERROR_STOP=1 -f tests/sql/erp-online-visibility-atomic.sql
       - name: Reject customer-forged local sales and preserve authorized cashier billing
         run: psql -v ON_ERROR_STOP=1 -f tests/sql/erp-local-billing-rls.sql
