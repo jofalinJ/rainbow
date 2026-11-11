@@ -4,10 +4,14 @@ on:
   push:
     branches: [main]
     paths:
+      - 'index.html'
+      - 'content.css'
       - 'order.html'
       - 'order.js'
       - 'product-page.js'
       - 'shop-catalogue.js'
+      - 'admin/products.html'
+      - 'admin/owner.html'
       - '.github/workflows/live-release-smoke.yml'
   workflow_dispatch:
 
@@ -16,31 +20,42 @@ permissions:
 
 jobs:
   public-release:
-    name: Confirm updated public storefront assets
+    name: Confirm updated storefront, checkout, and warranty assets
     runs-on: ubuntu-latest
     steps:
-      - name: Check deployed checkout and publication controls (read-only)
+      - name: Check exact deployed no-discount checkout, branding and warranty assets
         shell: bash
         run: |
           set -euo pipefail
           site="https://rainbowgoldcovering.com"
           for attempt in $(seq 1 18); do
-            if checkout=$(curl --fail --silent --show-error --max-time 12 "$site/order.html") &&
-               pricing=$(curl --fail --silent --show-error --max-time 12 "$site/order.js") &&
-               catalogue=$(curl --fail --silent --show-error --max-time 12 "$site/shop-catalogue.js") &&
-               detail=$(curl --fail --silent --show-error --max-time 12 "$site/product-page.js"); then
-              if grep -Fq 'id="igstLine"' <<< "$checkout" &&
-                 grep -Fq 'order.js?v=20261111-pin-autofill' <<< "$checkout" &&
-                 grep -Fq 'id="pinLookupStatus"' <<< "$checkout" &&
-                 grep -Fq 'const onlinePrice=Number(listing?.online_price??product.selling_price);' <<< "$pricing" &&
-                 grep -Fq 'attachPinAutofill({' <<< "$pricing" &&
-                 grep -Fq 'online==null?product.selling_price:online' <<< "$catalogue" &&
-                 grep -Fq 'listing?.online_price??p.selling_price' <<< "$detail"; then
-                echo "Live checkout and 2.5% rounded online-pricing storefront assets verified."
+            if home=$(curl -L --fail --silent --show-error --max-time 12 "$site/") &&
+               css=$(curl -L --fail --silent --show-error --max-time 12 "$site/content.css") &&
+               checkout=$(curl -L --fail --silent --show-error --max-time 12 "$site/order.html") &&
+               pricing=$(curl -L --fail --silent --show-error --max-time 12 "$site/order.js") &&
+               catalogue=$(curl -L --fail --silent --show-error --max-time 12 "$site/shop-catalogue.js") &&
+               detail=$(curl -L --fail --silent --show-error --max-time 12 "$site/product-page.js") &&
+               advanced=$(curl -L --fail --silent --show-error --max-time 12 "$site/admin/products.html") &&
+               quick=$(curl -L --fail --silent --show-error --max-time 12 "$site/admin/owner.html"); then
+              if grep -Fq '<small class="brand-since">SINCE 1996</small>' <<< "$home" &&
+                 grep -Fq '.storefront-header-row .logo .brand-since{margin-top:2px}' <<< "$css" &&
+                 grep -Fq 'order.js?v=20261111-no-discount-copy' <<< "$checkout" &&
+                 grep -Fq 'id="igstLine"' <<< "$checkout" &&
+                 ! grep -Fq 'Discount (3%)' <<< "$checkout" &&
+                 ! grep -Fq 'id="discount"' <<< "$checkout" &&
+                 ! grep -Fq 'id="razorpayDetails"' <<< "$checkout" &&
+                 grep -Fq 'const taxable=subtotal;' <<< "$pricing" &&
+                 grep -Fq 'pricing_revision:"no-discount-20261111"' <<< "$pricing" &&
+                 ! grep -Fq 'WhatsApp updates are sent only if you opted in' <<< "$pricing" &&
+                 grep -Fq 'description,warranty_months,' <<< "$catalogue" &&
+                 grep -Fq 'description,warranty_months,' <<< "$detail" &&
+                 grep -Fq 'id="warrantyMonths"' <<< "$advanced" &&
+                 grep -Fq 'id="ownerWarrantyMonths"' <<< "$quick"; then
+                echo "Live storefront displays Since 1996, no online discount, no redundant payment details and warranty selectors."
                 exit 0
               fi
             fi
             if [ "$attempt" -lt 18 ]; then sleep 10; fi
           done
-          echo "::error::Live domain is stale or missing the released 2.5% online-pricing controls."
+          echo "::error::Live storefront has not deployed the new branding, no-discount checkout and warranty assets."
           exit 1

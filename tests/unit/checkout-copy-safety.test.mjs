@@ -50,6 +50,7 @@ describe("customer checkout compact UX safety",()=>{
     expect(order).not.toContain('id="whatsappReceiptConsent"');
     expect(order).toContain("(optional)");
     expect(orderJs).toContain("whatsapp_opt_in:false");
+    expect(orderJs).not.toContain("WhatsApp updates are sent only if you opted in");
     expect(orderJs).not.toContain('?.checked===true');
   });
   it("preserves mobile category-first layout and routes",()=>{
