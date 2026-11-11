@@ -21,10 +21,10 @@ const passphrase="safe-offline-device-passphrase";
 
 async function serve(){
  const billing=await readFile(path.join(root,"admin/billing.html"),"utf8");
- const start=billing.indexOf('<div class="offline-pos-setup">');
- const end=billing.indexOf('<div class="panelhead">',start);
+ const start=billing.indexOf('<section class="offline-pos-setup"');
+ const end=billing.indexOf("</section>",start);
  assert.ok(start>=0&&end>start,"Offline form must be extracted from actual Billing markup");
- const markup=billing.slice(start,end);
+ const markup=billing.slice(start,end+"</section>".length);
  const fixture=`<!doctype html><html lang="en"><head><meta charset="utf-8">
  <title>Offline POS setup fixture</title></head><body>
  ${markup}
@@ -164,6 +164,25 @@ test("inline offline passphrase setup and refresh work when prompt() is blocked"
    }catch(error){done({error:error.message});}
   });
   assert.deepEqual(owned,{actor:"cccccccc-cccc-4ccc-8ccc-cccccccccccc",blocked:true,operator:""});
+  const recovery=await driver.executeAsyncScript(async done=>{
+   try{
+    const {OfflineVault}=await import("/admin/offline-pos-core.mjs");
+    const vault=await OfflineVault.unlock("safe-offline-device-passphrase");
+    const [original]=(await vault.read()).pending;
+    const unrelated=await vault.queue([{variant_id:"ffffffff-ffff-4fff-8fff-ffffffffffff",quantity:1}],{});
+    await vault.markReview(original.id,'null value in column "whatsapp_number" of relation "customers" violates not-null constraint');
+    await vault.markReview(unrelated.id,"Insufficient stock");
+    await vault.retryPhoneRejectedSales();
+    const [retried,remaining]=(await vault.read()).pending;
+    done({
+     sameId:retried.id===original.id,
+     sameActor:retried.syncActorId===original.syncActorId,
+     sameCustomer:JSON.stringify(retried.customer)===JSON.stringify(original.customer),
+     status:retried.status,unrelated:remaining.status
+    });
+   }catch(error){done({error:error.message});}
+  });
+  assert.deepEqual(recovery,{sameId:true,sameActor:true,sameCustomer:true,status:"pending",unrelated:"needs_review"});
  }finally{
   if(driver)await driver.quit();
   await fixture.close();

@@ -159,6 +159,19 @@ export class OfflineVault{
    return sale;
   });
  }
+ async retryPhoneRejectedSales(){
+  return this.mutate(data=>{
+   for(const sale of data.pending){
+    // Recover only the former database rejection of an optional blank phone.
+    // Keep the original payload, request ID and authenticated sync actor.
+    if(sale.status==="needs_review"&&!String(sale.customer?.whatsapp_number||"").trim()&&
+      sale.lastError==='null value in column "whatsapp_number" of relation "customers" violates not-null constraint'){
+     sale.status="pending";
+     sale.lastError="";
+    }
+   }
+  });
+ }
  async claimSyncActor(id,actorId){
   // The PostgreSQL POS RPC stores actor_id alongside the idempotency UUID.
   // Pin the first authenticated sync actor BEFORE sending the RPC, so a retry
@@ -178,6 +191,7 @@ export class OfflineVault{
   return this.mutate(data=>{
    const sale=data.pending.find(s=>s.id===id);
    if(!sale)throw new Error("Offline sale disappeared before confirmation.");
+   if(sale.status==="synced")return sale;
    sale.status="synced";sale.receipt=receipt;sale.lastError="";
    // Keep the local availability conservative if the server succeeded but
    // the next online stock-refresh could not complete.
@@ -193,7 +207,7 @@ export class OfflineVault{
  async markReview(id,reason){
   return this.mutate(data=>{
    const sale=data.pending.find(s=>s.id===id);
-   if(sale){sale.status="needs_review";sale.lastError=String(reason||"Requires review").slice(0,250);}
+   if(sale?.status==="pending"){sale.status="needs_review";sale.lastError=String(reason||"Requires review").slice(0,250);}
   });
  }
  async updateCatalog(products){

@@ -1,5 +1,8 @@
 \set ON_ERROR_STOP on
 begin;
+-- Match the former production constraint before applying the walk-in fix.
+alter table public.customers alter column whatsapp_number set not null;
+\ir ../../supabase/migrations/20261111111211_allow_walk_in_sales_without_phone.sql
 -- Existing legacy catalogue starts EMPTY and the new bridge is initially OFF.
 do $$
 begin
@@ -110,6 +113,21 @@ select public.erp_create_local_sale(
  '{"name":"Walk-in Shopper","whatsapp_number":"9999999999"}'::jsonb,
  'cash',(select id from public.erp_locations where code='BR-ONE'),
  '60000000-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+select public.erp_create_local_sale(
+ '[{"variant_id":"dddddddd-dddd-4ddd-8ddd-dddddddddddd","quantity":1}]'::jsonb,
+ '{}'::jsonb,
+ 'cash',(select id from public.erp_locations where code='BR-ONE'),
+ '60000000-aaaa-4aaa-8aaa-aaaaaaaaaa01');
+select public.erp_create_local_sale(
+ '[{"variant_id":"dddddddd-dddd-4ddd-8ddd-dddddddddddd","quantity":1}]'::jsonb,
+ '{"name":"Named Shopper","whatsapp_number":""}'::jsonb,
+ 'cash',(select id from public.erp_locations where code='BR-ONE'),
+ '60000000-aaaa-4aaa-8aaa-aaaaaaaaaa02');
+select public.erp_create_local_sale(
+ '[{"variant_id":"dddddddd-dddd-4ddd-8ddd-dddddddddddd","quantity":1}]'::jsonb,
+ '{"name":"Named Shopper","whatsapp_number":""}'::jsonb,
+ 'cash',(select id from public.erp_locations where code='BR-ONE'),
+ '60000000-aaaa-4aaa-8aaa-aaaaaaaaaa02');
 reset role;
 do $$
 declare shop_qty integer;
@@ -117,10 +135,13 @@ begin
  select b.on_hand into shop_qty from public.erp_stock_balances b
  join public.erp_locations l on l.id=b.location_id
  where l.code='BR-ONE' and b.variant_id='dddddddd-dddd-4ddd-8ddd-dddddddddddd';
- if shop_qty<>5 then raise exception 'POS sale did not correctly deduct branch stock'; end if;
+ if shop_qty<>3 then raise exception 'POS sale did not correctly deduct branch stock'; end if;
  if (select stock_quantity from public.product_variants where barcode='JM001-RED')<>3
  then raise exception 'Branch POS changed online sellable stock';end if;
- if (select count(*) from public.erp_pos_requests)<>1 then raise exception 'POS retry duplicated sale'; end if;
- if (select count(*) from public.invoices)<>1 then raise exception 'POS retry duplicated invoice'; end if;
+ if (select count(*) from public.erp_pos_requests)<>3 then raise exception 'POS must issue one sale per request'; end if;
+ if (select count(*) from public.invoices)<>3 then raise exception 'POS must issue one invoice per request'; end if;
+ if (select count(*) from public.orders o join public.customers c on c.id=o.customer_id
+     where o.source='local_store' and c.whatsapp_number is null and c.name in ('Walk-in Customer','Named Shopper'))<>2
+ then raise exception 'Walk-in bills must preserve the customer name and allow a missing phone'; end if;
 end $$;
 rollback;

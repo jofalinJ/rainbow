@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta name="robots" content="noindex,nofollow"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#8f1520"><link rel="icon" type="image/png" href="../assets/brand/rainbow-logo.png"><title>Rainbow Gold Covering — Products</title><link rel="stylesheet" href="style.css?v=20261103-premium"><link rel="stylesheet" href="products-editor.css?v=20261105-opening-stock"><script src="config.js"></script>
+<html lang="en"><head><meta name="robots" content="noindex,nofollow"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#8f1520"><link rel="icon" type="image/png" href="../assets/brand/rainbow-logo.png"><title>Rainbow Gold Covering — Products</title><link rel="stylesheet" href="style.css?v=20261111-compact-nav"><link rel="stylesheet" href="products-editor.css?v=20261105-opening-stock"><script src="config.js"></script>
 <style>
 .entry-grid{display:grid;grid-template-columns:repeat(6,minmax(130px,1fr));gap:12px;align-items:end}
 .entry-grid .wide{grid-column:span 2}.category-editor{max-width:190px;min-width:140px;padding:7px;border:1px solid #eadfd1;border-radius:8px;background:#fff;color:#17120f;font:inherit}.save-category{white-space:nowrap;padding:7px 10px}.save-category:disabled{opacity:.5;cursor:wait}.entry-grid .full{grid-column:1/-1}
@@ -29,13 +29,13 @@
 </head>
 <body>
 <a class="skip-link" href="#mainContent">Skip to main content</a>
-<aside aria-label="Admin sidebar"></aside>
-<main id="mainContent" tabindex="-1"><header><div><p class="eyebrow">CATALOG</p><h1>Products</h1></div><div style="display:flex;gap:8px;flex-wrap:wrap"><a href="owner.html?screen=categories" style="display:inline-flex;align-items:center;min-height:44px;background:#8B0000;color:#fff;border-radius:10px;padding:8px 14px;text-decoration:none;font-weight:700">Online Products</a><button onclick="location.href='index.html'">Dashboard</button></div></header>
+<aside id="adminSidebar" aria-label="Admin sidebar"></aside>
+<main id="mainContent" tabindex="-1"><header><div class="admin-page-title"><button type="button" id="adminMenuToggle" class="admin-menu-toggle" aria-expanded="false" aria-controls="adminSidebar" hidden>Menu</button><h1>Products</h1></div><div style="display:flex;gap:8px;flex-wrap:wrap"><a href="owner.html?screen=categories" style="display:inline-flex;align-items:center;min-height:44px;background:#8B0000;color:#fff;border-radius:10px;padding:8px 14px;text-decoration:none;font-weight:700">Online Products</a><button onclick="location.href='index.html'">Dashboard</button></div></header>
 <section class="panel products-editor" aria-labelledby="editorHeading">
- <div class="product-editor-heading"><div><p class="eyebrow">PRODUCT MANAGEMENT</p><h2 id="editorHeading">Add Product</h2><p>Manage product information, stock, variants and real jewellery photographs.</p></div><a href="#categoryDisplay" class="product-editor-shortcut">Storefront categories ↗</a></div>
+ <div class="product-editor-heading"><div><p class="eyebrow">PRODUCT MANAGEMENT</p><h2 id="editorHeading">Add Product</h2><p>Add a product or a variant to your catalogue.</p></div><a href="#categoryDisplay" class="product-editor-shortcut">Storefront categories ↗</a></div>
  <div class="product-mode-tabs" role="group" aria-label="Product editor mode">
-   <button type="button" id="newProductBtn" aria-pressed="true">＋ New Product</button>
-   <button type="button" id="existingBtn" aria-pressed="false">＋ Add Variant to Existing Product</button>
+   <button type="button" id="newProductBtn" aria-pressed="true" disabled>＋ New Product</button>
+   <button type="button" id="existingBtn" aria-pressed="false" disabled>＋ Add Variant to Existing Product</button>
    <button type="button" id="cancelEditBtn" hidden>Cancel Edit</button>
  </div>
  <div class="field opening-stock-shop" id="openingStockShopField" hidden>
@@ -65,7 +65,7 @@
  </section>
  <form id="form" class="product-entry-form">
   <section class="product-form-section" aria-labelledby="detailsTitle">
-   <div class="product-form-section-head"><div><span class="product-form-step">01</span><h3 id="detailsTitle">Product details</h3><p>Begin with its category, name, type and selling details.</p></div></div>
+   <div class="product-form-section-head"><div><h3 id="detailsTitle">Product details</h3><p>Begin with its category, name, type and selling details.</p></div></div>
    <div class="entry-grid product-details-grid">
     <div class="field"><label for="category">Category</label><select id="category" required></select></div>
     <div class="field product-name-field wide"><label for="name">Product name</label><input id="name" required placeholder="Enter product name"></div>
@@ -76,7 +76,7 @@
    </div>
   </section>
   <section class="product-form-section" aria-labelledby="inventoryTitle">
-   <div class="product-form-section-head"><div><span class="product-form-step">02</span><h3 id="inventoryTitle">Stock & specifications</h3><p>Additional options appear according to the product category.</p></div></div>
+   <div class="product-form-section-head"><div><h3 id="inventoryTitle">Stock & specifications</h3><p>Additional options appear according to the product category.</p></div></div>
    <div class="entry-grid product-specs-grid">
     <div class="field" id="stockField"><label for="stock">Initial stock</label><input id="stock" type="number" min="0" step="1" value="0"></div>
     <div class="field" id="lowField"><label for="low">Low-stock alert at</label><input id="low" type="number" min="0" step="1" value="3"></div>
@@ -89,7 +89,7 @@
    </div>
   </section>
   <section class="product-form-section" aria-labelledby="photosTitle">
-   <div class="product-form-section-head"><div><span class="product-form-step">03</span><h3 id="photosTitle">Photos & description</h3><p>Use genuine jewellery photos—up to five per product.</p></div></div>
+   <div class="product-form-section-head"><div><h3 id="photosTitle">Photos & description</h3><p>Use genuine jewellery photos—up to five per product.</p></div></div>
    <div class="entry-grid product-photos-grid">
     <div class="field full" id="createPhotosField"><label>Product photographs</label><div class="photo-wrap product-upload-tools"><button type="button" id="cameraBtn">📷 Use Camera</button><button type="button" id="fileBtn">📁 Choose Photos</button><input id="cameraFile" type="file" accept="image/*" capture="environment" multiple hidden><input id="fileFile" type="file" accept="image/*" multiple hidden></div><small class="field-help">JPEG, PNG or WebP · 5 images maximum · 5 MB per image</small></div>
     <div class="field full optional" id="editPhotosField"><label>Current product photos</label><div class="photo-preview photo-preview-gallery edit-current-photos" id="editCurrentPhotos"></div><div class="photo-wrap product-upload-tools"><button type="button" id="editPhotoBtn">Choose additional photos</button><input id="editPhotoFiles" type="file" accept="image/*" multiple hidden></div><small id="editPhotoHelp" class="field-help">You can add up to five images in total.</small><div class="photo-preview photo-preview-gallery edit-photo-preview" id="editPhotoPreview"></div></div>
@@ -97,9 +97,9 @@
     <div class="field full"><label for="description">Description</label><textarea id="description" rows="3" placeholder="Materials, finish, design and other product details"></textarea></div>
    </div>
   </section>
-  <div class="product-form-footer"><button id="saveProductBtn" type="submit" class="product-save-button">Save Product</button><small>Review all details before saving. Inventory and images will be linked to the product code.</small></div>
+  <div class="product-form-footer"><button id="saveProductBtn" type="submit" class="product-save-button" disabled>Save Product</button><small>Review all details before saving. Inventory and images will be linked to the product code.</small></div>
  </form>
- <p id="msg" class="product-form-message" role="status" aria-live="polite"></p>
+ <p id="msg" class="product-form-message" role="status" aria-live="polite">Loading product editor…</p>
 </section>
 <dialog id="onlineListingDialog" aria-labelledby="onlineListingTitle" class="stock-dialog">
 <header class="stock-dialog-head"><h2 id="onlineListingTitle">Online product listing</h2><button type="button" id="closeOnlineListing">Close</button></header>
@@ -138,4 +138,5 @@
 <div class="catalogue-health" id="catalogueHealth" role="status" aria-live="polite">Check available product metrics.</div>
 <p><small>For full disaster recovery, use managed database backups or encrypted <code>pg_dump</code> snapshots; product CSV exports alone are not database backups.</small></p>
 </section>
-</main><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="app.js?v=20261111-online-products"></script><script src="image-prep.js?v=20261018"></script><script src="catalogue-ops.js?v=20261018"></script><script src="products.js?v=20261111-warranty"></script><script src="bulk-products.js?v=20261018-staff-role-fix"></script></body></html>
+</main><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="app.js?v=20261111-online-products"></script>
+<script src="mobile-nav.js" defer></script><script src="image-prep.js?v=20261018"></script><script src="catalogue-ops.js?v=20261018"></script><script src="products.js?v=20261111-editor-ready"></script><script src="bulk-products.js?v=20261018-staff-role-fix"></script></body></html>

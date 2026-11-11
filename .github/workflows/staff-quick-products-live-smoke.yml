@@ -79,12 +79,15 @@ jobs:
                  grep -Fq 'Online Products' <<< "$nav" &&
                  grep -Fq 'app.js?v=20261111-online-products' <<< "$products" &&
                  grep -Fq 'app.js?v=20261111-online-products' <<< "$billing" &&
+                 grep -Fq 'products.js?v=20261111-editor-ready' <<< "$products" &&
+                 grep -Fq 'id="adminMenuToggle"' <<< "$billing" &&
                  grep -Fq 'id="startScanner"' <<< "$billing" &&
                  grep -Fq 'id="prepareOffline"' <<< "$billing" &&
                  grep -Fq 'id="offlineSetupForm"' <<< "$billing" &&
                  grep -Fq 'id="offlineDevicePassphrase"' <<< "$billing" &&
                  grep -Fq 'id="offlineConfirmPassphrase"' <<< "$billing" &&
-                 grep -Fq 'offline-pos-bridge.mjs?v=20261111-admin-shared-code' <<< "$billing" &&
+                 grep -Fq 'billing.js?v=20261111-walk-in' <<< "$billing" &&
+                 grep -Fq 'offline-pos-bridge.mjs?v=20261111-walk-in' <<< "$billing" &&
                  grep -Fq 'id="offlineSetupPermissionHint"' <<< "$billing" &&
                  grep -Fq 'aria-expanded="false" hidden' <<< "$billing" &&
                  grep -Fq 'profile.role!=="admin"' <<< "$offlinebridge" &&
@@ -100,7 +103,7 @@ jobs:
                  grep -Fq 'p_request:sale.id' <<< "$offlinesync" &&
                  grep -Fq 'await vault.claimSyncActor(sale.id,auth.user.id)' <<< "$offlinesync" &&
                  grep -Fq 'SHARED_SHOP_ACCESS_MODE' <<< "$offlinecore" &&
-                 grep -Fq 'rainbow-staff-offline-pos-v3' <<< "$worker" &&
+                 grep -Fq 'rainbow-staff-offline-pos-v4' <<< "$worker" &&
                  grep -Fq 'cache.addAll(FILES)' <<< "$worker" &&
                  grep -Fq 'id="billingPinLookupStatus"' <<< "$billing" &&
                  grep -Fq 'billing-pin.mjs?v=20261111' <<< "$billing" &&

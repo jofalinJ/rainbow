@@ -86,3 +86,20 @@ body>aside nav a[aria-current="page"]{outline:none}
 #promotionAdd{min-height:44px;font-weight:700;color:#8f1520;border-color:#cfae7f;cursor:pointer}
 .promotion-form button:focus-visible{outline:3px solid #c89a3c;outline-offset:2px}
 @media(max-width:680px){.promotion-multi-list{grid-template-columns:1fr}.promotion-item{flex-wrap:wrap}.promotion-item-actions{justify-content:flex-end}}
+
+.admin-page-title{display:flex;align-items:center;gap:10px}
+.admin-menu-toggle{display:none}
+@media(max-width:760px){
+  .admin-menu-toggle:not([hidden]){display:inline-flex;align-items:center;min-height:44px;font-weight:700;cursor:pointer}
+  body:has(#adminMenuToggle:not([hidden])){display:block}
+  body:has(#adminMenuToggle:not([hidden]))>main{margin:0;width:100%;padding-inline:16px}
+  body:has(#adminMenuToggle:not([hidden]))>#adminSidebar{
+    display:none;inset:68px 16px auto auto;width:min(270px,calc(100% - 32px));
+    min-height:0;max-height:calc(100dvh - 84px);padding:12px;
+    border:1px solid #e8dfd6;border-radius:14px;box-shadow:0 14px 40px rgba(50,32,23,.18)
+  }
+  body:has(#adminMenuToggle[aria-expanded="true"])>#adminSidebar{display:block}
+  #adminSidebar .brand{margin:4px 6px 12px}
+  #adminSidebar nav a{font-size:calc(13px * var(--type-scale));min-height:44px;padding:11px 9px}
+  #adminSidebar .user{position:static;margin:10px 6px 0;padding-top:10px;border-top:1px solid #e8dfd6}
+}

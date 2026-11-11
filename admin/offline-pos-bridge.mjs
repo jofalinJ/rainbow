@@ -67,7 +67,7 @@ async function offlineAssetsReady(){
  if(!ready?.active)throw new Error("The offline service worker is not active yet. Reload and retry.");
  // The updated service worker is required on previously installed tablets;
  // an old cache must not make the admin believe the new offline code is ready.
- const updatedCache=await caches.open("rainbow-staff-offline-pos-v3");
+ const updatedCache=await caches.open("rainbow-staff-offline-pos-v4");
  const offlinePage=new URL("offline-pos.html",location.href).href;
  let installed=false;
  for(let attempt=0;attempt<36;attempt++){
