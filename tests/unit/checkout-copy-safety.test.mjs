@@ -49,7 +49,8 @@ describe("customer checkout compact UX safety",()=>{
   it("offers optional unchecked consent before sending a paid invoice by WhatsApp",()=>{
     expect(order).toContain('id="whatsappReceiptConsent"');
     expect(order).toContain('type="checkbox"');
-    expect(order).not.toMatch(/id="whatsappReceiptConsent"[^>]*\\bchecked\\b/);
+    const consentInput=order.match(/<input[^>]*id="whatsappReceiptConsent"[^>]*>/)?.[0]||"";
+    expect(consentInput).not.toContain("checked");
     expect(order).toContain("verified-payment invoice link");
     expect(orderJs).toContain('whatsapp_opt_in:$("whatsappReceiptConsent")?.checked===true');
     expect(order).toContain('href="privacy-policy.html"');
