@@ -1,7 +1,12 @@
 // Server-gated Razorpay integration: tests and real payments use separate backend credentials.
 const getBase=()=>{
   const value=String(window.RAINBOW_PAYMENT_CONFIG?.apiBaseUrl||"").trim();
-  try{const url=new URL(value); return url.protocol==="https:" ? url.origin : "";}catch{return "";}
+  try{
+    const url=new URL(value);
+    const loopback=new Set(["localhost","127.0.0.1","[::1]"]);
+    const localTest=url.protocol==="http:"&&loopback.has(window.location.hostname)&&loopback.has(url.hostname);
+    return url.protocol==="https:"||localTest?url.origin:"";
+  }catch{return "";}
 };
 let gatewayScriptPromise;
 function loadGatewayScript(){
@@ -142,7 +147,8 @@ export async function beginRazorpayPayment({items,customer,displayTotal,expected
               resolve({status:"paid",mode,orderNumber:result.orderNumber,
                 invoiceUrl:result.invoiceUrl||null,invoiceNumber:result.invoiceNumber||null});
             }else{
-              resolve({status:"pending",mode,orderNumber:result.orderNumber||gateway.orderNumber});
+              const status=["refund_required","refunded"].includes(result.status)?result.status:"pending";
+              resolve({status,mode,orderNumber:result.orderNumber||gateway.orderNumber});
             }
           }catch(error){reject(error);}
         },

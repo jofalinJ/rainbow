@@ -60,6 +60,12 @@ describe("Razorpay verification results",()=>{
     expect(result).toEqual({status:"paid",mode:"test",orderNumber:"RG-FIXTURE-001",invoiceUrl,invoiceNumber:"INV-FIXTURE-001"});
     expect(store.has("rainbow_razorpay_pending_v1")).toBe(false);
   });
+
+  it("retains the checkout and distinguishes late capture from awaiting capture",async()=>{
+    const {result,store}=await completeGatewayCallback({paid:false,status:"refund_required",orderNumber:"RG-LATE"});
+    expect(result).toEqual({status:"refund_required",mode:"test",orderNumber:"RG-LATE"});
+    expect(store.has("rainbow_razorpay_pending_v1")).toBe(true);
+  });
 });
 
 describe("Razorpay payment failure handling",()=>{

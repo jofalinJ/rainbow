@@ -11,7 +11,7 @@
 <script src="config.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script defer src="image-prep.js?v=20261110"></script>
-<script defer src="owner.js?v=20261111-shared-shop"></script>
+<script defer src="owner.js?v=20261111-shared-shop-qa"></script>
 </head>
 <body>
 <div id="startup" role="status" class="startup">Checking your shop staff account…</div>
@@ -85,28 +85,27 @@
      <label>Category <select id="ownerCategory" required></select><small class="field-error" id="errorCategory"></small></label>
      <label>Price (₹) <input id="ownerPrice" type="number" inputmode="decimal" step="0.01" min="0.01" max="10000000" required placeholder="e.g. 450"><small class="field-error" id="errorPrice"></small></label>
     </div>
-    <p class="quick-tip">Product code is automatic. You can save without stock; it will not appear in the online shop until the owner publishes it and allocates stock.</p>
+    <p class="quick-tip" id="productDraftHint">Product code is automatic. You can save without stock.</p>
    </section>
    <details id="ownerMoreDetails" class="panel optional-details">
     <summary>More options <small>Shop stock, description, size and product code</small></summary>
     <div class="form-grid">
      <label class="wide">Description (optional) <textarea id="ownerDescription" maxlength="4000" rows="2" placeholder="Design, finish or warranty"></textarea></label>
      <label id="ownerStockLabel">Shop opening stock (optional) <input id="ownerStock" type="number" inputmode="numeric" min="0" max="100000" step="1" value="0"><small class="field-error" id="errorStock"></small></label>
-     <label>Source shop <select id="ownerSource"></select><small id="ownerStockHint">Only choose a shop if you enter new physical stock. To allocate stock already recorded, use Inventory.</small></label>
+     <label>Source shop <select id="ownerSource"></select><small id="ownerStockHint">Choose the shop receiving new opening stock.</small></label>
      <label class="wide">Product code (optional) <input id="ownerSku" maxlength="40" pattern="[A-Za-z0-9/_-]+" placeholder="Leave blank to generate automatically"></label>
      <button type="button" class="secondary inline-create" id="inlineCategory">＋ New category</button>
      <div id="variantExtras" class="extras wide"></div>
     </div>
     <label class="stock-confirm"><input id="ownerStockConfirm" type="checkbox"> I have physically counted this new shop stock (only for non-zero opening stock).</label>
-    <p class="stock-note" data-admin-only>Opening stock is received at the selected physical shop. When publishing, the owner chooses how many units to allocate online. Never enter stock again if it is already recorded.</p>
-    <p class="stock-note" data-non-admin hidden>New stock stays at your assigned physical shop. The owner will publish and allocate online quantities separately.</p>
+    <p class="stock-note" id="openingStockNote">Opening stock is received at the selected physical shop.</p>
    </details>
    <div id="editMessage" class="form-message" role="status" aria-live="polite"></div>
    <div class="sticky-actions"><button type="submit" class="secondary" data-save="draft" id="saveDraft">Save product for approval</button><button type="submit" class="primary" data-save="publish" id="publishNow" data-admin-only>Publish now</button></div>
   </form>
  </section>
  <section id="screen-categories" class="screen" hidden>
-  <div class="page-heading"><div><p class="eyebrow">PRODUCTS BY CATEGORY</p><h1>Categories &amp; Online</h1><p>Every saved product appears under its category. The owner can show it online and add online stock from an existing shop.</p></div></div>
+  <div class="page-heading"><div><p class="eyebrow">PRODUCTS BY CATEGORY</p><h1>Categories &amp; Online</h1><p>Find saved products and manage their online visibility.</p></div></div>
   <section class="panel category-catalogue-panel" aria-labelledby="categoryCatalogueHeading">
    <h2 id="categoryCatalogueHeading">Online Push · Products by category</h2>
    <p id="categoryCatalogueHint" class="quick-tip">Use <strong>Add Online Stock</strong> to move existing pieces from a physical shop. It deducts those pieces from shop availability; it never creates new stock. Use <strong>Show Online</strong> to publish once a photo, price and online stock are ready.</p>

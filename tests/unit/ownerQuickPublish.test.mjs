@@ -52,7 +52,7 @@ describe("owner quick publishing integrates with the existing shop",()=>{
   expect(js).toContain('erp_receive_transfer');
   expect(js).toContain('erp_online_listings');
   expect(js).toContain('stableOperationId');
-  expect(js).toContain('if(!canPublish())return sum+Math.max(0,Number(v.stock_quantity||0))');
+  expect(js).toContain('if(state.sharedBranchStock||!canPublish())return sum+Math.max(0,Number(v.stock_quantity||0))');
   expect(js).toContain('if(canPublish())await publication(created,false)');
   expect(js).toContain('else if(!previous&&canPublish())await publication(product,false)');
   expect(js).not.toContain('.update({stock_quantity:');
@@ -84,7 +84,7 @@ describe("owner quick publishing integrates with the existing shop",()=>{
   expect(publish.indexOf('await transfer(')).toBeLessThan(publish.indexOf('await publication(product,true)'));
   expect(js).toContain('async function publishExisting(product)');
   expect(js).toContain('if(!balances.some(b=>b.onHand>b.reserved))');
-  expect(js).toContain('if(!canPublish())return sum+Math.max(0,Number(v.stock_quantity||0))');
+  expect(js).toContain('if(state.sharedBranchStock||!canPublish())return sum+Math.max(0,Number(v.stock_quantity||0))');
   expect(js).not.toContain('.update({stock_quantity:');
  });
  it("offers admin-only online top-ups from recorded physical stock with current shop availability",()=>{

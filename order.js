@@ -1,5 +1,5 @@
 import {INDIAN_STATES,deliveryFeeForState,gstComponentsForState} from "./order-pricing.mjs";
-import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=20261103-online-only";
+import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=20261111-reservation";
 (() => {
   const CONFIG=window.RAINBOW_SUPABASE_CONFIG||{};
   const SUPABASE_URL=String(CONFIG.supabaseUrl||"").trim();
@@ -283,6 +283,12 @@ import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=
           "<a class='btn btn-light' href='index.html#products'>Continue shopping</a>";
         msg("");
         focusOrderConfirmation(true);
+      }else if(result.status==="refund_required"){
+        const reference=result.orderNumber?" with order "+result.orderNumber:" with your payment reference";
+        msg("This payment requires refund review. Contact the shop"+reference+". Do not pay again.","error");
+      }else if(result.status==="refunded"){
+        const reference=result.orderNumber?" with order "+result.orderNumber:" with your payment reference";
+        msg("Razorpay reports a refund. Contact the shop"+reference+" to confirm the refund and order status.","error");
       }else if(result.status==="pending"){
         msg("Payment "+(result.orderNumber?"for order "+result.orderNumber+" ":"")+"is awaiting confirmation. Do not pay again; contact the shop "+(result.orderNumber?"with this order number":"with your payment reference")+" if it remains pending.","error");
       }else{

@@ -67,6 +67,26 @@ async function callRazorpay(env,path,body) {
   if(!response.ok) throw new Error("Payment provider request failed ("+response.status+")");
   return response.json();
 }
+function validPayment(payment) {
+  return payment && validId(payment.id,"pay_") && validId(payment.order_id,"order_") &&
+    payment.currency==="INR" && Number.isSafeInteger(payment.amount) && payment.amount>0;
+}
+function hasVerifiedRefund(payment) {
+  return payment.captured===true && ["captured","refunded"].includes(payment.status) &&
+    Number.isSafeInteger(payment.amount_refunded) && payment.amount_refunded>0 &&
+    ((payment.refund_status==="full" && payment.amount_refunded===payment.amount) ||
+      (payment.refund_status==="partial" && payment.amount_refunded<payment.amount));
+}
+function isUnrefundedCapture(payment) {
+  return payment.status==="captured" && payment.captured===true &&
+    payment.amount_refunded===0 && payment.refund_status===null;
+}
+async function recordRefund(env,payment,eventId=null,refundId=null) {
+  return callDb(env,"record_razorpay_refund",{
+    p_gateway_order_id:payment.order_id,p_payment_id:payment.id,p_amount_paise:payment.amount,
+    p_amount_refunded_paise:payment.amount_refunded,p_event_id:eventId,p_refund_id:refundId
+  });
+}
 function reply(request,env,response){return withCors(request,env,response);}
 export async function razorpayRoute(request,env) {
   const path=new URL(request.url).pathname;
@@ -103,7 +123,8 @@ export async function razorpayRoute(request,env) {
   if(request.method==="OPTIONS") return reply(request,env,new Response(null,{status:204}));
   if(request.method!=="POST") return reply(request,env,methodNotAllowed("POST, OPTIONS"));
   if(!requireOrigin(request,env)) return apiError("Origin is not allowed",403);
-  if(!isPaymentsConfigured(env)) return reply(request,env,apiError("Razorpay checkout is not enabled",503));
+  const paymentAllowed=path==="/api/razorpay/verify"?gatewayCredentials(env):isPaymentsConfigured(env);
+  if(!paymentAllowed) return reply(request,env,apiError("Razorpay checkout is not enabled",503));
   // Origins are not authentication. Require Cloudflare rate limiting before any public checkout call.
   if(!env.CHECKOUT_RATE_LIMITER || typeof env.CHECKOUT_RATE_LIMITER.limit!=="function")
     return reply(request,env,apiError("Payment protection is not configured",503));
@@ -136,6 +157,10 @@ async function prepare(request,env){
   if(["new","ready","creating"].includes(held.state) &&
     (!Number.isSafeInteger(held.amount_paise) || held.amount_paise<100))
     return apiError("The verified checkout total is below the minimum ₹1.00. Review your cart.",422);
+  const reservationExpired=()=>!(Date.parse(held.expires_at)>Date.now());
+  const waitForRelease=()=>apiError("This checkout reservation has expired. Try again after stock is released.",409);
+  if(["new","ready","creating"].includes(held.state) && reservationExpired())
+    return waitForRelease();
   // Customer consent is voluntary and attached to the same reserved checkout.
   // Only the server can update it; never send a message before verified capture.
   if(body.customer.whatsapp_opt_in===true)
@@ -149,8 +174,6 @@ async function prepare(request,env){
   if(held.state==="creating"){
     // Recover an order created at Razorpay when the initial response or DB attach
     // was lost. NEVER create another provider order for the same receipt.
-    if(new Date(held.expires_at).getTime()<=Date.now())
-      return apiError("This checkout reservation has expired. Refresh your cart and try after stock is released.",409);
     const receipt=body.checkout_id.replace(/-/g,"");
     const result=await callRazorpay(env,"/orders?receipt="+encodeURIComponent(receipt)+"&count=10");
     const matches=(Array.isArray(result.items)?result.items:[]).filter(order=>
@@ -164,12 +187,14 @@ async function prepare(request,env){
     });
     if(saved.state!=="ready" || saved.gateway_order_id!==gateway.id)
       throw new Error("Recovered provider order could not be attached");
+    if(reservationExpired()) return waitForRelease();
     return json({success:true,mode:paymentMode(env),keyId:gatewayCredentials(env).keyId,
       gatewayOrderId:gateway.id,orderNumber:held.order_number,
       amount:held.amount_paise,currency:"INR",expiresAt:held.expires_at});
   }
   if(held.state==="expired") return json({success:false,code:"CHECKOUT_EXPIRED",
     error:"Your previous reservation expired. Please review the cart and retry."},410);
+  if(held.state==="refund_required") return apiError("A payment for this checkout needs refund review. Contact the shop before paying again.",409);
   if(held.state!=="new") return apiError("This checkout has already been processed. Contact the shop before retrying.",409);
   if(!Number.isSafeInteger(held.amount_paise)||held.amount_paise<100)
     throw new Error("Invalid authoritative amount");
@@ -185,6 +210,7 @@ async function prepare(request,env){
     p_checkout_id:body.checkout_id,p_gateway_order_id:gateway.id,p_amount_paise:gateway.amount
   });
   if(saved.state!=="ready" || saved.gateway_order_id!==gateway.id) throw new Error("Could not attach provider order");
+  if(reservationExpired()) return waitForRelease();
   return json({success:true,mode:paymentMode(env),keyId:gatewayCredentials(env).keyId,
     gatewayOrderId:gateway.id,orderNumber:held.order_number,
     amount:gateway.amount,currency:"INR",expiresAt:held.expires_at});
@@ -200,10 +226,17 @@ async function verify(request,env) {
     checkout.gateway_order_id+"|"+body.razorpay_payment_id,body.razorpay_signature);
   if(!valid) return apiError("Invalid payment signature",401);
   const payment=await callRazorpay(env,"/payments/"+encodeURIComponent(body.razorpay_payment_id));
-  if(payment.id!==body.razorpay_payment_id || payment.order_id!==checkout.gateway_order_id ||
-    payment.currency!=="INR" || payment.amount!==checkout.amount_paise)
+  if(!validPayment(payment) || payment.id!==body.razorpay_payment_id ||
+    payment.order_id!==checkout.gateway_order_id || payment.amount!==checkout.amount_paise)
     return apiError("Payment does not match the verified order",409);
-  if(payment.status!=="captured") return json({success:true,paid:false,status:"awaiting_capture"});
+  if(hasVerifiedRefund(payment)){
+    const refunded=await recordRefund(env,payment);
+    return json({success:true,paid:false,status:refunded.state,orderNumber:refunded.order_number});
+  }
+  if(payment.status==="failed") return json({success:true,paid:false,status:"payment_failed"});
+  if(["created","authorized"].includes(payment.status))
+    return json({success:true,paid:false,status:"awaiting_capture"});
+  if(!isUnrefundedCapture(payment)) return apiError("Payment capture is not verified",409);
   const settled=await callDb(env,"complete_razorpay_checkout",{
     p_gateway_order_id:checkout.gateway_order_id,p_payment_id:payment.id,
     p_amount_paise:payment.amount,p_event_id:null
@@ -234,20 +267,31 @@ async function webhook(request,env){
   if(!eventId || eventId.length>128) return apiError("Invalid event identifier");
   try{
     const event=JSON.parse(raw);
-    if(event.event!=="payment.captured") return json({success:true,ignored:true});
+    const refundEvent=["payment.refunded","refund.processed"].includes(event?.event);
+    if(event?.event!=="payment.captured" && !refundEvent) return json({success:true,ignored:true});
     const eventPayment=event.payload?.payment?.entity;
-    if(!validId(eventPayment?.id,"pay_") || !validId(eventPayment?.order_id,"order_"))
+    const eventRefund=event.payload?.refund?.entity;
+    const paymentId=eventPayment?.id || eventRefund?.payment_id;
+    if((!refundEvent && !eventPayment) || !validId(paymentId,"pay_") ||
+      (eventPayment && !validId(eventPayment.order_id,"order_")) ||
+      (eventRefund && (!validId(eventRefund.id,"rfnd_") || eventRefund.payment_id!==paymentId)))
       return apiError("Invalid payment event");
-    // Fetch the current payment from Razorpay; never trust an unverified browser or stale event amount.
-    const payment=await callRazorpay(env,"/payments/"+encodeURIComponent(eventPayment.id));
-    if(payment.status!=="captured" || payment.id!==eventPayment.id ||
-      payment.order_id!==eventPayment.order_id || payment.currency!=="INR")
-      return apiError("Payment status is not captured",409);
+    // Delayed and duplicate events are reconciled using current provider state.
+    const payment=await callRazorpay(env,"/payments/"+encodeURIComponent(paymentId));
+    if(!validPayment(payment) || payment.id!==paymentId ||
+      (eventPayment && payment.order_id!==eventPayment.order_id))
+      return apiError("Payment does not match the verified event",409);
+    if(hasVerifiedRefund(payment)){
+      const refunded=await recordRefund(env,payment,eventId,eventRefund?.id||null);
+      return json({success:true,paid:false,status:refunded.state});
+    }
+    if(refundEvent) return apiError("Provider refund is not yet verified",409);
+    if(!isUnrefundedCapture(payment)) return apiError("Payment status is not captured",409);
     const settled=await callDb(env,"complete_razorpay_checkout",{
       p_gateway_order_id:payment.order_id,p_payment_id:payment.id,
       p_amount_paise:payment.amount,p_event_id:eventId
     });
-    return json({success:true,paid:settled.paid===true});
+    return json({success:true,paid:settled.paid===true,status:settled.state});
   }catch(error){
     console.error("Payment webhook failed",error.message);
     return apiError("Webhook processing failed",503); // retry; never acknowledge failed settlement.
@@ -257,4 +301,6 @@ export async function expireRazorpayReservations(env){
   if(!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) return;
   try{await callDb(env,"expire_razorpay_checkouts",{p_limit:100});}
   catch(error){console.error("Reservation expiry failed",error.message);}
+  try{await callDb(env,"expire_manual_upi_checkouts",{p_limit:100});}
+  catch(error){console.error("Manual UPI reservation expiry failed",error.message);}
 }

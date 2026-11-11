@@ -346,13 +346,21 @@ async function openOnlineListing(productId){
  onlineSelectedId=p.id;
  $("onlineListingProduct").textContent=p.product_code+" · "+p.product_name;
  $("onlineListingFeedback").textContent="Loading listing…";
- const {data,error}=await bootSupabase().from("erp_online_listings")
- .select("published,online_price").eq("product_id",p.id).maybeSingle();
- if(error){$("onlineListingFeedback").textContent="ERP listings aren't available in this environment: "+error.message;}
- else{$("onlineListingFeedback").textContent="";$("onlineListingVisible").checked=Boolean(data?.published);$("onlineListingPrice").value=data?.online_price??"";}
+ const client=bootSupabase();
+ const [listing,mode]=await Promise.all([
+  client.from("erp_online_listings").select("published,online_price").eq("product_id",p.id).maybeSingle(),
+  client.rpc("erp_shared_inventory_mode")
+ ]);
+ const modeError=mode.error?.code!=="PGRST202"?mode.error:null;
+ const error=listing.error||modeError;
+ $("onlineListingFeedback").textContent=error?"Online listing unavailable: "+error.message:"Online prices use the master product price.";
+ $("onlineListingVisible").checked=Boolean(listing.data?.published);
+ $("onlineListingPrice").value=listing.data?.online_price??"";
  $("saveOnlineListing").disabled=Boolean(error);
  $("onlineListingPrice").disabled=true;
- $("onlineListingFeedback").textContent="Online prices currently use the master product price. Allocation must happen in Inventory.";
+ $("onlineListingHelp").textContent=error?"":mode.data?.shared_stock===true
+  ?"The storefront uses available stock from active physical shops."
+  :"Use Inventory to transfer existing stock to Online Store and confirm receipt.";
  $("onlineListingDialog").showModal();
 }
 async function saveOnlineListing(){

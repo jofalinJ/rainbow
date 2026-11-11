@@ -50,6 +50,7 @@ function bootstrapFixture(){
   };
   scope.bootSupabase=()=>({
     rpc:async(name,params)=>{
+      if(name==="erp_shared_inventory_mode")return {data:{shared_stock:false},error:null};
       try{return {data:await scope.sb("rpc/"+name,{method:"POST",body:JSON.stringify(params)}),error:null};}
       catch(error){return {data:null,error};}
     },

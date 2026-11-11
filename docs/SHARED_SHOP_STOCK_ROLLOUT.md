@@ -1,35 +1,24 @@
-# Shared shop stock for online sales — staged rollout notes
+# Shared shop stock rollout
 
-**Current status: NOT LIVE.** This design is behind `app_private.erp_activation_state.shared_branch_stock`, which defaults to `false`. The existing online allocation, checkout and stock rules remain in use until a separately approved cutover.
+PR #75 stages shared inventory with the database flag off. The owner can use **Categories & Online → Show Online** for an existing product after activation. Online availability is the sum of unreserved pieces at active physical shops. **Hide Online** changes the listing flag and leaves inventory and existing orders alone.
 
-## Owner's requested workflow
+Online checkout reserves pieces at one or more branches. The private reservation ledger records each order, variant, shop and quantity. A verified payment consumes that order's pieces once. Expiry and unpaid cancellation release the same pieces. A refund on a settled sale records the provider's evidence. Any physical return requires separate inspection and a recorded stock movement.
 
-A product is entered **once** in the shop catalogue, and stock is counted against its actual physical shop. The owner opens **Categories & Online** and clicks **Show Online**; there is no second product or Online Store quantity to create. Its customer-visible availability is the **sum of unreserved pieces at active physical shops**. Hiding a product changes only its published state, not any shop stock.
+## Lock order
 
-Physical shop sale of one piece: physical on-hand decreases by one, public available inventory decreases by one. Online checkout of one piece: a reservation reduces the available count at a physical shop until payment is settled or cancelled. Verified payment consumes one physical piece exactly once; expiry releases the reservation. Each checkout must revalidate stock under database row locks, not trust browser quantities.
+Checkout reserves variants in UUID order. Stock mutations take the variant row lock before balance rows. Multiple balances for the same variant are locked by location UUID. POS locks all requested variants before checking availability. Settlement and cancellation lock the checkout or manual request, then the order, then variants and balances. Scheduled cleanup locks the full batch's order and variant sets in order before releasing any hold. Failed or timed-out transactions roll back. Retry transient failures with the same checkout, sale or transfer request ID.
 
-## Code included in this draft
+The staged migration checks the expected installed RPC signatures and source anchors before replacing them. The live refund hardening applied as migration `20261024142005` is included in the repository for staging parity. Compare deployed migration history by both version and content before applying anything to production. The repository and the live project use different timestamps for several historical migrations.
 
-- Staged SQL migration `20261111090000_shared_branch_stock_staged.sql` defines the disabled mode flag, derived legacy stock mirror, physical shop reservation/release bridge, verified payment settlement, and protection against separate online-pool allocations when shared mode is enabled.
-- Manual activation script `supabase/operations/activate_shared_branch_stock_MANUAL.sql`, **not** an automatic migration, refuses to run while online stock, pending checkout holds, or transfers remain unreconciled.
-- `admin/owner.js` detects the mode through a read-only authenticated RPC. When active, owner **Show Online** publishes existing stock without transfer, **Hide Online** leaves physical stock unchanged, and quantity-entry/Online Store allocation actions disappear. Prior mode is preserved while the flag is off.
-- Disposable PostgreSQL and browser tests cover payment verification, checkout hold/release, physical POS deduction, and shared-stock publication.
+## Before considering a production release
 
-## Mandatory checks before production activation
+1. Deploy the draft to a dedicated Pages preview, Worker and Supabase staging project with synthetic data and Razorpay Test Mode credentials. Run authenticated browser and integration jobs, a test-mode payment from the browser through capture and the webhook, an expiry drill, a refund, and a rollback drill. Verify the Worker preview build and provider credentials. Point preview builds at their own database and keys.
+2. Confirm the operations team can identify the shop and quantity for each paid order from the reservation ledger, including split orders. Verify the handoff to the shops against staging orders. The existing Orders screen does not display per-shop picks.
+3. Record a fresh aggregate reconciliation snapshot using [the read-only checks](../supabase/operations/check_shared_branch_stock_READ_ONLY.sql) once the staged schema exists. Compare branch counts, reserved pieces, in-transit quantities, paid orders, refunds and the storefront mirror. Keep customer data and provider credentials out of evidence files.
+4. Keep the flag off while the live Online Store has any stock, any online allocation is in transit, any reservation is open, or any refund requires review. Have operations verify transfer paperwork and physical counts, then resolve exceptions through supported inventory and payment workflows in a separately scheduled reconciliation. Do not treat a transfer as on-hand at its destination until received. For the November 11 snapshot, the project-wide count was 92 physical and 3 Online Store units. Two transfers of RGA00001 from Verkilambi to Online Store carried 1 and 2 units. The SKU had 3 physical units on hand at Verkilambi.
+5. For an approved cutover, pause new online checkout creation while leaving signed payment callbacks and expiry available. Drain open orders, verify processed refunds, and schedule a short POS and inventory write pause. Capture a schema and ledger backup, run the read-only checks, then execute the [guarded activation](../supabase/operations/activate_shared_branch_stock_MANUAL.sql) in the maintenance window. A lock conflict or failed check aborts the transaction. Compare the pre/post physical balances and ledger, confirm zero stock-mirror and reservation mismatches, and verify storefront visibility and availability before reopening checkout.
+6. Monitor checkout errors, PostgreSQL deadlocks, order and refund state, stale reservations and mirror discrepancies. The read-only diagnostic reports aggregate counts. If counts drift or payments become ambiguous, pause new checkout creation and keep callbacks and expiry available while investigating.
 
-1. Finish isolated SQL, browser and role-permission checks. Run the real checkout, expiry, captured-payment, duplicate webhook, manual-QR/UPI verification, and refund/cancellation regression paths against disposable data.
-2. **Concurrency/locking review is a known open risk.** Checkout currently obtains the variant lock before its branch reservation, while POS and some inventory RPCs lock a branch balance first. Concurrent operations can deadlock even if they cannot oversell. Establish one lock order or bounded retries for all POS, adjustment, transfer, checkout, expiry and paid-settlement paths, and verify with concurrent database sessions.
-3. Reconcile existing stock, reserved online checkout rows, manual UPI orders, paid/unpaid orders, and any in-flight transfers. Never run manual activation if the guard rejects the cutover.
-4. Deploy all matching frontend and server tests before enabling the DB mode. Test signed-in staff, admin and anonymous storefront visibility on a separate hosted staging environment.
-5. Verify the first no-money, synthetic transaction and then a controlled authorized production transaction. Monitor ledger totals and failed payments. Do not alter actual stock merely as a test.
-6. Implement and test a **reservation-aware rollback**. Switching the flag back while checkouts hold branch stock is unsafe and must not happen without reconciling orders and reservations.
+## Rollback
 
-## Release/compatibility notes
-
-- The existing `products`, `product_variants`, `erp_online_listings` and `erp_stock_balances` records remain authoritative. No duplicate product rows or physical stock copies are created.
-- `product_variants.stock_quantity` is a compatibility mirror for the legacy storefront and checkout, not an independent store stock to enter.
-- Existing stock in an inactive location is excluded from public availability.
-- The historical `erp_online_listings.published` permission remains owner-only.
-- Migrating active real-money checkout without all gates is **not approved** by this draft.
-
-This document is part of a draft PR; it does not indicate an activated production feature.
+Pause new checkout creation. Drain shared reservations through verified settlement, expiry or authorized cancellation. Resolve refund review and compare the per-order reservation ledger to physical balances. Then pause POS and inventory writes briefly and run the [guarded rollback](../supabase/operations/deactivate_shared_branch_stock_MANUAL.sql). It refuses any unresolved holds, refund reviews or Online Store transfers. It restores the empty legacy Online Store mirror, retaining all physical stock, completed orders, payments and ledger history. Keep online sales paused after rollback until the intended inventory mode is re-established through an approved cutover. Direct changes to the flag would skip the reservation and mirror checks.

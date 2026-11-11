@@ -2,13 +2,15 @@ name: Staged ERP SQL (disposable PostgreSQL)
 on:
   pull_request:
     paths:
-      - 'supabase/migrations/2026102521*'
+      - 'supabase/migrations/20261021*'
+      - 'supabase/migrations/202610252*'
+      - 'supabase/migrations/20261103*'
       - 'tests/sql/erp-*'
       - 'tests/sql/online-publication-rls.sql'
       - 'supabase/migrations/20261108*'
       - 'supabase/migrations/20261110*'
       - 'supabase/migrations/20261111*'
-      - 'supabase/operations/activate_shared_branch_stock_MANUAL.sql'
+      - 'supabase/operations/*shared_branch_stock*.sql'
       - 'tests/sql/shared-shop-stock-*'
       - 'tests/sql/owner-quick-publish.sql'
       - '.github/workflows/erp-sql-ci.yml'
@@ -71,13 +73,22 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261110213000_owner_quick_publish.sql
       - name: Check six-photo limit, publication validation and trigger permissions
         run: psql -v ON_ERROR_STOP=1 -f tests/sql/owner-quick-publish.sql
+      - name: Install real checkout and payment RPCs in the isolated ERP fixture
+        run: psql -v ON_ERROR_STOP=1 -f tests/sql/shared-shop-stock-payment-prep.sql
       - name: Install shared-shop bridge while feature flag remains OFF
-        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261111090000_shared_branch_stock_staged.sql
+        run: |
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261111090000_shared_branch_stock_staged.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261111100000_shared_stock_payment_lifecycle.sql
       - name: Prepare synthetic physical inventory and published listing
         run: psql -v ON_ERROR_STOP=1 -f tests/sql/shared-shop-stock-prep.sql
       - name: Activate shared shop inventory ONLY in disposable PostgreSQL
         run: psql -v ON_ERROR_STOP=1 -f supabase/operations/activate_shared_branch_stock_MANUAL.sql
       - name: Verify shared POS, checkout, expiration, payment and oversell protection
         run: psql -v ON_ERROR_STOP=1 -f tests/sql/shared-shop-stock-behavior.sql
+      - name: Verify guarded cutover and rollback on disposable stock
+        run: |
+          createdb rainbow_erp_cutover
+          pg_dump --no-owner --dbname=rainbow_erp_test | psql -v ON_ERROR_STOP=1 --dbname=rainbow_erp_cutover
+          PGDATABASE=rainbow_erp_cutover bash tests/sql/shared-shop-stock-cutover.sh
       - name: Race online checkout against physical POS without duplicate stock
         run: bash tests/sql/shared-shop-stock-concurrency.sh

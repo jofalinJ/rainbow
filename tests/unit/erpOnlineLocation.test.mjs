@@ -19,7 +19,7 @@ class Element extends EventTarget {
   replaceChildren(...children){this.children=children;this.value=children[0]?.value||"";}
 }
 
-async function loadInventoryLocationFixture(){
+async function loadInventoryLocationFixture({sharedStock=false}={}){
   const locations=[
     {id:"shop-a",name:"Shop A",kind:"branch",active:true},
     {id:"shop-b",name:"Shop B",kind:"branch",active:true},
@@ -44,6 +44,7 @@ async function loadInventoryLocationFixture(){
       return query;
     },
     rpc:vi.fn(async(name,params)=>{
+      if(name==="erp_shared_inventory_mode")return {data:{shared_stock:sharedStock},error:null};
       if(name==="erp_receive_transfer"&&params.p_transfer===transfer.id)transfer.status="received";
       return {data:{},error:null};
     })
@@ -110,4 +111,11 @@ it("still keeps both selectors aligned when switching between physical shops",as
   expect(workingLocation.value).toBe("shop-a");
   expect(inventoryLoads).toEqual(["shop-b","shop-a"]);
   await vi.waitFor(()=>expect(transferLocations).toContain("shop-a"));
+});
+
+it("shared stock only offers physical locations for adjustments and transfers",async()=>{
+  const {workingLocation,get}=await loadInventoryLocationFixture({sharedStock:true});
+  expect(workingLocation.options.map(option=>option.value)).toEqual(["","shop-a","shop-b"]);
+  expect(get("erpDestination").options.map(option=>option.value)).toEqual(["","shop-a","shop-b"]);
+  expect(get("erpOnlineStockLabel").textContent).toBe("Available across active shops");
 });

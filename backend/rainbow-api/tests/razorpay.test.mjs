@@ -244,7 +244,7 @@ test("captured payment requires matching order, INR amount and verified HMAC",as
       state:"ready",gateway_order_id:rOrder,amount_paise:50050
     },
     ["/v1/payments/"+rPayment]:{
-      id:rPayment,order_id:rOrder,amount:50050,currency:"INR",status:"captured"
+      id:rPayment,order_id:rOrder,amount:50050,currency:"INR",status:"captured",captured:true,amount_refunded:0,refund_status:null
     },
     "/rest/v1/rpc/complete_razorpay_checkout":{paid:true,state:"paid",order_number:"RG-TEST123"},
     "/rest/v1/rpc/get_paid_razorpay_receipt":{
@@ -282,7 +282,7 @@ test("valid payment.captured webhook rechecks provider and settles",async()=>{
     payment:{entity:{id:rPayment,order_id:rOrder}}}});
   globalThis.fetch=mockFetch({
     ["/v1/payments/"+rPayment]:{
-      id:rPayment,order_id:rOrder,amount:2500,currency:"INR",status:"captured"
+      id:rPayment,order_id:rOrder,amount:2500,currency:"INR",status:"captured",captured:true,amount_refunded:0,refund_status:null
     },
     "/rest/v1/rpc/complete_razorpay_checkout":options=>{
       const body=JSON.parse(options.body);
@@ -354,7 +354,7 @@ test("webhook can reconcile captured live payment while checkout is suspended",a
     payment:{entity:{id:rPayment,order_id:rOrder}}}});
   globalThis.fetch=mockFetch({
     ["/v1/payments/"+rPayment]:{
-      id:rPayment,order_id:rOrder,amount:2500,currency:"INR",status:"captured"
+      id:rPayment,order_id:rOrder,amount:2500,currency:"INR",status:"captured",captured:true,amount_refunded:0,refund_status:null
     },
     "/rest/v1/rpc/complete_razorpay_checkout":{paid:true,state:"paid"}
   },calls);

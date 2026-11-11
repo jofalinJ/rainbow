@@ -10,9 +10,11 @@ cat > "$dir/checkout.sql" <<'SQL'
 begin;
 select set_config('request.jwt.claim.role','service_role',true);
 select pg_sleep(0.5);
-update public.product_variants
-set stock_quantity=stock_quantity-5
-where id='dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+set local role service_role;
+select public.create_razorpay_checkout(
+ '76000000-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+ '[{"variant_id":"dddddddd-dddd-4ddd-8ddd-dddddddddddd","quantity":5}]',
+ '{"name":"Synthetic Checkout Race","whatsapp_number":"9000000001","address":"Synthetic QA Lane","state":"Tamil Nadu","pin_code":"629001"}');
 commit;
 SQL
 
