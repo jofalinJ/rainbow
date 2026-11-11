@@ -1,4 +1,5 @@
 import {INDIAN_STATES,deliveryFeeForState,gstComponentsForState} from "./order-pricing.mjs";
+import {attachPinAutofill} from "./pin-lookup.mjs";
 import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=20261103-online-only";
 (() => {
   const CONFIG=window.RAINBOW_SUPABASE_CONFIG||{};
@@ -309,6 +310,13 @@ import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=
   const stateField=$("state");
   for(const state of INDIAN_STATES)stateField.add(new Option(state,state));
   stateField.addEventListener("change",()=>{totals();updatePlaceOrderState();});
+  // Postal lookups suggest the district/town and state; customers can correct
+  // them. A state change immediately re-runs shipping and CGST/SGST/IGST.
+  attachPinAutofill({
+    pinInput:$("pin"),cityInput:$("city"),stateInput:stateField,
+    statusElement:$("pinLookupStatus"),
+    localitySelect:$("pinLocality"),localityWrap:$("pinLocalityWrap")
+  });
   read();
   render();
   verifyCart();
