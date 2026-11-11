@@ -777,7 +777,13 @@ async function init(){
   throw error;
  }
  await refresh();
- $("startup").hidden=true;$("ownerApp").hidden=false;
+ // Both the catalogue and the shared staff sidebar must be authenticated and
+ // ready before the loading cover is removed. Otherwise users see a partial
+ // sidebar and a stray authentication message during cross-page navigation.
+ const sidebarReady=window.rainbowSidebarReady;
+ if(!sidebarReady)throw new Error("Shop navigation could not start. Refresh the page.");
+ const sidebarProfile=await sidebarReady;
+ if(!sidebarProfile)throw new Error("Shop navigation could not verify staff access.");
  applyRoleUI();
  document.querySelectorAll("[data-screen]").forEach(button=>button.addEventListener("click",()=>{if(button.dataset.screen==="editor"&&state.screen!=="editor")resetEditor($("ownerCategory").value);show(button.dataset.screen);}));
  $("ownerSearch").oninput=()=>{state.limit=24;renderProducts();};
@@ -817,6 +823,10 @@ async function init(){
  resetEditor();
  const requested=new URLSearchParams(location.search).get("screen");
  show(["categories","products","editor","dashboard"].includes(requested)?requested:"categories");
+ // Reveal the entire ready page in one paint, after binding all controls.
+ $("ownerApp").hidden=false;
+ document.documentElement.classList.add("owner-ready");
+ $("startup").hidden=true;
 }
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",()=>init().catch(fatal),{once:true});
 else init().catch(fatal);
