@@ -6,6 +6,7 @@ const BUCKET = "product-images";
 const MAX_IMAGES = 6;
 const MAX_BYTES = 5 * 1024 * 1024;
 const money = amount => new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR",maximumFractionDigits:2}).format(Number(amount)||0);
+const onlineMoney = amount => new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR",minimumFractionDigits:0,maximumFractionDigits:0}).format(Number(amount)||0);
 const id = () => crypto.randomUUID();
 const state = {client:null,user:null,role:null,categories:[],locations:[],online:null,products:[],balances:[],screen:"dashboard",editorId:null,gallery:[],deleted:[],receivedNew:false,busy:false,limit:24,categoryLimit:48,visibilityProductId:null,visibilityMode:"show",stockCheckSeq:0,shopBalances:new Map(),selected:new Set()};
 const safeURL = value => {try{const u=new URL(value);return u.protocol==="https:"?u.href:"";}catch{return"";}};
@@ -176,7 +177,7 @@ function renderProducts(){
   if(src){const img=document.createElement("img");img.className="product-cover";img.src=src;img.alt="";img.loading="lazy";cover.append(img);}else cover.textContent="No photo";
   const info=document.createElement("div");info.className="product-info";
   const name=document.createElement("strong");name.textContent=p.product_name;
-  const details=document.createElement("small");details.textContent=p.product_code+" · "+(categoryById(p.category_id)?.name||"Category")+" · Shop "+money(p.selling_price)+" · Online "+money(onlinePriceOf(p))+" (+2.5%)";
+  const details=document.createElement("small");details.textContent=p.product_code+" · "+(categoryById(p.category_id)?.name||"Category")+" · Shop "+money(p.selling_price)+" · Online "+onlineMoney(onlinePriceOf(p))+" (+2.5%)";
   const status=document.createElement("span");status.className="status "+badge(p)[1];status.textContent=badge(p)[0];
   const stock=document.createElement("small");stock.textContent=onlineStock(p)+" available online"+(onlineHeld(p)?" · "+onlineHeld(p)+" reserved":"");
   info.append(name,details,status,stock);
@@ -662,7 +663,7 @@ function renderCategoryCatalogue(){
   else image.textContent="No photo";
   const info=document.createElement("div");info.className="category-product-info";
   const title=document.createElement("strong");title.textContent=product.product_name;
-  const meta=document.createElement("small");meta.textContent=product.product_code+" · Shop "+money(product.selling_price)+" · Online "+money(onlinePriceOf(product))+" (+2.5%) · Stock: "+onlineStock(product)+" pcs";
+  const meta=document.createElement("small");meta.textContent=product.product_code+" · Shop "+money(product.selling_price)+" · Online "+onlineMoney(onlinePriceOf(product))+" (+2.5%) · Stock: "+onlineStock(product)+" pcs";
   const status=document.createElement("span");status.className="status "+(visibleOnStorefront(product)?"published":product.archived_at?"archived":"draft");
   status.textContent=product.archived_at?"Archived":visibleOnStorefront(product)?"Visible online":published(product)?"Published · needs online stock":"Not online";
   const help=document.createElement("small");help.className="category-product-help";
