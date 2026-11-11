@@ -11,6 +11,17 @@ BEGIN
 
   -- New orders use full online list price; GST and shipping remain unchanged.
   PERFORM set_config('request.jwt.claim.role','service_role',true);
+  -- Old cached storefronts must not be charged with prices they did not display.
+  v_bad:=false;
+  BEGIN
+    PERFORM public.create_razorpay_checkout(
+      '93333333-3333-4333-8333-333333333333'::uuid,
+      '[{"variant_id":"bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb","quantity":1}]'::jsonb,
+      '{"name":"Stale checkout","whatsapp_number":"9999999999","state":"Tamil Nadu","address":"Fixture"}'::jsonb
+    );
+  EXCEPTION WHEN others THEN v_bad:=true;
+  END;
+  IF NOT v_bad THEN RAISE EXCEPTION 'Stale checkout without current pricing version was accepted'; END IF;
   SELECT public.create_razorpay_checkout(
     '91111111-1111-4111-8111-111111111111'::uuid,
     '[{"variant_id":"bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb","quantity":1}]'::jsonb,
