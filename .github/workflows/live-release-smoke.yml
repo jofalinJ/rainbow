@@ -30,8 +30,10 @@ jobs:
                catalogue=$(curl --fail --silent --show-error --max-time 12 "$site/shop-catalogue.js") &&
                detail=$(curl --fail --silent --show-error --max-time 12 "$site/product-page.js"); then
               if grep -Fq 'id="igstLine"' <<< "$checkout" &&
-                 grep -Fq 'order.js?v=20261111-online-price' <<< "$checkout" &&
+                 grep -Fq 'order.js?v=20261111-pin-autofill' <<< "$checkout" &&
+                 grep -Fq 'id="pinLookupStatus"' <<< "$checkout" &&
                  grep -Fq 'const onlinePrice=Number(listing?.online_price??product.selling_price);' <<< "$pricing" &&
+                 grep -Fq 'attachPinAutofill({' <<< "$pricing" &&
                  grep -Fq 'online==null?product.selling_price:online' <<< "$catalogue" &&
                  grep -Fq 'listing?.online_price??p.selling_price' <<< "$detail"; then
                 echo "Live checkout and 2.5% rounded online-pricing storefront assets verified."
