@@ -6,7 +6,7 @@ describe("online publication is required for public product discovery",()=>{
   it("filters the paged catalogue by published ERP listing",()=>{
     const script=read("shop-catalogue.js");
     expect(script).toContain("erp_online_listings!inner(published,online_price)");
-    expect(script).toContain('.gt("erp_online_listings.online_price",0)');
+    expect(script).toContain('online==null?product.selling_price:online');
     expect(script).toContain('.eq("erp_online_listings.published",true)');
     expect(script).toContain('.gt("product_variants.stock_quantity",0)');
   });
