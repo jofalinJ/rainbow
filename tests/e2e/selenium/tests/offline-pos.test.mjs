@@ -48,8 +48,13 @@ test("offline staff POS loads from service worker cache and persists encrypted p
   driver=await new Builder().forBrowser("chrome").setChromeOptions(options).build();
   await driver.get(fixture.base+"/admin/offline-pos.html");
   const setup=await driver.executeAsyncScript(async done=>{
+   let stage="starting",finished=false;
+   const finish=value=>{if(finished)return;finished=true;clearTimeout(guard);done(value);};
+   const guard=setTimeout(()=>finish({error:"Offline fixture setup timeout",stage}),12000);
    try{
+    stage="import";
     const {OfflineVault}=await import("/admin/offline-pos-core.mjs");
+    stage="encryption";
     await OfflineVault.create("test-device-passphrase-long",{
      userId:"dddddddd-dddd-4ddd-8ddd-dddddddddddd",
      locationId:"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
@@ -60,11 +65,12 @@ test("offline staff POS loads from service worker cache and persists encrypted p
       product_variants:[{id:"ffffffff-ffff-4fff-8fff-ffffffffffff",
        active:true,stock_quantity:3,barcode:"RGC-QR-001",color:"0",size:"0"}]}]
     });
-    const registration=await navigator.serviceWorker.register("/admin/service-worker.js",{scope:"/admin/"});
+    stage="register worker";
+    await navigator.serviceWorker.register("/admin/service-worker.js",{scope:"/admin/"});
+    stage="worker ready";
     await navigator.serviceWorker.ready;
-    await registration.update();
-    done({installed:true});
-   }catch(error){done({error:error.message});}
+    finish({installed:true});
+   }catch(error){finish({error:stage+": "+error.message});}
   });
   assert.equal(setup.installed,true,setup.error);
   await driver.navigate().refresh();
