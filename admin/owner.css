@@ -146,3 +146,14 @@ button[hidden],.optional-details[hidden]{display:none!important}
 .online-visibility-dialog .dialog-actions button:disabled{opacity:.5;cursor:not-allowed}
 .category-product-actions button{min-height:44px}
 .category-product-info strong{max-width:100%}
+
+/* Online Products shares the sidebar with all staff pages. */
+#ownerApp{width:100%;min-width:0}
+#ownerMain{margin-left:230px;width:calc(100% - 230px);max-width:1500px;padding:38px 48px}
+.owner-page-tabs{display:flex;gap:8px;flex-wrap:wrap;padding:0 0 16px;margin:0 0 17px;border-bottom:1px solid var(--line)}
+.owner-page-tabs button{width:auto;min-height:44px;border:1px solid #e2cfc2;background:#fff;color:#5c403d;padding:9px 14px}
+.owner-page-tabs button.active{background:#8b0000;border-color:#8b0000;color:#fff}
+.owner-page-tabs button .count{margin-left:4px;font-size:11px}
+#ownerMain .screen{min-width:0}
+@media(max-width:900px){#ownerMain{margin-left:190px;width:calc(100% - 190px);padding:24px 18px}}
+@media(max-width:560px){#ownerMain{margin-left:148px;width:calc(100% - 148px);padding:18px 10px}.owner-page-tabs{gap:6px}.owner-page-tabs button{font-size:12px;padding:8px 10px}}
