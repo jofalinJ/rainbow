@@ -20,6 +20,7 @@
     "test:coverage": "vitest run tests/unit --coverage",
     "test:watch": "vitest",
     "lint": "eslint .",
+    "audit:assets": "node scripts/audit-public-assets.mjs",
     "build": "node scripts/verify-static.mjs",
     "build:pages": "node scripts/verify-static.mjs && node scripts/build-cloudflare.mjs",
     "security": "npm audit --audit-level=high"
