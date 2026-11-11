@@ -20,7 +20,7 @@ Only the **admin/owner** can use **Show Online**, **Hide Online**, or **＋ Add 
 
 ## Automatic online price (+2.5%) — after pricing release
 
-The Price field in Quick Add and Advanced Products is always the **physical-shop selling price**. When the owner chooses **Show Online**, the website price is automatically calculated as **shop price × 1.025**, rounded to two decimal places. For example, ₹1,000 at the shop is displayed as ₹1,025 online. No separate price entry is needed.
+The Price field in Quick Add and Advanced Products is always the **physical-shop selling price**. When the owner chooses **Show Online**, the website price is automatically calculated as **shop price × 1.025**, rounded to the **nearest whole rupee** (50 paise or more rounds up). For example, ₹1,000 at the shop is displayed as ₹1,025 online; ₹100 becomes ₹103 online because the calculated ₹102.50 rounds up. No separate price entry is needed.
 
 The website listing, category cards, product details, cart, server-confirmed Razorpay amount, and future invoice unit price use the same marked-up online price. Existing discounts, GST and delivery are calculated afterward by the normal checkout rules. Physical POS billing and previously placed orders keep their original prices. **Hide Online → Show Online** does not apply the markup twice; editing the shop price updates the online price automatically.
 
