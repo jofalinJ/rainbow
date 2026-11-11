@@ -170,6 +170,10 @@ begin
  ) into v_valid;
  if not v_valid then raise exception 'Online payment was not independently verified'; end if;
  if app_private.erp_shared_branch_stock() then
+  -- Match checkout/POS lock order: variant rows before physical balances.
+  perform 1 from public.product_variants
+  where id in (select variant_id from public.order_items where order_id=new.id)
+  order by id for update;
   for item in
    select variant_id,sum(quantity)::integer as quantity from public.order_items
    where order_id=new.id group by variant_id order by variant_id
