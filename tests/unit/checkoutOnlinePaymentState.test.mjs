@@ -152,6 +152,16 @@ describe("online-only checkout readiness and submission",()=>{
     expect(ui.context.sb.rpc).not.toHaveBeenCalled();
   });
 
+  it("passes WhatsApp invoice consent only when the customer checks the optional box",async()=>{
+    const send=vi.fn(async()=>({status:"dismissed"}));
+    const ui=checkout({razorpayReady:true,beginRazorpayPayment:send});
+    await ui.context.submit();
+    expect(send.mock.calls[0][0].customer.whatsapp_opt_in).toBe(false);
+    ui.fields.whatsappReceiptConsent.checked=true;
+    await ui.context.submit();
+    expect(send.mock.calls[1][0].customer.whatsapp_opt_in).toBe(true);
+  });
+
   it("keeps an authorized payment pending with its order number and without exposing an invoice",async()=>{
     const ui=checkout({razorpayReady:true,beginRazorpayPayment:vi.fn(async()=>({status:"pending",orderNumber:"RG-123"}))});
     await ui.context.submit();
