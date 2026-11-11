@@ -33,6 +33,41 @@ begin
  then raise exception 'Existing branch reservations must be reconciled'; end if;
 end $$;
 
+-- Keep every physical-stock mutation in the SAME lock order as online
+-- checkout: variant rows first, physical balance rows second. This intentionally
+-- fails rather than silently patching a newer/unrecognized RPC version.
+do $
+declare v_name text; v_sig text; v_anchor text; v_lock text; v_source text;
+begin
+ for v_name,v_sig,v_anchor,v_lock in
+  select * from (values
+   ('adjust','public.erp_adjust_stock(uuid,uuid,integer,text,uuid)',
+    ' insert into public.erp_stock_balances(location_id,variant_id)',
+    ' perform 1 from public.product_variants where id=p_variant for update;'),
+   ('dispatch','public.erp_dispatch_transfer(uuid,uuid,uuid,integer,text,uuid)',
+    ' select on_hand into v_before from public.erp_stock_balances',
+    ' perform 1 from public.product_variants where id=p_variant for update;'),
+   ('receive_transfer','public.erp_receive_transfer(uuid)',
+    ' insert into public.erp_stock_balances(location_id,variant_id)',
+    ' perform 1 from public.product_variants where id=v.variant_id for update;'),
+   ('receive_purchase','public.erp_receive_purchase(uuid,integer,uuid)',
+    ' insert into public.erp_stock_balances(location_id,variant_id)',
+    ' perform 1 from public.product_variants where id=v_line.variant_id for update;'),
+   ('pos','public.erp_create_local_sale(jsonb,jsonb,text,uuid,uuid)',
+    '  for v_item in select value from jsonb_array_elements(p_items) order by value->>''variant_id'' loop',
+    '  perform 1 from public.product_variants where id in ('||
+     'select (value->>''variant_id'')::uuid from jsonb_array_elements(p_items)'||
+     ') order by id for update;')
+  ) as patches(name,signature,anchor,lock_stmt)
+ loop
+  select pg_get_functiondef(to_regprocedure(v_sig)) into v_source;
+  if v_source is null or strpos(v_source,v_anchor)=0
+  then raise exception 'Refusing shared stock: unrecognized % RPC version',v_name; end if;
+  v_source:=replace(v_source,v_anchor,v_lock||E'\n'||v_anchor);
+  execute v_source;
+ end loop;
+end $;
+
 update app_private.erp_activation_state
  set shared_branch_stock=true where singleton and enabled;
 
