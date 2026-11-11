@@ -3,26 +3,26 @@ import {readFileSync} from "node:fs";
 const read = path => readFileSync(new URL("../../"+path,import.meta.url),"utf8");
 
 describe("owner quick publishing integrates with the existing shop",()=>{
- it("uses its own mobile menu and leaves storefront navigation out of the admin shell",()=>{
+ it("uses the shared staff sidebar and keeps existing product tools in one layout",()=>{
   const html=read("admin/owner.html");
   expect(html).toContain('name="robots" content="noindex,nofollow,noarchive"');
-  for(const label of ["Dashboard","Products","Add Product","Categories","Visit Store","Logout"])
+  for(const label of ["Online Push","Saved Products","Add Product","Overview"])
    expect(html).toContain(label);
-  expect(html).toContain('id="menuToggle"');
+  expect(html).toContain('<aside aria-label="Admin sidebar"></aside>');
+  expect(html).not.toContain('id="ownerMenu"');
   expect(html).toContain('id="saveDraft"');
   expect(html).toContain('id="publishNow"');
   expect(html).toContain('id="productPhotos"');
   expect(html).toContain('id="ownerStockConfirm"');
   expect(html).toContain('id="ownerMoreDetails"');
-  expect(html).toContain('data-screen="editor" class="active"');
+  expect(html).toContain('data-screen="categories" class="active"');
   expect(html).toContain('Save product for approval');
   expect(html).toContain('Just three fields');
   expect(html.indexOf('id="ownerName"')).toBeLessThan(html.indexOf('id="ownerMoreDetails"'));
   expect(html).not.toMatch(/salesforce/i);
   expect(html).toContain('id="roleAccessNote"');
   expect(html).toContain('id="ownerBulkBar"');
-  expect(html).toContain('href="billing.html"');
-  expect(html).toContain('href="inventory.html"');
+  expect(html).toContain('app.js?v=20261111-online-products');
   expect(html).not.toContain("storefront-header");
   expect(html).not.toContain("storefront-footer");
  });
@@ -38,7 +38,7 @@ describe("owner quick publishing integrates with the existing shop",()=>{
   expect(js).not.toContain("SUPABASE_SERVICE_ROLE_KEY");
   expect(js).not.toContain("ADMIN_SESSION_SECRET");
   expect(js).not.toMatch(/salesforce/i);
-  expect(js).toContain('resetEditor();show("editor");');
+  expect(js).toContain('show(["categories","products","editor","dashboard"].includes(requested)?requested:"categories")');
   expect(js).toContain('toast("Product saved under "+data.cat.name+".",product.product_code,true)');
   expect(js).toContain('$("ownerMoreDetails").open=false');
   expect(js).toContain('if(!name){fieldError("Name"');
@@ -66,7 +66,7 @@ describe("owner quick publishing integrates with the existing shop",()=>{
      "onlineVisibilityDialog","onlineVisibilitySource","onlineVisibilityVariant","onlineVisibilityQty"]){
     expect(html).toContain('id="'+id+'"');
   }
-  expect(html).toContain("Categories &amp; Online");
+  expect(html).toContain("ONLINE PRODUCTS");
   expect(js).toContain("function renderCategoryCatalogue()");
   expect(js).toContain('button.textContent=online?"Hide Online":"Show Online"');
   expect(js).toContain('if(canPublish()){');
@@ -129,7 +129,7 @@ describe("owner quick publishing integrates with the existing shop",()=>{
  });
  it("shows the quick-product entry point in existing staff navigation",()=>{
   const html=read("admin/products.html");
-  expect(html).toContain('href="owner.html"');
+  expect(html).toContain('href="owner.html?screen=categories"');
   const js=read("admin/owner.js");
   expect(js).toContain('document.querySelectorAll("[data-screen=\'editor\']")');
   expect(js).toContain('document.querySelectorAll("[data-admin-only]")');
@@ -139,6 +139,6 @@ describe("owner quick publishing integrates with the existing shop",()=>{
   const login=read("admin/login.html");
   expect(login).toContain('get("next")==="owner.html"');
   const admin=read("admin/app.js");
-  expect(admin).toContain('{label:"Quick Products",href:"owner.html",roles:["admin","inventory_staff","cashier"]}');
+  expect(admin).toContain('{label:"Online Products",href:"owner.html?screen=categories",roles:["admin","inventory_staff","cashier"]}');
  });
 });
