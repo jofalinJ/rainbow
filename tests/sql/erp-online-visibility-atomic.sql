@@ -27,6 +27,29 @@ begin
  end if;
 end $$;
 
+-- Insufficient branch stock must roll back the publication attempt too.
+do $
+begin
+ begin
+  perform public.erp_allocate_online(
+   'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+   (select id from public.erp_locations where code='BR-ONE'),
+   'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+   7,true,'a0000000-0000-4000-8000-000000000119');
+  raise exception 'Insufficient stock incorrectly allocated';
+ exception when others then
+  if sqlerrm='Insufficient stock incorrectly allocated' then raise; end if;
+ end;
+ if exists (select 1 from public.erp_online_listings
+  where product_id='cccccccc-cccc-4ccc-8ccc-cccccccccccc' and published) then
+  raise exception 'Failed allocation did not roll back publication';
+ end if;
+ if (select sum(on_hand) from public.erp_stock_balances
+  where variant_id='dddddddd-dddd-4ddd-8ddd-dddddddddddd')<>6 then
+  raise exception 'Failed allocation changed total stock';
+ end if;
+end $;
+
 -- Publishing a valid draft and moving 2 units succeeds as ONE transaction.
 select public.erp_allocate_online(
  'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
