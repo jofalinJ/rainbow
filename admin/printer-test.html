@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Printer Test | Rainbow Gold Covering</title>
+<style>
+*{box-sizing:border-box}body{margin:0;padding:22px;background:#faf7f1;color:#251b18;font:14px/1.55 system-ui,-apple-system,sans-serif}
+main{width:min(450px,100%);margin:0 auto}.actions{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 18px}
+button,a{border:1px solid #a87a70;border-radius:9px;background:#8b0000;color:#fff;padding:10px 15px;text-decoration:none;font:700 14px system-ui;cursor:pointer}
+a{background:#fff;color:#8b0000}.ticket{width:min(80mm,100%);margin:0 auto;background:#fff;border:1px dashed #cbb5a5;padding:7mm;text-align:center}
+h1{font:bold 18px/1.25 Georgia,serif;margin:0 0 4mm}.ticket p{margin:2mm 0}.line{border-top:1px dashed #666;margin:5mm 0}.guide{margin:20px auto;max-width:450px;color:#554b45}
+@page{size:80mm auto;margin:3mm}
+@media print{body{padding:0;background:#fff}main{margin:0;width:80mm}.actions,.guide{display:none!important}.ticket{width:100%;margin:0;padding:4mm;border:0}}
+</style>
+</head>
+<body>
+<main>
+<div class="actions"><button type="button" id="printTest">Print test ticket</button><a href="billing.html">Back to Billing</a></div>
+<div class="ticket">
+<h1>RAINBOW GOLD COVERING</h1>
+<p>PRINTER TEST — NOT AN INVOICE</p>
+<div class="line"></div>
+<p>Receipt printer connection check</p>
+<p id="testDate"></p>
+<div class="line"></div>
+<p>If this prints clearly, your printer is ready for bills.</p>
+</div>
+<p class="guide">Choose your receipt printer in the browser print dialog. For an 80 mm thermal printer, select 80 mm receipt paper, margins None or Minimum, scale 100%, and disable headers/footers. For an Android tablet, pair or install the printer in Android settings first. Printer availability depends on the device and browser.</p>
+</main>
+<script>
+document.getElementById("testDate").textContent=new Date().toLocaleString("en-IN");
+document.getElementById("printTest").addEventListener("click",()=>window.print());
+</script>
+</body>
+</html>
