@@ -196,7 +196,7 @@ function renderProducts(){
    toast("Price and online stock saved.");await refresh();
   });
   if(canEdit()&&(canPublish()||!published(p))&&!p.archived_at)addButton("Edit",()=>edit(p.id));
-  if(canPublish()&&!p.archived_at&&p.active!==false)addButton("Add Online Stock",()=>openOnlineStockDialog(p,"stock"));
+  if(canPublish()&&!p.archived_at&&p.active!==false&&published(p))addButton("Add Online Stock",()=>openOnlineStockDialog(p,"stock"));
   if(canPublish())addButton(visibleOnStorefront(p)?"Hide Online":"Show Online",async()=>{
    if(visibleOnStorefront(p)){await mutate(()=>unpublish(p),"publish");toast("Hidden from online shop.");await refresh();}
    else await prepareShowOnline(p);
@@ -373,7 +373,10 @@ async function transfer(from,to,variant,qty,reason){
  if(qty<=0)return;
  const key=operationKey("transfer",[from,to,variant,qty]);
  const dispatch=await result(state.client.rpc("erp_dispatch_transfer",{p_from:from,p_to:to,p_variant:variant,p_quantity:qty,p_reason:reason,p_request:stableOperationId(key)}));
- if(dispatch.state!=="received")await result(state.client.rpc("erp_receive_transfer",{p_transfer:dispatch.transfer_id}));
+ if(dispatch.state!=="received") {
+  try{await result(state.client.rpc("erp_receive_transfer",{p_transfer:dispatch.transfer_id}));}
+  catch(error){throw new Error("Transfer dispatched but receipt is pending. Open Inventory, select ONLINE, and confirm receipt. "+friendly(error));}
+ }
  clearOperation(key);
 }
 async function setOnlineQuantity(product,target){
@@ -427,7 +430,18 @@ async function publishExisting(product){
 async function prepareShowOnline(product){
  await verifyOwner("publish");validateOnlineProduct(product);
  if(!state.online)throw new Error("Online Store location is not configured.");
- const onlineBalances=await Promise.all(variantsOf(product).map(v=>freshBalance(v.id,state.online.id)));
+ const variants=variantsOf(product);
+ const pending=await result(state.client.from("erp_transfers").select("quantity").eq("to_location",state.online.id)
+  .eq("status","in_transit").in("variant_id",variants.map(v=>v.id)).limit(1000));
+ const pendingQty=(pending||[]).reduce((sum,t)=>sum+Math.max(0,Number(t.quantity)||0),0);
+ if(pendingQty>0){
+  // The original Show Online flow dispatched stock before publishing it. Recover
+  // those transfers without dispatching or counting the same pieces again.
+  await publication(product,true);await refresh();
+  toast(pendingQty+" piece(s) already in transit. In Inventory select ONLINE and confirm their receipt.",product.product_code);
+  return;
+ }
+ const onlineBalances=await Promise.all(variants.map(v=>freshBalance(v.id,state.online.id)));
  if(onlineBalances.some(b=>b.onHand>b.reserved)){
   await publication(product,true);await refresh();
   toast("Product is now visible online.",product.product_code);return;
@@ -439,6 +453,7 @@ async function openOnlineStockDialog(product,mode="stock"){
  if(!product||product.archived_at||product.active===false)throw new Error("Restore or enable this product before moving stock online.");
  if(!variantsOf(product).length)throw new Error("Add an active variant in Advanced Products first.");
  if(mode==="show")validateOnlineProduct(product);
+ if(mode==="stock"&&!published(product))throw new Error("Use Show Online first to publish this product before allocating stock.");
  if(!state.online)throw new Error("Online Store inventory location is not configured.");
  state.visibilityProductId=product.id;state.visibilityMode=mode;
  state.shopBalances=new Map();
@@ -540,14 +555,17 @@ async function confirmOnlineVisibility(){
   throw new Error("That shop has only "+Math.max(0,balance.onHand-balance.reserved)+" available pieces. Check Inventory.");
  let transferred=false;
  try{
+  // The ERP online-balance trigger rejects positive stock for an unpublished
+  // product. Publish before dispatch/receipt; the storefront remains hidden
+  // until the synced online stock quantity becomes positive.
+  if(mode==="show")await publication(product,true);
   await transfer(source,state.online.id,variantId,qty,"Admin transferred recorded shop stock to online store");
   transferred=true;
   const onlineBalance=await freshBalance(variantId,state.online.id);
   if(onlineBalance.onHand<=onlineBalance.reserved)
    throw new Error("The transfer is not yet available online. Check Inventory before trying again.");
-  if(mode==="show")await publication(product,true);
  }catch(error){
-  if(transferred)throw new Error("Stock was transferred online, but the final verification or publication did not finish. Check Inventory before retrying. "+friendly(error));
+  if(transferred)throw new Error("Stock was transferred online, but final verification did not finish. Check Inventory before retrying. "+friendly(error));
   throw error;
  }
  $("onlineVisibilityDialog").close();state.visibilityProductId=null;state.stockCheckSeq++;
@@ -684,7 +702,7 @@ function renderCategoryCatalogue(){
     }else await prepareShowOnline(product);
    });
    actions.append(button);
-   if(!product.archived_at&&product.active!==false){
+   if(!product.archived_at&&product.active!==false&&published(product)){
     const addStock=document.createElement("button");addStock.type="button";addStock.className="secondary";
     addStock.textContent="＋ Add Online Stock";
     addStock.setAttribute("aria-label","Add Online Stock from existing shop stock for "+product.product_name);
