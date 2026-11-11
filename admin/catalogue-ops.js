@@ -2,7 +2,7 @@
 (function(root){
  "use strict";
  const PAGE_SIZE=40,IMPORT_MAX=500,IMAGE_MAX=50;
- const SELECT="id,product_code,product_name,type,gender,display_priority,active,selling_price,category_id,length_cm,description,thickness,gold_amount_g,product_variants(id,color,size,length_cm,stock_quantity,active),product_images(id,public_url,storage_path,is_primary,sort_order)";
+ const SELECT="id,product_code,product_name,type,gender,display_priority,active,selling_price,category_id,length_cm,description,warranty_months,thickness,gold_amount_g,product_variants(id,color,size,length_cm,stock_quantity,active),product_images(id,public_url,storage_path,is_primary,sort_order)";
  const FIELDS=["product_code","category","product_name","type","selling_price","gender","color","size","length_cm","description","thickness","gold_amount_g"];
  const CODE_RE=/^[A-Za-z0-9][A-Za-z0-9/_-]{1,39}$/;
  const number=value=>Number(value);
