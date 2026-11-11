@@ -25,6 +25,20 @@ begin
  update public.erp_online_listings set published=true where product_id=p;
  select online_price into v_price from public.erp_online_listings where product_id=p;
  if v_price<>1025 then raise exception 'Republished online markup compounds'; end if;
+ -- The online product price must be a whole rupee, with ordinary half-up
+ -- rounding. Physical shop prices are allowed to retain their paise.
+ update public.products set selling_price=20.00 where id=p;
+ select online_price into v_price from public.erp_online_listings where product_id=p;
+ if v_price<>21 then raise exception '₹20 with 2.5 percent markup should round ₹20.50 up to ₹21'; end if;
+ update public.products set selling_price=19.99 where id=p;
+ select online_price into v_price from public.erp_online_listings where product_id=p;
+ if v_price<>20 then raise exception '₹19.99 with markup should round down to ₹20'; end if;
+ if (select selling_price from public.products where id=p)<>19.99 then
+  raise exception 'Online rounding unexpectedly changed the shop selling price'; end if;
+ update public.erp_online_listings set published=false where product_id=p;
+ update public.erp_online_listings set published=true where product_id=p;
+ select online_price into v_price from public.erp_online_listings where product_id=p;
+ if v_price<>20 then raise exception 'Republishing changed the whole-rupee markup'; end if;
  if has_function_privilege('anon','public.rainbow_listing_markup_price()','EXECUTE') or
     has_function_privilege('authenticated','public.rainbow_refresh_markup_on_shop_price()','EXECUTE') then
   raise exception 'Price-maintenance trigger exposed to direct clients'; end if;
