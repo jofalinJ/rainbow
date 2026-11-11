@@ -108,5 +108,14 @@ function startDashboardLiveUpdates(){
     const script=document.createElement("script");script.src="pwa.js";document.head.append(script);
   }
 renderSharedSidebar();
-async function bootAdminPage(){const profile=await applyRoleNavigation();if(profile?.role==="admin"&&document.querySelector("#sales")){await loadDashboard();startDashboardLiveUpdates();}}
-if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",bootAdminPage,{once:true});else bootAdminPage();
+async function bootAdminPage(){
+  const profile=await applyRoleNavigation();
+  if(profile?.role==="admin"&&document.querySelector("#sales")){
+    await loadDashboard();startDashboardLiveUpdates();
+  }
+  return profile;
+}
+// Pages with privileged content can wait for the shared navigation to finish
+// verifying staff access before removing their initial loading cover.
+function startAdminPage(){window.rainbowSidebarReady=bootAdminPage();}
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",startAdminPage,{once:true});else startAdminPage();

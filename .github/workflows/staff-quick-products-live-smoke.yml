@@ -32,7 +32,7 @@ jobs:
             if html=$(curl -L --fail --silent --show-error --max-time 12 "${site}/admin/owner.html?release=${GITHUB_SHA}") &&
                script=$(curl -L --fail --silent --show-error --max-time 12 "${site}/admin/owner.js?release=${GITHUB_SHA}") &&
                styling=$(curl -L --fail --silent --show-error --max-time 12 "${site}/admin/owner.css?release=${GITHUB_SHA}") &&
-               nav=$(curl -L --fail --silent --show-error --max-time 12 "${site}/admin/app.js?v=20261111-online-products") &&
+               nav=$(curl -L --fail --silent --show-error --max-time 12 "${site}/admin/app.js?v=20261111-sidebar-ready") &&
                products=$(curl -L --fail --silent --show-error --max-time 12 "${site}/admin/products.html?release=${GITHUB_SHA}") &&
                billing=$(curl -L --fail --silent --show-error --max-time 12 "${site}/admin/billing.html?release=${GITHUB_SHA}") &&
                postcode=$(curl -L --fail --silent --show-error --max-time 12 "${site}/pin-lookup.mjs?release=${GITHUB_SHA}") &&
@@ -48,7 +48,14 @@ jobs:
                  grep -Fq 'id="ownerMoreDetails"' <<< "$html" &&
                  grep -Fq 'id="categoryCatalogueList"' <<< "$html" &&
                  grep -Fq 'id="onlineVisibilityDialog"' <<< "$html" &&
-                 grep -Fq 'owner.js?v=20261111-unified-admin' <<< "$html" &&
+                 grep -Fq 'owner.js?v=20261111-smooth-transition' <<< "$html" &&
+                 grep -Fq 'owner.css?v=20261111-smooth-transition' <<< "$html" &&
+                 grep -Fq 'app.js?v=20261111-sidebar-ready' <<< "$html" &&
+                 grep -Fq 'startup-spinner' <<< "$html" &&
+                 grep -Fq 'const sidebarReady=window.rainbowSidebarReady' <<< "$script" &&
+                 grep -Fq 'return profile;' <<< "$nav" &&
+                 grep -Fq 'window.rainbowSidebarReady=bootAdminPage()' <<< "$nav" &&
+                 grep -Fq 'position:fixed;inset:0;z-index:500' <<< "$styling" &&
                  grep -Fq 'id="onlineVisibilityAvailable"' <<< "$html" &&
                  grep -Fq 'id="onlineVisibilityCurrent"' <<< "$html" &&
                  grep -Fq 'addStock.textContent="＋ Add Online Stock"' <<< "$script" &&

@@ -157,3 +157,40 @@ button[hidden],.optional-details[hidden]{display:none!important}
 #ownerMain .screen{min-width:0}
 @media(max-width:900px){#ownerMain{margin-left:190px;width:calc(100% - 190px);padding:24px 18px}}
 @media(max-width:560px){#ownerMain{margin-left:148px;width:calc(100% - 148px);padding:18px 10px}.owner-page-tabs{gap:6px}.owner-page-tabs button{font-size:12px;padding:8px 10px}}
+
+/* Consistent, full-viewport loading surface.
+   Never render the shared sidebar and a floating auth message separately. */
+#startup{
+ position:fixed;inset:0;z-index:500;
+ display:grid;place-items:center;
+ min-height:100vh;min-height:100dvh;
+ margin:0;padding:28px;
+ background:#fbf8f3;
+ color:#352721;
+ text-align:center;
+}
+#startup[hidden]{display:none!important}
+.startup-content{
+ display:flex;flex-direction:column;align-items:center;gap:11px;
+ max-width:330px;
+}
+.startup-content img{display:block;width:48px;height:48px;object-fit:contain}
+.startup-content strong{font:600 25px/1.25 Georgia,serif;color:#8b0000}
+.startup-content p{margin:0;color:#756a60;font-size:13px;font-weight:450}
+.startup-spinner{
+ display:block;width:26px;height:26px;
+ border:3px solid #e9d8c6;border-top-color:#8b0000;
+ border-radius:50%;
+ animation:owner-loading-spin .7s linear infinite;
+}
+@keyframes owner-loading-spin{to{transform:rotate(360deg)}}
+@keyframes owner-ready-appear{from{opacity:0}to{opacity:1}}
+html.owner-ready #ownerApp:not([hidden]),
+html.owner-ready body>aside{
+ animation:owner-ready-appear .16s ease-out both;
+}
+@media(prefers-reduced-motion:reduce){
+ .startup-spinner,
+ html.owner-ready #ownerApp:not([hidden]),
+ html.owner-ready body>aside{animation:none!important}
+}
