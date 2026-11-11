@@ -30,6 +30,7 @@ async function serve(){
  ${markup}
  <script>
  window.RAINBOW_MULTI_SHOP_ENABLED=true;
+ window.__fixtureRole="cashier";
  window.RainbowBillingPos={
    shop:()=>({id:"${locationId}",name:"Fixture shop"}),
    products:()=>[{id:"eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
@@ -44,7 +45,7 @@ async function serve(){
      select(){return this;},
      eq(){return this;},
      maybeSingle:async()=>({
-       data:name==="staff_profiles"?{role:"admin",active:true}:null,
+       data:name==="staff_profiles"?{role:window.__fixtureRole,active:true}:null,
        error:null
      })
    })
@@ -85,7 +86,22 @@ test("inline offline passphrase setup and refresh work when prompt() is blocked"
    // Embedded browser behavior that originally caused the production failure.
    globalThis.prompt=()=>{throw new Error("prompt() is not supported");};
   });
-  await (await driver.findElement(By.id("prepareOffline"))).click();
+  const trigger=await driver.findElement(By.id("prepareOffline"));
+  await driver.wait(async()=>/Only the admin/i.test(await driver.findElement(By.id("offlineSetupPermissionHint")).getText()),8000);
+  assert.equal(await trigger.isDisplayed(),false,"Staff must not see admin provisioning controls");
+  // Even a forced click cannot bypass the live role check.
+  await driver.executeScript(()=>{
+    document.getElementById("prepareOffline").hidden=false;
+    document.getElementById("prepareOffline").click();
+  });
+  await driver.wait(async()=>/Only an active admin/i.test(await driver.findElement(By.id("offlineSetupStatus")).getText()),8000);
+  assert.equal(await (await driver.findElement(By.id("offlineSetupForm"))).isDisplayed(),false);
+  await driver.executeScript(()=>{
+    globalThis.__fixtureRole="admin";
+    globalThis.dispatchEvent(new Event("focus"));
+  });
+  await driver.wait(until.elementIsVisible(trigger),8000);
+  await trigger.click();
   const form=await driver.findElement(By.id("offlineSetupForm"));
   await driver.wait(until.elementIsVisible(form),8000);
   assert.equal(await (await driver.findElement(By.id("offlineConfirmWrap"))).isDisplayed(),true);
@@ -134,6 +150,20 @@ test("inline offline passphrase setup and refresh work when prompt() is blocked"
    }catch(error){done({error:error.message});}
   });
   assert.deepEqual(saved,{pending:1,products:1});
+  const owned=await driver.executeAsyncScript(async done=>{
+   try{
+    const {OfflineVault}=await import("/admin/offline-pos-core.mjs");
+    const vault=await OfflineVault.unlock("safe-offline-device-passphrase");
+    const record=(await vault.read()).pending[0];
+    await vault.claimSyncActor(record.id,"cccccccc-cccc-4ccc-8ccc-cccccccccccc");
+    const pinned=(await vault.read()).pending[0];
+    let blocked=false;
+    try{await vault.claimSyncActor(record.id,"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");}
+    catch{blocked=true;}
+    done({actor:pinned.syncActorId,blocked,operator:pinned.operator||""});
+   }catch(error){done({error:error.message});}
+  });
+  assert.deepEqual(owned,{actor:"cccccccc-cccc-4ccc-8ccc-cccccccccccc",blocked:true,operator:""});
  }finally{
   if(driver)await driver.quit();
   await fixture.close();
