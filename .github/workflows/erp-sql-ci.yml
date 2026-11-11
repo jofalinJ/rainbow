@@ -73,3 +73,5 @@ jobs:
         run: PGOPTIONS="-c check_function_bodies=off" psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261111130000_online_markup_2_5_percent.sql
       - name: Check price markup, repricing, rounding and product separation
         run: psql -v ON_ERROR_STOP=1 -f tests/sql/online-markup-erp.sql
+      - name: Reject customer-forged local sales and preserve authorized cashier billing
+        run: psql -v ON_ERROR_STOP=1 -f tests/sql/erp-local-billing-rls.sql
