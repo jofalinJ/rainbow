@@ -2,14 +2,14 @@
 (function(root){
  "use strict";
  const PAGE_SIZE=24,MAX_PAGE_SIZE=48;
- const SELECT_FIELDS="id,product_code,product_name,type,gender,display_priority,category_id,categories(name,storefront_order,show_in_storefront),selling_price,description,length_cm,thickness,gold_amount_g,created_at,product_variants!inner(id,stock_quantity,color,size,length_cm,active),erp_online_listings!inner(published),product_images(id,public_url,storage_path,is_primary,sort_order)";
+ const SELECT_FIELDS="id,product_code,product_name,type,gender,display_priority,category_id,categories(name,storefront_order,show_in_storefront),selling_price,description,length_cm,thickness,gold_amount_g,created_at,product_variants!inner(id,stock_quantity,color,size,length_cm,active),erp_online_listings!inner(published,online_price),product_images(id,public_url,storage_path,is_primary,sort_order)";
  const cleanSearch=value=>String(value||"").trim().replace(/[^\p{L}\p{N}\s-]/gu," ").replace(/\s+/g," ").slice(0,70);
  const clamp=(v,fallback=PAGE_SIZE)=>Number.isInteger(Number(v))?Math.max(1,Math.min(MAX_PAGE_SIZE,Number(v))):fallback;
  const finitePrice=value=>value!==""&&value!==null&&Number.isFinite(Number(value))&&Number(value)>=0?Number(value):null;
  function buildQuery(client,filters={}){
    const limit=clamp(filters.limit),offset=Math.max(0,Math.min(100000,Math.floor(Number(filters.offset)||0)));
    let query=client.from("products").select(SELECT_FIELDS,{count:"exact"})
-     .eq("active",true).eq("erp_online_listings.published",true).eq("product_variants.active",true).gt("product_variants.stock_quantity",0);
+     .eq("active",true).eq("erp_online_listings.published",true).gt("erp_online_listings.online_price",0).eq("product_variants.active",true).gt("product_variants.stock_quantity",0);
    const search=cleanSearch(filters.search);
    if(search){
      const term=search.replaceAll(" ","%");
@@ -41,8 +41,8 @@
    if(filters.segment==="men")query=query.in("gender",["male","unisex"]);
    if(filters.segment==="women")query=query.in("gender",["women","unisex"]);
    const min=finitePrice(filters.minPrice),max=finitePrice(filters.maxPrice);
-   if(min!==null)query=query.gte("selling_price",min);
-   if(max!==null)query=query.lte("selling_price",max);
+   if(min!==null)query=query.gte("erp_online_listings.online_price",min);
+   if(max!==null)query=query.lte("erp_online_listings.online_price",max);
    if(filters.color)query=query.ilike("product_variants.color",String(filters.color).replace(/[%_,()]/g,""));
    if(filters.size)query=query.ilike("product_variants.size",String(filters.size).replace(/[%_,()]/g,""));
    if(filters.length!==" "&&filters.length!==""&&filters.length!=null&&Number.isFinite(Number(filters.length))&&Number(filters.length)>0){
@@ -67,7 +67,11 @@
    if(empty)return {items:[],total:0,hasMore:false,offset,limit};
    const {data,error,count}=await query;
    if(error)throw error;
-   const items=Array.isArray(data)?data:[];
+   const items=(Array.isArray(data)?data:[]).map(product=>{
+     const listing=Array.isArray(product.erp_online_listings)?product.erp_online_listings[0]:product.erp_online_listings;
+     // Customer-facing prices come from the persisted, server-maintained listing.
+     return {...product,selling_price:Number(listing.online_price)};
+   });
    const total=Math.max(0,Number(count||0));
    return {items,total,offset,limit,hasMore:offset+items.length<total};
  }
