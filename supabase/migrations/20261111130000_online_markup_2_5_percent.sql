@@ -13,7 +13,7 @@ begin
  -- The amount is ALWAYS derived from the original shop price, never from an
  -- earlier online price: republishing cannot compound the markup.
  new.online_price:=case when new.published and v_shop_price>0
-   then round(v_shop_price*1.025,2) else null end;
+   then round(v_shop_price*1.025,0) else null end;
  return new;
 end;
 $markup$;
@@ -31,7 +31,7 @@ begin
   -- This writes only the listing's price, never the physical-shop price.
   update public.erp_online_listings
   set online_price=case when published and new.selling_price>0
-    then round(new.selling_price*1.025,2) else null end
+    then round(new.selling_price*1.025,0) else null end
   where product_id=new.id;
  end if;
  return new;
@@ -47,12 +47,12 @@ for each row execute function public.rainbow_refresh_markup_on_shop_price();
 -- Existing historical orders and invoices are not touched.
 update public.erp_online_listings l
 set online_price=case when l.published and p.selling_price>0
-  then round(p.selling_price*1.025,2) else null end
+  then round(p.selling_price*1.025,0) else null end
 from public.products p
 where p.id=l.product_id
 and l.online_price is distinct from
   (case when l.published and p.selling_price>0
-    then round(p.selling_price*1.025,2) else null end);
+    then round(p.selling_price*1.025,0) else null end);
 
 -- Online checkout and invoice line items use the published online price.
 -- Lock the variant, parent product and listing while computing the order.
