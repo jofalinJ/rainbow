@@ -70,6 +70,11 @@ begin
       'gateway_order_id',v_existing.gateway_order_id,'order_number',v_existing.order_number);
   end if;
 
+  -- A cached checkout showing the retired 3% discount must refresh before
+  -- starting a NEW Razorpay charge. Existing checkout UUID retries above stay valid.
+  if coalesce(p_customer->>'pricing_revision','') <> 'no-discount-20261111' then
+    raise exception 'Checkout prices have changed. Refresh the page before paying.';
+  end if;
   if jsonb_typeof(p_items) is distinct from 'array' or jsonb_array_length(p_items) not between 1 and 50 then
     raise exception 'Invalid order items.';
   end if;
@@ -271,6 +276,11 @@ begin
     );
   end if;
 
+  -- Prevent a legacy client from silently accepting a changed online total.
+  -- Existing manually keyed checkout retries are returned unchanged above.
+  if coalesce(p_customer->>'pricing_revision','') <> 'no-discount-20261111' then
+    raise exception 'Checkout prices have changed. Refresh the page before paying.';
+  end if;
   -- Guest checkout must never overwrite an existing customer by phone alone.
   insert into public.customers(name,whatsapp_number,email,address,city,state,pin_code)
   values(v_name,v_phone,v_email,v_address,v_city,v_state,v_pin)
