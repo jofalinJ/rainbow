@@ -247,7 +247,7 @@ import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=
       city:$("city").value.trim(),
       state:$("state").value.trim(),
       address,
-      whatsapp_opt_in:$("whatsappReceiptConsent")?.checked===true,
+      whatsapp_opt_in:false,
       payment_method:"razorpay"
     };
     if(shipping===null){msg("Choose a valid Indian state or union territory for delivery.","error");return;}
