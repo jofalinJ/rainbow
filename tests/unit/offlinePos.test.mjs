@@ -102,6 +102,26 @@ describe("encrypted offline billing contract",()=>{
   expect(result2.delayed).toBe(1);
   expect(vault.markReview).not.toHaveBeenCalled();
  });
+ it("uses an inline, keyboard-accessible passphrase form instead of unsupported prompt dialogs",()=>{
+  const markup=read("admin/billing.html");
+  const bridge=read("admin/offline-pos-bridge.mjs");
+  for(const id of ["offlineSetupForm","offlineDevicePassphrase","offlineConfirmPassphrase",
+   "offlineSetupSubmit","offlineSetupCancel","offlineSetupStatus"]){
+    expect(markup).toContain('id="'+id+'"');
+  }
+  expect(markup).toContain('type="password" minlength="10" required');
+  expect(markup).toContain('autocomplete="new-password"');
+  expect(markup).toContain('aria-controls="offlineSetupForm"');
+  expect(markup).toContain('offline-pos-bridge.mjs?v=20261111-inline-setup');
+  expect(bridge).not.toMatch(/\\b(?:window\\.)?prompt\\s*\\(/);
+  expect(bridge).toContain('form.addEventListener("submit"');
+  expect(bridge).toContain('confirmation.value!==passphrase');
+  expect(bridge).toContain('const vault=await OfflineVault.unlock(passphrase)');
+  expect(bridge).toContain('password.value=""');
+  expect(bridge).toContain('confirmation.value=""');
+  expect(bridge).toContain('await offlineAssetsReady()');
+  expect(bridge).toContain('await vault.updateCatalog(catalog)');
+ });
  it("pre-caches only the standalone offline POS shell, never business API data",()=>{
   const events={};
   const requests=[];
