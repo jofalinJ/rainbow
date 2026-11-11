@@ -79,7 +79,7 @@ function onlineStock(p){
 }
 function visibleOnStorefront(p){return published(p)&&variantsOf(p).some(v=>Number(v.stock_quantity)>0)&&Number(p.selling_price)>0&&photosOf(p).length>0;}
 function onlineHeld(p){return variantsOf(p).reduce((sum,v)=>sum+state.balances
- .filter(row=>row.variant_id===v.id).reduce((held,row)=>held+Number(row.reserved||0),0),0);}}
+ .filter(row=>row.variant_id===v.id).reduce((held,row)=>held+Number(row.reserved||0),0),0);}
 function badge(p){
  if(p.archived_at)return ["Archived","archived"];
  if(published(p))return [onlineStock(p)>0?"Published":"Published · out of stock","published"];
