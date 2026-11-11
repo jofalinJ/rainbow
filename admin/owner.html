@@ -103,6 +103,9 @@
   <section class="panel category-catalogue-panel" aria-labelledby="categoryCatalogueHeading">
    <h2 id="categoryCatalogueHeading">Online Push · Products by category</h2>
    <p class="quick-tip">Use <strong>Add Online Stock</strong> to move existing pieces from a physical shop. It deducts those pieces from shop availability; it never creates new stock. When a draft has stock at a shop, <strong>Show Online</strong> publishes and moves stock in one operation. The online price is automatically 2.5% above the shop price, rounded to the nearest whole rupee.</p>
+   <label class="return-shop-choice" data-admin-only>When hiding a published product, return its unsold online pieces to
+    <select id="onlineReturnShop"><option value="">Choose receiving shop</option></select>
+   </label>
    <div class="filter-bar category-toolbar">
     <label>Category<select id="categoryCatalogueFilter"><option value="all">All categories</option></select></label>
     <label class="grow">Find a product<input id="categoryCatalogueSearch" type="search" placeholder="Search name or product code" autocomplete="off"></label>
