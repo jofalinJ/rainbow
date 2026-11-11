@@ -53,12 +53,11 @@ async function verifyOwner(permission="view"){
  return data.user;
 }
 async function mutate(action,permission="catalog_write"){await verifyOwner(permission);return action();}
-function closeMenu(){const menu=$("ownerMenu");menu.classList.remove("is-open");$("drawerBackdrop").hidden=true;$("menuToggle").setAttribute("aria-expanded","false");}
 function show(screen){
  state.screen=screen;
  document.querySelectorAll(".screen").forEach(el=>el.hidden=el.id!=="screen-"+screen);
  document.querySelectorAll("[data-screen]").forEach(el=>{el.classList.toggle("active",el.dataset.screen===screen);if(el.classList.contains("active"))el.setAttribute("aria-current","page");else el.removeAttribute("aria-current");});
- closeMenu();window.scrollTo({top:0,behavior:"auto"});
+ window.scrollTo({top:0,behavior:"auto"});
  if(screen==="products")renderProducts();
  if(screen==="categories"){renderCategories();renderCategoryCatalogue();}
  if(screen==="dashboard")renderDashboard();
@@ -781,9 +780,6 @@ async function init(){
  $("startup").hidden=true;$("ownerApp").hidden=false;
  applyRoleUI();
  document.querySelectorAll("[data-screen]").forEach(button=>button.addEventListener("click",()=>{if(button.dataset.screen==="editor"&&state.screen!=="editor")resetEditor($("ownerCategory").value);show(button.dataset.screen);}));
- $("ownerLogout").onclick=async()=>{await state.client.auth.signOut();location.replace("login.html");};
- $("menuToggle").onclick=()=>{const open=$("ownerMenu").classList.toggle("is-open");$("drawerBackdrop").hidden=!open;$("menuToggle").setAttribute("aria-expanded",String(open));};
- $("drawerBackdrop").onclick=closeMenu;
  $("ownerSearch").oninput=()=>{state.limit=24;renderProducts();};
  $("ownerFilter").onchange=()=>{state.limit=24;state.selected.clear();renderProducts();};
  $("categoryCatalogueFilter").onchange=()=>{state.categoryLimit=48;renderCategoryCatalogue();};
@@ -818,7 +814,9 @@ async function init(){
   });
  };
 
- resetEditor();show("editor");
+ resetEditor();
+ const requested=new URLSearchParams(location.search).get("screen");
+ show(["categories","products","editor","dashboard"].includes(requested)?requested:"categories");
 }
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",()=>init().catch(fatal),{once:true});
 else init().catch(fatal);
