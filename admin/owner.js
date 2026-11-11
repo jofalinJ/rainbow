@@ -130,6 +130,56 @@ async function refresh(){
  const drafts=state.products.filter(p=>!p.archived_at&&!published(p)).length;
  $("draftBadge").textContent=drafts+" drafts";
  renderDashboard();renderProducts();renderCategories();renderCategoryCatalogue();renderExtras();
+ if(canPublish())await loadPendingOnlineTransfers();
+}
+async function loadPendingOnlineTransfers(){
+ const panel=$("pendingOnlinePanel"),host=$("pendingOnlineList");
+ if(!panel||!host||!canPublish()||!state.online)return;
+ panel.hidden=false;
+ host.textContent="Checking Online Store transfers…";
+ try{
+  const rows=await result(state.client.from("erp_transfers")
+   .select("id,quantity,variant_id,dispatched_at,from_location")
+   .eq("to_location",state.online.id).eq("status","in_transit")
+   .order("dispatched_at",{ascending:false}).limit(100));
+  host.replaceChildren();
+  if(!rows?.length){
+   host.textContent="No pending online transfers. All dispatched online stock is reconciled.";
+   return;
+  }
+  for(const transfer of rows){
+   const product=state.products.find(p=>variantsOf(p).some(v=>v.id===transfer.variant_id));
+   const source=state.locations.find(x=>x.id===transfer.from_location);
+   const row=document.createElement("article");row.className="pending-online-row";
+   const info=document.createElement("div");
+   const name=document.createElement("strong");
+   name.textContent=product?product.product_code+" · "+product.product_name:"Unknown product variant";
+   const details=document.createElement("small");
+   details.textContent=transfer.quantity+" pieces from "+(source?.name||"physical shop")+" · "+
+     new Date(transfer.dispatched_at).toLocaleString("en-IN");
+   info.append(name,details);
+   const button=document.createElement("button");button.type="button";button.className="secondary";
+   button.textContent=product&&published(product)?"Confirm received":"Review / publish and receive";
+   button.disabled=!product||!!product.archived_at||product.active===false;
+   button.addEventListener("click",()=>safeAction(async()=>{
+    const p=state.products.find(item=>item.id===product?.id);
+    if(!p)throw new Error("The product could not be found.");
+    const text="Confirm "+transfer.quantity+" physical pieces from "+(source?.name||"the branch")+
+      " have arrived for "+p.product_code+"? This makes them available for online orders.";
+    if(!confirm(text))return;
+    button.disabled=true;
+    await verifyOwner("publish");
+    // Older transfers may have been dispatched while still unpublished.
+    // Receiving requires a live listing, so publish first and keep it visible
+    // only when the confirmed stock reaches the online balance.
+    if(!published(p)){validateOnlineProduct(p);await publication(p,true);}
+    await result(state.client.rpc("erp_receive_transfer",{p_transfer:transfer.id}));
+    await refresh();
+    toast("Verified transfer received into Online Store.",p.product_code);
+   }));
+   row.append(info,button);host.append(row);
+  }
+ }catch(error){host.textContent="Unable to read pending transfers: "+friendly(error);}
 }
 function renderDashboard(){
  const live=state.products.filter(p=>published(p));
@@ -790,6 +840,7 @@ async function init(){
  $("categoryCatalogueFilter").onchange=()=>{state.categoryLimit=48;renderCategoryCatalogue();};
  $("categoryCatalogueSearch").oninput=()=>{state.categoryLimit=48;renderCategoryCatalogue();};
  $("categoryLoadMore").onclick=()=>{state.categoryLimit+=48;renderCategoryCatalogue();};
+ $("pendingOnlineRefresh").onclick=()=>loadPendingOnlineTransfers();
  $("loadMore").onclick=()=>{state.limit+=24;renderProducts();};
  $("selectAll").onchange=event=>{filtered().slice(0,state.limit).forEach(p=>{if(event.target.checked)state.selected.add(p.id);else state.selected.delete(p.id);});renderProducts();};
  $("bulkApply").onclick=applyBulk;
