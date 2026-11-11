@@ -123,10 +123,16 @@ async function refresh(){
  cats.replaceChildren(new Option("Select a category",""));
  for(const c of state.categories.filter(c=>c.active))cats.add(new Option(c.name,c.id));
  if(state.categories.some(c=>c.id===previous))cats.value=previous;
+ const branches=state.locations.filter(x=>x.kind==="branch");
  const source=$("ownerSource");const old=source.value;source.replaceChildren(new Option("Select the physical shop",""));
- for(const shop of state.locations.filter(x=>x.kind==="branch"))source.add(new Option(shop.name,shop.id));
- if(state.locations.some(x=>x.id===old&&x.kind==="branch"))source.value=old;
+ for(const shop of branches)source.add(new Option(shop.name,shop.id));
+ if(branches.some(x=>x.id===old))source.value=old;
  else if(source.options.length===2)source.selectedIndex=1;
+ const returnShop=$("onlineReturnShop"),savedReturn=returnShop.value;
+ returnShop.replaceChildren(new Option("Choose receiving shop",""));
+ for(const shop of branches)returnShop.add(new Option(shop.name,shop.id));
+ if(branches.some(x=>x.id===savedReturn))returnShop.value=savedReturn;
+ else if(branches.length===1)returnShop.value=branches[0].id;
  const drafts=state.products.filter(p=>!p.archived_at&&!published(p)).length;
  $("draftBadge").textContent=drafts+" drafts";
  renderDashboard();renderProducts();renderCategories();renderCategoryCatalogue();renderExtras();
@@ -454,8 +460,12 @@ async function publication(product,flag){
 }
 async function unpublish(product){
  if(!published(product))return;
- const branch=$("ownerSource").value||state.locations.find(x=>x.kind==="branch")?.id;
- if(!branch)throw new Error("Choose the physical shop where online stock should be returned.");
+ // A return operation changes a specific physical shop's stock; do not silently
+ // choose the first branch when this business has multiple locations.
+ const onlineHeld=variantsOf(product).some(v=>state.balances.find(row=>row.variant_id===v.id)?.on_hand>0);
+ const selected=$("onlineReturnShop").value;
+ const branch=selected||(!onlineHeld?state.locations.find(x=>x.kind==="branch")?.id:"");
+ if(!branch)throw new Error("Choose a receiving shop under Online Push before hiding this product.");
  const key=operationKey("online-hide",[product.id,branch]);
  await result(state.client.rpc("erp_recall_and_hide_online",{
   p_product:product.id,p_destination:branch,p_request:stableOperationId(key)
