@@ -108,7 +108,7 @@ export function setupFacePilot({document=globalThis.document,window=globalThis.w
   const stop=document.getElementById("facePilotStop");
   const video=document.getElementById("facePilotVideo");
   const status=document.getElementById("facePilotStatus");
-  let referencePath="",ready=false,running=false,consentBusy=false,stream=null,runToken=0;
+  let referencePaths=[],ready=false,running=false,consentBusy=false,stream=null,runToken=0;
   let processing=false,controller=null;
   const updateStatus=(message,kind="")=>{
     status.textContent=message;
@@ -171,15 +171,19 @@ export function setupFacePilot({document=globalThis.document,window=globalThis.w
       // Recheck staff identity; do not rely on any client-stored account or profile.
       const user=await window.getAuthUser();
       const {data,error}=await window.bootSupabase()
-        .from("staff_profiles").select("active,photo_path")
+        .from("staff_profiles").select("active,photo_path,reference_photo_paths")
         .eq("user_id",user.id).maybeSingle();
       if(error)throw new Error(error.message);
-      const exactPath="profiles/"+user.id+"/reference";
-      if(!data?.active||data.photo_path!==exactPath){
-        updateStatus("No reference photo is enrolled. Ask an administrator to add your profile photo before trying this optional test.");
+      const prefix="profiles/"+user.id+"/";
+      const main=prefix+"reference";
+      const allowedExtras=Array.from({length:4},(_,i)=>prefix+"reference-"+(i+2));
+      const extras=(Array.isArray(data?.reference_photo_paths)?data.reference_photo_paths:[])
+        .filter(path=>allowedExtras.includes(path));
+      referencePaths=[...(data?.photo_path===main?[main]:[]),...new Set(extras)];
+      if(!data?.active||referencePaths.length===0){
+        updateStatus("No reference photos are enrolled. Ask an administrator to add your profile photo before trying this optional test.");
         ready=false;updateButtons();return;
       }
-      referencePath=exactPath;
       const {data:record,error:consentError}=await window.bootSupabase()
         .from("staff_face_preview_consent").select("consent_version,withdrawn_at")
         .eq("staff_id",user.id).maybeSingle();
@@ -187,8 +191,8 @@ export function setupFacePilot({document=globalThis.document,window=globalThis.w
       ready=true;
       consent.checked=record?.consent_version===1&&!record.withdrawn_at;
       updateStatus(consent.checked
-        ?"Reference photo and consent ready. Face comparison is optional."
-        :"Reference photo enrolled. Review the privacy information and opt in once to enable this preview.");
+        ?referencePaths.length+" private reference photo(s) and consent ready. Face comparison is optional."
+        :referencePaths.length+" reference photo(s) enrolled. Review the privacy information and opt in once to enable this preview.");
       updateButtons();
     }catch(error){
       ready=false;updateButtons();
@@ -196,8 +200,8 @@ export function setupFacePilot({document=globalThis.document,window=globalThis.w
     }
   }
 
-  async function loadReference(engine,client,signal){
-    const {data,error}=await client.storage.from("staff-private").download(referencePath);
+  async function loadReference(engine,client,signal,path){
+    const {data,error}=await client.storage.from("staff-private").download(path);
     if(signal.aborted)throw previewError("CANCELLED","Camera stopped.");
     if(error||!data)throw new Error("Reference photo is unavailable. Ask an administrator to re-enroll your photo.");
     const url=URL.createObjectURL(data);
@@ -220,7 +224,7 @@ export function setupFacePilot({document=globalThis.document,window=globalThis.w
   start.addEventListener("click",async()=>{
     if(!ready||!consent.checked||consentBusy||running||processing)return;
     running=true;const token=++runToken;controller=new AbortController();const signal=controller.signal;updateButtons();
-    let message="Test finished. No face data was saved.",kind="",referenceEmbedding=null,captureTimer,startupTimer,ownsProcessing=false;
+    let message="Test finished. No face data was saved.",kind="",referenceEmbeddings=[],captureTimer,startupTimer,ownsProcessing=false;
     updateStatus("Opening the camera… Choose Allow if your browser asks for camera permission.");
     try{
       if(!window.isSecureContext)throw previewError("HTTPS_REQUIRED","Secure HTTPS is required.");
@@ -239,9 +243,18 @@ export function setupFacePilot({document=globalThis.document,window=globalThis.w
       updateStatus("Loading the free face models. The first test may take a minute…");
       const engine=await getEngine();
       if(token!==runToken)return;
-      updateStatus("Loading your private reference photo for an on-device comparison…");
+      updateStatus("Loading your "+referencePaths.length+" private reference photo(s) for on-device comparison…");
       const client=window.bootSupabase();
-      referenceEmbedding=await loadReference(engine,client,signal);
+      for(const path of referencePaths){
+        if(token!==runToken)return;
+        try{
+          referenceEmbeddings.push(await loadReference(engine,client,signal,path));
+        }catch(error){
+          if(signal.aborted)throw error;
+          console.warn("Skipped an unreadable private reference photo:",error);
+        }
+      }
+      if(!referenceEmbeddings.length)throw new Error("No usable reference photos are enrolled. Ask your administrator to upload new, clear photos.");
       if(token!==runToken)return;
       clearTimeout(startupTimer);
       let consecutiveMatches=0,lastReason="Face checks have not passed yet.";
@@ -255,10 +268,12 @@ export function setupFacePilot({document=globalThis.document,window=globalThis.w
         if(Date.now()>=deadline)break;
         const verdict=assessLiveFrame(result.face);
         if(verdict.ready){
-          const match=engine.match.find(result.face[0].embedding,[referenceEmbedding],{
-            order:2,multiplier:25,min:0.2,max:0.8
+          const similar=referenceEmbeddings.some(reference=>{
+            const match=engine.match.find(result.face[0].embedding,[reference],{
+              order:2,multiplier:25,min:0.2,max:0.8
+            });
+            return Number.isFinite(match?.similarity)&&match.similarity>=MIN_SIMILARITY;
           });
-          const similar=Number.isFinite(match?.similarity)&&match.similarity>=MIN_SIMILARITY;
           consecutiveMatches=similar?consecutiveMatches+1:0;
           if(!similar)lastReason="Your face did not match consistently. Look straight at the camera, move a little closer and use even front lighting.";
         }else{
@@ -281,7 +296,7 @@ export function setupFacePilot({document=globalThis.document,window=globalThis.w
       kind="error";
     }finally{
       clearTimeout(captureTimer);clearTimeout(startupTimer);
-      referenceEmbedding?.fill(0);referenceEmbedding=null;
+      referenceEmbeddings.forEach(reference=>reference.fill(0));referenceEmbeddings=[];
       // A stopped older permission request must never change a newer run's state.
       if(ownsProcessing)processing=false;
       if(token===runToken){stopCapture();updateStatus(message,kind);}
