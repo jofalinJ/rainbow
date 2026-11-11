@@ -35,6 +35,10 @@ jobs:
                nav=$(curl -L --fail --silent --show-error --max-time 12 "${site}/admin/app.js?v=20261111-sidebar-ready") &&
                products=$(curl -L --fail --silent --show-error --max-time 12 "${site}/admin/products.html?release=${GITHUB_SHA}") &&
                billing=$(curl -L --fail --silent --show-error --max-time 12 "${site}/admin/billing.html?release=${GITHUB_SHA}") &&
+               offline=$(curl -L --fail --silent --show-error --max-time 12 "${site}/admin/offline-pos.html?release=${GITHUB_SHA}") &&
+               offlinecore=$(curl -L --fail --silent --show-error --max-time 12 "${site}/admin/offline-pos-core.mjs?release=${GITHUB_SHA}") &&
+               offlinesync=$(curl -L --fail --silent --show-error --max-time 12 "${site}/admin/offline-pos-sync.mjs?release=${GITHUB_SHA}") &&
+               worker=$(curl -L --fail --silent --show-error --max-time 12 "${site}/admin/service-worker.js?release=${GITHUB_SHA}") &&
                postcode=$(curl -L --fail --silent --show-error --max-time 12 "${site}/pin-lookup.mjs?release=${GITHUB_SHA}") &&
                scanner=$(curl -L --fail --silent --show-error --max-time 12 "${site}/admin/billing-scanner.js?release=${GITHUB_SHA}") &&
                printer=$(curl -L --fail --silent --show-error --max-time 12 "${site}/admin/printer-test.html?release=${GITHUB_SHA}") &&
@@ -75,6 +79,14 @@ jobs:
                  grep -Fq 'app.js?v=20261111-online-products' <<< "$products" &&
                  grep -Fq 'app.js?v=20261111-online-products' <<< "$billing" &&
                  grep -Fq 'id="startScanner"' <<< "$billing" &&
+                 grep -Fq 'id="prepareOffline"' <<< "$billing" &&
+                 grep -Fq 'offline-pos-bridge.mjs?v=20261111' <<< "$billing" &&
+                 grep -Fq 'id="unlockForm"' <<< "$offline" &&
+                 grep -Fq 'PENDING SYNC' <<< "$offline" &&
+                 grep -Fq 'name:"AES-GCM"' <<< "$offlinecore" &&
+                 grep -Fq 'p_request:sale.id' <<< "$offlinesync" &&
+                 grep -Fq 'rainbow-staff-offline-pos-v2' <<< "$worker" &&
+                 grep -Fq 'cache.addAll(FILES)' <<< "$worker" &&
                  grep -Fq 'id="billingPinLookupStatus"' <<< "$billing" &&
                  grep -Fq 'billing-pin.mjs?v=20261111' <<< "$billing" &&
                  grep -Fq 'parseIndianPinResponse' <<< "$postcode" &&
