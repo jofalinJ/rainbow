@@ -95,14 +95,14 @@ update public.orders set payment_status='paid'
 where id='75000000-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 update public.orders set notes='duplicate webhook no second sale'
 where id='75000000-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
-do $$
-declare b record;
+do $
+declare v_balance record;
 begin
- select b.on_hand,b.reserved into b
- from public.erp_stock_balances b join public.erp_locations l on l.id=b.location_id
- where l.code='BR-ONE' and b.variant_id='dddddddd-dddd-4ddd-8ddd-dddddddddddd';
- if b.on_hand<>2 or b.reserved<>0 then
- raise exception 'Verified payment must consume physical pieces once (%,%)',b.on_hand,b.reserved;end if;
+ select bal.on_hand,bal.reserved into v_balance
+ from public.erp_stock_balances bal join public.erp_locations l on l.id=bal.location_id
+ where l.code='BR-ONE' and bal.variant_id='dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+ if v_balance.on_hand<>2 or v_balance.reserved<>0 then
+ raise exception 'Verified payment must consume physical pieces once (%,%)',v_balance.on_hand,v_balance.reserved;end if;
  if (select stock_quantity from public.product_variants where barcode='JM001-RED')<>2 then
  raise exception 'Shared stock mirror changed incorrectly on payment';end if;
  if (select count(*) from public.erp_stock_events where idempotency_key='75000000-aaaa-4aaa-8aaa-aaaaaaaaaaaa')<>1 then
