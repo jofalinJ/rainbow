@@ -84,6 +84,7 @@ test("offline staff POS loads from service worker cache and persists encrypted p
   await driver.wait(until.elementIsVisible(driver.findElement(By.id("readyApp"))),12000);
   assert.match(await (await driver.findElement(By.id("productList"))).getText(),/Fixture chain/);
   await (await driver.findElement(By.css("[data-add]"))).click();
+  await (await driver.findElement(By.id("offlineStaffOperator"))).sendKeys("Cashier Fixture");
   await (await driver.findElement(By.id("cashCollected"))).click();
   await driver.wait(async()=>await (await driver.findElement(By.id("saveOffline"))).isEnabled(),8000);
   await (await driver.findElement(By.id("saveOffline"))).click();
@@ -101,6 +102,7 @@ test("offline staff POS loads from service worker cache and persists encrypted p
   assert.ok(stored.ciphertext,"Offline record must be encrypted");
   assert.equal(JSON.stringify(stored).includes("Fixture chain"),false);
   assert.equal(JSON.stringify(stored).includes("RGC/FIX0001"),false);
+  assert.equal(JSON.stringify(stored).includes("Cashier Fixture"),false);
   await fixture.close();
   await driver.get(fixture.base+"/admin/billing.html");
   await driver.wait(async()=>{
@@ -111,6 +113,7 @@ test("offline staff POS loads from service worker cache and persists encrypted p
   await (await driver.findElement(By.id("offlinePassphrase"))).sendKeys("test-device-passphrase-long");
   await (await driver.findElement(By.css("#unlockForm button"))).click();
   await driver.wait(async()=>/PENDING SYNC/.test(await driver.findElement(By.id("pendingList")).getText()),12000);
+  assert.match(await driver.findElement(By.id("pendingList")).getText(),/Cashier Fixture/);
  }finally{
   if(driver)await driver.quit();
   await fixture.close();
