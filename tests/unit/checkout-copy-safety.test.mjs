@@ -46,12 +46,13 @@ describe("customer checkout compact UX safety",()=>{
     expect(order).toContain("SGST (1.5%)");
     expect(order).not.toContain("Discount (3%)");
   });
-  it("removes unnecessary WhatsApp opt-in controls and opts out automatically",()=>{
-    expect(order).not.toContain('id="whatsappReceiptConsent"');
-    expect(order).toContain("(optional)");
-    expect(orderJs).toContain("whatsapp_opt_in:false");
-    expect(orderJs).not.toContain("WhatsApp updates are sent only if you opted in");
-    expect(orderJs).not.toContain('?.checked===true');
+  it("offers optional unchecked consent before sending a paid invoice by WhatsApp",()=>{
+    expect(order).toContain('id="whatsappReceiptConsent"');
+    expect(order).toContain('type="checkbox"');
+    expect(order).not.toMatch(/id="whatsappReceiptConsent"[^>]*\\bchecked\\b/);
+    expect(order).toContain("verified-payment invoice link");
+    expect(orderJs).toContain('whatsapp_opt_in:$("whatsappReceiptConsent")?.checked===true');
+    expect(order).toContain('href="privacy-policy.html"');
   });
   it("preserves mobile category-first layout and routes",()=>{
     expect(home.indexOf('id="mobileCategorySection"')).toBeLessThan(home.indexOf('id="featuredPromotion"'));
