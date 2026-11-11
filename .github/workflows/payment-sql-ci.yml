@@ -65,3 +65,5 @@ jobs:
         run: PGOPTIONS="-c check_function_bodies=off" psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261111170000_online_no_discount_product_warranty.sql
       - name: Verify zero discount, correct GST and warranty limits
         run: psql -v ON_ERROR_STOP=1 -f tests/sql/online-no-discount-warranty.sql
+      - name: Verify WhatsApp invoice recipient normalization without provider calls
+        run: psql -v ON_ERROR_STOP=1 -f tests/sql/whatsapp-recipient.sql
