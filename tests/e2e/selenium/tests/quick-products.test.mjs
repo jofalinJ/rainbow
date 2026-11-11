@@ -333,7 +333,7 @@ test("owner Show Online publishes counted stock and Hide Online safely reverses 
  }finally{if(driver)await driver.quit();await fixture.close();}
 });
 
-test("admin can add existing shop stock to an unpublished draft, publish it, and top it up without inventing stock",async()=>{
+test("admin can publish a draft and allocate stock atomically, then top up from the remaining physical shop",async()=>{
  const fixture=await serve();
  const options=new chrome.Options().addArguments("--headless=new","--no-sandbox","--disable-dev-shm-usage",
   "--disable-background-networking","--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1","--window-size=390,850");
@@ -352,24 +352,21 @@ test("admin can add existing shop stock to an unpublished draft, publish it, and
   await driver.wait(async()=>await (await field("onlineVisibilityConfirm")).isEnabled(),8000);
   assert.match(await (await field("onlineVisibilityAvailable")).getText(),/3 pieces available/);
   assert.match(await (await field("onlineVisibilityCurrent")).getText(),/0 available/);
-  assert.match(await (await field("onlineVisibilityAfter")).getText(),/stays hidden/);
+  assert.match(await (await field("onlineVisibilityAfter")).getText(),/shown to customers/);
   assert.equal(await (await field("onlineVisibilityQty")).getAttribute("max"),"3");
+  let data=await driver.executeScript("return globalThis.__qa");
+  assert.equal(data.writes.filter(w=>w.table==="erp_online_listings").length,0,
+   "Opening a stock dialog must not publish or move pieces");
   await (await field("onlineVisibilityQty")).clear();
   await (await field("onlineVisibilityQty")).sendKeys("2");
   await (await field("onlineVisibilityConfirm")).click();
-  await driver.wait(async()=>/Added 2 existing piece/.test(await (await field("ownerToast")).getText()),10000);
-  let data=await driver.executeScript("return globalThis.__qa");
-  assert.equal(data.transfers.length,1);
-  assert.equal(data.transfers[0].params.p_quantity,2);
-  assert.equal(data.writes.filter(w=>w.table==="erp_online_listings").length,0,"Stock-only action must not publish a draft");
-  assert.deepEqual((await balance()).map(b=>b.on_hand),[1,2]);
-  assert.match(await (await field("categoryCatalogueList")).getText(),/Not online/);
-
-  await press("Show Online");
   await driver.wait(async()=>/Visible online/.test(await (await field("categoryCatalogueList")).getText()),10000);
   data=await driver.executeScript("return globalThis.__qa");
-  assert.equal(data.transfers.length,1,"Publishing already-online stock should not transfer anything again");
-  assert.ok(data.writes.some(w=>w.table==="erp_online_listings"&&w.values.published===true));
+  assert.equal(data.transfers.length,1);
+  assert.equal(data.transfers[0].params.p_quantity,2);
+  assert.deepEqual((await balance()).map(b=>b.on_hand),[1,2]);
+  assert.equal(data.writes.filter(w=>w.table==="erp_online_listings"&&w.values.published===true).length,1,
+   "One atomic operation must publish the draft exactly once");
 
   await press("Add Online Stock");
   await driver.wait(async()=>await (await field("onlineVisibilityConfirm")).isEnabled(),8000);
@@ -390,7 +387,7 @@ test("admin can add existing shop stock to an unpublished draft, publish it, and
   data=await driver.executeScript("return globalThis.__qa");
   assert.equal(data.transfers.length,2);
   assert.deepEqual((await balance()).map(b=>b.on_hand),[0,3]);
-  assert.ok(data.writes.filter(w=>w.table==="erp_online_listings"&&w.values.published===true).length===1,
-   "Top-up must not cause a second publish or duplicate listing");
+  assert.equal(data.writes.filter(w=>w.table==="erp_online_listings"&&w.values.published===true).length,1,
+   "Top-up must not republish or duplicate a listing");
  }finally{if(driver)await driver.quit();await fixture.close();}
 });
