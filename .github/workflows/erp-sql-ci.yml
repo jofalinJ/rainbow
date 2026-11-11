@@ -87,8 +87,7 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f tests/sql/shared-shop-stock-behavior.sql
       - name: Verify guarded cutover and rollback on disposable stock
         run: |
-          createdb rainbow_erp_cutover
-          pg_dump --no-owner --dbname=rainbow_erp_test | psql -v ON_ERROR_STOP=1 --dbname=rainbow_erp_cutover
+          createdb --maintenance-db=postgres --template=rainbow_erp_test rainbow_erp_cutover
           PGDATABASE=rainbow_erp_cutover bash tests/sql/shared-shop-stock-cutover.sh
       - name: Race online checkout against physical POS without duplicate stock
         run: bash tests/sql/shared-shop-stock-concurrency.sh
