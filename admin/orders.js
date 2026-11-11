@@ -97,8 +97,10 @@ async function loadOrders({quiet=false}={}){
 }
 function filtered(){
   const search=document.querySelector("#search"),status=document.querySelector("#status");
-  const q=String(search?.value||"").toLowerCase().trim(),s=status?.value||"all";
-  return allOrders.filter(o=>(s==="all"||o.status===s)&&(!q||[
+  const q=String(search?.value||"").toLowerCase().trim(),s=status?.value||"active";
+  return allOrders.filter(o=>(s==="all"||(s==="active"
+    ? !["cancelled","refunded"].includes(o.status)&&o.payment_status!=="failed"
+    : o.status===s))&&(!q||[
     o.order_number,relationOne(o.customers).name,relationOne(o.customers).whatsapp_number
   ].some(v=>String(v??"").toLowerCase().includes(q))));
 }
@@ -123,7 +125,7 @@ function render(){
       "<td><b>"+esc(c.name||"—")+"</b><small>"+esc(c.whatsapp_number||c.email||"—")+"</small></td>"+
       "<td>"+esc(address||"—")+"</td>"+
       "<td><b>"+money(o.total_amount)+"</b><small>"+esc(o.payment_status||"—")+"</small></td>"+
-      "<td><span class='order-status'>"+esc(o.payment_status!=="paid"?"Awaiting payment · Not placed":o.status||"pending")+"</span></td>"+
+      "<td><span class='order-status'>"+esc(["cancelled","refunded"].includes(o.status)?o.status:(o.payment_status!=="paid"?"Awaiting payment · Not placed":o.status||"pending"))+"</span></td>"+
       "<td><div class='action-row'><button type='button' data-view='"+esc(o.id)+"'>View"+(itemCount?" ("+itemCount+")":"")+"</button>"+action+shipmentAction+"</div></td></tr>";
   }).join("")||"<tr><td colspan='6'>"+esc(emptyMessage)+"</td></tr>";
   document.querySelectorAll("[data-view]").forEach(b=>b.onclick=()=>openOrder(b.dataset.view));
