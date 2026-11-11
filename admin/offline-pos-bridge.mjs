@@ -118,12 +118,12 @@ if(trigger&&form&&password&&confirmation&&status){
   trigger.disabled=true;
   message("Checking staff access and preparing offline billing…");
   try{
-   const {client,user}=await verifyProvisioningAdmin();
+   const {user}=await verifyProvisioningAdmin();
    if(!window.RAINBOW_MULTI_SHOP_ENABLED)throw new Error("Multi-shop POS is required for safe offline records.");
    const shop=window.RainbowBillingPos?.shop();
    const catalog=window.RainbowBillingPos?.products();
    if(!shop?.id||!catalog?.length)throw new Error("Select a billing shop and load its products first.");
-    const existsNow=await OfflineVault.exists();
+   const existsNow=await OfflineVault.exists();
    if(existsNow!==existingVault){
     throw new Error("Offline device status changed. Close setup and open it again before continuing.");
    }
