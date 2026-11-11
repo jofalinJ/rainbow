@@ -40,7 +40,7 @@ button.primary{background:#8b0000;color:white;border-color:#8b0000}button:disabl
 }
 </style>
 <script src="config.js"></script>
-<script type="module" src="offline-pos.mjs?v=20261111"></script>
+<script type="module" src="offline-pos.mjs?v=20261111-shared-code"></script>
 </head>
 <body>
 <main>
@@ -48,10 +48,10 @@ button.primary{background:#8b0000;color:white;border-color:#8b0000}button:disabl
 <div class="actions"><a class="action" href="billing.html">Online Billing</a><button type="button" id="lockDevice">Lock device</button></div></header>
 <div class="status" id="statusPanel" role="status" aria-live="polite">Unlock your prepared offline shop to begin.</div>
 <section id="unlockPanel" class="panel"><h2>Unlock offline billing</h2>
-<p class="muted">Your shop catalogue and pending cash sales are encrypted on this device. Enter the passphrase you set while online.</p>
-<form id="unlockForm"><label>Offline passphrase<input id="offlinePassphrase" type="password" autocomplete="off" required minlength="10"></label>
+<p class="muted">Your admin has prepared this shop device. Enter the shared offline passcode supplied by the admin. No staff login or internet is needed to unlock this device.</p>
+<form id="unlockForm"><label>Admin-created shop passcode<input id="offlinePassphrase" type="password" autocomplete="off" required minlength="10"></label>
 <button class="primary" type="submit">Unlock this device</button></form>
-<p class="secure-note">Before using offline mode, open Online Billing and choose Prepare Offline Billing while connected to the internet. This device's offline access expires 24 hours after the last online refresh.</p></section>
+<p class="secure-note">The admin must prepare this device while online at least once. The passcode works only on this prepared device/browser, and offline access expires 24 hours after its last online refresh.</p></section>
 <div id="readyApp" hidden>
 <div class="status" id="shopBanner"></div>
 <div class="actions"><button type="button" id="syncNow" class="primary">Sync pending sales now</button>
