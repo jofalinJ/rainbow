@@ -159,6 +159,13 @@ export class OfflineVault{
    const sale=data.pending.find(s=>s.id===id);
    if(!sale)throw new Error("Offline sale disappeared before confirmation.");
    sale.status="synced";sale.receipt=receipt;sale.lastError="";
+   // Keep the local availability conservative if the server succeeded but
+   // the next online stock-refresh could not complete.
+   for(const item of sale.items){
+    const product=data.catalog.find(p=>p.product_variants.some(v=>v.id===item.variant_id));
+    const variant=product?.product_variants.find(v=>v.id===item.variant_id);
+    if(variant)variant.stock_quantity=Math.max(0,variant.stock_quantity-item.quantity);
+   }
    data.synced.push({id,invoice_number:receipt.invoice_number,order_number:receipt.order_number});
    return sale;
   });
