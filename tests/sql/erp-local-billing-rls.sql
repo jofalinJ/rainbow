@@ -1,6 +1,5 @@
 \set ON_ERROR_STOP on
 -- Disposable ERP PostgreSQL fixture only. Never run against production.
-begin;
 create or replace function public.is_cashier() returns boolean
 language sql stable security definer set search_path=pg_catalog,public as $$
   select exists(select 1 from public.staff_profiles
@@ -50,7 +49,7 @@ insert into public.orders(id,order_number,customer_id,source,status,payment_stat
 values('bbbbbbbb-1111-4111-8111-111111111111','SECURITY-LOCAL-1',
  'aaaaaaaa-1111-4111-8111-111111111111','local','confirmed','paid',100,0,0,0,100);
 \i supabase/migrations/20261111223000_restrict_local_billing_rls.sql
-
+begin;
 -- Simulate a signed-in storefront customer with no staff profile.
 set local role authenticated;
 select set_config('request.jwt.claim.sub','99999999-9999-4999-8999-999999999999',true);
