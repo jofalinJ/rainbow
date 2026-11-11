@@ -58,14 +58,18 @@ async function offlineAssetsReady(){
  }
  // Explicit registration means preparation also works when PWA registration is slow.
  // Do not create an encrypted vault until its offline shell is safely cached.
- await navigator.serviceWorker.register("service-worker.js",{scope:"./"});
+ const registration=await navigator.serviceWorker.register("service-worker.js",{scope:"./"});
+ await registration.update();
  const ready=await Promise.race([
   navigator.serviceWorker.ready,
   new Promise((_,reject)=>setTimeout(()=>reject(new Error("Offline installation did not finish. Reload Billing and try again.")),12000))
  ]);
  if(!ready?.active)throw new Error("The offline service worker is not active yet. Reload and retry.");
- if(!(await caches.match(new URL("offline-pos.html",location.href).href))){
-  throw new Error("Offline Billing files are not installed yet. Open Offline Billing online, then return and retry.");
+ // The updated service worker is required on previously installed tablets;
+ // an old cache must not make the admin believe the new offline code is ready.
+ const updatedCache=await caches.open("rainbow-staff-offline-pos-v3");
+ if(!(await updatedCache.match(new URL("offline-pos.html",location.href).href))){
+  throw new Error("The latest offline billing files are still installing. Reload Billing while online and try again.");
  }
 }
 if(trigger&&form&&password&&confirmation&&status){
