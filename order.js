@@ -247,7 +247,7 @@ import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=
       city:$("city").value.trim(),
       state:$("state").value.trim(),
       address,
-      whatsapp_opt_in:false,
+      whatsapp_opt_in:$("whatsappReceiptConsent")?.checked===true,
       // Older cached checkouts must never be charged using a different pricing rule.
       pricing_revision:"no-discount-20261111",
       payment_method:"razorpay"
