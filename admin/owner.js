@@ -77,7 +77,8 @@ function onlineStock(p){
   return sum+Math.max(0,Number(b?.on_hand||0)-Number(b?.reserved||0));
  },0);
 }
-const markupPrice=amount=>Math.round(Math.round(Number(amount||0)*100)*1025/1000)/100;
+// Prices are stored in paise; integer arithmetic matches PostgreSQL round(...,0) at half-rupee boundaries.
+const markupPrice=amount=>Math.floor((Math.round(Number(amount||0)*100)*1025+50000)/100000);
 function onlinePriceOf(p){
  const saved=Number(listingOf(p)?.online_price);
  return published(p)&&Number.isFinite(saved)&&saved>0?saved:markupPrice(p.selling_price);
