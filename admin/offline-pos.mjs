@@ -48,7 +48,7 @@ async function render(){
   '<p class="muted">No products selected.</p>';
  for(const el of document.querySelectorAll("[data-remove]"))el.onclick=()=>{cart.delete(el.dataset.remove);render();};
  $("cartTotal").textContent="Total "+fmt(offlineTotals(selected).total)+" (estimate)";
- $("saveOffline").disabled=expired||!selected.length;
+ $("saveOffline").disabled=expired||!selected.length||!$("cashCollected").checked;
  const pending=data.pending.slice().reverse().slice(0,70);
  $("pendingList").innerHTML=pending.map(s=>{
   const title=s.status==="synced"?"CONFIRMED · "+html(s.receipt?.invoice_number||"Invoice"):
@@ -174,20 +174,21 @@ $("offlineSearch").addEventListener("keydown",async event=>{
  cart.set(id,(cart.get(id)||0)+1);$("offlineSearch").value="";await render();
 });
 $("saveOffline").onclick=async()=>{
- if(!vault||!cart.size)return;
+ if(!vault||!cart.size||!$("cashCollected").checked)return;
  $("saveOffline").disabled=true;
  try{
   const sale=await vault.queue([...cart].map(([variant_id,quantity])=>({variant_id,quantity})),{
    name:$("buyerName").value,whatsapp_number:$("buyerPhone").value
   });
-  cart.clear();$("buyerName").value="";$("buyerPhone").value="";
+  cart.clear();$("buyerName").value="";$("buyerPhone").value="";$("cashCollected").checked=false;
   await render();
   status("Cash record "+sale.id.slice(0,8)+" saved securely. Pending server sync; no final invoice yet.");
   printOffline(sale);
   if(navigator.onLine)syncOnline();
  }catch(error){status(error.message,true);}finally{if(vault)await render();}
 };
-$("clearOffline").onclick=()=>{cart.clear();render();};
+$("clearOffline").onclick=()=>{cart.clear();$("cashCollected").checked=false;render();};
+$("cashCollected").addEventListener("change",()=>render());
 $("syncNow").onclick=()=>syncOnline(true);
 $("refreshOffline").onclick=async()=>{
  if(!vault)return;
