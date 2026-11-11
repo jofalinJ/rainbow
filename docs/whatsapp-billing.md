@@ -16,7 +16,7 @@ Set these in Supabase Edge Function Secrets. Never put them in `admin/config.js`
 WHATSAPP_ACCESS_TOKEN=<Meta user/system access token>
 WHATSAPP_PHONE_NUMBER_ID=<registered WhatsApp phone number ID>
 WHATSAPP_GRAPH_VERSION=<your current Meta Graph API version>
-APP_PUBLIC_URL=https://jofalinj.github.io/rainbow
+APP_PUBLIC_URL=https://rainbowgoldcovering.com
 ```
 
 Optional for reliable business-initiated messages outside the 24-hour customer-care window:
