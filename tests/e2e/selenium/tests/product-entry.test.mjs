@@ -174,13 +174,10 @@ test("staff product entry accepts opening stock safely using only local fixtures
     const waitMessage=pattern=>driver.wait(async()=>pattern.test(await (await field("msg")).getText()),10000);
     const writes=table=>fixture.state().writes.filter(row=>row.resource===table);
 
-    await context.test("an admin can open the online listing and see how to allocate stock",async()=>{
+    await context.test("an admin Online action routes to the owner stock allocation workflow without writes",async()=>{
       await open("admin");
-      assert.equal(await (await field("onlineListingDialog")).isDisplayed(),false);
       await driver.findElement(By.css('[data-online-product]')).click();
-      await driver.wait(async()=>await (await field("onlineListingDialog")).isDisplayed(),5000);
-      assert.match(await (await field("onlineListingDialog")).getText(),/Online Store.*confirm receipt/);
-      await (await field("closeOnlineListing")).click();
+      await driver.wait(async()=>(await driver.getCurrentUrl()).includes("/admin/owner.html?screen=categories&lookup="),5000);
       assert.equal(fixture.state().writes.length,0);
     });
 
