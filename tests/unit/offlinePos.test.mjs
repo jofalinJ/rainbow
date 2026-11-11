@@ -129,7 +129,8 @@ describe("encrypted offline billing contract",()=>{
  it("never issues a final invoice number or pretends to charge a card offline",()=>{
   const html=read("admin/offline-pos.html");
   const app=read("admin/offline-pos.mjs");
-  expect(html).toContain("PENDING SYNC");
+  expect(html).toContain("Cash only.");
+  expect(app).toContain("PENDING SYNC");
   expect(html).toContain("Cash only.");
   expect(app).toContain("NOT A TAX INVOICE");
   expect(app).toContain("vault.queue");
