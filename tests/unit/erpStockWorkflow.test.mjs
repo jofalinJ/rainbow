@@ -32,6 +32,8 @@ describe("owner online visibility uses server-atomic stock ownership",()=>{
   expect(js).toContain('p_publish:shouldPublish');
   expect(js).toContain('await transferOnline(product,source,variantId,qty,mode==="show")');
   expect(js).toContain('rpc("erp_recall_and_hide_online"');
+  expect(js).toContain('onlineReturnShop');
+  expect(source("admin/owner.html")).toContain('id="onlineReturnShop"');
   expect(js).toContain('onlineStock(p)>0');
   expect(js).not.toContain('if(transferred)throw new Error("Stock was transferred online');
  });
