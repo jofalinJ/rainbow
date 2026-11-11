@@ -46,6 +46,7 @@ function browserFixture(){
   if(name==="staff_profiles")return staff;
   if(name==="erp_stock_balances")return balances;
   if(name==="erp_online_listings")return products.flatMap(p=>p.erp_online_listings);
+  if(name==="erp_transfers")return transfers;
   if(name==="product_images")return products.flatMap(p=>p.product_images);
   if(name==="product_variants")return products.flatMap(p=>p.product_variants);
   throw new Error("Unexpected fixture table "+name);
@@ -114,6 +115,53 @@ function browserFixture(){
    remove:async()=>dataResult([])
   })},
   rpc:async(name,params)=>{
+    if(name==="erp_allocate_online"&&role==="admin"){
+     const product=products.find(p=>p.id===params.p_product);
+     const variant=product?.product_variants.find(v=>v.id===params.p_variant);
+     const source=balances.find(b=>b.location_id===params.p_from&&b.variant_id===params.p_variant);
+     const online=locations.find(l=>l.kind==="online");
+     const destination=balances.find(b=>b.location_id===online?.id&&b.variant_id===params.p_variant);
+     if(!variant||!source||!destination)throw Error("Missing fixture product or stock location");
+     if(params.p_quantity<1||params.p_quantity>source.on_hand-source.reserved)
+      throw Error("Insufficient available stock at source shop");
+     if(params.p_publish){
+      const values={product_id:product.id,published:true};
+      writes.push({table:"erp_online_listings",action:"upsert",values});
+      const row=product.erp_online_listings[0];
+      if(row)Object.assign(row,values);else product.erp_online_listings.push({...values});
+     }else if(!product.erp_online_listings[0]?.published){
+      throw Error("Publish product before online stock");
+     }
+     source.on_hand-=params.p_quantity;
+     destination.on_hand+=params.p_quantity;
+     variant.stock_quantity=destination.on_hand-destination.reserved;
+     const id="local-atomic-"+transfers.length;
+     transfers.push({id,status:"received",params:{
+       p_from:params.p_from,p_to:online.id,p_variant:params.p_variant,
+       p_quantity:params.p_quantity
+     }});
+     return dataResult({state:"received",transfer_id:id,already_applied:false});
+    }
+    if(name==="erp_recall_and_hide_online"&&role==="admin"){
+     const product=products.find(p=>p.id===params.p_product);
+     const online=locations.find(l=>l.kind==="online");
+     if(!product||!online)throw Error("Unknown product or Online Store");
+     let returned=0;
+     for(const variant of product.product_variants){
+      const source=balances.find(b=>b.location_id===online.id&&b.variant_id===variant.id);
+      const destination=balances.find(b=>b.location_id===params.p_destination&&b.variant_id===variant.id);
+      if(!source||!destination)throw Error("Unknown shop balance");
+      if(source.reserved>0)throw Error("Cannot hide reserved online stock");
+      const qty=source.on_hand;
+      source.on_hand=0;destination.on_hand+=qty;variant.stock_quantity=0;returned+=qty;
+      if(qty)transfers.push({id:"local-recall-"+transfers.length,status:"received",
+       params:{p_from:online.id,p_to:params.p_destination,p_variant:variant.id,p_quantity:qty}});
+     }
+     const values={product_id:product.id,published:false};
+     writes.push({table:"erp_online_listings",action:"upsert",values});
+     if(product.erp_online_listings[0])Object.assign(product.erp_online_listings[0],values);
+     return dataResult({state:"hidden",returned});
+    }
     if(name==="erp_dispatch_transfer"&&role==="admin"){
      const src=balances.find(b=>b.location_id===params.p_from&&b.variant_id===params.p_variant);
      if(!src||params.p_quantity>src.on_hand-src.reserved)throw Error("Fixture cannot transfer uncounted stock");
