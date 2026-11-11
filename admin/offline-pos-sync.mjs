@@ -2,7 +2,7 @@
 const round=n=>Math.round((Number(n)+Number.EPSILON)*100)/100;
 export function isTransientSyncError(error){
  const s=String(error?.message||error||"");
- return /fetch|network|offline|timeout|failed to connect|503|502|504|abort|DNS|CORS/i.test(s);
+ return /fetch|network|offline|timeout|failed to connect|503|502|504|abort|DNS|CORS|Sign in online before|Session expired|authentication required/i.test(s);
 }
 export async function syncOfflineSale(vault,sale,client){
  if(sale.status!=="pending")return {status:"skipped"};
