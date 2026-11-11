@@ -32,8 +32,10 @@ self.addEventListener("fetch",event=>{
   return;
  }
  // Only cache vetted static offline POS dependencies. No account or REST APIs.
- if(SAFE.has(url.href)){
+ // Remove version query strings when checking the explicit asset allowlist.
+ const assetUrl=new URL(url.href);assetUrl.search="";
+ if(SAFE.has(assetUrl.href)){
   event.respondWith(caches.open(CACHE).then(async cache=>
-   (await cache.match(request,{ignoreSearch:true}))||fetch(request)));
+   (await cache.match(assetUrl.href))||fetch(request)));
  }
 });
