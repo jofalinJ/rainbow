@@ -206,3 +206,8 @@ html.owner-ready body>aside{
 .pending-online-row small{margin-top:4px;color:#70625b}
 .pending-online-row button{flex-shrink:0}
 @media(max-width:650px){.pending-online-header,.pending-online-row{flex-direction:column;align-items:stretch}.pending-online-row button{width:100%}}
+
+
+.return-shop-choice{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 0;color:#63564d;font-size:.9rem}
+.return-shop-choice select{background:#fff;border:1px solid #d9c8b8;border-radius:9px;padding:9px 11px;min-height:44px;max-width:100%}
+@media(max-width:650px){.return-shop-choice{align-items:stretch;flex-direction:column}.return-shop-choice select{width:100%}}
