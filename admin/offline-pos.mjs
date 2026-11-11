@@ -5,7 +5,7 @@ const $=id=>document.getElementById(id);
 const html=value=>String(value??"").replace(/[&<>"]/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[ch]));
 const fmt=value=>"₹"+Number(value||0).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2});
 let vault=null,cart=new Map(),syncing=false,lastClient=null,supabaseLoading=null;
-let currentReceipt=null;
+let 
 function status(message,error=false){
  $("statusPanel").textContent=message;
  $("statusPanel").classList.toggle("error",error);
@@ -66,7 +66,7 @@ async function render(){
 }
 function printOffline(sale){
  if(!sale)return;
- currentReceipt=sale;
+
  const rows=sale.rows.map(row=>'<div class="row"><span>'+html(row.product_code)+' × '+row.quantity+'</span><b>'+fmt(row.unitPrice*row.quantity)+'</b></div>').join("");
  $("receiptPrint").innerHTML='<h2>RAINBOW GOLD COVERING</h2><p style="text-align:center">SHOP CASH RECORD</p>'+
   '<p class="pending">PENDING SYNC · NOT A TAX INVOICE</p>'+
