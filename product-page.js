@@ -11,7 +11,7 @@
  if(!sku||sku.length>100){showError("This design link is incomplete. Browse available jewellery instead.");return;}
  if(!window.supabase?.createClient||!cfg.supabaseUrl||!cfg.supabasePublishableKey){showError("Catalogue temporarily unavailable. Please try again later.");return;}
  const client=window.supabase.createClient(cfg.supabaseUrl,cfg.supabasePublishableKey);
- const fields="id,product_code,product_name,type,selling_price,description,active,length_cm,thickness,gold_amount_g,product_images(public_url,storage_path,is_primary,sort_order),product_variants(id,stock_quantity,color,size,length_cm,active),erp_online_listings!inner(published,online_price)";
+ const fields="id,product_code,product_name,type,selling_price,description,warranty_months,active,length_cm,thickness,gold_amount_g,product_images(public_url,storage_path,is_primary,sort_order),product_variants(id,stock_quantity,color,size,length_cm,active),erp_online_listings!inner(published,online_price)";
  const onlinePrice=p=>{
   const listing=Array.isArray(p.erp_online_listings)?p.erp_online_listings[0]:p.erp_online_listings;
   const value=Number(listing?.online_price??p.selling_price);
@@ -110,7 +110,9 @@
      },{passive:true});
      photoSurface?.setAttribute("aria-label","Product photo. Swipe horizontally to view the next image.");
    }
-   const specs=[["Thickness",product.thickness],["Length",product.length_cm!=null?product.length_cm+" cm":null],["Gold amount (as recorded)",product.gold_amount_g!=null?product.gold_amount_g+" g":null]];
+   const warranty=Number(product.warranty_months)||0;
+   const warrantyLabel=warranty>=12?(warranty%12===0?`${warranty/12} ${warranty===12?"year":"years"}`:`${Math.floor(warranty/12)} year${warranty>=24?"s":""} ${warranty%12} months`):`${warranty} months`;
+   const specs=[["Warranty",warranty?warrantyLabel:null],["Thickness",product.thickness],["Length",product.length_cm!=null?product.length_cm+" cm":null],["Gold amount (as recorded)",product.gold_amount_g!=null?product.gold_amount_g+" g":null]];
    for(const [label,value] of specs){if(value==null||value==="")continue;const dt=document.createElement("dt"),dd=document.createElement("dd");dt.textContent=label;dd.textContent=value;$("detailSpecs").append(dt,dd);}
    const select=$("detailVariant");select.replaceChildren();
    variants.forEach(v=>select.add(new Option(variantLabel(v)+" · "+v.stock_quantity+" available",String(v.id))));
