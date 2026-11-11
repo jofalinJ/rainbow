@@ -19,18 +19,18 @@ function browserFixture(){
  if(role==="admin")locations.push({id:"cccccccc-cccc-4ccc-8ccc-cccccccccccc",name:"Online Store",kind:"online",active:true});
  const products=[],writes=[],uploadPaths=[],balances=[],transfers=[];
  const seed=new URLSearchParams(globalThis.location.search).get("seed");
- if(role==="admin"&&(seed==="online"||seed==="shop")){
+ if(role==="admin"&&(seed==="online"||seed==="shop"||seed==="shared")){
   const variantId="ffffffff-ffff-4fff-8fff-fffffffffff1";
   products.push({
    id:"ffffffff-ffff-4fff-8fff-fffffffffff0",product_code:"QATEST00001",
    product_name:"Fixture saved chain",selling_price:450,category_id:categories[0].id,
    active:true,archived_at:null,created_at:new Date().toISOString(),
    product_images:[{id:"ffffffff-ffff-4fff-8fff-fffffffffff2",public_url:"https://example.invalid/chain.webp",is_primary:true,sort_order:0}],
-   product_variants:[{id:variantId,product_id:"ffffffff-ffff-4fff-8fff-fffffffffff0",active:true,color:"0",size:"0",stock_quantity:seed==="online"?2:0}],
+   product_variants:[{id:variantId,product_id:"ffffffff-ffff-4fff-8fff-fffffffffff0",active:true,color:"0",size:"0",stock_quantity:seed==="shared"?3:seed==="online"?2:0}],
    erp_online_listings:[]
   });
   balances.push(
-   {location_id:locations[0].id,variant_id:variantId,on_hand:seed==="shop"?3:0,reserved:0},
+   {location_id:locations[0].id,variant_id:variantId,on_hand:seed==="shop"||seed==="shared"?3:0,reserved:0},
    {location_id:locations[1].id,variant_id:variantId,on_hand:seed==="online"?2:0,reserved:0}
   );
  }
@@ -54,6 +54,7 @@ function browserFixture(){
   const q={table,action:"read",filters:[],values:null,
    select(){return q;},
    eq(key,value){q.filters.push([key,value]);return q;},
+   in(key,values){q.filters.push([key,values]);return q;},
    order(){return q;},
    range(start,end){return Promise.resolve(dataResult(allRows(table).filter(match).slice(start,end+1)));},
    insert(values){q.action="insert";q.values=values;return q;},
@@ -64,7 +65,7 @@ function browserFixture(){
    maybeSingle(){return Promise.resolve(run(true));},
    then(resolve,reject){return Promise.resolve().then(()=>run(false)).then(resolve,reject);}
   };
-  const match=row=>q.filters.every(([key,value])=>row[key]===value);
+  const match=row=>q.filters.every(([key,value])=>Array.isArray(value)?value.includes(row[key]):row[key]===value);
   function run(one){
    if(q.action==="read"){const rows=allRows(table).filter(match);return dataResult(one?rows[0]||null:rows);}
    writes.push({table,action:q.action,values:structuredClone(q.values)});
@@ -114,6 +115,7 @@ function browserFixture(){
    remove:async()=>dataResult([])
   })},
   rpc:async(name,params)=>{
+    if(name==="erp_shared_inventory_mode")return dataResult({shared_stock:seed==="shared"});
     if(name==="erp_dispatch_transfer"&&role==="admin"){
      const src=balances.find(b=>b.location_id===params.p_from&&b.variant_id===params.p_variant);
      if(!src||params.p_quantity>src.on_hand-src.reserved)throw Error("Fixture cannot transfer uncounted stock");
@@ -177,7 +179,7 @@ test("Quick Products is photo-first; staff can save a draft on a 390px screen wi
  let driver;
  try{
   driver=await new Builder().forBrowser("chrome").setChromeOptions(options).build();
-  await driver.manage().window().setRect({width:390,height:850});
+  await driver.sendDevToolsCommand("Emulation.setDeviceMetricsOverride",{width:390,height:850,deviceScaleFactor:1,mobile:true});
   await driver.get(fixture.base+"/admin/owner.html?role=staff");
   const field=id=>driver.findElement(By.id(id));
   await driver.wait(async()=>await (await field("ownerApp")).isDisplayed(),12000);
@@ -187,8 +189,9 @@ test("Quick Products is photo-first; staff can save a draft on a 390px screen wi
   assert.equal(await (await field("publishNow")).isDisplayed(),false,"Staff should never be offered admin publishing");
   assert.equal(await (await field("saveDraft")).getText(),"Save product for approval");
   assert.ok(!(await driver.findElement(By.tagName("body")).getText()).includes("Salesforce"));
-  const width=await driver.executeScript("return document.documentElement.scrollWidth");
-  assert.ok(width<=390+2,"Quick add must not overflow the 390px viewport");
+  const {width,viewport}=await driver.executeScript("return {width:document.documentElement.scrollWidth,viewport:document.documentElement.clientWidth}");
+  assert.equal(viewport,390);
+  assert.ok(width<=viewport+2,`Quick Add width ${width} exceeds the ${viewport}px viewport`);
 
   const photoInput=await field("productPhotos");
   await driver.executeScript(input=>{
@@ -231,7 +234,7 @@ test("owner Show Online publishes counted stock and Hide Online safely reverses 
  let driver;
  try{
   driver=await new Builder().forBrowser("chrome").setChromeOptions(options).build();
-  await driver.manage().window().setRect({width:390,height:850});
+  await driver.sendDevToolsCommand("Emulation.setDeviceMetricsOverride",{width:390,height:850,deviceScaleFactor:1,mobile:true});
   const field=id=>driver.findElement(By.id(id));
   const categories=()=>driver.findElement(By.css('[data-screen="categories"]'));
   const action=label=>driver.findElement(By.xpath("//div[contains(@class,'category-product-actions')]/button[contains(text(),'"+label+"')]"));
@@ -289,7 +292,7 @@ test("admin can add existing shop stock to an unpublished draft, publish it, and
  let driver;
  try{
   driver=await new Builder().forBrowser("chrome").setChromeOptions(options).build();
-  await driver.manage().window().setRect({width:390,height:850});
+  await driver.sendDevToolsCommand("Emulation.setDeviceMetricsOverride",{width:390,height:850,deviceScaleFactor:1,mobile:true});
   const field=id=>driver.findElement(By.id(id));
   const action=label=>driver.findElement(By.xpath("//div[contains(@class,'category-product-actions')]/button[contains(text(),'"+label+"')]"));
   const press=async label=>driver.executeScript("arguments[0].click()",await action(label));
@@ -341,5 +344,38 @@ test("admin can add existing shop stock to an unpublished draft, publish it, and
   assert.deepEqual((await balance()).map(b=>b.on_hand),[0,3]);
   assert.ok(data.writes.filter(w=>w.table==="erp_online_listings"&&w.values.published===true).length===1,
    "Top-up must not cause a second publish or duplicate listing");
+ }finally{if(driver)await driver.quit();await fixture.close();}
+});
+
+test("shared shop mode publishes existing products without moving or duplicating physical stock",async()=>{
+ const fixture=await serve();
+ const options=new chrome.Options().addArguments("--headless=new","--no-sandbox","--disable-dev-shm-usage",
+  "--disable-background-networking","--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1","--window-size=390,850");
+ let driver;
+ try{
+  driver=await new Builder().forBrowser("chrome").setChromeOptions(options).build();
+  await driver.sendDevToolsCommand("Emulation.setDeviceMetricsOverride",{width:390,height:850,deviceScaleFactor:1,mobile:true});
+  await driver.get(fixture.base+"/admin/owner.html?role=admin&seed=shared");
+  const field=id=>driver.findElement(By.id(id));
+  await driver.wait(async()=>await (await field("ownerApp")).isDisplayed(),12000);
+  assert.match(await (await field("roleAccessNote")).getText(),/No second quantity/);
+  await driver.executeScript("arguments[0].click()",await driver.findElement(By.css('[data-screen="categories"]')));
+  const catalog=await field("categoryCatalogueList");
+  assert.match(await catalog.getText(),/Existing shop stock: 3 pcs/);
+  assert.equal((await driver.findElements(By.css(".category-product-actions button"))).length,2,
+   "Owner sees Show Online and Edit, without Add Online Stock");
+  const show=await driver.findElement(By.xpath("//div[contains(@class,'category-product-actions')]/button[contains(text(),'Show Online')]"));
+  await driver.executeScript("arguments[0].click()",show);
+  await driver.wait(async()=>/Visible online/.test(await catalog.getText()),10000);
+  const state=await driver.executeScript("return globalThis.__qa");
+  assert.equal(state.transfers.length,0,"Publishing must never transfer or create shop stock");
+  assert.deepEqual(state.balances.map(b=>b.on_hand),[3,0]);
+  assert.ok(state.writes.some(w=>w.table==="erp_online_listings"&&w.values.published===true));
+  const hide=await driver.findElement(By.xpath("//div[contains(@class,'category-product-actions')]/button[contains(text(),'Hide Online')]"));
+  await driver.executeScript("arguments[0].click()",hide);
+  await driver.wait(async()=>/Not online/.test(await catalog.getText()),10000);
+  const after=await driver.executeScript("return globalThis.__qa");
+  assert.equal(after.transfers.length,0);
+  assert.deepEqual(after.balances.map(b=>b.on_hand),[3,0]);
  }finally{if(driver)await driver.quit();await fixture.close();}
 });

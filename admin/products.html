@@ -40,7 +40,7 @@
  </div>
  <div class="field opening-stock-shop" id="openingStockShopField" hidden>
    <label for="openingStockShop">Shop for opening stock</label><select id="openingStockShop" aria-describedby="openingStockShopHelp"></select>
-   <small id="openingStockShopHelp" class="field-help">Opening stock goes to this shop. To sell online, an admin must publish the online listing and allocate stock in Inventory.</small>
+   <small id="openingStockShopHelp" class="field-help">Counted opening stock goes to this shop.</small>
  </div>
  <section id="existingBox" class="variant-editor-panel" style="display:none" aria-labelledby="variantEditorTitle">
    <div class="product-form-section-head"><div><h3 id="variantEditorTitle">New product variant</h3><p>Keep the existing product name, price and photos. Add only the unique color, size or length and its stock.</p></div></div>
@@ -105,7 +105,7 @@
 <div class="stock-dialog-content"><p id="onlineListingProduct"></p>
 <label class="publish-toggle"><input id="onlineListingVisible" type="checkbox"> Publish this existing product online</label>
 <label>Online price (₹, optional)<input id="onlineListingPrice" type="number" min="0" step="0.01" placeholder="Use master product price"></label>
-<p class="field-help">The storefront shows active products with available online stock. Use Inventory to transfer units from a shop to Online Store and confirm receipt there.</p>
+<p class="field-help" id="onlineListingHelp"></p>
 <button type="button" id="saveOnlineListing" class="save-category">Save online listing</button>
 <p id="onlineListingFeedback" role="status"></p></div></dialog>
 <section class="panel" id="categoryDisplay"><div class="panelhead"><h2>Storefront category display</h2><span>Set the category order and choose which in-stock types can appear in the shop.</span></div><div id="storefrontCategoryRows" class="storefront-category-rows">Loading categories…</div><div class="category-display-save"><button type="button" id="saveStorefrontCategories">Save storefront display</button><span id="storefrontCategoryMessage" role="status"></span></div></section>
@@ -137,4 +137,4 @@
 <div class="catalogue-health" id="catalogueHealth" role="status" aria-live="polite">Check available product metrics.</div>
 <p><small>For full disaster recovery, use managed database backups or encrypted <code>pg_dump</code> snapshots; product CSV exports alone are not database backups.</small></p>
 </section>
-</main><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="app.js?v=20261110-quick-products"></script><script src="image-prep.js?v=20261018"></script><script src="catalogue-ops.js?v=20261018"></script><script src="products.js?v=20261018-staff-role-fix-20261108-online-stock"></script><script src="bulk-products.js?v=20261018-staff-role-fix"></script></body></html>
+</main><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="app.js?v=20261110-quick-products"></script><script src="image-prep.js?v=20261018"></script><script src="catalogue-ops.js?v=20261018"></script><script src="products.js?v=20261111-shared-shop-qa"></script><script src="bulk-products.js?v=20261018-staff-role-fix"></script></body></html>

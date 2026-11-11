@@ -7,7 +7,7 @@ const uuid = () => crypto.randomUUID();
 const format = n => Number(n || 0).toLocaleString("en-IN");
 const positiveInt = value => /^\d+$/.test(String(value)) && Number.isSafeInteger(Number(value)) && Number(value) > 0 && Number(value) <= 100000;
 const isInt = value => /^-?\d+$/.test(String(value)) && Number.isSafeInteger(Number(value)) && Number(value)!==0 && Math.abs(Number(value))<=100000;
-const state = {client:null, user:null, admin:false, locations:[], selected:null, listing:null, items:[], stock:[], suppliers:[], csvRows:[], operation:null, busy:false, scanner:null};
+const state = {client:null, user:null, admin:false, sharedBranchStock:false, locations:[], selected:null, listing:null, items:[], stock:[], suppliers:[], csvRows:[], operation:null, busy:false, scanner:null};
 function notify(message, error=false) {
  const el=$("erpStatus"); el.textContent=message; el.className="erp-status "+(error?"error":"ok");
 }
@@ -29,12 +29,12 @@ function imageURL(url) {
 function scrubSearch(value) { return String(value || "").trim().replace(/[^\p{L}\p{N}\s/_-]/gu," ").replace(/\s+/g," ").slice(0,70); }
 async function refreshLocations() {
  const rows=await query(state.client.from("erp_locations").select("id,code,name,kind,branch_id").eq("active",true).order("name"));
- state.locations=rows || [];
- options($("erpLocation"),rows.map(x=>({id:x.id,label:x.name+" ("+x.kind+")"})),"Select working location");
- if(rows.length && !$("erpLocation").value)$("erpLocation").value=rows.find(x=>x.kind==="branch")?.id||rows[0].id;
- options($("erpDestination"),rows.map(x=>({id:x.id,label:x.name})),"Choose destination");
+ state.locations=(rows||[]).filter(x=>!state.sharedBranchStock||x.kind==="branch");
+ options($("erpLocation"),state.locations.map(x=>({id:x.id,label:x.name+" ("+x.kind+")"})),"Select working location");
+ if(state.locations.length && !$("erpLocation").value)$("erpLocation").value=state.locations.find(x=>x.kind==="branch")?.id||state.locations[0].id;
+ options($("erpDestination"),state.locations.map(x=>({id:x.id,label:x.name})),"Choose destination");
  if(state.admin) {
-  options($("erpPurchaseDestination"),rows.filter(x=>x.kind==="branch").map(x=>({id:x.id,label:x.name})),"Choose receiving shop");
+  options($("erpPurchaseDestination"),state.locations.filter(x=>x.kind==="branch").map(x=>({id:x.id,label:x.name})),"Choose receiving shop");
  }
 }
 async function search() {
@@ -105,7 +105,10 @@ async function refreshSelected() {
  $("erpShopStock").textContent=format((here?.on_hand||0)-(here?.reserved||0));
  $("erpTotalStockLabel").textContent=state.admin?"Company-owned stock":"Stock visible to your role";
  $("erpTotalStock").textContent=format(state.stock.reduce((sum,x)=>sum+x.on_hand,0)+(transfers||[]).reduce((sum,x)=>sum+x.quantity,0));
- $("erpOnlineStock").textContent=format((onlineRow?.on_hand||0)-(onlineRow?.reserved||0));
+ const availableOnline=state.sharedBranchStock
+  ?state.stock.filter(row=>state.locations.some(l=>l.id===row.location_id)).reduce((sum,row)=>sum+row.on_hand-row.reserved,0)
+  :(onlineRow?.on_hand||0)-(onlineRow?.reserved||0);
+ $("erpOnlineStock").textContent=format(availableOnline);
  $("erpTransitStock").textContent=format((transfers||[]).reduce((sum,x)=>sum+x.quantity,0));
  const breakdown=$("erpBranchBreakdown");breakdown.replaceChildren();
  for(const location of state.locations) {
@@ -238,7 +241,7 @@ async function reloadSummary() {
    ["Master products",summary.master_products],
    ["Locations",summary.locations],
    ["On hand (all locations)",summary.on_hand],
-   ["Reserved online",summary.reserved],
+   ["Reserved",summary.reserved],
    ["In transit",summary.in_transit],
    ["Low-stock variants",summary.low_stock],
    ["Pending transfers",summary.pending_transfers]
@@ -422,9 +425,21 @@ async function init() {
   state.user=await window.getAuthUser();
   const profile=await window.getMyProfile();
   state.admin=Boolean(profile.active&&profile.role==="admin");
+  const mode=await state.client.rpc("erp_shared_inventory_mode");
+  if(mode.error&&mode.error.code!=="PGRST202")throw new Error("Could not check the stock mode. Refresh and try again.");
+  state.sharedBranchStock=mode.data?.shared_stock===true;
   $("erpRole").textContent=state.admin?"Super Admin":"Authorized Staff";
   $("erpAdminTools").hidden=!state.admin;
   $("erpOnlinePanel").hidden=!state.admin;
+  $("erpOnlineStockStat").hidden=state.sharedBranchStock&&!state.admin;
+  $("erpOnlineStockLabel").textContent=state.sharedBranchStock?"Available across active shops":"Online available";
+  $("erpToolsHeading").textContent=state.sharedBranchStock?"Multi-shop stock and transfers":"Multi-shop stock, transfers & online allocation";
+  $("erpModeHelp").textContent=state.sharedBranchStock
+   ?"Published products use available stock from active physical shops."
+   :"An admin can publish a product and transfer existing stock to the Online Store. Confirm receipt before selling those units online.";
+  $("erpPublicationHelp").textContent=state.sharedBranchStock
+   ?"Published products appear when shop stock is available."
+   :"Save the online listing before transferring stock to Online Store. The product appears after receipt when units are available.";
   await refreshLocations();
   if(!state.locations.length){notify("No shops assigned. Ask the admin to assign your staff account.",true);return;}
   $("erpLocation").addEventListener("change",()=>{

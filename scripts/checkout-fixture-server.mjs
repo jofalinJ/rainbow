@@ -43,7 +43,6 @@ async function reset(){
  for(const name of ["tests/sql/payment-fixture.sql",
   "supabase/migrations/20261021194000_razorpay_test_reservation_checkout.sql",
   "supabase/migrations/20261021202500_manual_upi_guest_idempotency.sql",
-  "tests/fixtures/checkout-postgres.sql",
   "supabase/migrations/20261021234000_finalize_paid_orders_invoice_whatsapp.sql"])
   await db.exec(await fs.readFile(path.join(root,name),"utf8"));
  await db.exec("set request.jwt.claim.role='service_role'");
@@ -136,7 +135,8 @@ const server=http.createServer(async(req,res)=>{
    const input=await body(req),order=providerOrders.get(input.order_id);
    if(!order)return send(res,json({error:"Unknown local provider order"},404));
    const id="pay_fixture"+String(++sequence).padStart(8,"0");
-   const payment={id,order_id:order.id,amount:order.amount,currency:"INR",status:input.status==="authorized"?"authorized":"captured"};
+   const payment={id,order_id:order.id,amount:order.amount,currency:"INR",status:input.status==="authorized"?"authorized":"captured",
+    captured:input.status!=="authorized",amount_refunded:0,refund_status:null};
    providerPayments.set(id,payment);
    return send(res,json({razorpay_order_id:order.id,razorpay_payment_id:id,
     razorpay_signature:await hmacHex(env.RAZORPAY_KEY_SECRET,order.id+"|"+id)}));
@@ -145,6 +145,7 @@ const server=http.createServer(async(req,res)=>{
    const input=await body(req),payment=providerPayments.get(input.payment_id);
    if(!payment)return send(res,json({error:"Unknown local provider payment"},404));
    payment.status="captured";
+   payment.captured=true;
    return send(res,json({razorpay_order_id:payment.order_id,razorpay_payment_id:payment.id,
     razorpay_signature:await hmacHex(env.RAZORPAY_KEY_SECRET,payment.order_id+"|"+payment.id)}));
   }

@@ -3,9 +3,11 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import {fileURLToPath} from "node:url";
 import {isPublicAssetPath} from "./public-asset-manifest.mjs";
+import {isolatedRuntimeConfig} from "./test-runtime-config.mjs";
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"..");
 const port=Number(process.env.PORT||4173);
+const testConfig=isolatedRuntimeConfig(process.env);
 const mime={
   ".html":"text/html; charset=utf-8",
   ".js":"text/javascript; charset=utf-8",
@@ -41,6 +43,7 @@ function safePath(urlPath){
 
 const server=http.createServer(async(req,res)=>{
   const headers={"Cache-Control":"no-store","X-Content-Type-Options":"nosniff"};
+  if(testConfig)headers["Content-Security-Policy"]=testConfig.connectPolicy;
   const respond=(status,body,type="text/plain; charset=utf-8")=>{
     res.writeHead(status,{...headers,"Content-Type":type});
     res.end(req.method==="HEAD"?"":body);
@@ -51,6 +54,12 @@ const server=http.createServer(async(req,res)=>{
   try{
     const filePath=safePath(req.url);
     if(!filePath){respond(403,"Forbidden");return;}
+    if(testConfig&&filePath===path.join(root,"admin/config.js")){
+      respond(200,testConfig.supabaseScript,mime[".js"]);return;
+    }
+    if(testConfig&&filePath===path.join(root,"payment-config.js")){
+      respond(200,testConfig.paymentScript,mime[".js"]);return;
+    }
     let info;
     try{info=await fs.stat(filePath);}
     catch(error){

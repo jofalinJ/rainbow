@@ -7,7 +7,7 @@ const MAX_IMAGES = 6;
 const MAX_BYTES = 5 * 1024 * 1024;
 const money = amount => new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR",maximumFractionDigits:2}).format(Number(amount)||0);
 const id = () => crypto.randomUUID();
-const state = {client:null,user:null,role:null,categories:[],locations:[],online:null,products:[],balances:[],screen:"dashboard",editorId:null,gallery:[],deleted:[],receivedNew:false,busy:false,limit:24,categoryLimit:48,visibilityProductId:null,visibilityMode:"show",stockCheckSeq:0,shopBalances:new Map(),selected:new Set()};
+const state = {client:null,user:null,role:null,categories:[],locations:[],online:null,products:[],balances:[],screen:"dashboard",editorId:null,gallery:[],deleted:[],receivedNew:false,busy:false,limit:24,categoryLimit:48,sharedBranchStock:false,visibilityProductId:null,visibilityMode:"show",stockCheckSeq:0,shopBalances:new Map(),selected:new Set()};
 const safeURL = value => {try{const u=new URL(value);return u.protocol==="https:"?u.href:"";}catch{return"";}};
 const friendly = error => {
  const message=String(error?.message||error||"Unknown error");
@@ -70,15 +70,14 @@ function listingOf(p){const raw=p.erp_online_listings;return Array.isArray(raw)?
 function published(p){return !p.archived_at&&p.active!==false&&listingOf(p)?.published===true;}
 function onlineStock(p){
  return variantsOf(p).reduce((sum,v)=>{
-  // Non-admin staff cannot read the online ERP balance. The stock_quantity
-  // mirror is the customer-visible online availability and is read-only here.
-  if(!canPublish())return sum+Math.max(0,Number(v.stock_quantity||0));
+  if(state.sharedBranchStock||!canPublish())return sum+Math.max(0,Number(v.stock_quantity||0));
   const b=state.balances.find(row=>row.variant_id===v.id);
   return sum+Math.max(0,Number(b?.on_hand||0)-Number(b?.reserved||0));
  },0);
 }
 function visibleOnStorefront(p){return published(p)&&variantsOf(p).some(v=>Number(v.stock_quantity)>0)&&Number(p.selling_price)>0&&photosOf(p).length>0;}
 function onlineHeld(p){return variantsOf(p).reduce((sum,v)=>sum+Number(state.balances.find(row=>row.variant_id===v.id)?.reserved||0),0);}
+function canHideOnline(p){return state.sharedBranchStock?published(p):visibleOnStorefront(p);}
 function badge(p){
  if(p.archived_at)return ["Archived","archived"];
  if(published(p))return [onlineStock(p)>0?"Published":"Published · out of stock","published"];
@@ -97,6 +96,9 @@ async function fetchAll(table,select,configure){
  return rows;
 }
 async function refresh(){
+ const mode=await state.client.rpc("erp_shared_inventory_mode");
+ if(mode.error&&mode.error.code!=="PGRST202")throw new Error("Could not check the stock mode. Refresh and try again.");
+ state.sharedBranchStock=mode.data?.shared_stock===true;
  const [categories,locations,products]=await Promise.all([
   fetchAll("categories","id,name,code_prefix,has_color,has_size,has_length,active,storefront_order,show_in_storefront",q=>q.order("storefront_order").order("name")),
   result(state.client.from("erp_locations").select("id,name,kind,active").eq("active",true).order("name")),
@@ -108,11 +110,22 @@ async function refresh(){
  for(const cat of state.categories)categorySelect.add(new Option(cat.name,cat.id));
  categorySelect.value=state.categories.some(c=>c.id===selectedCategory)?selectedCategory:"all";
  state.online=state.locations.find(x=>x.kind==="online")||null;
- if(!state.online&&canPublish())throw new Error("Online Store inventory location is not configured.");
+ if(!state.sharedBranchStock&&!state.online&&canPublish())throw new Error("Online Store inventory location is not configured.");
  state.products=products||[];
- state.balances=canPublish()&&state.online
-  ?await fetchAll("erp_stock_balances","location_id,variant_id,on_hand,reserved",q=>q.eq("location_id",state.online.id))
+ state.balances=canPublish()&&!state.sharedBranchStock
+  ?await fetchAll("erp_stock_balances","location_id,variant_id,on_hand,reserved",q=>q.eq("location_id",state.online.id).order("variant_id"))
   :[];
+ $("categoryCatalogueHeading").textContent=state.sharedBranchStock
+  ?"Products by category · shared shop stock":"Online Push · Products by category";
+ $("categoryCatalogueHint").textContent=state.sharedBranchStock
+  ?"Choose Show Online to sell the existing product using available stock from active shops."
+  :"Use Add Online Stock to move existing pieces from a physical shop. It deducts them from shop availability. Then choose Show Online.";
+ $("productDraftHint").textContent=state.sharedBranchStock
+  ?"Product code is automatic. Staff can save a draft for the owner to publish."
+  :"Product code is automatic. You can save without stock; the owner publishes and allocates stock before it appears online.";
+ $("openingStockNote").textContent=state.sharedBranchStock
+  ?"Opening stock is received at the selected shop and becomes available online when the owner publishes the product."
+  :"Opening stock is received at the selected shop. The owner allocates existing pieces when publishing online.";
  const cats=$("ownerCategory");const previous=cats.value;
  cats.replaceChildren(new Option("Select a category",""));
  for(const c of state.categories.filter(c=>c.active))cats.add(new Option(c.name,c.id));
@@ -172,27 +185,29 @@ function renderProducts(){
   const name=document.createElement("strong");name.textContent=p.product_name;
   const details=document.createElement("small");details.textContent=p.product_code+" · "+(categoryById(p.category_id)?.name||"Category")+" · "+money(p.selling_price);
   const status=document.createElement("span");status.className="status "+badge(p)[1];status.textContent=badge(p)[0];
-  const stock=document.createElement("small");stock.textContent=onlineStock(p)+" available online"+(onlineHeld(p)?" · "+onlineHeld(p)+" reserved":"");
+  const stock=document.createElement("small");stock.textContent=onlineStock(p)+(state.sharedBranchStock?" available from existing shops":" available online")+(onlineHeld(p)?" · "+onlineHeld(p)+" reserved":"");
   info.append(name,details,status,stock);
   const quick=document.createElement("div");quick.className="product-quick";
   const priceLabel=document.createElement("label");priceLabel.textContent="Price ₹";
   const price=document.createElement("input");price.type="number";price.min="0.01";price.step="0.01";price.disabled=!canPublish();price.value=Number(p.selling_price);price.setAttribute("aria-label","Price for "+p.product_name);priceLabel.append(price);
-  const stockLabel=document.createElement("label");stockLabel.textContent="Online stock";
-  const target=document.createElement("input");target.type="number";target.min="0";target.step="1";target.max="100000";target.value=String(onlineStock(p));target.disabled=!canPublish()||variantsOf(p).length!==1||!published(p);target.title=!published(p)?"Publish before allocating online stock.":target.disabled?"Use Inventory for multi-variant products":"";stockLabel.append(target);
+  const stockLabel=document.createElement("label");stockLabel.textContent=state.sharedBranchStock?"Existing shop stock (read only)":"Online stock";
+  const target=document.createElement("input");target.type="number";target.min="0";target.step="1";target.max="100000";target.value=String(onlineStock(p));target.disabled=state.sharedBranchStock||!canPublish()||variantsOf(p).length!==1||!published(p);
+  target.title=state.sharedBranchStock?"Use Inventory to manage shop stock.":!published(p)?"Publish before allocating online stock.":target.disabled?"Use Inventory for multi-variant products":"";
+  stockLabel.append(target);
   quick.append(priceLabel,stockLabel);
   const actions=document.createElement("div");actions.className="product-actions";
   const addButton=(text,handler)=>{const btn=document.createElement("button");btn.type="button";btn.textContent=text;btn.onclick=()=>safeAction(handler);actions.append(btn);};
-  if(canPublish())addButton("Save price/stock",async()=>{
+  if(canPublish())addButton(state.sharedBranchStock?"Save price":"Save price/stock",async()=>{
    const priceValue=Number(price.value),qty=Number(target.value);
    if(!Number.isFinite(priceValue)||priceValue<=0)throw new Error("Price must be greater than zero.");
    if(!target.disabled&&(!Number.isSafeInteger(qty)||qty<0))throw new Error("Stock must be zero or more.");
    await mutate(async()=>{await result(state.client.from("products").update({selling_price:priceValue}).eq("id",p.id));if(!target.disabled)await setOnlineQuantity(p,qty);});
-   toast("Price and online stock saved.");await refresh();
+   toast(state.sharedBranchStock?"Price saved; your online store shares shop stock.":"Price and online stock saved.");await refresh();
   });
   if(canEdit()&&(canPublish()||!published(p))&&!p.archived_at)addButton("Edit",()=>edit(p.id));
-  if(canPublish()&&!p.archived_at&&p.active!==false)addButton("Add Online Stock",()=>openOnlineStockDialog(p,"stock"));
-  if(canPublish())addButton(visibleOnStorefront(p)?"Hide Online":"Show Online",async()=>{
-   if(visibleOnStorefront(p)){await mutate(()=>unpublish(p),"publish");toast("Hidden from online shop.");await refresh();}
+  if(canPublish()&&!state.sharedBranchStock&&!p.archived_at&&p.active!==false)addButton("Add Online Stock",()=>openOnlineStockDialog(p,"stock"));
+  if(canPublish()&&!p.archived_at&&p.active!==false)addButton(canHideOnline(p)?"Hide Online":"Show Online",async()=>{
+   if(canHideOnline(p)){await mutate(()=>unpublish(p),"publish");toast("Hidden from online shop.");await refresh();}
    else await prepareShowOnline(p);
   });
   if(p.archived_at&&canPublish()){
@@ -258,7 +273,9 @@ function edit(productId){
  if($("ownerSize"))$("ownerSize").value=v?.size==="0"?"":v?.size||"";
  if($("ownerLength"))$("ownerLength").value=v?.length_cm||"";
  $("ownerStock").value=String(onlineStock(p));
- if(variantsOf(p).length!==1||!canPublish()){$("ownerStock").disabled=true;message("Use Inventory to update existing stock. Owner permission is required for online allocation.",true);}else $("ownerStock").disabled=false;
+ if(state.sharedBranchStock||variantsOf(p).length!==1||!canPublish()){
+  $("ownerStock").disabled=true;message("Use Inventory to manage existing product stock.");
+ }else $("ownerStock").disabled=false;
  $("ownerStockConfirm").checked=true;$("ownerStockConfirm").disabled=true;
  state.gallery=photosOf(p).map(row=>({existing:true,id:row.id,url:safeURL(row.public_url),path:row.storage_path}));
  renderGallery();show("editor");
@@ -291,7 +308,7 @@ function readInput(publish){
  const cat=categoryById($("ownerCategory").value);
  const name=$("ownerName").value.trim();
  const priceRaw=$("ownerPrice").value.trim(),price=$("ownerPrice").value.trim()===""?0:Number($("ownerPrice").value.trim());
- const stockRaw=$("ownerStock").value.trim(),stock=Number(stockRaw);
+ const stockRaw=$("ownerStock").disabled?"0":$("ownerStock").value.trim(),stock=Number(stockRaw);
  const code=$("ownerSku").disabled?"":$("ownerSku").value.trim();
  let ok=true;
  if(!name){fieldError("Name","Enter the product name.");ok=false;}
@@ -387,6 +404,7 @@ async function publication(product,flag){
 }
 async function unpublish(product){
  if(!published(product))return;
+ if(state.sharedBranchStock){await publication(product,false);return;}
  const branch=$("ownerSource").value||state.locations.find(x=>x.kind==="branch")?.id;
  const balances=await Promise.all(variantsOf(product).map(async v=>({variant:v,balance:await freshBalance(v.id,state.online.id)})));
  if(balances.some(({balance})=>balance.reserved>0))
@@ -410,6 +428,7 @@ function validateOnlineProduct(product){
 }
 async function publishExisting(product){
  validateOnlineProduct(product);
+ if(state.sharedBranchStock){await publication(product,true);return;}
  if(!state.online)throw new Error("Online Store location is not configured.");
  const balances=await Promise.all(variantsOf(product).map(v=>freshBalance(v.id,state.online.id)));
  if(!balances.some(b=>b.onHand>b.reserved))
@@ -418,6 +437,12 @@ async function publishExisting(product){
 }
 async function prepareShowOnline(product){
  await verifyOwner("publish");validateOnlineProduct(product);
+ if(state.sharedBranchStock){
+  await publication(product,true);await refresh();
+  const available=onlineStock(state.products.find(p=>p.id===product.id)||product);
+  toast(available>0?"Product shown online using shop stock.":"Published as out of stock. It will appear online when shop stock is available.",product.product_code,available===0);
+  return;
+ }
  if(!state.online)throw new Error("Online Store location is not configured.");
  const onlineBalances=await Promise.all(variantsOf(product).map(v=>freshBalance(v.id,state.online.id)));
  if(onlineBalances.some(b=>b.onHand>b.reserved)){
@@ -428,6 +453,7 @@ async function prepareShowOnline(product){
 }
 async function openOnlineStockDialog(product,mode="stock"){
  await verifyOwner("publish");
+ if(state.sharedBranchStock)throw new Error("Shared shop stock is already used online; no separate allocation is required.");
  if(!product||product.archived_at||product.active===false)throw new Error("Restore or enable this product before moving stock online.");
  if(!variantsOf(product).length)throw new Error("Add an active variant in Advanced Products first.");
  if(mode==="show")validateOnlineProduct(product);
@@ -584,9 +610,8 @@ async function saveProduct(mode){
   await saveGallery({...product,product_name:data.name});
   if(data.stock>0&&!state.receivedNew&&state.editorId&&(!previous||state.products.every(p=>p.id!==state.editorId)))await receiveInitialStock(product,variant,data);
   if(publish){
-   // Unpublished items remain invisible until the actual online transfer completes.
    await publication(product,true);
-   if(!$("ownerStock").disabled)await setOnlineQuantity({...product,product_variants:[variant]},data.stock);
+   if(!state.sharedBranchStock&&!$("ownerStock").disabled)await setOnlineQuantity({...product,product_variants:[variant]},data.stock);
   }else if(published(previous||{})){
    await unpublish(previous);
   }else if(!previous&&canPublish())await publication(product,false);
@@ -594,7 +619,7 @@ async function saveProduct(mode){
   const saved=state.products.find(p=>p.id===product.id);
   if(publish){
    const available=onlineStock(saved||{product_variants:[variant]});
-   if(available===0)message("Published, but no online stock was allocated. It will appear once stock is transferred.",true);
+   if(available===0)message(state.sharedBranchStock?"Published as out of stock. It will appear online when shop stock is available.":"Published, but no online stock was allocated. It will appear once stock is transferred.",true);
    else message("Published successfully. This product is now on the website.");
    toast(available>0?"Product published to the store.":"Published but out of stock online.",product.product_code);
   }else{
@@ -654,18 +679,18 @@ function renderCategoryCatalogue(){
   else image.textContent="No photo";
   const info=document.createElement("div");info.className="category-product-info";
   const title=document.createElement("strong");title.textContent=product.product_name;
-  const meta=document.createElement("small");meta.textContent=product.product_code+" · "+money(product.selling_price)+" · Online: "+onlineStock(product)+" pcs";
+  const meta=document.createElement("small");meta.textContent=product.product_code+" · "+money(product.selling_price)+(state.sharedBranchStock?" · Existing shop stock: ":" · Online: ")+onlineStock(product)+" pcs";
   const status=document.createElement("span");status.className="status "+(visibleOnStorefront(product)?"published":product.archived_at?"archived":"draft");
-  status.textContent=product.archived_at?"Archived":visibleOnStorefront(product)?"Visible online":published(product)?"Published · needs online stock":"Not online";
+  status.textContent=product.archived_at?"Archived":visibleOnStorefront(product)?"Visible online":published(product)?"Published · unavailable":"Not online";
   const help=document.createElement("small");help.className="category-product-help";
   if(!photosOf(product).length)help.textContent="Add a photo before publishing.";
-  else if(published(product)&&!visibleOnStorefront(product))help.textContent="Online stock required to appear on the store.";
+  else if(published(product)&&!visibleOnStorefront(product))help.textContent=state.sharedBranchStock?"Appears online when shop stock is available and the price is set.":"Online stock required to appear on the store.";
   else if(!published(product))help.textContent="Saved in catalogue · not displayed to customers.";
   info.append(title,meta,status,help);
   const actions=document.createElement("div");actions.className="category-product-actions";
   if(canPublish()){
    const button=document.createElement("button");button.type="button";
-   const online=visibleOnStorefront(product);
+   const online=canHideOnline(product);
    button.textContent=online?"Hide Online":"Show Online";button.className=online?"secondary":"primary";
    button.disabled=!!product.archived_at||!product.active;
    button.setAttribute("aria-label",button.textContent+" for "+product.product_name);
@@ -676,7 +701,7 @@ function renderCategoryCatalogue(){
     }else await prepareShowOnline(product);
    });
    actions.append(button);
-   if(!product.archived_at&&product.active!==false){
+   if(!state.sharedBranchStock&&!product.archived_at&&product.active!==false){
     const addStock=document.createElement("button");addStock.type="button";addStock.className="secondary";
     addStock.textContent="＋ Add Online Stock";
     addStock.setAttribute("aria-label","Add Online Stock from existing shop stock for "+product.product_name);
@@ -815,7 +840,7 @@ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",
 else init().catch(fatal);
 function applyRoleUI(){
  const editor=canEdit(),owner=canPublish();
- $("roleAccessNote").textContent=owner?"Owner account: save drafts or publish with online stock."
+ $("roleAccessNote").textContent=owner?(state.sharedBranchStock?"Owner: Show Online uses existing shop stock. No second quantity is needed.":"Owner account: save drafts or publish with online stock.")
   :editor?"Staff: add a photo, name, category and price. Save for the owner to publish."
   :"Staff product access is unavailable.";
  $("ownerBulkBar").hidden=!owner;
@@ -836,10 +861,6 @@ function applyRoleUI(){
  document.querySelectorAll("[data-screen='editor']").forEach(button=>button.hidden=!editor);
  document.querySelectorAll("[data-admin-only]").forEach(node=>node.hidden=!owner);
  document.querySelectorAll("[data-non-admin]").forEach(node=>node.hidden=owner);
- if(!owner){
-  $("ownerStockLabel").firstChild.textContent="Shop opening stock (optional) ";
-  $("ownerStockHint").textContent="New products stay as drafts. Stock goes to your assigned shop; the owner later allocates it online.";
- }
 }
 function fatal(error){console.error(error);$("startup").textContent="Staff catalogue unavailable: "+friendly(error);}
 })();

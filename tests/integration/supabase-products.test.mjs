@@ -41,18 +41,18 @@ describe("Supabase product integration", () => {
     expect(product?.product_code).toMatch(new RegExp("^" + codePrefix + "\\d{5}$"));
 
     const { data: variant, error: variantError } = await admin.from("product_variants").insert({
-      product_id: productId, color: "Red", size: "0", stock_quantity: 5, low_stock_limit: 2
+      product_id: productId, color: "Red", size: "0", stock_quantity: 0, low_stock_limit: 2
     }).select("product_id,color,size,stock_quantity,barcode").single();
     expect(variantError).toBeNull();
     expect(variant?.product_id).toBe(productId);
-    expect(variant?.stock_quantity).toBe(5);
+    expect(variant?.stock_quantity).toBe(0);
     expect(variant?.barcode).toMatch(/^89[0-9a-f]+$/);
   });
 
   it("enforces unique product variants", async () => {
-    const first = await admin.from("product_variants").insert({ product_id: productId, color: "Black", size: "0", stock_quantity: 1, low_stock_limit: 1 }).select("id").single();
+    const first = await admin.from("product_variants").insert({ product_id: productId, color: "Black", size: "0", stock_quantity: 0, low_stock_limit: 1 }).select("id").single();
     expect(first.error).toBeNull();
-    const second = await admin.from("product_variants").insert({ product_id: productId, color: "Black", size: "0", stock_quantity: 1, low_stock_limit: 1 }).select("id").single();
+    const second = await admin.from("product_variants").insert({ product_id: productId, color: "Black", size: "0", stock_quantity: 0, low_stock_limit: 1 }).select("id").single();
     expect(second.error?.code).toBe("23505");
   });
 });

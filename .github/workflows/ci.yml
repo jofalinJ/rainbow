@@ -71,6 +71,10 @@ jobs:
       E2E_ISOLATED_ENV: "true"
       E2E_ADMIN_USERNAME: ${{ secrets.E2E_ADMIN_USERNAME }}
       E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+      E2E_SHARED_STOCK_ENABLED: ${{ vars.RAINBOW_SHARED_STOCK_E2E_READY }}
+      E2E_SHARED_STOCK_SKU: ${{ vars.RAINBOW_SHARED_STOCK_E2E_SKU }}
+      E2E_CASHIER_USERNAME: ${{ secrets.E2E_CASHIER_USERNAME }}
+      E2E_CASHIER_PASSWORD: ${{ secrets.E2E_CASHIER_PASSWORD }}
       BILL_E2E_TOKEN: ${{ secrets.BILL_E2E_TOKEN }}
       E2E_BASE_URL: "http://127.0.0.1:4173"
       PORT: "4173"
@@ -90,7 +94,6 @@ jobs:
           case "$SUPABASE_TEST_URL" in
             *ajnicsvtymvvkgepjmmk.supabase.co*) echo "Production Supabase URL is not allowed."; exit 1 ;;
           esac
-      - run: node scripts/write-test-config.mjs
       - run: nohup node scripts/static-server.mjs > test-server.log 2>&1 & echo $! > server.pid; sleep 2; curl --fail http://127.0.0.1:4173/admin/login.html
       - run: npm run test:e2e:authenticated
       - if: failure()

@@ -53,7 +53,7 @@ test("admin can load and manage an isolated staff account", { skip: !E2E_ENABLED
     await login.open(BASE_URL);
     await login.signIn(ADMIN_USERNAME, ADMIN_PASSWORD);
     await staff.open(BASE_URL);
-    assert.equal(await staff.hasUsername(ADMIN_USERNAME), true);
+    await staff.waitForUsername(ADMIN_USERNAME);
     const unique="e2e_"+Date.now().toString(36);
     await staff.createStaff({name:"E2E Test Staff",username:unique,password:"TestPass123!",role:"cashier"});
     assert.equal(await staff.hasUsername(unique), true);
@@ -129,9 +129,9 @@ test("admin orders provides shipment management with customer data and mobile co
     const editor = await driver.findElement(By.css("#shipmentModal.open"));
     assert.equal(await editor.isDisplayed(), true);
     const summary = await driver.findElement(By.css("#shipmentOrderSummary"));
-    assert.ok((await summary.getText()).includes("Order"));
-    assert.ok((await summary.getText()).includes("Customer"));
-    assert.ok((await summary.getText()).includes("WhatsApp"));
+    assert.ok(/order/i.test(await summary.getText()));
+    assert.ok(/customer/i.test(await summary.getText()));
+    assert.ok(/whatsapp/i.test(await summary.getText()));
     assert.equal(await driver.findElement(By.css("#shipmentWhatsapp")).isEnabled(), false);
     assert.equal(await driver.findElement(By.css("#shipmentConfirm")).isEnabled(), false);
     const width = await driver.executeScript("return document.documentElement.scrollWidth");
@@ -218,6 +218,23 @@ test("inventory stock editor displays current stock and prevents invalid changes
     await login.signIn(ADMIN_USERNAME, ADMIN_PASSWORD);
     await driver.manage().window().setRect({width:430,height:930});
     await driver.get(BASE_URL + "/admin/inventory.html");
+    if (await driver.executeScript("return window.RAINBOW_MULTI_SHOP_ENABLED === true")) {
+      const tools = await driver.findElement(By.id("branchInventoryTools"));
+      await driver.wait(() => tools.isDisplayed(), 12000);
+      await driver.findElement(By.id("erpToolsHeading")).click();
+      const search = await driver.findElement(By.id("erpSearch"));
+      await search.sendKeys(process.env.E2E_SHARED_STOCK_SKU || "QA");
+      await driver.findElement(By.id("erpSearchBtn")).click();
+      const match = await driver.wait(until.elementLocated(By.css("#erpMatches button")), 12000);
+      await driver.executeScript("arguments[0].scrollIntoView({block:'center'});", match);
+      await match.click();
+      const current = await driver.findElement(By.id("erpShopStock"));
+      await driver.wait(async () => /^\d[\d,]*$/.test((await current.getText()).trim()), 12000);
+      const adjustment = await driver.findElement(By.id("erpAdjustForm"));
+      assert.equal(await adjustment.isDisplayed(), true);
+      assert.equal(await driver.executeScript("return arguments[0].checkValidity()", adjustment), false);
+      return;
+    }
     const actions=await driver.wait(until.elementsLocated(By.css("[data-manage-stock]")),15000);
     if(!actions.length)return;
     await driver.executeScript("arguments[0].click()",actions[0]);

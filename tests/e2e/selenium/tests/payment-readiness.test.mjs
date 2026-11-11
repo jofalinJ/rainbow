@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {Builder,By} from "selenium-webdriver";
 import chrome from "selenium-webdriver/chrome.js";
 
-const URL=(process.env.PAYMENT_SMOKE_URL||"https://rainbowgoldcovering.com").replace(/\/$/,"");
+const URL=(process.env.PAYMENT_SMOKE_URL||process.env.E2E_BASE_URL||"https://rainbowgoldcovering.com").replace(/\/$/,"");
 test("live Rainbow storefront only enables Razorpay when provider credentials are accepted",async()=>{
   const options=new chrome.Options();
   options.addArguments("--headless=new","--no-sandbox","--disable-dev-shm-usage","--window-size=685,950");

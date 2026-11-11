@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en">
-<head><meta name="robots" content="noindex,nofollow"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#8f1520"><link rel="icon" type="image/png" href="../assets/brand/rainbow-logo.png"><title>Rainbow Gold Covering — Inventory</title><link rel="stylesheet" href="style.css?v=20261103-premium"><link rel="stylesheet" href="inventory-stock.css?v=20261103-premium"><link rel="stylesheet" href="erp.css?v=20261025-embedded"><script src="config.js"></script><style>.category-tabs{display:flex;gap:8px;overflow-x:auto;padding:4px 2px 14px}.category-tabs button{white-space:nowrap;border-radius:20px;padding:9px 15px}.category-tabs button.active{background:#171717;color:#fff;border-color:#171717}.inventory-title{display:flex;justify-content:space-between;align-items:center;gap:15px;margin-bottom:14px}.inventory-title small{color:#888}.table-wrap{overflow:auto}</style><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script defer src="app.js?v=20261110-quick-products"></script><script defer src="inventory.js?v=20261103-paged-stock"></script><script defer src="catalogue-ops.js"></script><script defer src="erp.js?v=20261108-online-location"></script>
+<head><meta name="robots" content="noindex,nofollow"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#8f1520"><link rel="icon" type="image/png" href="../assets/brand/rainbow-logo.png"><title>Rainbow Gold Covering — Inventory</title><link rel="stylesheet" href="style.css?v=20261103-premium"><link rel="stylesheet" href="inventory-stock.css?v=20261103-premium"><link rel="stylesheet" href="erp.css?v=20261025-embedded"><script src="config.js"></script><style>.category-tabs{display:flex;gap:8px;overflow-x:auto;padding:4px 2px 14px}.category-tabs button{white-space:nowrap;border-radius:20px;padding:9px 15px}.category-tabs button.active{background:#171717;color:#fff;border-color:#171717}.inventory-title{display:flex;justify-content:space-between;align-items:center;gap:15px;margin-bottom:14px}.inventory-title small{color:#888}.table-wrap{overflow:auto}</style><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script defer src="app.js?v=20261110-quick-products"></script><script defer src="inventory.js?v=20261103-paged-stock"></script><script defer src="catalogue-ops.js"></script><script defer src="erp.js?v=20261111-shared-shop-qa"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&amp;display=swap" rel="stylesheet">
@@ -18,8 +18,8 @@
 <section class="cards"><div><small>Products</small><strong id="variantCount">0</strong><span>In selected category</span></div><div><small>Total Stock</small><strong id="stockCount">0</strong><span>Units available</span></div><div><small>Low Stock</small><strong id="lowCount">0</strong><span>Needs attention</span></div><div class="alert"><small>Out of Stock</small><strong id="outCount">0</strong><span>Unavailable items</span></div></section>
 <section class="panel"><div class="panelhead"><h2>Categories</h2></div><div id="categoryTabs" class="category-tabs"></div></section>
 <section class="panel" style="margin-top:18px"><div class="inventory-title"><div><h2 id="selectedCategory">Inventory</h2><small id="categoryMeta"></small></div><input id="search" data-testid="inventory-search" placeholder="Search product, code, type, color, barcode" style="width:min(380px,100%);padding:10px 12px;border:1px solid #ddd;border-radius:8px"></div><div class="table-wrap"><table><thead id="head"></thead><tbody id="rows"><tr><td>Loading…</td></tr></tbody></table></div><button id="inventoryLoadMore" class="stock-row-button" type="button" style="margin-top:12px" hidden>Show more variants</button></section><details class="panel" id="branchInventoryTools" hidden style="margin-top:18px">
-<summary style="cursor:pointer;font-weight:700;padding:12px 4px">Multi-shop stock, transfers & online allocation</summary>
-<p class="stock-help">Products and photos are shared across shops. Stock is tracked separately at each location. An admin can publish a product, then transfer units to Online Store and confirm receipt to make those units available online.</p>
+<summary id="erpToolsHeading" style="cursor:pointer;font-weight:700;padding:12px 4px">Multi-shop stock and transfers</summary>
+<p class="stock-help" id="erpModeHelp">Products and photos are shared across shops. Stock is counted at each physical location.</p>
 <div class="erp-integrated">
 <div class="erp-status" id="erpStatus" role="status" aria-live="polite">Checking branch inventory availability…</div>
 <span id="erpRole" class="erp-tag"></span>
@@ -45,7 +45,7 @@
 <div class="erp-stats">
 <div><small>Shop stock</small><strong id="erpShopStock">—</strong></div>
 <div><small id="erpTotalStockLabel">Visible stock</small><strong id="erpTotalStock">—</strong></div>
-<div><small>Online available</small><strong id="erpOnlineStock">—</strong></div>
+<div id="erpOnlineStockStat"><small id="erpOnlineStockLabel">Online available</small><strong id="erpOnlineStock">—</strong></div>
 <div><small>In transit</small><strong id="erpTransitStock">—</strong></div>
 </div>
 <div class="erp-half">
@@ -64,7 +64,7 @@
 <label>Quantity
 <input id="erpTransferQty" type="number" required min="1" max="100000" step="1"></label>
 <label>Reason
-<input id="erpTransferReason" type="text" required minlength="8" maxlength="240" placeholder="Transfer to online allocation / another shop"></label>
+<input id="erpTransferReason" type="text" required minlength="8" maxlength="240" placeholder="Reason for moving stock"></label>
 <button id="erpTransferSave" type="submit">Dispatch transfer</button>
 <p class="erp-muted">Destination staff must confirm receipt. In-transit units are not counted twice.</p>
 </form>
@@ -89,7 +89,7 @@
 <label>Online selling price (optional; ₹)
 <input type="number" id="erpOnlinePrice" min="0" step="0.01" placeholder="Use master price"></label>
 <button id="erpPublishBtn" type="button">Save online listing</button>
-<p class="erp-muted">Save the online listing before transferring stock to Online Store. The product appears once the transfer is received and units are available online.</p>
+<p class="erp-muted" id="erpPublicationHelp"></p>
 </div>
 </section>
 <section class="erp-panel">
