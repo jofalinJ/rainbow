@@ -14,7 +14,7 @@
  const fields="id,product_code,product_name,type,selling_price,description,active,length_cm,thickness,gold_amount_g,product_images(public_url,storage_path,is_primary,sort_order),product_variants(id,stock_quantity,color,size,length_cm,active),erp_online_listings!inner(published,online_price)";
  const onlinePrice=p=>{
   const listing=Array.isArray(p.erp_online_listings)?p.erp_online_listings[0]:p.erp_online_listings;
-  const value=Number(listing?.online_price);
+  const value=Number(listing?.online_price??p.selling_price);
   return Number.isFinite(value)&&value>0?value:null;
  };
  const imagesOf=p=>(p.product_images||[]).filter(i=>i.public_url).sort((a,b)=>Number(Boolean(b.is_primary))-Number(Boolean(a.is_primary))||Number(a.sort_order||0)-Number(b.sort_order||0)).slice(0,5);
@@ -61,7 +61,7 @@
    $("detailRelated").hidden=grid.children.length===0;
  }
  try{
-   const {data,error}=await client.from("products").select(fields).eq("product_code",sku).eq("active",true).eq("erp_online_listings.published",true).gt("erp_online_listings.online_price",0).maybeSingle();
+   const {data,error}=await client.from("products").select(fields).eq("product_code",sku).eq("active",true).eq("erp_online_listings.published",true).maybeSingle();
    if(error)throw error;if(!data){showError("This design is unavailable or no longer listed.");return;}
    const livePrice=onlinePrice(data);
    if(livePrice===null){showError("Online pricing is unavailable for this design.");return;}
@@ -138,6 +138,6 @@
    document.head.append(json);
    $("productLoading").hidden=true;$("productDetail").hidden=false;
    refreshCart();window.RainbowAnalytics?.track("view_item",{item_id:product.product_code});
-   if(product.type){const related=await client.from("products").select(fields).eq("active",true).eq("erp_online_listings.published",true).eq("type",product.type).gt("erp_online_listings.online_price",0).neq("id",product.id).limit(8);if(!related.error)renderRelated(related.data||[]);}
+   if(product.type){const related=await client.from("products").select(fields).eq("active",true).eq("erp_online_listings.published",true).eq("type",product.type).neq("id",product.id).limit(8);if(!related.error)renderRelated(related.data||[]);}
  }catch(error){console.error("Product detail fetch failed",error);showError("We couldn't load this design. Please check your connection and try again.");}
 })();
