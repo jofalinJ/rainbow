@@ -158,7 +158,7 @@ async function serve(){
     res.setHeader("Content-Type","text/javascript");
     res.end("window.RainbowImagePrep={prepare:async()=>null};");return;
    }
-   const allowed=new Set(["/admin/owner.js","/admin/owner.css","/assets/brand/rainbow-logo.png"]);
+   const allowed=new Set(["/admin/owner.js","/admin/owner.css","/admin/app.js","/admin/style.css","/admin/premium.css","/assets/brand/rainbow-logo.png"]);
    if(allowed.has(pathname)){
     res.setHeader("Content-Type",pathname.endsWith(".css")?"text/css":pathname.endsWith(".png")?"image/png":"text/javascript");
     res.end(await fs.readFile(path.join(root,pathname)));return;
@@ -182,7 +182,9 @@ test("Quick Products is photo-first; staff can save a draft on a 390px screen wi
   const field=id=>driver.findElement(By.id(id));
   await driver.wait(async()=>await (await field("ownerApp")).isDisplayed(),12000);
   assert.equal(await (await field("startup")).isDisplayed(),false,"Login loading message must disappear");
-  assert.equal(await (await field("screen-editor")).isDisplayed(),true,"Quick Add must open first");
+  assert.equal(await (await field("screen-categories")).isDisplayed(),true,"Online Push must open first");
+   await driver.findElement(By.css('.owner-page-tabs [data-screen="editor"]')).click();
+   assert.equal(await (await field("screen-editor")).isDisplayed(),true,"Staff can open Add Product inside the same sidebar");
   assert.equal(await (await field("ownerMoreDetails")).getAttribute("open"),null,"Stock options should begin folded");
   assert.equal(await (await field("publishNow")).isDisplayed(),false,"Staff should never be offered admin publishing");
   assert.equal(await (await field("saveDraft")).getText(),"Save product for approval");

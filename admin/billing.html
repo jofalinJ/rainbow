@@ -91,6 +91,13 @@ main>header h1{font-size:calc(30px * var(--type-scale));letter-spacing:-.8px}
 @media(max-width:1000px){main{padding:24px}.billing-layout{grid-template-columns:1fr}.catalog{max-height:none}}
 @media(max-width:600px){main{padding:15px}.billing-search{flex-wrap:wrap}.billing-search input{flex-basis:100%}.billing-search button{flex:1}.panel{padding:15px}.product-card{padding:11px}.grand-total{font-size:calc(20px * var(--type-scale))}}
 
+.billing-search{flex-wrap:wrap}.billing-search #productSearch{min-width:180px}.billing-search #startScanner{border:1px solid #9e2628;background:#fff8f5;color:#8b0000;white-space:nowrap;font-weight:700}
+.scanner-panel{margin:0 0 14px;padding:15px;border:1px solid #dec9bc;border-radius:12px;background:#fffaf6}
+.scanner-panel[hidden]{display:none!important}.scanner-panel video{display:block;width:min(100%,480px);max-height:340px;aspect-ratio:4/3;object-fit:cover;border-radius:9px;background:#1c1716}
+.scanner-panel button{margin-top:10px;min-height:44px}.scanner-message{font-size:calc(12px * var(--type-scale));min-height:18px;margin:5px 0 12px;color:#4d5946}.scanner-message.error{color:#b23b32}
+.pos-guides{margin:12px 0 2px;color:#66584c;font-size:calc(12px * var(--type-scale));line-height:1.65}
+.pos-guides summary{cursor:pointer;font-weight:700;color:#8b0000;min-height:40px}.pos-guides ol{padding-left:24px}.pos-guides a{display:inline-flex;min-height:42px;align-items:center;color:#8b0000;font-weight:700}
+@media(max-width:600px){.billing-search #startScanner{width:100%}}
 </style>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -117,7 +124,16 @@ main>header h1{font-size:calc(30px * var(--type-scale));letter-spacing:-.8px}
 <option value="">Select your shop</option></select>
 <small>Sales deduct stock only from this selected shop. Existing invoices and printing remain unchanged.</small>
 </div>
-<div class="billing-search"><input id="productSearch" data-testid="billing-product-search" placeholder="Search products or barcode" autocomplete="off"><button id="clearSearch" type="button">Clear</button></div>
+<div class="billing-search"><input id="productSearch" data-testid="billing-product-search" placeholder="Search products or barcode" autocomplete="off" aria-label="Search products or enter a scanned barcode"><button id="startScanner" type="button" aria-controls="scannerPanel">📷 Scan QR / barcode</button><button id="clearSearch" type="button">Clear</button></div>
+<div id="scannerPanel" class="scanner-panel" hidden><p>Point your camera at a Rainbow product QR code or barcode.</p><video id="scannerVideo" playsinline muted autoplay aria-label="Camera barcode scanner preview"></video><button id="stopScanner" type="button">Stop camera</button></div>
+<p id="scannerMessage" class="scanner-message" role="status" aria-live="polite"></p>
+<details class="pos-guides"><summary>How to scan and connect a receipt printer</summary>
+<ol><li><strong>Camera:</strong> tap Scan QR / barcode, allow camera access, and hold a product label in view. A unique in-stock match is added to the current bill automatically.</li>
+<li><strong>Handheld scanner:</strong> pair a Bluetooth/USB keyboard-style barcode scanner, tap the search box, and scan. The scanner must send Enter after the code. You can also type the code and press Enter.</li>
+<li><strong>Printer:</strong> connect the receipt printer using your device's USB, Wi-Fi, or Bluetooth printer setup. On Android, install or enable its print service if required; then choose the printer from the browser's Print dialog.</li>
+<li><strong>After a sale:</strong> select Print Bill on the completed receipt. The browser print dialog lets you select your printer and paper size. For thermal printers, choose 80 mm paper, minimum margins and no headers/footers.</li></ol>
+<a href="printer-test.html" target="_blank" rel="noopener">Open printer test ticket</a>
+</details>
 <div id="catalog" class="catalog"><div class="empty">Loading product catalog…</div></div>
 </section>
 
@@ -175,7 +191,8 @@ main>header h1{font-size:calc(30px * var(--type-scale));letter-spacing:-.8px}
 </section>
 </main>
 <div id="receiptPdfStage" class="invoice" style="position:absolute;left:-100000px;top:0;width:80mm;background:#fff"></div>
-<script src="app.js?v=20261110-quick-products"></script>
-<script src="billing.js?v=20261025-shop-pos"></script>
+<script src="app.js?v=20261111-online-products"></script>
+<script src="billing.js?v=20261111-scanner"></script>
+<script src="billing-scanner.js?v=20261111"></script>
 </body>
 </html>

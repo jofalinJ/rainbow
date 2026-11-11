@@ -32,17 +32,22 @@ jobs:
             if html=$(curl -L --fail --silent --show-error --max-time 12 "${site}/admin/owner.html?release=${GITHUB_SHA}") &&
                script=$(curl -L --fail --silent --show-error --max-time 12 "${site}/admin/owner.js?release=${GITHUB_SHA}") &&
                styling=$(curl -L --fail --silent --show-error --max-time 12 "${site}/admin/owner.css?release=${GITHUB_SHA}") &&
-               nav=$(curl -L --fail --silent --show-error --max-time 12 "${site}/admin/app.js?v=20261110-quick-products") &&
+               nav=$(curl -L --fail --silent --show-error --max-time 12 "${site}/admin/app.js?v=20261111-online-products") &&
                products=$(curl -L --fail --silent --show-error --max-time 12 "${site}/admin/products.html?release=${GITHUB_SHA}") &&
                billing=$(curl -L --fail --silent --show-error --max-time 12 "${site}/admin/billing.html?release=${GITHUB_SHA}") &&
+               scanner=$(curl -L --fail --silent --show-error --max-time 12 "${site}/admin/billing-scanner.js?release=${GITHUB_SHA}") &&
+               printer=$(curl -L --fail --silent --show-error --max-time 12 "${site}/admin/printer-test.html?release=${GITHUB_SHA}") &&
                login=$(curl -L --fail --silent --show-error --max-time 12 "${site}/admin/login.html?release=${GITHUB_SHA}"); then
               if grep -Fq 'id="roleAccessNote"' <<< "$html" &&
+                 grep -Fq '<aside aria-label="Admin sidebar"></aside>' <<< "$html" &&
+                 grep -Fq 'data-screen="categories" class="active"' <<< "$html" &&
+                 grep -Fq 'const markupPrice=amount=>Math.floor(' <<< "$script" &&
                  grep -Fq 'id="publishNow"' <<< "$html" &&
                  grep -Fq 'id="ownerStockConfirm"' <<< "$html" &&
                  grep -Fq 'id="ownerMoreDetails"' <<< "$html" &&
                  grep -Fq 'id="categoryCatalogueList"' <<< "$html" &&
                  grep -Fq 'id="onlineVisibilityDialog"' <<< "$html" &&
-                 grep -Fq 'owner.js?v=20261111-online-price' <<< "$html" &&
+                 grep -Fq 'owner.js?v=20261111-unified-admin' <<< "$html" &&
                  grep -Fq 'id="onlineVisibilityAvailable"' <<< "$html" &&
                  grep -Fq 'id="onlineVisibilityCurrent"' <<< "$html" &&
                  grep -Fq 'addStock.textContent="＋ Add Online Stock"' <<< "$script" &&
@@ -58,9 +63,13 @@ jobs:
                  grep -Fq '#startup[hidden]{display:none!important}' <<< "$styling" &&
                  grep -Fq 'const canPublish=()=>state.role==="admin"' <<< "$script" &&
                  grep -Fq 'applyRoleUI();' <<< "$script" &&
-                 grep -Fq 'Quick Products' <<< "$nav" &&
-                 grep -Fq 'app.js?v=20261110-quick-products' <<< "$products" &&
-                 grep -Fq 'app.js?v=20261110-quick-products' <<< "$billing" &&
+                 grep -Fq 'Online Products' <<< "$nav" &&
+                 grep -Fq 'app.js?v=20261111-online-products' <<< "$products" &&
+                 grep -Fq 'app.js?v=20261111-online-products' <<< "$billing" &&
+                 grep -Fq 'id="startScanner"' <<< "$billing" &&
+                 grep -Fq 'billing-scanner.js?v=20261111' <<< "$billing" &&
+                 grep -Fq 'BrowserMultiFormatReader' <<< "$scanner" &&
+                 grep -Fq 'id="printTest"' <<< "$printer" &&
                  grep -Fq 'Staff / Admin Login' <<< "$login"; then
                 echo "Live Cloudflare staff catalogue assets verified. No sign-in, stock, or payment mutation was attempted."
                 exit 0

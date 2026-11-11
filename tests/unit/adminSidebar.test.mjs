@@ -96,18 +96,18 @@ describe("shared admin sidebar", () => {
     await verify();
     const nav = aside.querySelector("nav");
     expect(nav.children.map(child => child.textContent)).toEqual([
-      "Quick Products", "Products", "Inventory", "Bills", "Orders", "Billing", "Customers", "My Attendance"
+      "Online Products", "Products", "Inventory", "Bills", "Orders", "Billing", "Customers", "My Attendance"
     ]);
     expect(nav.children.find(child => child.getAttribute("aria-current") === "page")?.textContent).toBe("Inventory");
     expect(aside.querySelector(".user").children.find(child => child.tagName === "small")?.textContent).toBe("Staff");
   });
 
-  it.each(["admin","inventory_staff","cashier"])("opens Quick Products inside the existing %s staff navigation", async role => {
+  it.each(["admin","inventory_staff","cashier"])("opens Online Products inside the existing %s staff navigation", async role => {
     const {aside,location,verify}=sidebarFor(role,"owner.html");
     await verify();
     expect(location.href).toBe("");
     const current=aside.querySelector("nav").children.find(x=>x.getAttribute("aria-current")==="page");
-    expect(current?.textContent).toBe("Quick Products");
+    expect(current?.textContent).toBe("Online Products");
   });
 
   it.each(["inventory_staff", "cashier"])("blocks %s from admin-only staff management", async role => {
@@ -126,13 +126,13 @@ describe("shared admin sidebar", () => {
     expect(labels).toContain("Staff");
     expect(labels).toContain("Inventory");
   });
-  it("loads the cache-busted Quick Products navigation on every existing staff page",()=>{
+  it("loads the cache-busted Online Products navigation on every existing staff page",()=>{
     const pages=["attendance.html","billing.html","bills.html","customers.html",
       "index.html","inventory.html","my-attendance.html","orders.html",
       "products.html","reports.html","settings.html","staff.html"];
     for(const page of pages){
       const html=readFileSync(path.resolve("admin",page),"utf8");
-      expect(html).toContain("app.js?v=20261110-quick-products");
+      expect(html).toContain("app.js?v=20261111-online-products");
       expect(html).not.toContain("app.js?v=20261018-unified-shop-staff-v2");
     }
   });

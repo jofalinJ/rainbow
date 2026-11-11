@@ -9,7 +9,7 @@ async function getMyProfile(){const user=await getAuthUser();const {data,error}=
 async function sb(path,options={}){const session=await requireSession();const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),15000);try{const r=await fetch(SUPABASE_URL+"/rest/v1/"+path,{...options,headers:{apikey:SUPABASE_ANON_KEY,Authorization:"Bearer "+session.access_token,"Content-Type":"application/json",...(options.headers||{})},signal:controller.signal});const body=await r.text();if(!r.ok)throw new Error(body||("Request failed: "+r.status));if(!body.trim())return null;return JSON.parse(body);}catch(e){if(e.name==="AbortError")throw new Error("Supabase request timed out. Check your connection.");throw e;}finally{clearTimeout(timer);}}
 const ADMIN_NAV_ITEMS=[
   {label:"Dashboard",href:"index.html",roles:["admin"]},
-  {label:"Quick Products",href:"owner.html",roles:["admin","inventory_staff","cashier"]},
+  {label:"Online Products",href:"owner.html?screen=categories",roles:["admin","inventory_staff","cashier"]},
   {label:"Products",href:"products.html",roles:["admin","cashier","inventory_staff"]},
   {label:"Inventory",href:"inventory.html",roles:["admin","cashier","inventory_staff"]},
   {label:"Bills",href:"bills.html",roles:["admin","cashier","inventory_staff"]},
@@ -45,7 +45,7 @@ function renderAuthorizedSidebar(profile,allowedItems){
   const links=allowedItems.map(item=>{
     const link=document.createElement("a");
     link.href=item.href;link.textContent=item.label;
-    if(item.href===current){link.classList.add("active");link.setAttribute("aria-current","page");}
+    if(item.href.split("?")[0]===current){link.classList.add("active");link.setAttribute("aria-current","page");}
     return link;
   });
   // Only publish links after the role and page have both been authorized.
@@ -67,7 +67,7 @@ async function applyRoleNavigation(){
     if(!["admin","inventory_staff","cashier"].includes(p.role))throw new Error("Invalid staff role: "+p.role);
     const allowedItems=ADMIN_NAV_ITEMS.filter(item=>item.roles.includes(p.role));
     const page=(location.pathname.split("/").pop()||"index.html").toLowerCase();
-    if(!allowedItems.some(item=>item.href===page)){
+    if(!allowedItems.some(item=>item.href.split("?")[0]===page)){
       location.href=p.role==="admin"?"index.html":"billing.html";
       return null;
     }
