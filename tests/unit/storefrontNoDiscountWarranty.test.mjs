@@ -18,6 +18,7 @@ describe("Storefront branding, checkout pricing and product warranties",()=>{
   expect(js).not.toContain('$("discount")');
   expect(js).toContain("const taxable=subtotal;");
   expect(js).toContain("whatsapp_opt_in:false");
+  expect(js).toContain('pricing_revision:"no-discount-20261111"');
   expect(js).toContain("gstComponentsForState(taxable");
  });
  it("offers 8-month through 5-year warranty choices on both product editors",()=>{
@@ -46,6 +47,7 @@ describe("Storefront branding, checkout pricing and product warranties",()=>{
   expect(sql).toContain("v_taxable:=v_subtotal;");
   expect(sql).toContain("v_taxable := v_subtotal;");
   expect(sql).not.toMatch(/v_discount\s*:?=\s*round\(v_subtotal\s*\*\s*0\.03/i);
+  expect(sql).toContain("Checkout prices have changed. Refresh the page before paying.");
   expect(sql).toContain("products_warranty_months_range");
   expect(sql).toContain("warranty_months BETWEEN 8 AND 60");
   expect(read("admin/billing.js")).toContain("const DISCOUNT_RATE=.03;");
