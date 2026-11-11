@@ -9,7 +9,7 @@ import chrome from "selenium-webdriver/chrome.js";
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"../../../..");
 const paths=new Set([
- "/admin/offline-pos.html","/admin/offline-pos.mjs","/admin/offline-pos-core.mjs",
+ "/admin/offline.html","/admin/offline-pos.html","/admin/offline-pos.mjs","/admin/offline-pos-core.mjs",
  "/admin/offline-pos-sync.mjs","/admin/service-worker.js","/admin/config.js",
  "/assets/brand/rainbow-logo.png"
 ]);
