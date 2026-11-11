@@ -9,7 +9,7 @@
  function buildQuery(client,filters={}){
    const limit=clamp(filters.limit),offset=Math.max(0,Math.min(100000,Math.floor(Number(filters.offset)||0)));
    let query=client.from("products").select(SELECT_FIELDS,{count:"exact"})
-     .eq("active",true).eq("erp_online_listings.published",true).gt("erp_online_listings.online_price",0).eq("product_variants.active",true).gt("product_variants.stock_quantity",0);
+     .eq("active",true).eq("erp_online_listings.published",true).eq("product_variants.active",true).gt("product_variants.stock_quantity",0);
    const search=cleanSearch(filters.search);
    if(search){
      const term=search.replaceAll(" ","%");
@@ -70,7 +70,11 @@
    const items=(Array.isArray(data)?data:[]).map(product=>{
      const listing=Array.isArray(product.erp_online_listings)?product.erp_online_listings[0]:product.erp_online_listings;
      // Customer-facing prices come from the persisted, server-maintained listing.
-     return {...product,selling_price:Number(listing.online_price)};
+     // During the coordinated release, older rows have NULL online_price.
+     // Keep the existing shop price visible until the database migration installs
+     // the authoritative published online price and checkout function together.
+     const online=listing?.online_price;
+     return {...product,selling_price:Number(online==null?product.selling_price:online)};
    });
    const total=Math.max(0,Number(count||0));
    return {items,total,offset,limit,hasMore:offset+items.length<total};
