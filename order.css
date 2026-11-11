@@ -178,3 +178,10 @@ body:has(.order-page) .order-page{padding:44px 0 110px}
 .order-success h2{color:#275f3c;font:600 clamp(calc(23px * var(--type-scale)),calc(3vw * var(--type-scale)),calc(33px * var(--type-scale)))/1.3 var(--font-heading)}
 .order-success p{color:#564c43;line-height:1.65}
 .order-success a.btn{margin:8px 12px 5px 0}
+
+/* PIN-code address assistance: optional, unobtrusive, and screen-reader friendly. */
+.pin-lookup-status{display:block;min-height:16px;margin-top:5px;color:#506a3b;font-size:12px;line-height:1.4}
+.pin-lookup-status:empty{min-height:0;margin-top:0}
+.pin-lookup-status.error{color:#a23b33}
+.order-form .pin-locality[hidden],.customer-form .pin-locality[hidden]{display:none!important}
+.order-form .pin-locality select{width:100%;min-height:44px;border:1px solid #ddc9b7;border-radius:9px;background:white;padding:10px}
