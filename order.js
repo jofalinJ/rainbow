@@ -10,6 +10,7 @@ import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=
     ?window.supabase.createClient(SUPABASE_URL,KEY):null;
   const esc=x=>String(x??"").replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
   const money=x=>"₹"+Number(x||0).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2});
+  const productMoney=x=>"₹"+Number(x||0).toLocaleString("en-IN",{maximumFractionDigits:0});
   let cart=[];
   let cartVerified=false;
   let cartVerificationFailed=false;
@@ -88,10 +89,10 @@ import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=
       const variant=item.variant_label?" • "+esc(item.variant_label):"";
       return '<div class="order-item">'+
         (item.product.image?'<img src="'+esc(item.product.image)+'" alt="" loading="lazy" width="72" height="72">':'<div class="order-item-placeholder"></div>')+
-        '<div><h3>'+esc(item.product.product_name)+'</h3><small>'+variant.replace(/^ • /,"")+(variant?" • ":"")+money(item.product.selling_price)+'</small>'+
+        '<div><h3>'+esc(item.product.product_name)+'</h3><small>'+variant.replace(/^ • /,"")+(variant?" • ":"")+productMoney(item.product.selling_price)+'</small>'+
         '<div class="order-qty"><button type="button" data-dec="'+index+'" aria-label="Decrease quantity" '+(Number(item.quantity)<=1?'disabled':'')+'>−</button><span>'+Number(item.quantity)+'</span><button type="button" data-inc="'+index+'" aria-label="Increase quantity" '+(!stockKnown||Number(item.quantity)>=Number(item.current_stock)?'disabled':'')+'>＋</button><button type="button" data-remove="'+index+'" aria-label="Remove '+esc(item.product.product_name)+'">Remove</button></div>'+
         (stockMessage?'<small class="cart-warning">'+esc(stockMessage)+'</small>':'')+
-        '</div><div class="order-price">'+money(Number(item.product.selling_price)*Number(item.quantity))+'</div></div>';
+        '</div><div class="order-price">'+productMoney(Number(item.product.selling_price)*Number(item.quantity))+'</div></div>';
     }).join("");
     document.querySelectorAll("[data-inc]").forEach(button=>button.onclick=()=>change(Number(button.dataset.inc),1));
     document.querySelectorAll("[data-dec]").forEach(button=>button.onclick=()=>change(Number(button.dataset.dec),-1));
