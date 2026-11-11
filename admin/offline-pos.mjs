@@ -197,7 +197,7 @@ $("refreshOffline").onclick=async()=>{
   await refreshCatalog(client,await vault.read());await render();
  }catch(error){status(error.message,true);}finally{$("refreshOffline").disabled=false;}
 };
-$("lockDevice").onclick=()=>{vault=null;lastClient=null;cart.clear();currentReceipt=null;
+$("lockDevice").onclick=()=>{vault=null;lastClient=null;cart.clear();
  $("readyApp").hidden=true;$("unlockPanel").hidden=false;$("receiptPrint").replaceChildren();status("Offline device locked.");};
 window.addEventListener("online",()=>{setConnection();syncOnline();});
 window.addEventListener("offline",()=>{setConnection();status("Internet disconnected. Offline cash records remain on this device.");});
