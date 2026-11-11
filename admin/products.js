@@ -352,7 +352,7 @@ async function openOnlineListing(productId){
  else{$("onlineListingFeedback").textContent="";$("onlineListingVisible").checked=Boolean(data?.published);$("onlineListingPrice").value=data?.online_price??"";}
  $("saveOnlineListing").disabled=Boolean(error);
  $("onlineListingPrice").disabled=true;
- $( "onlineListingFeedback" ).textContent="Online price is automatically set to 2.5% above the shop price when published. The shop price stays unchanged.";
+ $("onlineListingFeedback").textContent="Online price is automatically set to 2.5% above the shop price when published. The shop price stays unchanged.";
  $("onlineListingDialog").showModal();
 }
 async function saveOnlineListing(){
@@ -369,7 +369,7 @@ async function saveOnlineListing(){
    online_price:null,updated_by:user.id,updated_at:new Date().toISOString()
   },{onConflict:"product_id"});
   if(error)throw error;
-  $( "onlineListingFeedback" ).textContent="Online listing saved. The website uses the shop price plus 2.5% when published; available stock is still required.";
+  $("onlineListingFeedback").textContent="Online listing saved. The website uses the shop price plus 2.5% when published; available stock is still required.";
  }catch(error){$("onlineListingFeedback").textContent="Could not save: "+error.message;}
  finally{button.disabled=false;}
 }
