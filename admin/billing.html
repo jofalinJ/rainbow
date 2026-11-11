@@ -120,6 +120,7 @@ main>header h1{font-size:calc(30px * var(--type-scale));letter-spacing:-.8px}
 .offline-setup-form button{min-height:44px}
 .offline-setup-form button[type=submit]{background:#8b0000;color:#fff;border-color:#8b0000}
 #offlineSetupMode{margin:5px 0 7px}
+#prepareOffline[hidden]{display:none!important}
 </style>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -141,16 +142,17 @@ main>header h1{font-size:calc(30px * var(--type-scale));letter-spacing:-.8px}
 <section class="panel">
 <div class="offline-pos-setup">
  <strong>Offline cash billing</strong>
- <p>Prepare this device while connected. When internet drops, save provisional cash receipts and synchronize them when it returns. Use one offline billing device per shop to reduce overselling.</p>
+ <p>Only the admin prepares this device and creates its shared offline passcode while connected. Staff can unlock the prepared device without internet. Use one offline billing device per shop to reduce overselling.</p>
+ <p id="offlineSetupPermissionHint" class="offline-form-hint" role="status" aria-live="polite">Checking admin setup permission…</p>
  <div class="offline-pos-actions">
-  <button id="prepareOffline" type="button" aria-controls="offlineSetupForm" aria-expanded="false">Prepare / refresh offline billing</button>
+  <button id="prepareOffline" type="button" aria-controls="offlineSetupForm" aria-expanded="false" hidden>Prepare / refresh offline billing</button>
   <a class="offline-pos-link" href="offline-pos.html">Open offline billing</a>
  </div>
  <form id="offlineSetupForm" class="offline-setup-form" hidden novalidate aria-label="Secure offline billing setup">
-   <p id="offlineSetupMode">Create an offline-device passphrase to encrypt your shop's catalogue and pending cash sales.</p>
-   <label for="offlineDevicePassphrase">Offline-device passphrase</label>
+   <p id="offlineSetupMode">Admin: create the shared offline shop passcode for this device.</p>
+   <label for="offlineDevicePassphrase">Shared offline shop passcode (admin only)</label>
    <input id="offlineDevicePassphrase" name="offline-device-passphrase" type="password" minlength="10" required autocomplete="new-password" autocapitalize="off" spellcheck="false" aria-describedby="offlinePassphraseHint">
-   <p id="offlinePassphraseHint" class="offline-form-hint">At least 10 characters. This is not your staff login password. Keep it safe: you need it to unlock offline billing.</p>
+   <p id="offlinePassphraseHint" class="offline-form-hint">At least 10 characters. Use a separate code from your login password. Share it only with authorized staff using this shop device.</p>
    <div id="offlineConfirmWrap">
      <label for="offlineConfirmPassphrase">Confirm offline-device passphrase</label>
      <input id="offlineConfirmPassphrase" name="offline-device-passphrase-confirm" type="password" minlength="10" autocomplete="new-password" autocapitalize="off" spellcheck="false">
@@ -240,7 +242,7 @@ main>header h1{font-size:calc(30px * var(--type-scale));letter-spacing:-.8px}
 <script src="app.js?v=20261111-online-products"></script>
 <script src="billing.js?v=20261111-scanner"></script>
 <script src="billing-scanner.js?v=20261111"></script>
-<script type="module" src="offline-pos-bridge.mjs?v=20261111-inline-setup"></script>
+<script type="module" src="offline-pos-bridge.mjs?v=20261111-admin-shared-code"></script>
 <script type="module" src="billing-pin.mjs?v=20261111"></script>
 </body>
 </html>
