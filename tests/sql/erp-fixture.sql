@@ -29,7 +29,8 @@ create table public.product_variants(
  id uuid primary key,product_id uuid not null references public.products(id),
  barcode text unique,color text not null default '0',size text not null default '0',
  length_cm numeric,
- active boolean not null default true,stock_quantity integer not null default 0
+ active boolean not null default true,stock_quantity integer not null default 0,
+ updated_at timestamptz not null default now()
 );
 create table public.product_images(
  id uuid primary key, product_id uuid not null references public.products(id),
