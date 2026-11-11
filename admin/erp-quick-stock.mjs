@@ -13,9 +13,9 @@ export function setupErpQuickStockUI({getVariant,getLocationId,onUpdated}){
  $("stockDialogTitle").textContent="Add stock";
  form.querySelector("h3").textContent="Increase stock by quantity";
  const grid=direction.closest("label");
- if(grid)grid.hidden=true;
+ if(grid){grid.hidden=true;grid.style.display="none";}
  const reasonLabel=reason.closest("label");
- if(reasonLabel)reasonLabel.hidden=true;
+ if(reasonLabel){reasonLabel.hidden=true;reasonLabel.style.display="none";}
  reason.required=false;
  direction.value="add";
  save.textContent="Add stock";
@@ -25,7 +25,7 @@ export function setupErpQuickStockUI({getVariant,getLocationId,onUpdated}){
  if(balanceLabels[0])balanceLabels[0].textContent="Available in this shop";
  if(balanceLabels[1])balanceLabels[1].textContent="Available after addition";
  function feedback(text,error=false){message.textContent=text;message.classList.toggle("is-error",error);}
- function validQuantity(){const str=amount.value.trim();return /^\\d+$/.test(str)&&Number.isSafeInteger(Number(str))&&Number(str)>=1&&Number(str)<=100000;}
+ function validQuantity(){const str=amount.value.trim();return /^\d+$/.test(str)&&Number.isSafeInteger(Number(str))&&Number(str)>=1&&Number(str)<=100000;}
  function preview(){
    const valid=validQuantity();
    after.textContent=valid?(Math.max(0,onHand-reserved)+Number(amount.value)).toLocaleString("en-IN"):"—";
