@@ -113,7 +113,7 @@ describe("encrypted offline billing contract",()=>{
   expect(markup).toContain('autocomplete="new-password"');
   expect(markup).toContain('aria-controls="offlineSetupForm"');
   expect(markup).toContain('offline-pos-bridge.mjs?v=20261111-inline-setup');
-  expect(bridge).not.toMatch(/\\b(?:window\\.)?prompt\\s*\\(/);
+  expect(bridge).not.toContain("window.prompt(");
   expect(bridge).toContain('form.addEventListener("submit"');
   expect(bridge).toContain('confirmation.value!==passphrase');
   expect(bridge).toContain('const vault=await OfflineVault.unlock(passphrase)');
