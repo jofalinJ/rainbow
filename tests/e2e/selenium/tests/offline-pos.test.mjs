@@ -72,7 +72,7 @@ test("offline staff POS loads from service worker cache and persists encrypted p
     finish({installed:true});
    }catch(error){finish({error:stage+": "+error.message});}
   });
-  assert.equal(setup.installed,true,setup.error);
+  assert.equal(setup.installed,true,(setup.error||"Install failed")+" at stage "+(setup.stage||"unknown"));
   await driver.navigate().refresh();
   await driver.wait(async()=>driver.executeScript("return Boolean(navigator.serviceWorker.controller)"),12000);
   await driver.executeScript(()=>{
