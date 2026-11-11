@@ -832,7 +832,7 @@ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",
 else init().catch(fatal);
 function applyRoleUI(){
  const editor=canEdit(),owner=canPublish();
- $("roleAccessNote").textContent=owner?"Owner account: save drafts or publish with online stock."
+ $("roleAccessNote").textContent=owner?(state.sharedBranchStock?"Owner: Show Online uses existing shop stock. No second quantity is needed.":"Owner account: save drafts or publish with online stock.")
   :editor?"Staff: add a photo, name, category and price. Save for the owner to publish."
   :"Staff product access is unavailable.";
  $("ownerBulkBar").hidden=!owner;
@@ -855,7 +855,7 @@ function applyRoleUI(){
  document.querySelectorAll("[data-non-admin]").forEach(node=>node.hidden=owner);
  if(!owner){
   $("ownerStockLabel").firstChild.textContent="Shop opening stock (optional) ";
-  $("ownerStockHint").textContent="New products stay as drafts. Stock goes to your assigned shop; the owner later allocates it online.";
+  $("ownerStockHint").textContent=state.sharedBranchStock?"Staff receive counted stock in their physical shop; once the owner publishes, the website uses that same quantity.":"New products stay as drafts. Stock goes to your assigned shop; the owner later allocates it online.";
  }
 }
 function fatal(error){console.error(error);$("startup").textContent="Staff catalogue unavailable: "+friendly(error);}
