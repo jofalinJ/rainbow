@@ -44,13 +44,13 @@ describe("customer checkout compact UX safety",()=>{
     }
     expect(order).toContain("CGST (1.5%)");
     expect(order).toContain("SGST (1.5%)");
-    expect(order).toContain("Discount (3%)");
+    expect(order).not.toContain("Discount (3%)");
   });
-  it("keeps WhatsApp consent optional and unselected by default",()=>{
+  it("removes unnecessary WhatsApp opt-in controls and opts out automatically",()=>{
     expect(order).not.toContain('id="whatsappReceiptConsent"');
     expect(order).toContain("(optional)");
     expect(orderJs).toContain("whatsapp_opt_in:false");
-    expect(orderJs).toContain('?.checked===true');
+    expect(orderJs).not.toContain('?.checked===true');
   });
   it("preserves mobile category-first layout and routes",()=>{
     expect(home.indexOf('id="mobileCategorySection"')).toBeLessThan(home.indexOf('id="featuredPromotion"'));
