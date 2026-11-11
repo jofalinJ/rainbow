@@ -11,7 +11,12 @@
  if(!sku||sku.length>100){showError("This design link is incomplete. Browse available jewellery instead.");return;}
  if(!window.supabase?.createClient||!cfg.supabaseUrl||!cfg.supabasePublishableKey){showError("Catalogue temporarily unavailable. Please try again later.");return;}
  const client=window.supabase.createClient(cfg.supabaseUrl,cfg.supabasePublishableKey);
- const fields="id,product_code,product_name,type,selling_price,description,active,length_cm,thickness,gold_amount_g,product_images(public_url,storage_path,is_primary,sort_order),product_variants(id,stock_quantity,color,size,length_cm,active),erp_online_listings!inner(published)";
+ const fields="id,product_code,product_name,type,selling_price,description,active,length_cm,thickness,gold_amount_g,product_images(public_url,storage_path,is_primary,sort_order),product_variants(id,stock_quantity,color,size,length_cm,active),erp_online_listings!inner(published,online_price)";
+ const onlinePrice=p=>{
+  const listing=Array.isArray(p.erp_online_listings)?p.erp_online_listings[0]:p.erp_online_listings;
+  const value=Number(listing?.online_price);
+  return Number.isFinite(value)&&value>0?value:null;
+ };
  const imagesOf=p=>(p.product_images||[]).filter(i=>i.public_url).sort((a,b)=>Number(Boolean(b.is_primary))-Number(Boolean(a.is_primary))||Number(a.sort_order||0)-Number(b.sort_order||0)).slice(0,5);
  const inStock=p=>(p.product_variants||[]).filter(v=>v.active!==false&&Number(v.stock_quantity)>0);
  const variantLabel=v=>[v.color&&v.color!=="0"?"Colour: "+v.color:"",v.size&&v.size!=="0"?"Size: "+v.size:"",v.length_cm?"Length: "+v.length_cm+" cm":""].filter(Boolean).join(" · ")||"Standard";
@@ -46,19 +51,21 @@
  }
  function renderRelated(rows){
    const grid=$("detailRelatedGrid");grid.replaceChildren();
-   for(const p of rows.filter(p=>inStock(p).length>0).slice(0,4)){
+   for(const p of rows.filter(p=>inStock(p).length>0&&onlinePrice(p)!==null).slice(0,4)){
      const a=document.createElement("a");a.className="detail-related-card";a.href="product.html?sku="+encodeURIComponent(p.product_code);
      const first=imagesOf(p)[0];
      if(first){const img=document.createElement("img");img.src=window.RainbowCatalogue?.thumbnailUrl(first)||first.public_url;img.onerror=()=>{img.onerror=null;img.src=first.public_url;};img.loading="lazy";img.alt=p.product_name;img.width=240;img.height=240;a.append(img);}
      const label=document.createElement("strong");label.textContent=p.product_name;
-     const price=document.createElement("span");price.textContent=money(p.selling_price);a.append(label,price);grid.append(a);
+     const price=document.createElement("span");price.textContent=money(onlinePrice(p));a.append(label,price);grid.append(a);
    }
    $("detailRelated").hidden=grid.children.length===0;
  }
  try{
-   const {data,error}=await client.from("products").select(fields).eq("product_code",sku).eq("active",true).eq("erp_online_listings.published",true).maybeSingle();
+   const {data,error}=await client.from("products").select(fields).eq("product_code",sku).eq("active",true).eq("erp_online_listings.published",true).gt("erp_online_listings.online_price",0).maybeSingle();
    if(error)throw error;if(!data){showError("This design is unavailable or no longer listed.");return;}
-   product=data;const variants=inStock(product);const images=imagesOf(product);
+   const livePrice=onlinePrice(data);
+   if(livePrice===null){showError("Online pricing is unavailable for this design.");return;}
+   product={...data,selling_price:livePrice};const variants=inStock(product);const images=imagesOf(product);
    set("crumbName",product.product_name);set("detailCategory",product.type||"Jewellery");set("detailName",product.product_name);
    set("detailSku",product.product_code);set("detailPrice",money(product.selling_price));
    set("detailDescription",product.description||"Contact Rainbow Gold Covering for details about this design.");
@@ -131,6 +138,6 @@
    document.head.append(json);
    $("productLoading").hidden=true;$("productDetail").hidden=false;
    refreshCart();window.RainbowAnalytics?.track("view_item",{item_id:product.product_code});
-   if(product.type){const related=await client.from("products").select(fields).eq("active",true).eq("erp_online_listings.published",true).eq("type",product.type).neq("id",product.id).limit(8);if(!related.error)renderRelated(related.data||[]);}
+   if(product.type){const related=await client.from("products").select(fields).eq("active",true).eq("erp_online_listings.published",true).eq("type",product.type).gt("erp_online_listings.online_price",0).neq("id",product.id).limit(8);if(!related.error)renderRelated(related.data||[]);}
  }catch(error){console.error("Product detail fetch failed",error);showError("We couldn't load this design. Please check your connection and try again.");}
 })();
