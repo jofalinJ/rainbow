@@ -68,16 +68,17 @@ button.primary{background:#8b0000;color:white;border-color:#8b0000}button:disabl
 <div id="cartList"><p class="muted">No products selected.</p></div>
 <p><strong id="cartTotal">Total ₹0.00</strong></p>
 <div class="customer-grid">
+<label>Staff name / ID (required for offline cash records)<input id="offlineStaffOperator" maxlength="80" autocomplete="off" placeholder="Staff member handling this sale"></label>
 <label>Name (optional)<input id="buyerName" maxlength="120"></label>
 <label>Phone (optional)<input id="buyerPhone" inputmode="tel" maxlength="20"></label>
 </div>
-<p class="warning">Cash only. A provisional receipt is not a tax invoice and does not confirm central stock until synced.</p>
+<p class="warning">Cash only. This shared-code device records the staff name you enter, but does not verify individual identities offline. A provisional receipt is not a tax invoice and does not confirm central stock until synced.</p>
 <label><input type="checkbox" id="cashCollected" style="width:auto;min-height:auto;display:inline-block;margin-right:7px">I confirm cash has been received for this sale</label>
 <button class="primary" type="button" id="saveOffline" disabled>Save offline cash record</button>
 <button type="button" id="clearOffline">Clear cart</button>
 </section>
 <section class="panel queue-panel"><h2>Pending &amp; synced records</h2>
-<p class="muted">The app retries pending records automatically while this page is open, unlocked, and online. Review-needed records require owner assistance.</p>
+<p class="muted">The app retries pending records when online and a permitted staff account is signed in. A retry must use the same account that first submitted that record. Review-needed records require owner assistance.</p>
 <div id="pendingList"></div></section>
 </div>
 </div>
