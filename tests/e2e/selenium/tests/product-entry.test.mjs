@@ -4,7 +4,7 @@ import {createServer} from "node:http";
 import fs from "node:fs/promises";
 import path from "node:path";
 import {fileURLToPath} from "node:url";
-import {Builder,By} from "selenium-webdriver";
+import {Builder,By,until} from "selenium-webdriver";
 import chrome from "selenium-webdriver/chrome.js";
 
 // This suite serves the real product HTML, CSS, and scripts locally. Authentication
@@ -165,7 +165,7 @@ test("staff product entry accepts opening stock safely using only local fixtures
     const field=id=>driver.findElement(By.id(id));
     const open=async(mode="normal")=>{
       await driver.get(fixture.base+"/admin/products.html?fixture="+mode);
-      await driver.wait(async()=>/matching products/.test(await (await field("adminCatalogMessage")).getText()),10000);
+      await driver.wait(until.elementIsEnabled(await field("existingBtn")),10000);
     };
     const enter=async(id,value)=>{const input=await field(id);await input.clear();await input.sendKeys(String(value));};
     const chooseShop=()=>driver.findElement(By.css('#openingStockShop option[value="'+shopTwo+'"]')).click();
@@ -270,7 +270,7 @@ test("staff product entry accepts opening stock safely using only local fixtures
       assert.equal(await (await field("existingStock")).isEnabled(),false);
       assert.equal(await (await field("openingStockShop")).isEnabled(),false);
       await enter("search","no-fixture-match");
-      await driver.wait(async()=>/0 matching products/.test(await (await field("adminCatalogMessage")).getText()),10000);
+      await driver.wait(async()=>/No matching products/.test(await (await field("catalogPageInfo")).getText()),10000);
       assert.equal(await (await field("existingStock")).isEnabled(),false);
       assert.equal(await (await field("existingStock")).getAttribute("value"),"10");
       assert.equal(await (await field("existingProduct")).getAttribute("value"),existingId);

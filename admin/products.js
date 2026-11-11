@@ -45,7 +45,7 @@ function pendingSaveMessage(product,error){
   return product.product_code+" is already saved. Saving is incomplete: "+error.message+
     ". Keep this page open and press Save again to retry safely. Check Inventory before receiving stock elsewhere.";
 }
-let cataloguePage=0,cataloguePages=0,catalogueTotal=0,catalogueRevision=0,catalogueBusy=false,catalogueTimer=null,pinnedProduct=null,lastListMs=0;
+let cataloguePage=0,cataloguePages=0,catalogueTotal=0,catalogueRevision=0,catalogueTimer=null,pinnedProduct=null;
 const findCurrentProduct=id=>items.find(x=>String(x.id)===String(id))||(pinnedProduct&&String(pinnedProduct.id)===String(id)?pinnedProduct:null);
 const escHtml=value=>String(value??"").replace(/[&<>"]/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[ch])).split(String.fromCharCode(39)).join("&#39;");
 const IMAGE_BUCKET="product-images";
@@ -403,15 +403,15 @@ async function init(){
   $("adminProductStatus")?.addEventListener("change",()=>load({reset:true}));
   $("catalogPrev")?.addEventListener("click",()=>{if(cataloguePage>0){cataloguePage--;load();}});
   $("catalogNext")?.addEventListener("click",()=>{if(cataloguePage+1<cataloguePages){cataloguePage++;load();}});
-  await load({reset:true});fillExistingProducts();
+  await load({reset:true});
+  for(const id of ["newProductBtn","existingBtn","saveProductBtn"])$(id).disabled=false;
+  variantMessage("");
 }
 async function load({reset=false}={}){
   if(reset)cataloguePage=0;
   const request=++catalogueRevision;
-  catalogueBusy=true;
   if($("adminCatalogMessage"))$("adminCatalogMessage").textContent="Loading products…";
   $("catalogPrev").disabled=true;$("catalogNext").disabled=true;
-  const started=performance.now();
   try{
     const result=await RainbowAdminCatalogue.list(bootSupabase(),{
       page:cataloguePage,search:$("search").value,
@@ -420,9 +420,7 @@ async function load({reset=false}={}){
     if(request!==catalogueRevision)return;
     if(result.pages>0&&cataloguePage>=result.pages){cataloguePage=result.pages-1;return load();}
     items=result.rows;catalogueTotal=result.count;cataloguePages=result.pages;
-    lastListMs=Math.round(performance.now()-started);
-    if($("adminCatalogMessage"))$("adminCatalogMessage").textContent=
-      "Database search • "+catalogueTotal.toLocaleString("en-IN")+" matching products • "+lastListMs+" ms response";
+    if($("adminCatalogMessage"))$("adminCatalogMessage").textContent="";
     render();fillExistingProducts();
   }catch(error){
     if(request!==catalogueRevision)return;
@@ -430,7 +428,6 @@ async function load({reset=false}={}){
     if($("adminCatalogMessage"))$("adminCatalogMessage").textContent="Could not load products: "+error.message;
   }finally{
     if(request===catalogueRevision){
-      catalogueBusy=false;
       const prev=$("catalogPrev"),next=$("catalogNext"),info=$("catalogPageInfo");
       prev.disabled=cataloguePage<=0;next.disabled=cataloguePage+1>=cataloguePages;
       info.textContent=catalogueTotal?

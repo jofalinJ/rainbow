@@ -139,7 +139,7 @@ describe("encrypted offline billing contract",()=>{
   expect(markup).toContain('type="password" minlength="10" required');
   expect(markup).toContain('autocomplete="new-password"');
   expect(markup).toContain('aria-controls="offlineSetupForm"');
-  expect(markup).toContain('offline-pos-bridge.mjs?v=20261111-admin-shared-code');
+  expect(markup).toContain('offline-pos-bridge.mjs?v=20261111-walk-in');
   expect(markup).toContain('id="offlineSetupPermissionHint"');
   expect(markup).toContain('id="prepareOffline" type="button" aria-controls="offlineSetupForm" aria-expanded="false" hidden');
   expect(bridge).not.toContain("window.prompt(");
@@ -170,7 +170,7 @@ describe("encrypted offline billing contract",()=>{
   events.install({waitUntil:p=>{reply=p;}});
   return reply.then(()=>{
    expect(requests.some(x=>x.endsWith("/offline-pos.html"))).toBe(true);
-   expect(read("admin/service-worker.js")).toContain("rainbow-staff-offline-pos-v3");
+   expect(read("admin/service-worker.js")).toContain("rainbow-staff-offline-pos-v4");
    expect(requests.some(x=>x.includes("orders"))).toBe(false);
    expect(requests.some(x=>x.includes("invoices"))).toBe(false);
    const req={method:"GET",url:"https://rainbowgoldcovering.com/admin/billing.html",mode:"navigate"};

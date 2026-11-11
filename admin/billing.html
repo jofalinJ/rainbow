@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#8f1520"><link rel="icon" type="image/png" href="../assets/brand/rainbow-logo.png">
 <title>Rainbow Gold Covering — Billing</title>
-<link rel="stylesheet" href="style.css?v=20261103-premium">
+<link rel="stylesheet" href="style.css?v=20261111-compact-nav">
 <link rel="stylesheet" href="../invoice-template.css">
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -13,7 +13,7 @@
 <script src="../invoice-template.js"></script>
 <script src="../bill-pdf.js"></script>
 <style>
-.billing-layout{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(340px,.75fr);gap:18px}
+.billing-layout{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(340px,1fr);gap:18px;align-items:start}
 .billing-search{display:flex;gap:10px;margin-bottom:14px}
 .billing-search input{flex:1}
 .catalog{display:grid;gap:10px;max-height:560px;overflow:auto}
@@ -29,26 +29,25 @@
 .cart-meta{color:#888;font-size:calc(11px * var(--type-scale));margin-top:4px}.qty-row{display:flex;justify-content:space-between;align-items:center;margin-top:8px}
 .qty-control{display:flex;align-items:center;gap:8px}.qty-control button{padding:5px 9px}
 .totals{border-top:1px solid #eee;margin-top:8px;padding-top:14px;display:grid;gap:8px}.total-line{display:flex;justify-content:space-between;font-size:calc(13px * var(--type-scale))}.grand-total{font-size:calc(20px * var(--type-scale));font-weight:700;padding-top:7px}
-.customer-form{display:grid;grid-template-columns:1fr 1fr;gap:10px}.customer-form .full{grid-column:1/-1}
-.customer-form label,.payment-box label{font-size:calc(11px * var(--type-scale));color:#777;display:grid;gap:6px}
-.customer-form input,.customer-form textarea,.payment-box select{border:1px solid #ddd;background:#fff;border-radius:8px;padding:10px 11px;font:inherit;font-size:calc(13px * var(--type-scale))}
-.payment-box{margin-top:16px;padding-top:16px;border-top:1px solid #eee;display:grid;gap:10px}
+.customer-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding-top:12px}.customer-form .full{grid-column:1/-1}
+.customer-form label{font-size:calc(12px * var(--type-scale));color:#5e544c;display:grid;gap:6px;min-width:0}
+.customer-form input,.customer-form textarea{width:100%;min-width:0;border:1px solid #ddd;background:#fff;border-radius:8px;padding:10px 11px;font:inherit;font-size:calc(13px * var(--type-scale))}
+.payment-box{margin:16px 0 0;padding:0;border:0;min-inline-size:0}.payment-box legend{padding:0 0 8px;font-size:calc(12px * var(--type-scale));font-weight:700}
 .pay-options{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .pay-option{border:1px solid #ddd;border-radius:9px;padding:10px;display:flex;align-items:center;gap:8px;color:#333;font-size:calc(12px * var(--type-scale));background:#fff;cursor:pointer}
 .pay-option:has(input:checked){border-color:#111;background:#f7f7f5}
 .pay-option input{accent-color:#111}
 .complete{width:100%;margin-top:12px;background:#111;color:#fff;border-color:#111;padding:13px}
 .complete:disabled{opacity:.45;cursor:not-allowed}
-.billing-msg{min-height:20px;font-size:calc(12px * var(--type-scale));margin:10px 0 0}.billing-msg.error{color:#b23b32}.billing-msg.success{color:#27764a}
+.billing-msg{font-size:calc(13px * var(--type-scale));margin:10px 0 0}.billing-msg:empty{margin:0}.billing-msg.error{color:#b23b32}.billing-msg.success{color:#27764a}
 .receipt-screen{margin-top:18px}.receipt{border:1px dashed #bbb;border-radius:12px;padding:18px;background:#fff}
 .receipt h3{margin:0 0 4px}.receipt small{color:#888}.receipt-items{margin:14px 0;border-top:1px solid #eee}.receipt-item{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid #f0f0f0;font-size:calc(12px * var(--type-scale))}
 .empty{color:#888;font-size:calc(12px * var(--type-scale));padding:18px 0}
 @media(max-width:1000px){.billing-layout{grid-template-columns:1fr}.catalog{max-height:none}}
-@media(max-width:600px){.customer-form{grid-template-columns:1fr}.customer-form .full{grid-column:auto}.product-card{grid-template-columns:46px minmax(0,1fr)}.product-thumb{width:46px;height:46px}.variant-actions{grid-column:1/-1;justify-content:flex-start}}
-@media print{body{display:block;background:#fff}aside,main>header,main>.billing-layout,main>.receipt-screen~*{display:none!important}.receipt-screen{display:block!important;margin:0}.receipt{border:0;padding:0;max-width:360px;margin:0 auto}}
+@media(max-width:600px){.customer-form{grid-template-columns:1fr}.customer-form .full{grid-column:auto}.product-card{grid-template-columns:42px minmax(0,1fr) auto;gap:9px}.product-thumb{width:42px;height:42px}}
+@media print{body{display:block;background:#fff}aside,main>header,main>.billing-layout,main>.billing-tools,main>.receipt-screen~*{display:none!important}.receipt-screen{display:block!important;margin:0}.receipt{border:0;padding:0;max-width:360px;margin:0 auto}}
 .wa-btn{color:#217a45;border-color:#bcdcc8}
 
-/* Rainbow POS visual refresh — inspired by the supplied Fusion POS reference */
 :root{--rainbow-red:#b51f24;--rainbow-red-dark:#8f171b;--rainbow-gold:#c6a15b;--rainbow-cream:#fffaf2;--pos-border:#e8e1d8;--pos-muted:#77716c}
 body{background:#f8f7f4;color:#252321}
 aside{background:#fff;border-right:1px solid var(--pos-border)}
@@ -91,10 +90,10 @@ main>header h1{font-size:calc(30px * var(--type-scale));letter-spacing:-.8px}
 @media(max-width:1000px){main{padding:24px}.billing-layout{grid-template-columns:1fr}.catalog{max-height:none}}
 @media(max-width:600px){main{padding:15px}.billing-search{flex-wrap:wrap}.billing-search input{flex-basis:100%}.billing-search button{flex:1}.panel{padding:15px}.product-card{padding:11px}.grand-total{font-size:calc(20px * var(--type-scale))}}
 
-.billing-search{flex-wrap:wrap}.billing-search #productSearch{min-width:180px}.billing-search #startScanner{border:1px solid #9e2628;background:#fff8f5;color:#8b0000;white-space:nowrap;font-weight:700}
+.billing-search{flex-wrap:wrap}.billing-search #productSearch{min-width:0}.billing-search #startScanner{border:1px solid #9e2628;background:#fff8f5;color:#8b0000;white-space:nowrap;font-weight:700}
 .scanner-panel{margin:0 0 14px;padding:15px;border:1px solid #dec9bc;border-radius:12px;background:#fffaf6}
 .scanner-panel[hidden]{display:none!important}.scanner-panel video{display:block;width:min(100%,480px);max-height:340px;aspect-ratio:4/3;object-fit:cover;border-radius:9px;background:#1c1716}
-.scanner-panel button{margin-top:10px;min-height:44px}.scanner-message{font-size:calc(12px * var(--type-scale));min-height:18px;margin:5px 0 12px;color:#4d5946}.scanner-message.error{color:#b23b32}
+.scanner-panel button{margin-top:10px;min-height:44px}.scanner-message{font-size:calc(12px * var(--type-scale));min-height:18px;margin:5px 0 12px;color:#4d5946}.scanner-message:empty{min-height:0;margin:0}.scanner-message.error{color:#b23b32}
 .pos-guides{margin:12px 0 2px;color:#66584c;font-size:calc(12px * var(--type-scale));line-height:1.65}
 .pos-guides summary{cursor:pointer;font-weight:700;color:#8b0000;min-height:40px}.pos-guides ol{padding-left:24px}.pos-guides a{display:inline-flex;min-height:42px;align-items:center;color:#8b0000;font-weight:700}
 .customer-form .pin-locality[hidden]{display:none!important}
@@ -102,13 +101,12 @@ main>header h1{font-size:calc(30px * var(--type-scale));letter-spacing:-.8px}
 .pin-lookup-status:empty{min-height:0}
 .pin-lookup-status.error{color:#a43731}
 .customer-form .pin-locality select{min-height:42px;width:100%;border:1px solid #ddd;border-radius:8px;padding:10px;background:#fff}
-@media(max-width:600px){.billing-search #startScanner{width:100%}}
 .offline-pos-setup{background:#fbf5e8;border:1px solid #e7d4b2;border-radius:12px;padding:13px 15px;margin-bottom:16px}
 .offline-pos-setup strong{color:#7b2e18;font-size:14px}
 .offline-pos-setup p{margin:6px 0 9px;font-size:12px;line-height:1.5;color:#67513f}
 .offline-pos-actions{display:flex;gap:9px;flex-wrap:wrap;align-items:center}
 .offline-pos-link{display:inline-flex;align-items:center;min-height:44px;padding:9px 14px;border:1px solid #9a4a43;border-radius:9px;background:#fff;color:#8b0000;font-size:13px;font-weight:700;text-decoration:none}
-#offlineSetupStatus{font-size:12px;min-height:18px}
+#offlineSetupStatus{font-size:12px}#offlineSetupStatus:empty{display:none}
 #offlineSetupStatus.error{color:#ad2926}
 .offline-setup-form{margin-top:13px;padding:14px;border:1px solid #e1c7a7;border-radius:12px;background:#fffdfa}
 .offline-setup-form[hidden],#offlineConfirmWrap[hidden]{display:none!important}
@@ -121,6 +119,21 @@ main>header h1{font-size:calc(30px * var(--type-scale));letter-spacing:-.8px}
 .offline-setup-form button[type=submit]{background:#8b0000;color:#fff;border-color:#8b0000}
 #offlineSetupMode{margin:5px 0 7px}
 #prepareOffline[hidden]{display:none!important}
+.billing-location{display:flex;align-items:center;gap:12px;margin:0 0 12px;color:#5e544c;font-size:calc(13px * var(--type-scale));font-weight:700}
+.billing-location[hidden]{display:none}
+.billing-location select{min-width:0;min-height:40px;border:1px solid #ddd2c7;border-radius:9px;padding:6px 10px;background:#fff;font:inherit;color:#292523}
+.billing-tools{margin-top:18px;display:grid;gap:6px}
+.billing-tools summary,.billing-customer summary{min-height:44px;align-content:center;cursor:pointer;color:#6c3127;font-size:calc(13px * var(--type-scale));font-weight:700}
+.billing-tools .pos-guides{margin:0}
+.billing-customer{margin-top:12px;border-block:1px solid #eadfd4}
+.billing-customer summary span{font-weight:500;color:#675b51;margin-left:5px}
+.billing-customer[open]{padding-bottom:12px}
+.variant-chip{max-width:100%;overflow-wrap:anywhere}
+.variant-actions button,.qty-control button{min-height:40px}
+.jump-to-bill{display:none}
+#currentBill{scroll-margin-block-start:16px}
+@media(max-width:1000px){.jump-to-bill{display:inline-flex;align-items:center;gap:4px;color:#8b0000;font-weight:700;min-height:44px}}
+@media(max-width:600px){.catalog{max-height:min(420px,50vh)}.variant-actions button{padding-inline:12px}}
 </style>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -131,22 +144,87 @@ main>header h1{font-size:calc(30px * var(--type-scale));letter-spacing:-.8px}
 </head>
 <body>
 <a class="skip-link" href="#mainContent">Skip to main content</a>
-<aside aria-label="Admin sidebar"></aside>
+<aside id="adminSidebar" aria-label="Admin sidebar"></aside>
 <main id="mainContent" tabindex="-1">
 <header>
-<div><p class="eyebrow">POINT OF SALE</p><h1>Billing</h1></div>
-<button class="profile" onclick="logout()">Sign out</button>
+<div class="admin-page-title"><button type="button" id="adminMenuToggle" class="admin-menu-toggle" aria-expanded="false" aria-controls="adminSidebar" hidden>Menu</button><h1>Billing</h1></div>
+<a class="offline-pos-link" href="offline-pos.html">Open offline billing</a>
 </header>
 
 <div class="billing-layout">
 <section class="panel">
-<div class="offline-pos-setup">
- <strong>Offline cash billing</strong>
- <p>Only the admin prepares this device and creates its shared offline passcode while connected. Staff can unlock the prepared device without internet. Use one offline billing device per shop to reduce overselling.</p>
+<div class="panelhead"><h2>Products</h2><a class="jump-to-bill" href="#currentBill">Current bill <span id="billItemCount">(0)</span></a></div>
+<div id="erpBillingLocationBox" class="billing-location" hidden>
+<label for="erpBillingLocation">Billing shop</label>
+<select id="erpBillingLocation"><option value="">Select your shop</option></select>
+</div>
+<div class="billing-search"><input id="productSearch" data-testid="billing-product-search" placeholder="Search products or barcode" autocomplete="off" aria-label="Search products or enter a scanned barcode"><button id="startScanner" type="button" aria-controls="scannerPanel">Scan QR / barcode</button><button id="clearSearch" type="button" aria-label="Clear product search">Clear</button></div>
+<div id="scannerPanel" class="scanner-panel" hidden><p>Point your camera at a Rainbow product QR code or barcode.</p><video id="scannerVideo" playsinline muted autoplay aria-label="Camera barcode scanner preview"></video><button id="stopScanner" type="button">Stop camera</button></div>
+<p id="scannerMessage" class="scanner-message" role="status" aria-live="polite"></p>
+<div id="catalog" class="catalog"><div class="empty">Loading product catalog…</div></div>
+</section>
+
+<section class="panel" id="currentBill" tabindex="-1" aria-labelledby="currentBillHeading">
+<div class="panelhead"><h2 id="currentBillHeading">Current bill</h2><button id="clearCart" type="button" aria-label="Clear cart" disabled>Clear</button></div>
+<div id="cart" class="cart"><div class="empty">No items added.</div></div>
+<div class="totals">
+<div class="total-line"><span>Subtotal</span><strong id="subtotal">₹0.00</strong></div>
+<div class="total-line"><span>Discount (3%)</span><strong id="discount">₹0.00</strong></div>
+<div class="total-line"><span>CGST (1.5%)</span><strong id="cgst">₹0.00</strong></div>
+<div class="total-line"><span>SGST (1.5%)</span><strong id="sgst">₹0.00</strong></div>
+<div class="total-line grand-total"><span>Total</span><strong id="total">₹0.00</strong></div>
+</div>
+
+<details id="billingCustomer" class="billing-customer">
+<summary>Customer details <span>Optional</span></summary>
+<div class="customer-form">
+<label>Full Name<input id="customerName" autocomplete="name" placeholder="Walk-in customer"></label>
+<label>WhatsApp / Phone<input id="customerPhone" type="tel" autocomplete="tel" aria-describedby="customerPhoneHint"><small id="customerPhoneHint">Enter a number to send the bill by WhatsApp.</small></label>
+<label>Email<input id="customerEmail" type="email" autocomplete="email"></label>
+<label>PIN Code<input id="customerPin" inputmode="numeric" autocomplete="postal-code" maxlength="6" placeholder="6 digits"><small id="billingPinLookupStatus" class="pin-lookup-status" role="status" aria-live="polite">Enter 6 digits to suggest city and state. Please verify.</small></label>
+<label>City<input id="customerCity" autocomplete="address-level2"></label>
+<label>State<input id="customerState" autocomplete="address-level1"></label>
+<label id="billingPinLocalityWrap" class="full pin-locality" hidden>Town / post office (optional)<select id="billingPinLocality" aria-label="Choose customer locality"></select></label>
+<label class="full">Address<textarea id="customerAddress" autocomplete="street-address" rows="2"></textarea></label>
+</div>
+</details>
+
+<fieldset class="payment-box">
+<legend>Payment method</legend>
+<div class="pay-options">
+<label class="pay-option"><input type="radio" name="payment" value="cash" checked> Cash</label>
+<label class="pay-option"><input type="radio" name="payment" value="upi"> UPI</label>
+<label class="pay-option"><input type="radio" name="payment" value="card"> Card</label>
+<label class="pay-option"><input type="radio" name="payment" value="bank_transfer"> Bank Transfer</label>
+</div>
+</fieldset>
+<button class="complete" id="completeSale" type="button" disabled>Complete Sale</button>
+<p id="billingMsg" class="billing-msg" role="status"></p>
+</section>
+</div>
+
+
+<section id="receiptScreen" class="receipt-screen" style="display:none">
+<div class="receipt">
+<h3>RAINBOW GOLD COVERING</h3>
+<small id="receiptMeta"></small>
+<div class="receipt-items" id="receiptItems"></div>
+<div class="total-line"><span>Subtotal</span><strong id="receiptSubtotal"></strong></div>
+<div class="total-line"><span>Discount</span><strong id="receiptDiscount"></strong></div>
+<div class="total-line"><span>CGST</span><strong id="receiptCgst"></strong></div>
+<div class="total-line"><span>SGST</span><strong id="receiptSgst"></strong></div>
+<div class="total-line grand-total"><span>Total</span><strong id="receiptTotal"></strong></div>
+<div style="margin-top:12px;font-size:12px"><b>Payment:</b> <span id="receiptPayment"></span></div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px"><button id="viewReceipt" type="button">View Bill</button><button id="printReceipt" type="button">Print Bill</button><button id="receiptWhatsApp" type="button" class="wa-btn" style="display:none">WhatsApp PDF</button><button id="newSale" type="button">New Sale</button></div>
+</div>
+</section>
+<div class="billing-tools">
+<details><summary>Offline billing setup</summary>
+<section class="offline-pos-setup" aria-label="Offline billing setup">
+ <p>Prepare one device per shop while online. Staff can unlock it offline using the shop passcode.</p>
  <p id="offlineSetupPermissionHint" class="offline-form-hint" role="status" aria-live="polite">Checking admin setup permission…</p>
  <div class="offline-pos-actions">
   <button id="prepareOffline" type="button" aria-controls="offlineSetupForm" aria-expanded="false" hidden>Prepare / refresh offline billing</button>
-  <a class="offline-pos-link" href="offline-pos.html">Open offline billing</a>
  </div>
  <form id="offlineSetupForm" class="offline-setup-form" hidden novalidate aria-label="Secure offline billing setup">
    <p id="offlineSetupMode">Admin: create the shared offline shop passcode for this device.</p>
@@ -163,86 +241,23 @@ main>header h1{font-size:calc(30px * var(--type-scale));letter-spacing:-.8px}
    </div>
   </form>
   <p id="offlineSetupStatus" role="status" aria-live="polite"></p>
-</div>
-<div class="panelhead"><div><h2>Products</h2><span class="muted">Search name, code, type or scan/type a barcode</span></div></div>
-<div id="erpBillingLocationBox" hidden style="padding:12px 14px;background:#fbf5ef;border:1px solid #e8dfd6;border-radius:12px;margin-bottom:14px">
-<label for="erpBillingLocation"><strong>Billing shop</strong></label>
-<select id="erpBillingLocation" style="display:block;width:min(370px,100%);margin-top:8px;padding:10px;border-radius:8px;border:1px solid #dcc9bd">
-<option value="">Select your shop</option></select>
-<small>Sales deduct stock only from this selected shop. Existing invoices and printing remain unchanged.</small>
-</div>
-<div class="billing-search"><input id="productSearch" data-testid="billing-product-search" placeholder="Search products or barcode" autocomplete="off" aria-label="Search products or enter a scanned barcode"><button id="startScanner" type="button" aria-controls="scannerPanel">📷 Scan QR / barcode</button><button id="clearSearch" type="button">Clear</button></div>
-<div id="scannerPanel" class="scanner-panel" hidden><p>Point your camera at a Rainbow product QR code or barcode.</p><video id="scannerVideo" playsinline muted autoplay aria-label="Camera barcode scanner preview"></video><button id="stopScanner" type="button">Stop camera</button></div>
-<p id="scannerMessage" class="scanner-message" role="status" aria-live="polite"></p>
-<details class="pos-guides"><summary>How to scan and connect a receipt printer</summary>
+</section>
+</details>
+<details class="pos-guides"><summary>Scanner and printer help</summary>
 <ol><li><strong>Camera:</strong> tap Scan QR / barcode, allow camera access, and hold a product label in view. A unique in-stock match is added to the current bill automatically.</li>
 <li><strong>Handheld scanner:</strong> pair a Bluetooth/USB keyboard-style barcode scanner, tap the search box, and scan. The scanner must send Enter after the code. You can also type the code and press Enter.</li>
 <li><strong>Printer:</strong> connect the receipt printer using your device's USB, Wi-Fi, or Bluetooth printer setup. On Android, install or enable its print service if required; then choose the printer from the browser's Print dialog.</li>
 <li><strong>After a sale:</strong> select Print Bill on the completed receipt. The browser print dialog lets you select your printer and paper size. For thermal printers, choose 80 mm paper, minimum margins and no headers/footers.</li></ol>
 <a href="printer-test.html" target="_blank" rel="noopener">Open printer test ticket</a>
 </details>
-<div id="catalog" class="catalog"><div class="empty">Loading product catalog…</div></div>
-</section>
-
-<section class="panel">
-<div class="panelhead"><h2>Current Bill</h2><button id="clearCart" type="button">Clear</button></div>
-<div id="cart" class="cart"><div class="empty">No items added.</div></div>
-<div class="totals">
-<div class="total-line"><span>Subtotal</span><strong id="subtotal">₹0.00</strong></div>
-<div class="total-line"><span>Discount (3%)</span><strong id="discount">₹0.00</strong></div>
-<div class="total-line"><span>CGST (1.5%)</span><strong id="cgst">₹0.00</strong></div>
-<div class="total-line"><span>SGST (1.5%)</span><strong id="sgst">₹0.00</strong></div>
-<div class="total-line grand-total"><span>Total</span><strong id="total">₹0.00</strong></div>
 </div>
-
-<div class="payment-box">
-<label>Payment Method</label>
-<div class="pay-options">
-<label class="pay-option"><input type="radio" name="payment" value="cash" checked> Cash</label>
-<label class="pay-option"><input type="radio" name="payment" value="upi"> UPI</label>
-<label class="pay-option"><input type="radio" name="payment" value="card"> Card</label>
-<label class="pay-option"><input type="radio" name="payment" value="bank_transfer"> Bank Transfer</label>
-</div>
-<button class="complete" id="completeSale" type="button" disabled>Complete Sale</button>
-<p id="billingMsg" class="billing-msg"></p>
-</div>
-</section>
-</div>
-
-<section class="panel" style="margin-top:18px">
-<div class="panelhead"><div><h2>Customer</h2><span class="muted">Optional for walk-in sales</span></div></div>
-<div class="customer-form">
-<label>Full Name<input id="customerName" placeholder="Walk-in customer"></label>
-<label>WhatsApp / Phone<input id="customerPhone" inputmode="tel" placeholder="Optional"></label>
-<label>Email<input id="customerEmail" type="email" placeholder="Optional"></label>
-<label>PIN Code<input id="customerPin" inputmode="numeric" autocomplete="postal-code" maxlength="6" placeholder="6 digits"><small id="billingPinLookupStatus" class="pin-lookup-status" role="status" aria-live="polite">Enter 6 digits to suggest city and state. Please verify.</small></label>
-<label>City<input id="customerCity" placeholder="Optional"></label>
-<label>State<input id="customerState" placeholder="Optional"></label>
-<label id="billingPinLocalityWrap" class="full pin-locality" hidden>Town / post office (optional)<select id="billingPinLocality" aria-label="Choose customer locality"></select></label>
-<label class="full">Address<textarea id="customerAddress" rows="2" placeholder="Optional"></textarea></label>
-</div>
-</section>
-
-<section id="receiptScreen" class="receipt-screen" style="display:none">
-<div class="receipt">
-<h3>JJ GOLD COVERING</h3>
-<small id="receiptMeta"></small>
-<div class="receipt-items" id="receiptItems"></div>
-<div class="total-line"><span>Subtotal</span><strong id="receiptSubtotal"></strong></div>
-<div class="total-line"><span>Discount</span><strong id="receiptDiscount"></strong></div>
-<div class="total-line"><span>CGST</span><strong id="receiptCgst"></strong></div>
-<div class="total-line"><span>SGST</span><strong id="receiptSgst"></strong></div>
-<div class="total-line grand-total"><span>Total</span><strong id="receiptTotal"></strong></div>
-<div style="margin-top:12px;font-size:12px"><b>Payment:</b> <span id="receiptPayment"></span></div>
-<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px"><button id="viewReceipt" type="button">View Bill</button><button id="printReceipt" type="button">Print Bill</button><button id="receiptWhatsApp" type="button" class="wa-btn" style="display:none">WhatsApp PDF</button><button id="newSale" type="button">New Sale</button></div>
-</div>
-</section>
 </main>
 <div id="receiptPdfStage" class="invoice" style="position:absolute;left:-100000px;top:0;width:80mm;background:#fff"></div>
 <script src="app.js?v=20261111-online-products"></script>
-<script src="billing.js?v=20261111-scanner"></script>
+<script src="mobile-nav.js" defer></script>
+<script src="billing.js?v=20261111-walk-in"></script>
 <script src="billing-scanner.js?v=20261111"></script>
-<script type="module" src="offline-pos-bridge.mjs?v=20261111-admin-shared-code"></script>
+<script type="module" src="offline-pos-bridge.mjs?v=20261111-walk-in"></script>
 <script type="module" src="billing-pin.mjs?v=20261111"></script>
 </body>
 </html>

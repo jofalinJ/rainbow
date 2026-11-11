@@ -174,10 +174,10 @@ test("Quick Products is photo-first; staff can save a draft on a 390px screen wi
  const fixture=await serve();
  const options=new chrome.Options().addArguments("--headless=new","--no-sandbox","--disable-dev-shm-usage",
   "--disable-background-networking","--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1","--window-size=390,850");
+ options.setMobileEmulation({deviceMetrics:{width:390,height:850,pixelRatio:1,mobile:true,touch:true}});
  let driver;
  try{
   driver=await new Builder().forBrowser("chrome").setChromeOptions(options).build();
-  await driver.manage().window().setRect({width:390,height:850});
   await driver.get(fixture.base+"/admin/owner.html?role=staff");
   const field=id=>driver.findElement(By.id(id));
   await driver.wait(async()=>await (await field("ownerApp")).isDisplayed(),12000);
@@ -190,6 +190,7 @@ test("Quick Products is photo-first; staff can save a draft on a 390px screen wi
   assert.equal(await (await field("saveDraft")).getText(),"Save product for approval");
   assert.ok(!(await driver.findElement(By.tagName("body")).getText()).includes("Salesforce"));
   const width=await driver.executeScript("return document.documentElement.scrollWidth");
+  assert.equal(await driver.executeScript("return window.innerWidth"),390);
   assert.ok(width<=390+2,"Quick add must not overflow the 390px viewport");
 
   const photoInput=await field("productPhotos");

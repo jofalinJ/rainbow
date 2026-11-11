@@ -1,6 +1,6 @@
 /* Only cache the public, standalone offline POS shell. Never cache auth responses,
  * customer records, invoices, orders, payments, stock APIs or Supabase requests. */
-const CACHE="rainbow-staff-offline-pos-v3";
+const CACHE="rainbow-staff-offline-pos-v4";
 const ROOT=new URL("./",self.registration.scope);
 const OFFLINE=new URL("offline.html",ROOT).href;
 const CASH=new URL("offline-pos.html",ROOT).href;

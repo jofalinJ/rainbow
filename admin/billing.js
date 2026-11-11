@@ -3,10 +3,13 @@ let catalog=[];
 const cart=new Map();
 const TAX_RATE=.015;
 const DISCOUNT_RATE=.03;
-let lastReceipt=null;
 const ERP_BILLING=window.RAINBOW_MULTI_SHOP_ENABLED===true;
 let billingLocationId="";
 let currentPosRequest=null;
+let saleInProgress=false;
+let catalogRevision=0;
+let catalogLoading=false;
+let cartNotice=false;
 
 
 function escB(x){return String(x??"").replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;" ,'"':"&quot;"}[m]));}
@@ -24,7 +27,11 @@ function productImage(p){
 }
 function refreshTotals(){
   let subtotal=0;
-  for(const line of cart.values())subtotal+=Number(line.price)*line.quantity;
+  let itemCount=0;
+  for(const line of cart.values()){
+    subtotal+=Number(line.price)*line.quantity;
+    itemCount+=line.quantity;
+  }
   subtotal=Math.round(subtotal*100)/100;
   const discount=Math.round(subtotal*DISCOUNT_RATE*100)/100;
   const taxable=Math.round((subtotal-discount)*100)/100;
@@ -36,10 +43,20 @@ function refreshTotals(){
   $b("cgst").textContent=moneyB(cgst);
   $b("sgst").textContent=moneyB(sgst);
   $b("total").textContent=moneyB(total);
-  $b("completeSale").disabled=cart.size===0;
+  $b("billItemCount").textContent="("+itemCount+")";
+  $b("clearCart").disabled=saleInProgress||cart.size===0;
+  $b("completeSale").disabled=saleInProgress||cart.size===0;
   return{subtotal,discount,cgst,sgst,total};
 }
 function renderCatalog(){
+  if(catalogLoading){
+    $b("catalog").innerHTML='<div class="empty">Loading shop products…</div>';
+    return;
+  }
+  if(ERP_BILLING&&!billingLocationId){
+    $b("catalog").innerHTML='<div class="empty">Select a billing shop to see its products.</div>';
+    return;
+  }
   const q=($b("productSearch").value||"").trim().toLowerCase();
   const rows=[];
   for(const p of catalog){
@@ -57,18 +74,23 @@ function renderCatalog(){
       (img?'<img class="product-thumb" src="'+escB(img)+'" alt="">':'<div class="product-thumb" aria-hidden="true"></div>')+
       '<div class="product-main"><b>'+escB(p.product_name)+'</b><small>'+escB(p.product_code)+' • '+escB(p.type||"")+' • '+moneyB(p.selling_price)+'</small>'+
       '<div class="variant-line"><span class="variant-chip">'+escB(variantLabel(v))+'</span><span class="variant-chip">'+Number(v.stock_quantity||0)+' in stock</span><span class="variant-chip">'+escB(v.barcode)+'</span></div></div>'+
-      '<div class="variant-actions"><button type="button" data-add-variant="'+v.id+'">Add</button></div></article>';
+      '<div class="variant-actions"><button type="button" data-add-variant="'+escB(v.id)+'" aria-label="Add '+escB(p.product_name)+'">Add</button></div></article>';
   }).join("")||'<div class="empty">No available products found.</div>';
-  document.querySelectorAll("[data-add-variant]").forEach(btn=>btn.addEventListener("click",()=>addToCart(btn.dataset.addVariant)));
+  document.querySelectorAll("[data-add-variant]").forEach(btn=>{
+    btn.disabled=saleInProgress;
+    btn.addEventListener("click",()=>addToCart(btn.dataset.addVariant));
+  });
 }
 function addToCart(variantId){
+  if(saleInProgress)return false;
   const record=findVariant(variantId);
   if(!record)return false;
   const existing=cart.get(variantId);
   const current=existing?.quantity||0;
   const stock=Number(record.v.stock_quantity||0);
-  if(current>=stock){setMsg("Only "+stock+" unit(s) available for "+record.p.product_code,"error");return false;}
+  if(current>=stock){setMsg("Only "+stock+" unit(s) available for "+record.p.product_code,"error",true);return false;}
   cart.set(variantId,{variantId,p:record.p,v:record.v,quantity:current+1,price:Number(record.p.selling_price)});
+  clearCartNotice();
   renderCart();
   return true;
 }
@@ -81,23 +103,34 @@ function findVariant(variantId){
 }
 function renderCart(){
   $b("cart").innerHTML=[...cart.values()].map(line=>{
-    const max=Number(line.v.stock_quantity||0);
+    const name=escB(line.p.product_name);
+    const id=escB(line.variantId);
     return '<div class="cart-row"><div class="cart-top"><b>'+escB(line.p.product_name)+'</b><span>'+moneyB(line.price*line.quantity)+'</span></div>'+
       '<div class="cart-meta">'+escB(line.p.product_code)+' • '+escB(variantLabel(line.v))+'</div>'+
-      '<div class="qty-row"><div class="qty-control"><button type="button" data-dec="'+line.variantId+'">−</button><span>'+line.quantity+'</span><button type="button" data-inc="'+line.variantId+'">＋</button></div><button type="button" data-remove="'+line.variantId+'">Remove</button></div></div>';
+      '<div class="qty-row"><div class="qty-control"><button type="button" aria-label="Decrease quantity of '+name+'" data-dec="'+id+'">−</button><span>'+line.quantity+'</span><button type="button" aria-label="Increase quantity of '+name+'" data-inc="'+id+'">＋</button></div><button type="button" aria-label="Remove '+name+'" data-remove="'+id+'">Remove</button></div></div>';
   }).join("")||'<div class="empty">No items added.</div>';
   document.querySelectorAll("[data-inc]").forEach(btn=>btn.addEventListener("click",()=>changeQty(btn.dataset.inc,1)));
   document.querySelectorAll("[data-dec]").forEach(btn=>btn.addEventListener("click",()=>changeQty(btn.dataset.dec,-1)));
-  document.querySelectorAll("[data-remove]").forEach(btn=>btn.addEventListener("click",()=>{cart.delete(btn.dataset.remove);renderCart();}));
+  document.querySelectorAll("[data-remove]").forEach(btn=>btn.addEventListener("click",()=>{
+    if(saleInProgress)return;
+    cart.delete(btn.dataset.remove);clearCartNotice();renderCart();
+  }));
   refreshTotals();
 }
 function changeQty(id,delta){
+  if(saleInProgress)return;
   const line=cart.get(id);if(!line)return;
   const next=line.quantity+delta;
+  if(next>Number(line.v.stock_quantity||0)){
+    setMsg("Quantity cannot exceed current stock.","error",true);
+    return;
+  }
   if(next<=0){cart.delete(id);}
-  else if(next<=Number(line.v.stock_quantity||0)){line.quantity=next;}
-  else{setMsg("Quantity cannot exceed current stock.","error");}
+  else{line.quantity=next;}
+  clearCartNotice();
   renderCart();
+  [...$b("cart").querySelectorAll(delta>0?"[data-inc]":"[data-dec]")]
+    .find(button=>button.dataset[delta>0?"inc":"dec"]===id)?.focus();
 }
 function publicInvoiceUrl(token,print=false){
   return new URL("../invoice.html?token="+encodeURIComponent(token)+(print?"&print=1":""),location.href).href;
@@ -135,30 +168,57 @@ async function sendBillWhatsAppPdf(data,items,phone,customerName){
   }
 }
 
-function setMsg(message,tone=""){
+function setMsg(message,tone="",fromCart=false){
   const el=$b("billingMsg");el.textContent=message;el.className="billing-msg "+tone;
+  cartNotice=fromCart;
+}
+function clearCartNotice(){
+  if(cartNotice)setMsg("");
+}
+function setSaleInProgress(active){
+  saleInProgress=active;
+  document.querySelectorAll("#erpBillingLocation,#cart button,#catalog button,.customer-form :is(input,select,textarea),input[name=payment]")
+    .forEach(control=>{control.disabled=active;});
+  refreshTotals();
 }
 async function loadCatalog(){
-  catalog=await sb("products?select=id,product_code,product_name,type,description,selling_price,product_images(public_url,is_primary),product_variants(id,color,size,stock_quantity,barcode,active)&active=eq.true&order=created_at.desc&limit=1000");
-  if(ERP_BILLING){
-    const balances=new Map();
-    if(billingLocationId){
+  const revision=++catalogRevision;
+  const locationId=billingLocationId;
+  catalog=[];
+  catalogLoading=!ERP_BILLING||Boolean(locationId);
+  renderCatalog();
+  if(!catalogLoading)return true;
+  try{
+    const nextCatalog=await sb("products?select=id,product_code,product_name,type,description,selling_price,product_images(public_url,is_primary),product_variants(id,color,size,stock_quantity,barcode,active)&active=eq.true&order=created_at.desc&limit=1000");
+    if(revision!==catalogRevision)return false;
+    if(ERP_BILLING){
+      const balances=new Map();
       const client=bootSupabase();
       for(let page=0;page<100;page++){
         const {data,error}=await client.from("erp_stock_balances")
-          .select("variant_id,on_hand,reserved").eq("location_id",billingLocationId)
+          .select("variant_id,on_hand,reserved").eq("location_id",locationId)
           .range(page*500,page*500+499);
+        if(revision!==catalogRevision)return false;
         if(error)throw error;
         for(const row of data||[])balances.set(row.variant_id,Math.max(0,row.on_hand-row.reserved));
         if((data||[]).length<500)break;
         if(page===99)throw new Error("Inventory result too large; contact administrator.");
       }
+      for(const product of nextCatalog)for(const variant of product.product_variants||[]){
+        variant.stock_quantity=balances.get(variant.id)||0;
+      }
     }
-    for(const product of catalog)for(const variant of product.product_variants||[]){
-      variant.stock_quantity=balances.get(variant.id)||0;
+    catalog=nextCatalog;
+    return true;
+  }catch(error){
+    if(revision!==catalogRevision)return false;
+    throw error;
+  }finally{
+    if(revision===catalogRevision){
+      catalogLoading=false;
+      renderCatalog();
     }
   }
-  renderCatalog();
 }
 async function loadBillingShops(){
   if(!ERP_BILLING)return;
@@ -176,22 +236,23 @@ async function loadBillingShops(){
     }
     cart.clear();currentPosRequest=null;billingLocationId=select.value;
     renderCart();
-    try{await loadCatalog();setMsg("Now billing for the selected shop.","success");}
+    setMsg("");
+    try{await loadCatalog();}
     catch(e){setMsg(e.message||"Could not load shop stock.","error");}
   });
   if(!data?.length)setMsg("No billing shop assigned. Ask admin to assign your location.","error");
 }
 
 async function completeSale(){
-  if(cart.size===0)return;
+  if(saleInProgress||cart.size===0)return;
   if(ERP_BILLING&&!billingLocationId){setMsg("Select a billing shop before creating an invoice.","error");return;}
   const payment=document.querySelector("input[name=payment]:checked")?.value||"cash";
   const items=[...cart.values()].map(x=>({variant_id:x.variantId,quantity:x.quantity}));
   const customerPhone=$b("customerPhone").value.trim();
   const customerName=$b("customerName").value.trim();
   const customer={
-    name:$b("customerName").value.trim(),
-    whatsapp_number:$b("customerPhone").value.trim(),
+    name:customerName,
+    whatsapp_number:customerPhone,
     email:$b("customerEmail").value.trim(),
     pin_code:$b("customerPin").value.trim(),
     city:$b("customerCity").value.trim(),
@@ -199,8 +260,14 @@ async function completeSale(){
     address:$b("customerAddress").value.trim()
   };
   const snapshot=[...cart.values()].map(x=>({...x}));
-  setMsg("Processing secure sale…");
-  $b("completeSale").disabled=true;
+  if(!$b("customerEmail").validity.valid){
+    $b("billingCustomer").open=true;
+    $b("customerEmail").reportValidity();
+    return;
+  }
+  if(!customerName&&!customerPhone&&Object.values(customer).some(Boolean))customer.name="Walk-in Customer";
+  setMsg("Saving sale…");
+  setSaleInProgress(true);
   try{
     if(ERP_BILLING&&!currentPosRequest)currentPosRequest=crypto.randomUUID();
     const {data,error}=ERP_BILLING
@@ -211,24 +278,37 @@ async function completeSale(){
       : await bootSupabase().rpc("create_local_sale",{
           p_items:items,p_customer:customer,p_payment_method:payment
         });
-    if(error)throw error;
-    const savedItems=await sb("order_items?select=product_code,product_name,product_type,variant_color,variant_size,length_cm,thickness,gold_amount_g,quantity,unit_price,discount_amount,line_total&order_id=eq."+encodeURIComponent(data.order_id));
-    showReceipt(data,savedItems||snapshot.map(x=>({product_code:x.p.product_code,product_name:x.p.product_name,quantity:x.quantity,unit_price:x.price,discount_amount:0,line_total:x.price*x.quantity})),customerPhone,customerName);
+    if(error){
+      // A PostgreSQL rejection rolls the sale back. Preserve the ID on an
+      // uncertain network result so retrying the same draft stays idempotent.
+      if(/^[0-9A-Z]{5}$/.test(error.code||"")&&!error.message?.includes("Sale request ID reused"))currentPosRequest=null;
+      throw error;
+    }
     cart.clear();
     currentPosRequest=null;
     renderCart();
     clearCustomer();
-    await loadCatalog();
-    setMsg("Sale completed: "+data.invoice_number,"success");
+    $b("billingCustomer").open=false;
+    let savedItems;
+    try{
+      savedItems=await sb("order_items?select=product_code,product_name,product_type,variant_color,variant_size,length_cm,thickness,gold_amount_g,quantity,unit_price,discount_amount,line_total&order_id=eq."+encodeURIComponent(data.order_id));
+    }catch(error){console.warn("Receipt items could not be refreshed",error);}
+    showReceipt(data,savedItems?.length?savedItems:snapshot.map(x=>({product_code:x.p.product_code,product_name:x.p.product_name,quantity:x.quantity,unit_price:x.price,discount_amount:0,line_total:x.price*x.quantity})),customerPhone,customerName);
+    const completed="Sale completed: "+data.invoice_number;
+    setMsg(completed,"success");
+    try{await loadCatalog();}
+    catch(error){
+      console.warn("Shop stock could not be refreshed",error);
+      setMsg(completed+". Reload Billing to refresh shop stock.","success");
+    }
   }catch(e){
     console.error(e);
     setMsg(e.message||"Could not complete sale.","error");
   }finally{
-    $b("completeSale").disabled=cart.size===0;
+    setSaleInProgress(false);
   }
 }
 function showReceipt(data,items,customerPhone="",customerName=""){
-  lastReceipt={data,customerPhone,customerName};
   $b("receiptScreen").style.display="block";
   $b("receiptMeta").textContent=data.invoice_number+" • Order "+data.order_number+" • "+new Date().toLocaleString("en-IN");
   $b("receiptItems").innerHTML=(items||[]).map(x=>'<div class="receipt-item"><span>'+escB(x.product_code)+' • '+escB(x.product_name)+' × '+Number(x.quantity)+'</span><strong>'+moneyB(x.line_total)+'</strong></div>').join("");
@@ -269,8 +349,18 @@ $b("productSearch").addEventListener("keydown",e=>{
  e.preventDefault();
  window.RainbowBillingScanner?.processCode(e.currentTarget.value);
 });
-$b("clearSearch").addEventListener("click",()=>{$b("productSearch").value="";renderCatalog();$b("productSearch").focus();});
-$b("clearCart").addEventListener("click",()=>{cart.clear();renderCart();});
+$b("clearSearch").addEventListener("click",()=>{
+  $b("productSearch").value="";
+  if($b("scannerPanel").hidden)$b("scannerMessage").textContent="";
+  renderCatalog();
+  $b("productSearch").focus();
+});
+$b("clearCart").addEventListener("click",()=>{
+  if(saleInProgress)return;
+  cart.clear();clearCartNotice();renderCart();
+  if($b("scannerPanel").hidden)$b("scannerMessage").textContent="";
+  $b("productSearch").focus();
+});
 $b("completeSale").addEventListener("click",completeSale);
 $b("newSale").addEventListener("click",()=>{$b("receiptScreen").style.display="none";$b("productSearch").focus();});
 renderCart();

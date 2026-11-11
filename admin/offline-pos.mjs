@@ -131,21 +131,29 @@ async function refreshCatalog(client,state){
 }
 async function syncOnline(force=false){
  if(syncing||!vault||!navigator.onLine)return;
- const data=await vault.read();
- if(!force&&!data.pending.some(s=>s.status==="pending"))return;
- syncing=true;$("syncNow").disabled=true;
+ syncing=true;$("syncNow").disabled=true;$("lockDevice").disabled=true;
  try{
+  const data=await vault.read();
+  if(!force&&!data.pending.some(s=>s.status==="pending"))return;
   const client=await getClient();
+  if(force)await vault.retryPhoneRejectedSales();
   const stats=await syncQueuedSales(vault,client,msg=>status(msg));
-  if(stats.confirmed)status(stats.confirmed+" offline cash record(s) synchronized. Final invoices issued."+
-    (stats.needsReview?" "+stats.needsReview+" need owner review.":""));
+  if(stats.confirmed){
+   let message=stats.confirmed+" offline cash record(s) synchronized. Final invoices issued."+
+    (stats.needsReview?" "+stats.needsReview+" need owner review.":"");
+   try{await refreshCatalog(client,await vault.read());}
+   catch(error){
+    console.warn("Offline stock could not be refreshed",error);
+    message+=" Refresh saved products before the next offline shift.";
+   }
+   status(message);
+  }
   else if(stats.needsReview)status(stats.needsReview+" offline record(s) need owner review.",true);
   else if(stats.delayed)status("Sync delayed. Saved records are safe on this device; retry after reconnect.",true);
   else if(force)status("No new offline sales to sync.");
-  if(stats.confirmed)await refreshCatalog(client,await vault.read());
  }catch(error){
   status("Sync not available yet: "+String(error?.message||error)+". Saved records remain on this device.",true);
- }finally{syncing=false;$("syncNow").disabled=false;await render();}
+ }finally{syncing=false;$("syncNow").disabled=false;$("lockDevice").disabled=false;await render();}
 }
 $("unlockForm").addEventListener("submit",async event=>{
  event.preventDefault();
