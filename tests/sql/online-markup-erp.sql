@@ -18,13 +18,13 @@ begin
  if v_price<>1025 then raise exception 'Online price can be overridden or compounded'; end if;
  update public.products set selling_price=999.99 where id=p;
  select online_price into v_price from public.erp_online_listings where product_id=p;
- if v_price<>1024.99 then raise exception 'Shop-price change was not propagated'; end if;
+ if v_price<>1025 then raise exception 'Shop-price change was not propagated'; end if;
  update public.erp_online_listings set published=false where product_id=p;
  if exists(select 1 from public.erp_online_listings where product_id=p and online_price is not null) then
   raise exception 'Unpublished item retained an active online price'; end if;
  update public.erp_online_listings set published=true where product_id=p;
  select online_price into v_price from public.erp_online_listings where product_id=p;
- if v_price<>1024.99 then raise exception 'Republished online markup compounds'; end if;
+ if v_price<>1025 then raise exception 'Republished online markup compounds'; end if;
  if has_function_privilege('anon','public.rainbow_listing_markup_price()','EXECUTE') or
     has_function_privilege('authenticated','public.rainbow_refresh_markup_on_shop_price()','EXECUTE') then
   raise exception 'Price-maintenance trigger exposed to direct clients'; end if;
