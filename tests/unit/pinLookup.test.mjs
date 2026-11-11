@@ -62,7 +62,7 @@ describe("Indian postal PIN lookup",()=>{
   ]),"629001")).toBeNull();
  });
  it("sends only the PIN code in the public GET and rejects unsuccessful lookups",async()=>{
-  const fetchImpl=vi.fn(async(url,options)=>({ok:true,json:async()=>kl}));
+  const fetchImpl=vi.fn(async()=>({ok:true,json:async()=>kl}));
   expect((await lookupIndianPin("695001",{fetchImpl})).state).toBe("Kerala");
   expect(fetchImpl.mock.calls[0][0]).toBe("https://api.postalpincode.in/pincode/695001");
   expect(fetchImpl.mock.calls[0][1].method).toBe("GET");
