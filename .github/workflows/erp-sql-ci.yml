@@ -79,3 +79,5 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f supabase/operations/activate_shared_branch_stock_MANUAL.sql
       - name: Verify shared POS, checkout, expiration, payment and oversell protection
         run: psql -v ON_ERROR_STOP=1 -f tests/sql/shared-shop-stock-behavior.sql
+      - name: Race online checkout against physical POS without duplicate stock
+        run: bash tests/sql/shared-shop-stock-concurrency.sh
