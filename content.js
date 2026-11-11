@@ -2,12 +2,11 @@
   const SUPABASE_CONFIG=window.RAINBOW_SUPABASE_CONFIG||{};
   const SUPABASE_URL=String(SUPABASE_CONFIG.supabaseUrl||"").trim();
   const SUPABASE_PUBLISHABLE_KEY=String(SUPABASE_CONFIG.supabasePublishableKey||"").trim();
-  let client=null, realtimeChannel=null, realtimeRefreshTimer=null, refreshInterval=null, productsLoading=false, productsReloadRequested=false, catalogueProducts=[], catalogueCategories=[], visibleProducts=[], activeCategory="", activeProductId="";
+  let client=null, realtimeChannel=null, realtimeRefreshTimer=null, refreshInterval=null, catalogueProducts=[], catalogueCategories=[], visibleProducts=[], activeCategory="", activeProductId="";
   let promotionProductIds=[],promotionSlides=[],promotionActive=0,promotionSignature="",promotionTimer=null;
   let promotionPaused=false;
   const reducePromotionMotion=window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches===true;
   const WISHLIST_KEY="rainbow_wishlist_v1";
-  const discovery=window.RainbowDiscovery;
   const catalogue=window.RainbowCatalogue;
   const paging={epoch:0,loading:false,hasMore:true,total:0,offset:0,autoPages:0,error:""};
   let promotionProducts=[],newestProducts=[],metadataLoading=false,loaderObserver=null,showAllProducts=false;
@@ -686,7 +685,7 @@
       if(error)throw error;
       const session=data?.session||null;
       renderAccountAuthState(session);
-      if(session)await loadMyOrdersInto(orders,"Account");
+      if(session)await loadMyOrdersInto(orders);
       else if(orders)orders.innerHTML='<p class="muted">Sign in to see orders linked to your account. Guest orders can be tracked with a product code and phone number.</p>';
     }catch(error){
       renderAccountAuthState(null);
@@ -789,7 +788,7 @@
       '<small>Payment: '+esc(order.payment_status||"pending")+(order.total_amount!=null?' · Total ₹'+Number(order.total_amount).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2}):"")+'</small>'+
       (notice?'<p class="tracking-manual-note">'+esc(notice)+'</p>':"")+timeline+tracking+'</article>';
   }
-  async function loadMyOrdersInto(container,label){
+  async function loadMyOrdersInto(container){
     if(!container)return;
     container.hidden=false;
     container.innerHTML='<p class="muted">Looking up your orders securely…</p>';
