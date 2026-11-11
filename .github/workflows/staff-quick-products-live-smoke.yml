@@ -59,7 +59,7 @@ jobs:
                  grep -Fq 'Just three fields' <<< "$html" &&
                  grep -Fq 'Save product for approval' <<< "$html" &&
                  ! grep -Fiq 'salesforce' <<< "$html" &&
-                 grep -Fq 'resetEditor();show("editor");' <<< "$script" &&
+                 grep -Fq 'show(["categories","products","editor","dashboard"].includes(requested)?requested:"categories")' <<< "$script" &&
                  grep -Fq '#startup[hidden]{display:none!important}' <<< "$styling" &&
                  grep -Fq 'const canPublish=()=>state.role==="admin"' <<< "$script" &&
                  grep -Fq 'applyRoleUI();' <<< "$script" &&
