@@ -63,13 +63,14 @@ function renderCatalog(){
 }
 function addToCart(variantId){
   const record=findVariant(variantId);
-  if(!record)return;
+  if(!record)return false;
   const existing=cart.get(variantId);
   const current=existing?.quantity||0;
   const stock=Number(record.v.stock_quantity||0);
-  if(current>=stock){setMsg("Only "+stock+" unit(s) available for "+record.p.product_code,"error");return;}
+  if(current>=stock){setMsg("Only "+stock+" unit(s) available for "+record.p.product_code,"error");return false;}
   cart.set(variantId,{variantId,p:record.p,v:record.v,quantity:current+1,price:Number(record.p.selling_price)});
   renderCart();
+  return true;
 }
 function findVariant(variantId){
   for(const p of catalog){
@@ -253,7 +254,18 @@ function clearCustomer(){
   ["customerName","customerPhone","customerEmail","customerPin","customerCity","customerState","customerAddress"].forEach(id=>$b(id).value="");
 }
 $b("productSearch").addEventListener("input",renderCatalog);
-$b("productSearch").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();const exact=catalog.flatMap(p=>(p.product_variants||[]).map(v=>({p,v}))).find(x=>x.v.active&&x.v.barcode&&x.v.barcode.toLowerCase()===e.currentTarget.value.trim().toLowerCase());if(exact)addToCart(exact.v.id);}});
+// A USB/Bluetooth scanner usually types the code then sends Enter. Match
+// barcode/QR/SKU against the loaded shop stock before adding anything.
+window.RainbowBillingPos={
+ products:()=>catalog,
+ addVariant:addToCart,
+ search:code=>{$b("productSearch").value=code;renderCatalog();}
+};
+$b("productSearch").addEventListener("keydown",e=>{
+ if(e.key!=="Enter")return;
+ e.preventDefault();
+ window.RainbowBillingScanner?.processCode(e.currentTarget.value);
+});
 $b("clearSearch").addEventListener("click",()=>{$b("productSearch").value="";renderCatalog();$b("productSearch").focus();});
 $b("clearCart").addEventListener("click",()=>{cart.clear();renderCart();});
 $b("completeSale").addEventListener("click",completeSale);
