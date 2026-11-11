@@ -248,6 +248,8 @@ import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=
       state:$("state").value.trim(),
       address,
       whatsapp_opt_in:false,
+      // Older cached checkouts must never be charged using a different pricing rule.
+      pricing_revision:"no-discount-20261111",
       payment_method:"razorpay"
     };
     if(shipping===null){msg("Choose a valid Indian state or union territory for delivery.","error");return;}
