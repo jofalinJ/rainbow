@@ -97,6 +97,11 @@ main>header h1{font-size:calc(30px * var(--type-scale));letter-spacing:-.8px}
 .scanner-panel button{margin-top:10px;min-height:44px}.scanner-message{font-size:calc(12px * var(--type-scale));min-height:18px;margin:5px 0 12px;color:#4d5946}.scanner-message.error{color:#b23b32}
 .pos-guides{margin:12px 0 2px;color:#66584c;font-size:calc(12px * var(--type-scale));line-height:1.65}
 .pos-guides summary{cursor:pointer;font-weight:700;color:#8b0000;min-height:40px}.pos-guides ol{padding-left:24px}.pos-guides a{display:inline-flex;min-height:42px;align-items:center;color:#8b0000;font-weight:700}
+.customer-form .pin-locality[hidden]{display:none!important}
+.pin-lookup-status{display:block;min-height:16px;color:#286544;font-size:12px;line-height:1.5}
+.pin-lookup-status:empty{min-height:0}
+.pin-lookup-status.error{color:#a43731}
+.customer-form .pin-locality select{min-height:42px;width:100%;border:1px solid #ddd;border-radius:8px;padding:10px;background:#fff}
 @media(max-width:600px){.billing-search #startScanner{width:100%}}
 </style>
 
@@ -168,9 +173,10 @@ main>header h1{font-size:calc(30px * var(--type-scale));letter-spacing:-.8px}
 <label>Full Name<input id="customerName" placeholder="Walk-in customer"></label>
 <label>WhatsApp / Phone<input id="customerPhone" inputmode="tel" placeholder="Optional"></label>
 <label>Email<input id="customerEmail" type="email" placeholder="Optional"></label>
-<label>PIN Code<input id="customerPin" inputmode="numeric" placeholder="Optional"></label>
+<label>PIN Code<input id="customerPin" inputmode="numeric" autocomplete="postal-code" maxlength="6" placeholder="6 digits"><small id="billingPinLookupStatus" class="pin-lookup-status" role="status" aria-live="polite">Enter 6 digits to suggest city and state. Please verify.</small></label>
 <label>City<input id="customerCity" placeholder="Optional"></label>
 <label>State<input id="customerState" placeholder="Optional"></label>
+<label id="billingPinLocalityWrap" class="full pin-locality" hidden>Town / post office (optional)<select id="billingPinLocality" aria-label="Choose customer locality"></select></label>
 <label class="full">Address<textarea id="customerAddress" rows="2" placeholder="Optional"></textarea></label>
 </div>
 </section>
@@ -194,5 +200,6 @@ main>header h1{font-size:calc(30px * var(--type-scale));letter-spacing:-.8px}
 <script src="app.js?v=20261111-online-products"></script>
 <script src="billing.js?v=20261111-scanner"></script>
 <script src="billing-scanner.js?v=20261111"></script>
+<script type="module" src="billing-pin.mjs?v=20261111"></script>
 </body>
 </html>

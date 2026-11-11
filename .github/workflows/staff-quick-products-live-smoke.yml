@@ -35,6 +35,7 @@ jobs:
                nav=$(curl -L --fail --silent --show-error --max-time 12 "${site}/admin/app.js?v=20261111-online-products") &&
                products=$(curl -L --fail --silent --show-error --max-time 12 "${site}/admin/products.html?release=${GITHUB_SHA}") &&
                billing=$(curl -L --fail --silent --show-error --max-time 12 "${site}/admin/billing.html?release=${GITHUB_SHA}") &&
+               postcode=$(curl -L --fail --silent --show-error --max-time 12 "${site}/pin-lookup.mjs?release=${GITHUB_SHA}") &&
                scanner=$(curl -L --fail --silent --show-error --max-time 12 "${site}/admin/billing-scanner.js?release=${GITHUB_SHA}") &&
                printer=$(curl -L --fail --silent --show-error --max-time 12 "${site}/admin/printer-test.html?release=${GITHUB_SHA}") &&
                login=$(curl -L --fail --silent --show-error --max-time 12 "${site}/admin/login.html?release=${GITHUB_SHA}"); then
@@ -67,6 +68,9 @@ jobs:
                  grep -Fq 'app.js?v=20261111-online-products' <<< "$products" &&
                  grep -Fq 'app.js?v=20261111-online-products' <<< "$billing" &&
                  grep -Fq 'id="startScanner"' <<< "$billing" &&
+                 grep -Fq 'id="billingPinLookupStatus"' <<< "$billing" &&
+                 grep -Fq 'billing-pin.mjs?v=20261111' <<< "$billing" &&
+                 grep -Fq 'parseIndianPinResponse' <<< "$postcode" &&
                  grep -Fq 'billing-scanner.js?v=20261111' <<< "$billing" &&
                  grep -Fq 'BrowserMultiFormatReader' <<< "$scanner" &&
                  grep -Fq 'id="printTest"' <<< "$printer" &&

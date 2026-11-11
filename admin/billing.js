@@ -252,6 +252,8 @@ function showReceipt(data,items,customerPhone="",customerName=""){
 }
 function clearCustomer(){
   ["customerName","customerPhone","customerEmail","customerPin","customerCity","customerState","customerAddress"].forEach(id=>$b(id).value="");
+  // Clear the optional postal lookup hint and locality choices after a sale.
+  $b("customerPin").dispatchEvent(new Event("input",{bubbles:true}));
 }
 $b("productSearch").addEventListener("input",renderCatalog);
 // A USB/Bluetooth scanner usually types the code then sends Enter. Match
