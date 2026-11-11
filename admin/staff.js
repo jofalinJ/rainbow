@@ -62,10 +62,24 @@ function renderStaff(staff){
     const photo=s.photo_url
       ?"<img src='"+escapeHtml(s.photo_url)+"' alt='' width='40' height='40' style='width:40px;height:40px;object-fit:cover;border-radius:50%;border:1px solid #eee'>"
       :"<span class='staff-photo-placeholder'>"+escapeHtml((s.full_name||s.username||"S").split(/\s+/).slice(0,2).map(part=>part.charAt(0).toUpperCase()).join(""))+"</span>";
+    const photosByPath=new Map((s.photo_refs||[]).map(ref=>[ref.path,ref]));
+    const photoSlots=Array.from({length:MAX_STAFF_PHOTOS},(_,index)=>{
+      const slot=index+1,ref=photosByPath.get(staffSlotPath(s.user_id,slot));
+      const preview=ref?.url?"<img loading='lazy' src='"+escapeHtml(ref.url)+"' alt='Reference photo "+slot+"'>":
+        "<span>"+(ref?"Preview unavailable":"Empty")+"</span>";
+      return "<div class='staff-photo-slot'><div class='staff-photo-slot-preview'>"+preview+"</div>"+
+        "<strong>Photo "+slot+(slot===1?" · Main":"")+"</strong>"+
+        "<label class='staff-photo-upload'>"+(ref?"Replace":"Upload")+
+        "<input type='file' data-profile-photo='"+escapeHtml(s.user_id)+"' data-photo-slot='"+slot+"' accept='image/jpeg,image/png,image/webp'></label>"+
+        (slot>1&&ref?"<button type='button' data-remove-reference='"+slot+"' data-staff-id='"+escapeHtml(s.user_id)+"'>Remove</button>":"")+
+        "</div>";
+    }).join("");
+    const photoManager="<details class='staff-photo-manager'><summary>Manage photos ("+s.photo_count+"/5)</summary>"+
+      "<div class='staff-photo-grid'>"+photoSlots+"</div><small>Use clear photos of the same person with varied angles and light.</small></details>";
     return "<tr data-testid='staff-row' data-username='"+escapeHtml(s.username||"")+"'>"+
       "<td><b>"+escapeHtml(s.full_name||"—")+"</b></td>"+
       "<td class='muted'>"+escapeHtml(s.username||"—")+"</td>"+
-      "<td><div class='staff-photo-cell'>"+photo+"<label class='staff-photo-upload'>Change photo<input type='file' data-profile-photo='"+escapeHtml(s.user_id)+"' accept='image/jpeg,image/png,image/webp' capture='user'></label></div></td>"+
+      "<td><div class='staff-photo-cell'>"+photo+"<label class='staff-photo-upload'>Change photo<input type='file' data-profile-photo='"+escapeHtml(s.user_id)+"' accept='image/jpeg,image/png,image/webp'></label>"+photoManager+"</div></td>"+
       "<td><span class='muted'>"+(isAdmin?"Admin":"Staff")+"</span></td>"+
       "<td><span class='status "+statusClass+"'>"+statusLabel+"</span></td>"+
       "<td class='staff-actions'>"+
@@ -267,16 +281,31 @@ function bindStaffTable(){
     const photoInput=e.target.closest("input[data-profile-photo]");
     if(photoInput){
       const file=photoInput.files?.[0],userId=photoInput.dataset.profilePhoto;
+      const slot=Number(photoInput.dataset.photoSlot||1);
       photoInput.value="";
-      uploadStaffPhoto(userId,file).then(loadStaff).catch(error=>{
+      if(rows.dataset.photoBusy==="true")return;
+      rows.dataset.photoBusy="true";
+      uploadStaffPhoto(userId,file,slot).then(loadStaff).catch(error=>{
         alert("Could not update staff photo: "+error.message);
         console.error(error);
-      });
+      }).finally(()=>{rows.dataset.photoBusy="false";});
       return;
     }
   });
 
   rows.addEventListener("click",e=>{
+    const remove=e.target.closest("button[data-remove-reference]");
+    if(remove){
+      if(rows.dataset.photoBusy==="true")return;
+      const slot=Number(remove.dataset.removeReference),userId=remove.dataset.staffId;
+      if(!confirm("Remove reference photo "+slot+"?"))return;
+      rows.dataset.photoBusy="true";
+      deleteStaffExtraPhoto(userId,slot).then(loadStaff).catch(error=>{
+        alert("Could not remove staff photo: "+error.message);
+        console.error(error);
+      }).finally(()=>{rows.dataset.photoBusy="false";});
+      return;
+    }
     const button=e.target.closest("button[data-action]");
     if(!button)return;
 
