@@ -397,6 +397,7 @@ async function publication(product,flag){
 }
 async function unpublish(product){
  if(!published(product))return;
+ if(state.sharedBranchStock){await publication(product,false);return;}
  const branch=$("ownerSource").value||state.locations.find(x=>x.kind==="branch")?.id;
  const balances=await Promise.all(variantsOf(product).map(async v=>({variant:v,balance:await freshBalance(v.id,state.online.id)})));
  if(balances.some(({balance})=>balance.reserved>0))
@@ -428,6 +429,11 @@ async function publishExisting(product){
 }
 async function prepareShowOnline(product){
  await verifyOwner("publish");validateOnlineProduct(product);
+ if(state.sharedBranchStock){
+  await publication(product,true);await refresh();
+  toast(onlineStock(product)>0?"Product shown online using shop stock.":"Published as out of stock; receive items at a physical shop in Inventory.",product.product_code,onlineStock(product)===0);
+  return;
+ }
  if(!state.online)throw new Error("Online Store location is not configured.");
  const onlineBalances=await Promise.all(variantsOf(product).map(v=>freshBalance(v.id,state.online.id)));
  if(onlineBalances.some(b=>b.onHand>b.reserved)){
@@ -438,6 +444,7 @@ async function prepareShowOnline(product){
 }
 async function openOnlineStockDialog(product,mode="stock"){
  await verifyOwner("publish");
+ if(state.sharedBranchStock)throw new Error("Shared shop stock is already used online; no separate allocation is required.");
  if(!product||product.archived_at||product.active===false)throw new Error("Restore or enable this product before moving stock online.");
  if(!variantsOf(product).length)throw new Error("Add an active variant in Advanced Products first.");
  if(mode==="show")validateOnlineProduct(product);
@@ -596,7 +603,7 @@ async function saveProduct(mode){
   if(publish){
    // Unpublished items remain invisible until the actual online transfer completes.
    await publication(product,true);
-   if(!$("ownerStock").disabled)await setOnlineQuantity({...product,product_variants:[variant]},data.stock);
+   if(!state.sharedBranchStock&&!$("ownerStock").disabled)await setOnlineQuantity({...product,product_variants:[variant]},data.stock);
   }else if(published(previous||{})){
    await unpublish(previous);
   }else if(!previous&&canPublish())await publication(product,false);
@@ -664,7 +671,7 @@ function renderCategoryCatalogue(){
   else image.textContent="No photo";
   const info=document.createElement("div");info.className="category-product-info";
   const title=document.createElement("strong");title.textContent=product.product_name;
-  const meta=document.createElement("small");meta.textContent=product.product_code+" · "+money(product.selling_price)+" · Online: "+onlineStock(product)+" pcs";
+  const meta=document.createElement("small");meta.textContent=product.product_code+" · "+money(product.selling_price)+(state.sharedBranchStock?" · Existing shop stock: ":" · Online: ")+onlineStock(product)+" pcs";
   const status=document.createElement("span");status.className="status "+(visibleOnStorefront(product)?"published":product.archived_at?"archived":"draft");
   status.textContent=product.archived_at?"Archived":visibleOnStorefront(product)?"Visible online":published(product)?"Published · needs online stock":"Not online";
   const help=document.createElement("small");help.className="category-product-help";
@@ -686,7 +693,7 @@ function renderCategoryCatalogue(){
     }else await prepareShowOnline(product);
    });
    actions.append(button);
-   if(!product.archived_at&&product.active!==false){
+   if(!state.sharedBranchStock&&!product.archived_at&&product.active!==false){
     const addStock=document.createElement("button");addStock.type="button";addStock.className="secondary";
     addStock.textContent="＋ Add Online Stock";
     addStock.setAttribute("aria-label","Add Online Stock from existing shop stock for "+product.product_name);
