@@ -130,6 +130,8 @@ describe("encrypted offline billing contract",()=>{
   const html=read("admin/offline-pos.html");
   const app=read("admin/offline-pos.mjs");
   expect(html).toContain("Cash only.");
+  expect(html).toContain('id="cashCollected"');
+  expect(app).toContain('!$("cashCollected").checked');
   expect(app).toContain("PENDING SYNC");
   expect(html).toContain("Cash only.");
   expect(app).toContain("NOT A TAX INVOICE");
