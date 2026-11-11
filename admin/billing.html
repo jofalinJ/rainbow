@@ -103,6 +103,13 @@ main>header h1{font-size:calc(30px * var(--type-scale));letter-spacing:-.8px}
 .pin-lookup-status.error{color:#a43731}
 .customer-form .pin-locality select{min-height:42px;width:100%;border:1px solid #ddd;border-radius:8px;padding:10px;background:#fff}
 @media(max-width:600px){.billing-search #startScanner{width:100%}}
+.offline-pos-setup{background:#fbf5e8;border:1px solid #e7d4b2;border-radius:12px;padding:13px 15px;margin-bottom:16px}
+.offline-pos-setup strong{color:#7b2e18;font-size:14px}
+.offline-pos-setup p{margin:6px 0 9px;font-size:12px;line-height:1.5;color:#67513f}
+.offline-pos-actions{display:flex;gap:9px;flex-wrap:wrap;align-items:center}
+.offline-pos-link{display:inline-flex;align-items:center;min-height:44px;padding:9px 14px;border:1px solid #9a4a43;border-radius:9px;background:#fff;color:#8b0000;font-size:13px;font-weight:700;text-decoration:none}
+#offlineSetupStatus{font-size:12px;min-height:18px}
+#offlineSetupStatus.error{color:#ad2926}
 </style>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -122,6 +129,15 @@ main>header h1{font-size:calc(30px * var(--type-scale));letter-spacing:-.8px}
 
 <div class="billing-layout">
 <section class="panel">
+<div class="offline-pos-setup">
+ <strong>Offline cash billing</strong>
+ <p>Prepare this device while connected. When internet drops, save provisional cash receipts and synchronize them when it returns. Use one offline billing device per shop to reduce overselling.</p>
+ <div class="offline-pos-actions">
+  <button id="prepareOffline" type="button">Prepare / refresh offline billing</button>
+  <a class="offline-pos-link" href="offline-pos.html">Open offline billing</a>
+ </div>
+ <p id="offlineSetupStatus" role="status" aria-live="polite"></p>
+</div>
 <div class="panelhead"><div><h2>Products</h2><span class="muted">Search name, code, type or scan/type a barcode</span></div></div>
 <div id="erpBillingLocationBox" hidden style="padding:12px 14px;background:#fbf5ef;border:1px solid #e8dfd6;border-radius:12px;margin-bottom:14px">
 <label for="erpBillingLocation"><strong>Billing shop</strong></label>
@@ -200,6 +216,7 @@ main>header h1{font-size:calc(30px * var(--type-scale));letter-spacing:-.8px}
 <script src="app.js?v=20261111-online-products"></script>
 <script src="billing.js?v=20261111-scanner"></script>
 <script src="billing-scanner.js?v=20261111"></script>
+<script type="module" src="offline-pos-bridge.mjs?v=20261111"></script>
 <script type="module" src="billing-pin.mjs?v=20261111"></script>
 </body>
 </html>
