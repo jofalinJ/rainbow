@@ -182,25 +182,25 @@ function renderProducts(){
   const name=document.createElement("strong");name.textContent=p.product_name;
   const details=document.createElement("small");details.textContent=p.product_code+" · "+(categoryById(p.category_id)?.name||"Category")+" · "+money(p.selling_price);
   const status=document.createElement("span");status.className="status "+badge(p)[1];status.textContent=badge(p)[0];
-  const stock=document.createElement("small");stock.textContent=onlineStock(p)+" available online"+(onlineHeld(p)?" · "+onlineHeld(p)+" reserved":"");
+  const stock=document.createElement("small");stock.textContent=onlineStock(p)+(state.sharedBranchStock?" available from existing shops":" available online")+(onlineHeld(p)?" · "+onlineHeld(p)+" reserved":"");
   info.append(name,details,status,stock);
   const quick=document.createElement("div");quick.className="product-quick";
   const priceLabel=document.createElement("label");priceLabel.textContent="Price ₹";
   const price=document.createElement("input");price.type="number";price.min="0.01";price.step="0.01";price.disabled=!canPublish();price.value=Number(p.selling_price);price.setAttribute("aria-label","Price for "+p.product_name);priceLabel.append(price);
-  const stockLabel=document.createElement("label");stockLabel.textContent="Online stock";
-  const target=document.createElement("input");target.type="number";target.min="0";target.step="1";target.max="100000";target.value=String(onlineStock(p));target.disabled=!canPublish()||variantsOf(p).length!==1||!published(p);target.title=!published(p)?"Publish before allocating online stock.":target.disabled?"Use Inventory for multi-variant products":"";stockLabel.append(target);
+  const stockLabel=document.createElement("label");stockLabel.textContent=state.sharedBranchStock?"Existing shop stock (read only)":"Online stock";
+  const target=document.createElement("input");target.type="number";target.min="0";target.step="1";target.max="100000";target.value=String(onlineStock(p));target.disabled=state.sharedBranchStock||!canPublish()||variantsOf(p).length!==1||!published(p);target.title=!published(p)?"Publish before allocating online stock.":target.disabled?"Use Inventory for multi-variant products":"";stockLabel.append(target);
   quick.append(priceLabel,stockLabel);
   const actions=document.createElement("div");actions.className="product-actions";
   const addButton=(text,handler)=>{const btn=document.createElement("button");btn.type="button";btn.textContent=text;btn.onclick=()=>safeAction(handler);actions.append(btn);};
-  if(canPublish())addButton("Save price/stock",async()=>{
+  if(canPublish())addButton(state.sharedBranchStock?"Save price":"Save price/stock",async()=>{
    const priceValue=Number(price.value),qty=Number(target.value);
    if(!Number.isFinite(priceValue)||priceValue<=0)throw new Error("Price must be greater than zero.");
    if(!target.disabled&&(!Number.isSafeInteger(qty)||qty<0))throw new Error("Stock must be zero or more.");
    await mutate(async()=>{await result(state.client.from("products").update({selling_price:priceValue}).eq("id",p.id));if(!target.disabled)await setOnlineQuantity(p,qty);});
-   toast("Price and online stock saved.");await refresh();
+   toast(state.sharedBranchStock?"Price saved; your online store shares shop stock.":"Price and online stock saved.");await refresh();
   });
   if(canEdit()&&(canPublish()||!published(p))&&!p.archived_at)addButton("Edit",()=>edit(p.id));
-  if(canPublish()&&!p.archived_at&&p.active!==false)addButton("Add Online Stock",()=>openOnlineStockDialog(p,"stock"));
+  if(canPublish()&&!state.sharedBranchStock&&!p.archived_at&&p.active!==false)addButton("Add Online Stock",()=>openOnlineStockDialog(p,"stock"));
   if(canPublish())addButton(visibleOnStorefront(p)?"Hide Online":"Show Online",async()=>{
    if(visibleOnStorefront(p)){await mutate(()=>unpublish(p),"publish");toast("Hidden from online shop.");await refresh();}
    else await prepareShowOnline(p);
@@ -268,7 +268,7 @@ function edit(productId){
  if($("ownerSize"))$("ownerSize").value=v?.size==="0"?"":v?.size||"";
  if($("ownerLength"))$("ownerLength").value=v?.length_cm||"";
  $("ownerStock").value=String(onlineStock(p));
- if(variantsOf(p).length!==1||!canPublish()){$("ownerStock").disabled=true;message("Use Inventory to update existing stock. Owner permission is required for online allocation.",true);}else $("ownerStock").disabled=false;
+ if(state.sharedBranchStock||variantsOf(p).length!==1||!canPublish()){$("ownerStock").disabled=true;message("Existing product quantities are maintained in shop Inventory and shared online.",true);}else $("ownerStock").disabled=false;
  $("ownerStockConfirm").checked=true;$("ownerStockConfirm").disabled=true;
  state.gallery=photosOf(p).map(row=>({existing:true,id:row.id,url:safeURL(row.public_url),path:row.storage_path}));
  renderGallery();show("editor");
