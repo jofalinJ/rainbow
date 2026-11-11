@@ -11,8 +11,35 @@ const mode=get("offlineSetupMode");
 const submit=get("offlineSetupSubmit");
 const cancel=get("offlineSetupCancel");
 const status=get("offlineSetupStatus");
+const permissionHint=get("offlineSetupPermissionHint");
 let existingVault=false;
 let busy=false;
+
+// Provisioning is online-only and restricted to an active admin role.
+// The standalone offline screen never asks for an online login: staff unlock
+// its locally encrypted, already-provisioned shop with the shared device code.
+async function verifyProvisioningAdmin(){
+ if(!navigator.onLine)throw new Error("An admin must be online to prepare this device.");
+ const client=bootSupabase();
+ const {data:auth,error:authError}=await client.auth.getUser();
+ if(authError||!auth?.user)throw new Error("An admin must sign in online to prepare this device.");
+ const {data:profile,error:profileError}=await client.from("staff_profiles")
+  .select("role,active").eq("user_id",auth.user.id).maybeSingle();
+ if(profileError)throw new Error("Could not verify admin permissions. Reconnect and try again.");
+ if(!profile?.active||profile.role!=="admin")
+  throw new Error("Only an active admin can create or refresh the offline shop passcode.");
+ return {client,user:auth.user};
+}
+async function showProvisioningAccess(){
+ trigger.hidden=true;
+ try{
+  await verifyProvisioningAdmin();
+  trigger.hidden=false;
+  if(permissionHint)permissionHint.textContent="Admin setup available. Staff use the shared passcode to unlock this prepared device offline.";
+ }catch{
+  if(permissionHint)permissionHint.textContent="Only the admin can prepare this device. Staff can still open offline billing with the admin-created passcode.";
+ }
+}
 
 function message(text,error=false){
  status.textContent=text;
@@ -31,28 +58,40 @@ async function offlineAssetsReady(){
  }
  // Explicit registration means preparation also works when PWA registration is slow.
  // Do not create an encrypted vault until its offline shell is safely cached.
- await navigator.serviceWorker.register("service-worker.js",{scope:"./"});
+ const registration=await navigator.serviceWorker.register("service-worker.js",{scope:"./"});
+ await registration.update();
  const ready=await Promise.race([
   navigator.serviceWorker.ready,
   new Promise((_,reject)=>setTimeout(()=>reject(new Error("Offline installation did not finish. Reload Billing and try again.")),12000))
  ]);
  if(!ready?.active)throw new Error("The offline service worker is not active yet. Reload and retry.");
- if(!(await caches.match(new URL("offline-pos.html",location.href).href))){
-  throw new Error("Offline Billing files are not installed yet. Open Offline Billing online, then return and retry.");
+ // The updated service worker is required on previously installed tablets;
+ // an old cache must not make the admin believe the new offline code is ready.
+ const updatedCache=await caches.open("rainbow-staff-offline-pos-v3");
+ const offlinePage=new URL("offline-pos.html",location.href).href;
+ let installed=false;
+ for(let attempt=0;attempt<36;attempt++){
+  if(await updatedCache.match(offlinePage)){installed=true;break;}
+  await new Promise(resolve=>setTimeout(resolve,250));
  }
+ if(!installed)
+  throw new Error("The latest offline billing files are still installing. Reload Billing while online and try again.");
 }
 if(trigger&&form&&password&&confirmation&&status){
+ // Hidden until the live staff profile confirms an admin session.
+ showProvisioningAccess();
  trigger.addEventListener("click",async()=>{
   if(busy)return;
   if(!form.hidden){closeSetup();trigger.focus();return;}
   trigger.disabled=true;
   try{
+   await verifyProvisioningAdmin();
    existingVault=await OfflineVault.exists();
    confirmationWrap.hidden=existingVault;
    confirmation.required=!existingVault;
    mode.textContent=existingVault
-    ?"This device is already prepared. Enter its current offline passphrase to refresh the saved shop products. Pending sales will be preserved."
-    :"Create a separate offline-device passphrase to encrypt saved products and cash sales. Confirm it below.";
+    ?"This device already has an admin-created shop passcode. Enter the same code to refresh products; pending sales will be preserved."
+    :"Admin: create a shared offline shop passcode (at least 10 characters). Staff can unlock this prepared device with that code even without internet.";
    password.autocomplete=existingVault?"off":"new-password";
    submit.textContent=existingVault?"Refresh offline products":"Prepare offline billing";
    form.hidden=false;
@@ -88,23 +127,11 @@ if(trigger&&form&&password&&confirmation&&status){
   trigger.disabled=true;
   message("Checking staff access and preparing offline billing…");
   try{
-   if(!navigator.onLine)throw new Error("Connect to the internet to prepare or refresh offline billing.");
+   const {user}=await verifyProvisioningAdmin();
    if(!window.RAINBOW_MULTI_SHOP_ENABLED)throw new Error("Multi-shop POS is required for safe offline records.");
-   const client=bootSupabase();
-   const {data:auth,error:authError}=await client.auth.getUser();
-   if(authError||!auth?.user)throw new Error("Sign in online before preparing the device.");
-   const {data:profile,error:profileError}=await client.from("staff_profiles")
-    .select("role,active").eq("user_id",auth.user.id).maybeSingle();
-   if(profileError||!profile?.active||!["admin","cashier"].includes(profile.role))
-    throw new Error("Only active owner/cashier accounts can prepare offline billing.");
    const shop=window.RainbowBillingPos?.shop();
    const catalog=window.RainbowBillingPos?.products();
    if(!shop?.id||!catalog?.length)throw new Error("Select a billing shop and load its products first.");
-   if(profile.role!=="admin"){
-    const {data:assigned,error:assignedError}=await client.from("erp_staff_locations")
-     .select("location_id").eq("user_id",auth.user.id).eq("location_id",shop.id).maybeSingle();
-    if(assignedError||!assigned)throw new Error("You are not assigned to this shop.");
-   }
    const existsNow=await OfflineVault.exists();
    if(existsNow!==existingVault){
     throw new Error("Offline device status changed. Close setup and open it again before continuing.");
@@ -113,17 +140,17 @@ if(trigger&&form&&password&&confirmation&&status){
    await offlineAssetsReady();
    if(!existsNow){
     await OfflineVault.create(passphrase,{
-     userId:auth.user.id,locationId:shop.id,locationName:shop.name,catalog
+     userId:user.id,locationId:shop.id,locationName:shop.name,catalog
     });
    }else{
     const vault=await OfflineVault.unlock(passphrase);
     const saved=await vault.read();
-    if(saved.userId!==auth.user.id||saved.locationId!==shop.id)
-     throw new Error("This device contains protected sales for another staff account or shop. Keep those records; use the original account/device.");
+    if(saved.locationId!==shop.id)
+     throw new Error("This device contains protected sales for a different shop. Keep those records; use that shop's designated device.");
     await vault.updateCatalog(catalog);
    }
    closeSetup();
-   message("Offline cash billing is ready for "+shop.name+". Open Offline Billing and unlock with your offline passphrase.");
+   message("Offline cash billing is ready for "+shop.name+". Give authorized staff the shared device passcode; they can open Offline Billing without internet.");
   }catch(error){
    message(error?.message||"Could not prepare offline billing.",true);
   }finally{
@@ -136,4 +163,7 @@ if(trigger&&form&&password&&confirmation&&status){
    trigger.disabled=false;
   }
  });
+ // If this page stays open while staff accounts change, recheck before revealing
+ // setup rather than trusting a stale role result.
+ window.addEventListener("focus",()=>{if(!busy)showProvisioningAccess();});
 }

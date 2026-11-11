@@ -1,7 +1,7 @@
 import {describe,it,expect,vi} from "vitest";
 import {readFileSync} from "node:fs";
 import {runInNewContext} from "node:vm";
-import {makePendingSale,offlineTotals,sanitizeOfflineCatalog,OFFLINE_MAX_AGE_MS} from "../../admin/offline-pos-core.mjs";
+import {makePendingSale,offlineTotals,sanitizeOfflineCatalog,OFFLINE_MAX_AGE_MS,SHARED_SHOP_ACCESS_MODE} from "../../admin/offline-pos-core.mjs";
 import {syncOfflineSale,syncQueuedSales,isTransientSyncError} from "../../admin/offline-pos-sync.mjs";
 const read=path=>readFileSync(new URL("../../"+path,import.meta.url),"utf8");
 const locationId="bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
@@ -21,9 +21,9 @@ function fakeClient(opts={}){
   public_token:"22222222-2222-4222-8222-222222222222",order_id:"33333333-3333-4333-8333-333333333333",
   total_amount:999},error:null});
  const table={
-  staff_profiles:{role:"cashier",active:true},
+  staff_profiles:{role:opts.role||"cashier",active:opts.active!==false},
   erp_locations:{id:locationId,active:true,kind:"branch"},
-  erp_staff_locations:{location_id:locationId},
+  erp_staff_locations:opts.assigned===false?null:{location_id:locationId},
   products:[{id:productId,selling_price:1000,active:true}]
  };
  return {
@@ -52,6 +52,8 @@ describe("encrypted offline billing contract",()=>{
  it("rejects duplicate variants, stock overselling, invalid quantities and expired access",()=>{
   const data=fixture();
   expect(sale(data).items).toEqual([{variant_id:variantId,quantity:2}]);
+  expect(sale(data).accessMode).toBe(SHARED_SHOP_ACCESS_MODE);
+  expect(sale(data).syncActorId).toBeNull();
   data.pending.push(sale(data));
   expect(()=>makePendingSale(data,[{variant_id:variantId,quantity:3}],{},Date.now())).toThrow(/stock/);
   expect(()=>makePendingSale(data,[{variant_id:variantId,quantity:1},{variant_id:variantId,quantity:1}],{},Date.now())).toThrow(/Duplicate/);
@@ -60,7 +62,7 @@ describe("encrypted offline billing contract",()=>{
   expect(()=>makePendingSale(data,[{variant_id:variantId,quantity:1}],{},Date.now())).toThrow(/expired/);
  });
  it("keeps the unique request ID through the server-side idempotent ERP billing RPC",async()=>{
-  const record=sale(),vault={markSynced:vi.fn(async(id,receipt)=>({...record,id,status:"synced",receipt}))};
+  const record=sale(),vault={markSynced:vi.fn(async(id,receipt)=>({...record,id,status:"synced",receipt})),claimSyncActor:vi.fn(async()=>actorId)};
   const client=fakeClient();
   const response=await syncOfflineSale(vault,record,client);
   expect(response.status).toBe("synced");
@@ -70,12 +72,36 @@ describe("encrypted offline billing contract",()=>{
    p_location:locationId,p_request:requestId
   });
   expect(vault.markSynced).toHaveBeenCalledWith(requestId,expect.objectContaining({invoice_number:"INV-TEST"}));
+  expect(vault.claimSyncActor).toHaveBeenCalledWith(requestId,actorId);
  });
- it("never syncs a sale from another user or after a price change",async()=>{
-  const record=sale(),vault={markSynced:vi.fn()};
-  const other=fakeClient({userId:"other-user"});
-  await expect(syncOfflineSale(vault,record,other)).rejects.toThrow(/different staff/);
-  expect(other.rpc).not.toHaveBeenCalled();
+ it("lets a different authorized cashier synchronize a shared shop record",async()=>{
+  const record=sale(),secondUser="cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+  const vault={
+   markSynced:vi.fn(async(id,receipt)=>({...record,id,status:"synced",receipt})),
+   claimSyncActor:vi.fn(async()=>secondUser)
+  };
+  const client=fakeClient({userId:secondUser,role:"cashier"});
+  expect((await syncOfflineSale(vault,record,client)).status).toBe("synced");
+  expect(vault.claimSyncActor).toHaveBeenCalledWith(requestId,secondUser);
+  expect(client.rpc).toHaveBeenCalledOnce();
+ });
+ it("does not change original actor for legacy records or retries by another actor",async()=>{
+  const record=sale();
+  const vault={markSynced:vi.fn(),claimSyncActor:vi.fn()};
+  const secondUser=fakeClient({userId:"other-user"});
+  await expect(syncOfflineSale(vault,{...record,accessMode:undefined},secondUser))
+   .rejects.toThrow(/original staff account/);
+  expect(secondUser.rpc).not.toHaveBeenCalled();
+  await expect(syncOfflineSale(vault,{...record,syncActorId:"previous-staff"},secondUser))
+   .rejects.toThrow(/another staff account/);
+  expect(secondUser.rpc).not.toHaveBeenCalled();
+  expect(vault.claimSyncActor).not.toHaveBeenCalled();
+ });
+ it("rejects an unassigned cashier and keeps price-change safety",async()=>{
+  const record=sale(),vault={markSynced:vi.fn(),claimSyncActor:vi.fn()};
+  const unassigned=fakeClient({assigned:false});
+  await expect(syncOfflineSale(vault,record,unassigned)).rejects.toThrow(/no longer assigned/i);
+  expect(unassigned.rpc).not.toHaveBeenCalled();
   const client=fakeClient();
   const originalFrom=client.from;
   client.from=vi.fn(name=>{
@@ -86,11 +112,12 @@ describe("encrypted offline billing contract",()=>{
   });
   await expect(syncOfflineSale(vault,record,client)).rejects.toThrow(/Price changed/);
   expect(client.rpc).not.toHaveBeenCalled();
+  expect(vault.claimSyncActor).not.toHaveBeenCalled();
  });
  it("keeps network-failed sales pending and marks hard stock failures for review",async()=>{
   expect(isTransientSyncError(new Error("Failed to fetch"))).toBe(true);
   const record=sale();
-  const vault={read:vi.fn(async()=>({pending:[record]})),markReview:vi.fn(async()=>{})};
+  const vault={read:vi.fn(async()=>({pending:[record]})),markReview:vi.fn(async()=>{}),claimSyncActor:vi.fn(async()=>actorId)};
   const client=fakeClient();
   client.rpc.mockResolvedValueOnce({data:null,error:{message:"Insufficient stock"}});
   const result=await syncQueuedSales(vault,client);
@@ -112,7 +139,9 @@ describe("encrypted offline billing contract",()=>{
   expect(markup).toContain('type="password" minlength="10" required');
   expect(markup).toContain('autocomplete="new-password"');
   expect(markup).toContain('aria-controls="offlineSetupForm"');
-  expect(markup).toContain('offline-pos-bridge.mjs?v=20261111-inline-setup');
+  expect(markup).toContain('offline-pos-bridge.mjs?v=20261111-admin-shared-code');
+  expect(markup).toContain('id="offlineSetupPermissionHint"');
+  expect(markup).toContain('id="prepareOffline" type="button" aria-controls="offlineSetupForm" aria-expanded="false" hidden');
   expect(bridge).not.toContain("window.prompt(");
   expect(bridge).toContain('form.addEventListener("submit"');
   expect(bridge).toContain('confirmation.value!==passphrase');
@@ -120,6 +149,8 @@ describe("encrypted offline billing contract",()=>{
   expect(bridge).toContain('password.value=""');
   expect(bridge).toContain('confirmation.value=""');
   expect(bridge).toContain('await offlineAssetsReady()');
+  expect(bridge).toContain('profile.role!=="admin"');
+  expect(bridge).toContain('await verifyProvisioningAdmin()');
   expect(bridge).toContain('await vault.updateCatalog(catalog)');
  });
  it("pre-caches only the standalone offline POS shell, never business API data",()=>{
@@ -139,6 +170,7 @@ describe("encrypted offline billing contract",()=>{
   events.install({waitUntil:p=>{reply=p;}});
   return reply.then(()=>{
    expect(requests.some(x=>x.endsWith("/offline-pos.html"))).toBe(true);
+   expect(read("admin/service-worker.js")).toContain("rainbow-staff-offline-pos-v3");
    expect(requests.some(x=>x.includes("orders"))).toBe(false);
    expect(requests.some(x=>x.includes("invoices"))).toBe(false);
    const req={method:"GET",url:"https://rainbowgoldcovering.com/admin/billing.html",mode:"navigate"};
@@ -153,6 +185,8 @@ describe("encrypted offline billing contract",()=>{
   expect(html).toContain('id="cashCollected"');
   expect(app).toContain('!$("cashCollected").checked');
   expect(app).toContain("PENDING SYNC");
+  expect(html).toContain("No staff login or internet is needed");
+  expect(html).toContain('id="offlineStaffOperator"');
   expect(html).toContain("Cash only.");
   expect(app).toContain("NOT A TAX INVOICE");
   expect(app).toContain("vault.queue");

@@ -1,14 +1,21 @@
 /* The existing transactional ERP POS RPC remains the only authority for final invoices and stock. */
+import {SHARED_SHOP_ACCESS_MODE} from "./offline-pos-core.mjs";
 const round=n=>Math.round((Number(n)+Number.EPSILON)*100)/100;
 export function isTransientSyncError(error){
  const s=String(error?.message||error||"");
- return /fetch|network|offline|timeout|failed to connect|503|502|504|abort|DNS|CORS|Sign in online before|Session expired|authentication required/i.test(s);
+ return /fetch|network|offline|timeout|failed to connect|503|502|504|abort|DNS|CORS|Sign in online before|Session expired|authentication required|Sign in with that account|sign in with the original/i.test(s);
 }
 export async function syncOfflineSale(vault,sale,client){
  if(sale.status!=="pending")return {status:"skipped"};
  const {data:auth,error:authError}=await client.auth.getUser();
  if(authError||!auth?.user)throw new Error("Sign in online before synchronizing cash sales.");
- if(auth.user.id!==sale.userId)throw new Error("This offline sale belongs to a different staff account.");
+ // Old records predate shop passcode sharing. Their first RPC attempt may
+ // already be bound to the original creator; do not change that actor.
+ const shared=sale.accessMode===SHARED_SHOP_ACCESS_MODE;
+ if(!shared&&auth.user.id!==sale.userId)
+  throw new Error("Legacy cash record: sign in with the original staff account to sync.");
+ if(shared&&sale.syncActorId&&sale.syncActorId!==auth.user.id)
+  throw new Error("This cash record was first submitted by another staff account. Sign in with that account to retry.");
  const {data:profile,error:profileError}=await client.from("staff_profiles")
   .select("role,active").eq("user_id",auth.user.id).maybeSingle();
  if(profileError||!profile?.active||!["admin","cashier"].includes(profile.role))
@@ -32,6 +39,10 @@ export async function syncOfflineSale(vault,sale,client){
   if(round(current.selling_price)!==round(row.unitPrice))
    throw new Error("Price changed for "+row.product_code+" since offline cash was recorded. Owner review required.");
  }
+ // Save the first authorized online staff identity before sending the RPC.
+ // Its server-side idempotency record binds request ID + payload + actor, so
+ // retries after a lost response must use that same staff account.
+ if(shared)await vault.claimSyncActor(sale.id,auth.user.id);
  // The server rechecks stock under row locks and either issues one final bill
  // for p_request or rejects the transaction; never rewrite any invoice locally.
  const {data,error}=await client.rpc("erp_create_local_sale",{
@@ -59,7 +70,11 @@ export async function syncQueuedSales(vault,client,onProgress=()=>{}){
     if(result.difference>0.01){onProgress("Invoice "+result.receipt.invoice_number+" needs amount review.");}
    }
   }catch(error){
-   if(isTransientSyncError(error)){stats.delayed++;onProgress("Internet not ready; offline cash records remain saved.");break;}
+   if(isTransientSyncError(error)){
+    stats.delayed++;
+    onProgress("Sync paused: "+String(error?.message||error)+". Offline records remain encrypted and pending.");
+    break;
+   }
    const explanation=String(error?.message||error||"Synchronization blocked").slice(0,250);
    // Do not auto-resubmit stock/price/authorization conflicts. No final invoice
    // is issued locally. Staff should contact the owner to reconcile.

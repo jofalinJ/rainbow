@@ -84,16 +84,23 @@ jobs:
                  grep -Fq 'id="offlineSetupForm"' <<< "$billing" &&
                  grep -Fq 'id="offlineDevicePassphrase"' <<< "$billing" &&
                  grep -Fq 'id="offlineConfirmPassphrase"' <<< "$billing" &&
-                 grep -Fq 'offline-pos-bridge.mjs?v=20261111-inline-setup' <<< "$billing" &&
+                 grep -Fq 'offline-pos-bridge.mjs?v=20261111-admin-shared-code' <<< "$billing" &&
+                 grep -Fq 'id="offlineSetupPermissionHint"' <<< "$billing" &&
+                 grep -Fq 'aria-expanded="false" hidden' <<< "$billing" &&
+                 grep -Fq 'profile.role!=="admin"' <<< "$offlinebridge" &&
                  grep -Fq 'form.addEventListener("submit"' <<< "$offlinebridge" &&
                  grep -Fq 'confirmation.value!==passphrase' <<< "$offlinebridge" &&
                  ! grep -Fq 'window.prompt(' <<< "$offlinebridge" &&
                  grep -Fq 'offline-pos-bridge.mjs?v=20261111' <<< "$billing" &&
                  grep -Fq 'id="unlockForm"' <<< "$offline" &&
+                 grep -Fq 'Admin-created shop passcode' <<< "$offline" &&
+                 grep -Fq 'id="offlineStaffOperator"' <<< "$offline" &&
                  grep -Fq 'id="cashCollected"' <<< "$offline" &&
                  grep -Fq 'name:"AES-GCM"' <<< "$offlinecore" &&
                  grep -Fq 'p_request:sale.id' <<< "$offlinesync" &&
-                 grep -Fq 'rainbow-staff-offline-pos-v2' <<< "$worker" &&
+                 grep -Fq 'await vault.claimSyncActor(sale.id,auth.user.id)' <<< "$offlinesync" &&
+                 grep -Fq 'SHARED_SHOP_ACCESS_MODE' <<< "$offlinecore" &&
+                 grep -Fq 'rainbow-staff-offline-pos-v3' <<< "$worker" &&
                  grep -Fq 'cache.addAll(FILES)' <<< "$worker" &&
                  grep -Fq 'id="billingPinLookupStatus"' <<< "$billing" &&
                  grep -Fq 'billing-pin.mjs?v=20261111' <<< "$billing" &&

@@ -20,7 +20,7 @@ async function render(){
  $("unlockPanel").hidden=true;$("readyApp").hidden=false;
  const expired=Date.now()>data.expiresAt;
  $("shopBanner").textContent=data.locationName+" · "+(expired?"Offline access expired: reconnect and refresh products.":"Offline cash access until "+new Date(data.expiresAt).toLocaleString("en-IN"))+
-  " · This is a provisional cash queue, not a final invoice.";
+  " · Admin-issued device passcode · Provisional sales until verified sync.";
  $("shopBanner").classList.toggle("error",expired);
  const q=$("offlineSearch").value.trim().toLowerCase();
  const rows=[];
@@ -48,7 +48,7 @@ async function render(){
   '<p class="muted">No products selected.</p>';
  for(const el of document.querySelectorAll("[data-remove]"))el.onclick=()=>{cart.delete(el.dataset.remove);render();};
  $("cartTotal").textContent="Total "+fmt(offlineTotals(selected).total)+" (estimate)";
- $("saveOffline").disabled=expired||!selected.length||!$("cashCollected").checked;
+ $("saveOffline").disabled=expired||!selected.length||!$("cashCollected").checked||!$("offlineStaffOperator").value.trim();
  const pending=data.pending.slice().reverse().slice(0,70);
  $("pendingList").innerHTML=pending.map(s=>{
   const title=s.status==="synced"?"CONFIRMED · "+html(s.receipt?.invoice_number||"Invoice"):
@@ -58,7 +58,7 @@ async function render(){
   const provisional=s.status!=="synced"?
    '<button type="button" data-print="'+html(s.id)+'">Print provisional receipt</button>':"";
   return '<div><b>'+title+'</b><br><span class="muted">'+html(s.id.slice(0,8))+' · '+html(new Date(s.createdAt).toLocaleString("en-IN"))+
-   ' · '+fmt(s.totals.total)+'</span><br>'+html(s.lastError||"")+' '+invoice+provisional+'</div>';
+   ' · Staff: '+html(s.operator||"Not recorded")+' · '+fmt(s.totals.total)+'</span><br>'+html(s.lastError||"")+' '+invoice+provisional+'</div>';
  }).join("")||'<p class="muted">No offline cash records yet.</p>';
  for(const el of document.querySelectorAll("[data-print]"))el.onclick=()=>printOffline(pending.find(s=>s.id===el.dataset.print));
  setConnection();
@@ -70,7 +70,7 @@ function printOffline(sale){
  $("receiptPrint").innerHTML='<h2>RAINBOW GOLD COVERING</h2><p style="text-align:center">SHOP CASH RECORD</p>'+
   '<p class="pending">PENDING SYNC · NOT A TAX INVOICE</p>'+
   '<p>Reference: '+html(sale.id)+'</p><p>Recorded: '+html(new Date(sale.createdAt).toLocaleString("en-IN"))+'</p>'+
-  '<p>Shop: '+html(sale.locationId)+'</p>'+rows+
+  '<p>Shop: '+html(sale.locationId)+'</p><p>Staff (self-reported): '+html(sale.operator||"Not recorded")+'</p>'+rows+
   '<div class="row"><span>Subtotal</span><b>'+fmt(sale.totals.subtotal)+'</b></div>'+
   '<div class="row"><span>Discount</span><b>'+fmt(sale.totals.discount)+'</b></div>'+
   '<div class="row"><span>CGST + SGST</span><b>'+fmt(sale.totals.cgst+sale.totals.sgst)+'</b></div>'+
@@ -99,13 +99,13 @@ async function getClient(){
 }
 async function refreshCatalog(client,state){
  const {data:userResult,error:authError}=await client.auth.getUser();
- if(authError||!userResult?.user||userResult.user.id!==state.userId)throw new Error("Sign in to the original staff account before refreshing offline products.");
+ if(authError||!userResult?.user)throw new Error("Sign in online as an authorized shop staff member to refresh products.");
  const {data:profile,error:pError}=await client.from("staff_profiles")
-  .select("role,active").eq("user_id",state.userId).maybeSingle();
+  .select("role,active").eq("user_id",userResult.user.id).maybeSingle();
  if(pError||!profile?.active||!["admin","cashier"].includes(profile.role))throw new Error("No active billing permission.");
  if(profile.role!=="admin"){
   const {data:assignment,error:aError}=await client.from("erp_staff_locations")
-   .select("location_id").eq("user_id",state.userId).eq("location_id",state.locationId).maybeSingle();
+   .select("location_id").eq("user_id",userResult.user.id).eq("location_id",state.locationId).maybeSingle();
   if(aError||!assignment)throw new Error("No longer assigned to this shop.");
  }
  const {data:products,error:pdtError}=await client.from("products")
@@ -174,12 +174,12 @@ $("offlineSearch").addEventListener("keydown",async event=>{
  cart.set(id,(cart.get(id)||0)+1);$("offlineSearch").value="";await render();
 });
 $("saveOffline").onclick=async()=>{
- if(!vault||!cart.size||!$("cashCollected").checked)return;
+ if(!vault||!cart.size||!$("cashCollected").checked||!$("offlineStaffOperator").value.trim())return;
  $("saveOffline").disabled=true;
  try{
   const sale=await vault.queue([...cart].map(([variant_id,quantity])=>({variant_id,quantity})),{
    name:$("buyerName").value,whatsapp_number:$("buyerPhone").value
-  });
+  },$("offlineStaffOperator").value.trim());
   cart.clear();$("buyerName").value="";$("buyerPhone").value="";$("cashCollected").checked=false;
   await render();
   status("Cash record "+sale.id.slice(0,8)+" saved securely. Pending server sync; no final invoice yet.");
@@ -189,6 +189,7 @@ $("saveOffline").onclick=async()=>{
 };
 $("clearOffline").onclick=()=>{cart.clear();$("cashCollected").checked=false;render();};
 $("cashCollected").addEventListener("change",()=>render());
+$("offlineStaffOperator").addEventListener("input",()=>render());
 $("syncNow").onclick=()=>syncOnline(true);
 $("refreshOffline").onclick=async()=>{
  if(!vault)return;
@@ -197,7 +198,7 @@ $("refreshOffline").onclick=async()=>{
   await refreshCatalog(client,await vault.read());await render();
  }catch(error){status(error.message,true);}finally{$("refreshOffline").disabled=false;}
 };
-$("lockDevice").onclick=()=>{vault=null;lastClient=null;cart.clear();
+$("lockDevice").onclick=()=>{vault=null;lastClient=null;cart.clear();$("offlineStaffOperator").value="";
  $("readyApp").hidden=true;$("unlockPanel").hidden=false;$("receiptPrint").replaceChildren();status("Offline device locked.");};
 window.addEventListener("online",()=>{setConnection();syncOnline();});
 window.addEventListener("offline",()=>{setConnection();status("Internet disconnected. Offline cash records remain on this device.");});

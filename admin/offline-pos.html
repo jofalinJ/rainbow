@@ -40,7 +40,7 @@ button.primary{background:#8b0000;color:white;border-color:#8b0000}button:disabl
 }
 </style>
 <script src="config.js"></script>
-<script type="module" src="offline-pos.mjs?v=20261111"></script>
+<script type="module" src="offline-pos.mjs?v=20261111-shared-code"></script>
 </head>
 <body>
 <main>
@@ -48,10 +48,10 @@ button.primary{background:#8b0000;color:white;border-color:#8b0000}button:disabl
 <div class="actions"><a class="action" href="billing.html">Online Billing</a><button type="button" id="lockDevice">Lock device</button></div></header>
 <div class="status" id="statusPanel" role="status" aria-live="polite">Unlock your prepared offline shop to begin.</div>
 <section id="unlockPanel" class="panel"><h2>Unlock offline billing</h2>
-<p class="muted">Your shop catalogue and pending cash sales are encrypted on this device. Enter the passphrase you set while online.</p>
-<form id="unlockForm"><label>Offline passphrase<input id="offlinePassphrase" type="password" autocomplete="off" required minlength="10"></label>
+<p class="muted">Your admin has prepared this shop device. Enter the shared offline passcode supplied by the admin. No staff login or internet is needed to unlock this device.</p>
+<form id="unlockForm"><label>Admin-created shop passcode<input id="offlinePassphrase" type="password" autocomplete="off" required minlength="10"></label>
 <button class="primary" type="submit">Unlock this device</button></form>
-<p class="secure-note">Before using offline mode, open Online Billing and choose Prepare Offline Billing while connected to the internet. This device's offline access expires 24 hours after the last online refresh.</p></section>
+<p class="secure-note">The admin must prepare this device while online at least once. The passcode works only on this prepared device/browser, and offline access expires 24 hours after its last online refresh.</p></section>
 <div id="readyApp" hidden>
 <div class="status" id="shopBanner"></div>
 <div class="actions"><button type="button" id="syncNow" class="primary">Sync pending sales now</button>
@@ -68,16 +68,17 @@ button.primary{background:#8b0000;color:white;border-color:#8b0000}button:disabl
 <div id="cartList"><p class="muted">No products selected.</p></div>
 <p><strong id="cartTotal">Total ₹0.00</strong></p>
 <div class="customer-grid">
+<label>Staff name / ID (required for offline cash records)<input id="offlineStaffOperator" maxlength="80" autocomplete="off" placeholder="Staff member handling this sale"></label>
 <label>Name (optional)<input id="buyerName" maxlength="120"></label>
 <label>Phone (optional)<input id="buyerPhone" inputmode="tel" maxlength="20"></label>
 </div>
-<p class="warning">Cash only. A provisional receipt is not a tax invoice and does not confirm central stock until synced.</p>
+<p class="warning">Cash only. This shared-code device records the staff name you enter, but does not verify individual identities offline. A provisional receipt is not a tax invoice and does not confirm central stock until synced.</p>
 <label><input type="checkbox" id="cashCollected" style="width:auto;min-height:auto;display:inline-block;margin-right:7px">I confirm cash has been received for this sale</label>
 <button class="primary" type="button" id="saveOffline" disabled>Save offline cash record</button>
 <button type="button" id="clearOffline">Clear cart</button>
 </section>
 <section class="panel queue-panel"><h2>Pending &amp; synced records</h2>
-<p class="muted">The app retries pending records automatically while this page is open, unlocked, and online. Review-needed records require owner assistance.</p>
+<p class="muted">The app retries pending records when online and a permitted staff account is signed in. A retry must use the same account that first submitted that record. Review-needed records require owner assistance.</p>
 <div id="pendingList"></div></section>
 </div>
 </div>

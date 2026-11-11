@@ -2,6 +2,7 @@
 const DATABASE="rainbow-staff-pos-offline-v1",STORE="vault",KEY="staff-v1";
 export const OFFLINE_MAX_AGE_MS=24*60*60*1000;
 export const OFFLINE_MAX_PENDING=150;
+export const SHARED_SHOP_ACCESS_MODE="admin-shared-passcode-v2";
 const encoder=new TextEncoder(),decoder=new TextDecoder();
 const toBase64=bytes=>btoa(String.fromCharCode(...bytes));
 const fromBase64=value=>Uint8Array.from(atob(value),char=>char.charCodeAt(0));
@@ -76,7 +77,7 @@ export function sanitizeOfflineCatalog(products){
   }))
  })).filter(p=>p.product_variants.length>0);
 }
-export function makePendingSale(state,lines,customer,now=Date.now(),id=crypto.randomUUID()){
+export function makePendingSale(state,lines,customer,now=Date.now(),id=crypto.randomUUID(),operator=""){
  if(now>Number(state.expiresAt))throw new Error("Offline access expired. Reconnect and refresh this device.");
  if(state.pending.filter(s=>s.status!=="synced").length>=OFFLINE_MAX_PENDING)
   throw new Error("Offline queue is full. Reconnect and synchronize before continuing.");
@@ -112,6 +113,10 @@ export function makePendingSale(state,lines,customer,now=Date.now(),id=crypto.ra
   address:String(customer?.address||"").trim().slice(0,600)
  };
  return {id,createdAt:new Date(now).toISOString(),locationId:state.locationId,userId:state.userId,
+  // The admin provisions the device, but authorized shop staff can record sales
+  // while disconnected. An online staff account is checked when each sale syncs.
+  accessMode:SHARED_SHOP_ACCESS_MODE,syncActorId:null,
+  operator:String(operator||"").trim().slice(0,80),
   items,rows,customer:cleanCustomer,payment_method:"cash",
   totals:offlineTotals(rows),status:"pending",lastError:""};
 }
@@ -147,11 +152,26 @@ export class OfflineVault{
    return result;
   });
  }
- async queue(items,customer){
+ async queue(items,customer,operator=""){
   return this.mutate(data=>{
-   const sale=makePendingSale(data,items,customer);
+   const sale=makePendingSale(data,items,customer,Date.now(),crypto.randomUUID(),operator);
    data.pending.push(sale);
    return sale;
+  });
+ }
+ async claimSyncActor(id,actorId){
+  // The PostgreSQL POS RPC stores actor_id alongside the idempotency UUID.
+  // Pin the first authenticated sync actor BEFORE sending the RPC, so a retry
+  // after a network outage can only use that same account and request ID.
+  return this.mutate(data=>{
+   const sale=data.pending.find(item=>item.id===id);
+   if(!sale||sale.status!=="pending")throw new Error("Offline record is no longer pending.");
+   if(sale.accessMode!==SHARED_SHOP_ACCESS_MODE)
+    throw new Error("Legacy offline record must be submitted by its original staff account.");
+   if(sale.syncActorId&&sale.syncActorId!==actorId)
+    throw new Error("This cash record was first submitted by another staff account. Sign in with that account to retry.");
+   sale.syncActorId=actorId;
+   return sale.syncActorId;
   });
  }
  async markSynced(id,receipt){
