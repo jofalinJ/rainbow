@@ -14,7 +14,7 @@ BEGIN
   SELECT public.create_razorpay_checkout(
     '91111111-1111-4111-8111-111111111111'::uuid,
     '[{"variant_id":"bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb","quantity":1}]'::jsonb,
-    '{"name":"No discount test","whatsapp_number":"9999999999","state":"Tamil Nadu","address":"Fixture"}'::jsonb
+    '{"name":"No discount test","whatsapp_number":"9999999999","state":"Tamil Nadu","address":"Fixture","pricing_revision":"no-discount-20261111"}'::jsonb
   ) INTO v_result;
   SELECT o.subtotal,o.discount_amount,o.cgst_amount,o.sgst_amount,o.igst_amount,o.delivery_fee,o.total_amount,
     r.amount_paise INTO v_order
@@ -33,7 +33,7 @@ BEGIN
   PERFORM set_config('request.jwt.claim.role','anon',true);
   SELECT public.create_online_order(
     '[{"variant_id":"bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb","quantity":1}]'::jsonb,
-    '{"name":"No discount manual test","whatsapp_number":"9999999999","state":"Kerala","address":"Fixture","payment_method":"upi","payment_reference":"NO-DISCOUNT-20261111","checkout_id":"92222222-2222-4222-8222-222222222222"}'::jsonb
+    '{"name":"No discount manual test","whatsapp_number":"9999999999","state":"Kerala","address":"Fixture","payment_method":"upi","pricing_revision":"no-discount-20261111","payment_reference":"NO-DISCOUNT-20261111","checkout_id":"92222222-2222-4222-8222-222222222222"}'::jsonb
   ) INTO v_result;
   SELECT subtotal,discount_amount,cgst_amount,sgst_amount,igst_amount,delivery_fee,total_amount INTO v_order
   FROM public.orders WHERE id=(v_result->>'order_id')::uuid;
