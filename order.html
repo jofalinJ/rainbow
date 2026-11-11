@@ -63,10 +63,7 @@
         <p id="gatewayStatus" class="gateway-status">Checking online payment…</p>
         <button id="retryGateway" type="button" class="payment-retry" hidden>Retry connection ↗</button>
       </div>
-      <div id="razorpayDetails" class="payment-method-detail">
-        <p class="payment-safety">Your payment is verified securely before the order is confirmed.</p>
-        <label class="checkout-whatsapp-consent"><input id="whatsappReceiptConsent" type="checkbox"> <span>Yes, WhatsApp me my confirmation and invoice link after payment verification (optional).</span></label>
-      </div>
+      
     </section>
   </div>
   <aside class="checkout-aside" aria-labelledby="summaryHeading">
@@ -75,7 +72,6 @@
       <p class="checkout-subtitle" id="bagItemCount">Review items before paying</p>
       <div class="order-summary">
         <div><span>Subtotal</span><strong id="subtotal">₹0.00</strong></div>
-        <div class="summary-saving"><span>Discount (3%)</span><strong id="discount">₹0.00</strong></div>
         <div id="cgstLine"><span>CGST (1.5%)</span><strong id="cgst">₹0.00</strong></div>
         <div id="sgstLine"><span>SGST (1.5%)</span><strong id="sgst">₹0.00</strong></div>
         <div id="igstLine" hidden><span>IGST (3%)</span><strong id="igst">₹0.00</strong></div>
@@ -88,5 +84,5 @@
   </aside>
 </div></div></main>
 <footer class="container footer"><span class="footer-brand"><img class="footer-logo" src="assets/brand/rainbow-logo.png" alt="Rainbow Gold Covering logo" width="28" height="28" loading="lazy"><span>RAINBOW GOLD COVERING</span></span><span><a class="instagram-link" href="https://www.instagram.com/rainbow_kollam_gold_covering/" target="_blank" rel="noopener noreferrer">Instagram · @rainbow_kollam_gold_covering</a></span><span class="footer-legal-link"><a href="privacy-policy.html">Privacy Policy</a></span><span class="footer-legal-link"><a href="terms-and-conditions.html">Terms &amp; Conditions</a></span><span class="footer-legal-link"><a href="sitemap.html">Sitemap</a></span></footer>
-<script src="payment-config.js?v=20261021-checkout-v2"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script type="module" src="order.js?v=20261111-pin-autofill"></script>
+<script src="payment-config.js?v=20261021-checkout-v2"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script type="module" src="order.js?v=20261111-no-discount"></script>
 </body></html>
