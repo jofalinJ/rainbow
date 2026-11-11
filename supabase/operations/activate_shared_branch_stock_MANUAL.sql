@@ -36,7 +36,7 @@ end $$;
 -- Keep every physical-stock mutation in the SAME lock order as online
 -- checkout: variant rows first, physical balance rows second. This intentionally
 -- fails rather than silently patching a newer/unrecognized RPC version.
-do $
+do $locks$
 declare v_name text; v_sig text; v_anchor text; v_lock text; v_source text;
 begin
  for v_name,v_sig,v_anchor,v_lock in
@@ -66,7 +66,7 @@ begin
   v_source:=replace(v_source,v_anchor,v_lock||E'\n'||v_anchor);
   execute v_source;
  end loop;
-end $;
+end $locks$;
 
 update app_private.erp_activation_state
  set shared_branch_stock=true where singleton and enabled;
