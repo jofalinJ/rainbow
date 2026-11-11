@@ -7,7 +7,7 @@ const MAX_IMAGES = 6;
 const MAX_BYTES = 5 * 1024 * 1024;
 const money = amount => new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR",maximumFractionDigits:2}).format(Number(amount)||0);
 const id = () => crypto.randomUUID();
-const state = {client:null,user:null,role:null,categories:[],locations:[],online:null,products:[],balances:[],screen:"dashboard",editorId:null,gallery:[],deleted:[],receivedNew:false,busy:false,limit:24,categoryLimit:48,visibilityProductId:null,visibilityMode:"show",stockCheckSeq:0,shopBalances:new Map(),selected:new Set()};
+const state = {client:null,user:null,role:null,categories:[],locations:[],online:null,products:[],balances:[],screen:"dashboard",editorId:null,gallery:[],deleted:[],receivedNew:false,busy:false,limit:24,categoryLimit:48,sharedBranchStock:false,visibilityProductId:null,visibilityMode:"show",stockCheckSeq:0,shopBalances:new Map(),selected:new Set()};
 const safeURL = value => {try{const u=new URL(value);return u.protocol==="https:"?u.href:"";}catch{return"";}};
 const friendly = error => {
  const message=String(error?.message||error||"Unknown error");
@@ -70,15 +70,16 @@ function listingOf(p){const raw=p.erp_online_listings;return Array.isArray(raw)?
 function published(p){return !p.archived_at&&p.active!==false&&listingOf(p)?.published===true;}
 function onlineStock(p){
  return variantsOf(p).reduce((sum,v)=>{
-  // Non-admin staff cannot read the online ERP balance. The stock_quantity
-  // mirror is the customer-visible online availability and is read-only here.
   if(!canPublish())return sum+Math.max(0,Number(v.stock_quantity||0));
+  if(state.sharedBranchStock)return sum+state.balances.filter(b=>b.variant_id===v.id)
+   .reduce((count,b)=>count+Math.max(0,Number(b.on_hand)-Number(b.reserved)),0);
   const b=state.balances.find(row=>row.variant_id===v.id);
   return sum+Math.max(0,Number(b?.on_hand||0)-Number(b?.reserved||0));
  },0);
 }
 function visibleOnStorefront(p){return published(p)&&variantsOf(p).some(v=>Number(v.stock_quantity)>0)&&Number(p.selling_price)>0&&photosOf(p).length>0;}
-function onlineHeld(p){return variantsOf(p).reduce((sum,v)=>sum+Number(state.balances.find(row=>row.variant_id===v.id)?.reserved||0),0);}
+function onlineHeld(p){return variantsOf(p).reduce((sum,v)=>sum+state.balances
+ .filter(row=>row.variant_id===v.id).reduce((held,row)=>held+Number(row.reserved||0),0),0);}}
 function badge(p){
  if(p.archived_at)return ["Archived","archived"];
  if(published(p))return [onlineStock(p)>0?"Published":"Published · out of stock","published"];
@@ -97,6 +98,8 @@ async function fetchAll(table,select,configure){
  return rows;
 }
 async function refresh(){
+ const mode=await state.client.rpc("erp_shared_inventory_mode");
+ state.sharedBranchStock=!!mode?.data?.shared_stock&&!mode.error;
  const [categories,locations,products]=await Promise.all([
   fetchAll("categories","id,name,code_prefix,has_color,has_size,has_length,active,storefront_order,show_in_storefront",q=>q.order("storefront_order").order("name")),
   result(state.client.from("erp_locations").select("id,name,kind,active").eq("active",true).order("name")),
@@ -110,9 +113,16 @@ async function refresh(){
  state.online=state.locations.find(x=>x.kind==="online")||null;
  if(!state.online&&canPublish())throw new Error("Online Store inventory location is not configured.");
  state.products=products||[];
- state.balances=canPublish()&&state.online
-  ?await fetchAll("erp_stock_balances","location_id,variant_id,on_hand,reserved",q=>q.eq("location_id",state.online.id))
+ state.balances=canPublish()
+  ?await fetchAll("erp_stock_balances","location_id,variant_id,on_hand,reserved",
+    state.sharedBranchStock?q=>q.in("location_id",state.locations.filter(l=>l.kind==="branch").map(l=>l.id))
+      :q=>q.eq("location_id",state.online.id))
   :[];
+ $("categoryCatalogueHeading").textContent=state.sharedBranchStock
+  ?"Products by category · shared shop stock":"Online Push · Products by category";
+ $("categoryCatalogueHint").textContent=state.sharedBranchStock
+  ?"Published products sell from existing physical-shop stock. Show Online requires no second stock entry or transfer."
+  :"Use Add Online Stock to move existing pieces from a physical shop. It deducts them from shop availability. Then choose Show Online.";
  const cats=$("ownerCategory");const previous=cats.value;
  cats.replaceChildren(new Option("Select a category",""));
  for(const c of state.categories.filter(c=>c.active))cats.add(new Option(c.name,c.id));
