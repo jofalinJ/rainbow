@@ -246,17 +246,6 @@
     const empty=document.getElementById("mobileCategoryEmpty");
     if(empty)empty.hidden=prepared.length>0;
   }
-  function isMenProduct(product){
-    return String(product.gender||"women").toLowerCase()==="male";
-  }
-
-  function matchesTextSearch(product,query){
-    if(!query)return true;
-    const haystack=normalizeCategory([product.product_name,product.type,categoryFor(product),product.description].filter(Boolean).join(" "));
-    const tokens=normalizeCategory(query).split(/\s+/).filter(Boolean);
-    return tokens.every(token=>haystack.includes(token));
-  }
-
   function syncShopFilters(){
     // Filter inputs accept values not present on this page. Datalists are merely suggestions.
     for(const [id,key] of [["catalogColorList","color"],["catalogSizeList","size"]]){
@@ -641,7 +630,6 @@
       if(restore?.isConnected)restore.focus({preventScroll:true});
     }
   }
-  function openTrackingOverlay(){openUtilityOverlay("trackingOverlay");loadMyOrdersInto(document.getElementById("trackingAutoOrders"),"Tracking");}
   function setAccountAuthMessage(message,isError=false){
     const node=document.getElementById("accountAuthMessage");
     if(!node)return;
