@@ -77,6 +77,11 @@ function onlineStock(p){
   return sum+Math.max(0,Number(b?.on_hand||0)-Number(b?.reserved||0));
  },0);
 }
+const markupPrice=amount=>Math.round(Math.round(Number(amount||0)*100)*1025/1000)/100;
+function onlinePriceOf(p){
+ const saved=Number(listingOf(p)?.online_price);
+ return published(p)&&Number.isFinite(saved)&&saved>0?saved:markupPrice(p.selling_price);
+}
 function visibleOnStorefront(p){return published(p)&&variantsOf(p).some(v=>Number(v.stock_quantity)>0)&&Number(p.selling_price)>0&&photosOf(p).length>0;}
 function onlineHeld(p){return variantsOf(p).reduce((sum,v)=>sum+Number(state.balances.find(row=>row.variant_id===v.id)?.reserved||0),0);}
 function badge(p){
@@ -170,7 +175,7 @@ function renderProducts(){
   if(src){const img=document.createElement("img");img.className="product-cover";img.src=src;img.alt="";img.loading="lazy";cover.append(img);}else cover.textContent="No photo";
   const info=document.createElement("div");info.className="product-info";
   const name=document.createElement("strong");name.textContent=p.product_name;
-  const details=document.createElement("small");details.textContent=p.product_code+" · "+(categoryById(p.category_id)?.name||"Category")+" · "+money(p.selling_price);
+  const details=document.createElement("small");details.textContent=p.product_code+" · "+(categoryById(p.category_id)?.name||"Category")+" · Shop "+money(p.selling_price)+" · Online "+money(onlinePriceOf(p))+" (+2.5%)";
   const status=document.createElement("span");status.className="status "+badge(p)[1];status.textContent=badge(p)[0];
   const stock=document.createElement("small");stock.textContent=onlineStock(p)+" available online"+(onlineHeld(p)?" · "+onlineHeld(p)+" reserved":"");
   info.append(name,details,status,stock);
@@ -383,7 +388,9 @@ async function setOnlineQuantity(product,target){
  else await transfer(state.online.id,branch,v.id,available-target,"Owner returned stock from online store");
 }
 async function publication(product,flag){
- await result(state.client.from("erp_online_listings").upsert({product_id:product.id,published:flag,online_price:null,updated_by:state.user.id,updated_at:new Date().toISOString()},{onConflict:"product_id"}));
+ // The database automatically derives online_price from products.selling_price.
+ // Never reuse a previous online_price, otherwise republishing could compound it.
+ await result(state.client.from("erp_online_listings").upsert({product_id:product.id,published:flag,updated_by:state.user.id,updated_at:new Date().toISOString()},{onConflict:"product_id"}));
 }
 async function unpublish(product){
  if(!published(product))return;
@@ -654,7 +661,7 @@ function renderCategoryCatalogue(){
   else image.textContent="No photo";
   const info=document.createElement("div");info.className="category-product-info";
   const title=document.createElement("strong");title.textContent=product.product_name;
-  const meta=document.createElement("small");meta.textContent=product.product_code+" · "+money(product.selling_price)+" · Online: "+onlineStock(product)+" pcs";
+  const meta=document.createElement("small");meta.textContent=product.product_code+" · Shop "+money(product.selling_price)+" · Online "+money(onlinePriceOf(product))+" (+2.5%) · Stock: "+onlineStock(product)+" pcs";
   const status=document.createElement("span");status.className="status "+(visibleOnStorefront(product)?"published":product.archived_at?"archived":"draft");
   status.textContent=product.archived_at?"Archived":visibleOnStorefront(product)?"Visible online":published(product)?"Published · needs online stock":"Not online";
   const help=document.createElement("small");help.className="category-product-help";
