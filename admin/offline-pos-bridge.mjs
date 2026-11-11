@@ -68,9 +68,14 @@ async function offlineAssetsReady(){
  // The updated service worker is required on previously installed tablets;
  // an old cache must not make the admin believe the new offline code is ready.
  const updatedCache=await caches.open("rainbow-staff-offline-pos-v3");
- if(!(await updatedCache.match(new URL("offline-pos.html",location.href).href))){
-  throw new Error("The latest offline billing files are still installing. Reload Billing while online and try again.");
+ const offlinePage=new URL("offline-pos.html",location.href).href;
+ let installed=false;
+ for(let attempt=0;attempt<36;attempt++){
+  if(await updatedCache.match(offlinePage)){installed=true;break;}
+  await new Promise(resolve=>setTimeout(resolve,250));
  }
+ if(!installed)
+  throw new Error("The latest offline billing files are still installing. Reload Billing while online and try again.");
 }
 if(trigger&&form&&password&&confirmation&&status){
  // Hidden until the live staff profile confirms an admin session.
