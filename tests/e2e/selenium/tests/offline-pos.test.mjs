@@ -71,7 +71,7 @@ test("offline staff POS loads from service worker cache and persists encrypted p
   await driver.wait(async()=>driver.executeScript("return Boolean(navigator.serviceWorker.controller)"),12000);
   await driver.executeScript(()=>{
    Object.defineProperty(navigator,"onLine",{get:()=>false,configurable:true});
-   window.print=()=>{window.__printRequested=true;};
+   globalThis.print=()=>{globalThis.__printRequested=true;};
   });
   await (await driver.findElement(By.id("offlinePassphrase"))).sendKeys("test-device-passphrase-long");
   await (await driver.findElement(By.css("#unlockForm button"))).click();
@@ -82,7 +82,7 @@ test("offline staff POS loads from service worker cache and persists encrypted p
   await (await driver.findElement(By.id("saveOffline"))).click();
   await driver.wait(async()=>/PENDING SYNC/.test(await driver.findElement(By.id("pendingList")).getText()),12000);
   const stored=await driver.executeAsyncScript(async done=>{
-   const req=indexedDB.open("rainbow-staff-pos-offline-v1",1);
+   const req=globalThis.indexedDB.open("rainbow-staff-pos-offline-v1",1);
    req.onerror=()=>done({error:"Cannot open IndexedDB"});
    req.onsuccess=()=>{
     const tx=req.result.transaction("vault","readonly");
