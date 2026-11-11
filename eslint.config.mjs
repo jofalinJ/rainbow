@@ -16,6 +16,13 @@ const crossPageGlobals={
 
 export default [
   { ignores:["node_modules/**","coverage/**","test-results/**"] },
+  // Browser entry modules are private closures/modules, not cross-page globals.
+  // Enforce liveness here so dead helpers do not creep back into the storefront.
+  {
+    files:["content.js","mobile-storefront.js","product-page.js","shop-catalogue.js","shop-discovery.js","order.js"],
+    languageOptions:{ecmaVersion:"latest",sourceType:"module",globals:{...globals.browser}},
+    rules:{"no-unused-vars":"error"}
+  },
   {
     files:["src/**/*.mjs","tests/**/*.mjs","scripts/**/*.mjs"],
     languageOptions:{ecmaVersion:"latest",sourceType:"module",globals:{...globals.node}},

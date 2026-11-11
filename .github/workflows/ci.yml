@@ -19,6 +19,7 @@ jobs:
           node-version: 22
       - run: npm ci --legacy-peer-deps
       - run: npm run lint
+      - run: npm run audit:assets -- --strict
       - run: node --test tests/seo/seo-pages.test.mjs
       - run: npm run test:unit
       - run: node --test tests/ops/owner-readiness.test.mjs
