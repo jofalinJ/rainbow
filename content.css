@@ -1172,6 +1172,10 @@ body.modal-open{overflow:hidden}
 }
 
 
+/* Brand establishment line: same color and lettering as Gold Covering. */
+.storefront-header-row .logo span{display:flex;flex-direction:column;align-items:flex-start}
+.storefront-header-row .logo .brand-since{color:inherit;font-weight:inherit;letter-spacing:inherit;margin-top:2px}
+@media(max-width:1200px){.storefront-header-row .logo span{align-items:flex-start}}
 /* Centered brand, right aligned shop actions, and image led category browsing */
 .storefront-topbar .nav{gap:6px}
 .storefront-header-row{
