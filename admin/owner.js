@@ -7,7 +7,7 @@ const MAX_IMAGES = 6;
 const MAX_BYTES = 5 * 1024 * 1024;
 const money = amount => new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR",maximumFractionDigits:2}).format(Number(amount)||0);
 const id = () => crypto.randomUUID();
-const state = {client:null,user:null,role:null,categories:[],locations:[],online:null,products:[],balances:[],screen:"dashboard",editorId:null,gallery:[],deleted:[],receivedNew:false,busy:false,limit:24,categoryLimit:48,visibilityProductId:null,visibilityMode:"show",stockCheckSeq:0,shopBalances:new Map(),selected:new Set()};
+const state = {client:null,user:null,role:null,categories:[],locations:[],online:null,products:[],balances:[],screen:"products",editorId:null,gallery:[],deleted:[],receivedNew:false,busy:false,limit:24,categoryLimit:48,visibilityProductId:null,visibilityMode:"show",stockCheckSeq:0,shopBalances:new Map(),selected:new Set()};
 const safeURL = value => {try{const u=new URL(value);return u.protocol==="https:"?u.href:"";}catch{return"";}};
 const friendly = error => {
  const message=String(error?.message||error||"Unknown error");
@@ -56,8 +56,17 @@ function closeMenu(){const menu=$("ownerMenu");menu.classList.remove("is-open");
 function show(screen){
  state.screen=screen;
  document.querySelectorAll(".screen").forEach(el=>el.hidden=el.id!=="screen-"+screen);
- document.querySelectorAll("[data-screen]").forEach(el=>{el.classList.toggle("active",el.dataset.screen===screen);if(el.classList.contains("active"))el.setAttribute("aria-current","page");else el.removeAttribute("aria-current");});
- closeMenu();window.scrollTo({top:0,behavior:"auto"});
+ const menu=$("ownerMenu"),drawerOpen=menu.classList.contains("is-open");
+ const section=screen==="editor"?"products":screen;
+ menu.querySelectorAll("[data-screen]").forEach(button=>{
+  const current=button.dataset.screen===section;
+  button.classList.toggle("active",current);
+  if(current)button.setAttribute("aria-current","page");
+  else button.removeAttribute("aria-current");
+ });
+ closeMenu();
+ if(drawerOpen)$("ownerMain").focus({preventScroll:true});
+ window.scrollTo({top:0,behavior:"auto"});
  if(screen==="products")renderProducts();
  if(screen==="categories"){renderCategories();renderCategoryCatalogue();}
  if(screen==="dashboard")renderDashboard();
@@ -122,7 +131,9 @@ async function refresh(){
  if(state.locations.some(x=>x.id===old&&x.kind==="branch"))source.value=old;
  else if(source.options.length===2)source.selectedIndex=1;
  const drafts=state.products.filter(p=>!p.archived_at&&!published(p)).length;
- $("draftBadge").textContent=drafts+" drafts";
+ const draftBadge=$("draftBadge");
+ draftBadge.textContent=drafts===1?"1 draft":drafts+" drafts";
+ draftBadge.hidden=drafts===0;
  renderDashboard();renderProducts();renderCategories();renderCategoryCatalogue();renderExtras();
 }
 function renderDashboard(){
@@ -809,7 +820,7 @@ async function init(){
   });
  };
 
- resetEditor();show("editor");
+ show(state.screen);
 }
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",()=>init().catch(fatal),{once:true});
 else init().catch(fatal);
