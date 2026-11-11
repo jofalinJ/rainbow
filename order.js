@@ -144,7 +144,7 @@ import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=
       if(productIds.length){
         const {data,error}=await sb.from("products")
           .select("id,product_code,product_name,type,selling_price,description,active,product_images(public_url,is_primary),erp_online_listings!inner(published,online_price)")
-          .in("id",productIds).eq("erp_online_listings.published",true).gt("erp_online_listings.online_price",0);
+          .in("id",productIds).eq("erp_online_listings.published",true);
         if(error)throw error;
         products=data||[];
       }
@@ -157,7 +157,7 @@ import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=
           return {...item,unavailable:true,current_stock:0};
         }
         const listing=Array.isArray(product.erp_online_listings)?product.erp_online_listings[0]:product.erp_online_listings;
-        const onlinePrice=Number(listing?.online_price);
+        const onlinePrice=Number(listing?.online_price??product.selling_price);
         if(!Number.isFinite(onlinePrice)||onlinePrice<=0)return {...item,unavailable:true,current_stock:0};
         const images=Array.isArray(product.product_images)?product.product_images:[];
         const image=(images.find(entry=>entry.is_primary)||images[0]||{}).public_url||item.product.image||"";
