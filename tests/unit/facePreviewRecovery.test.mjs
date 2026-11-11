@@ -18,7 +18,7 @@ class Element{
   removeEventListener(type,callback){this.listeners.get(type)?.delete(callback);}
   fire(type){return Promise.all([...this.listeners.get(type)||[]].map(callback=>callback({type})));}
 }
-function harness({camera,engine,getEngine,readyState=2,policy=true,secure=true}={}){
+function harness({camera,engine,getEngine,readyState=2,policy=true,secure=true,referencePhotos=[]}={}){
   const ids=["facePilot","facePilotConsent","facePilotStart","facePilotStop","facePilotVideo","facePilotStatus"];
   const elements=Object.fromEntries(ids.map(id=>[id,new Element()]));
   const video=elements.facePilotVideo;
@@ -26,7 +26,7 @@ function harness({camera,engine,getEngine,readyState=2,policy=true,secure=true}=
   const track={stop:vi.fn()};const stream={getTracks:()=>[track]};
   const media=camera||vi.fn().mockResolvedValue(stream);
   const download=vi.fn().mockResolvedValue({data:{},error:null});
-  const client={rpc:vi.fn(),from:vi.fn(table=>({select:()=>({eq:()=>({maybeSingle:async()=>({data:table==="staff_profiles"?{active:true,photo_path:"profiles/staff-1/reference"}:{consent_version:1,withdrawn_at:null},error:null})})})})),storage:{from:vi.fn(()=>({download}))}};
+  const client={rpc:vi.fn(),from:vi.fn(table=>({select:()=>({eq:()=>({maybeSingle:async()=>({data:table==="staff_profiles"?{active:true,photo_path:"profiles/staff-1/reference",reference_photo_paths:referencePhotos}:{consent_version:1,withdrawn_at:null},error:null})})})})),storage:{from:vi.fn(()=>({download}))}};
   const window=new Element();Object.assign(window,{isSecureContext:secure,getAuthUser:vi.fn().mockResolvedValue({id:"staff-1"}),bootSupabase:()=>client});
   const document=new Element();Object.assign(document,{getElementById:id=>elements[id],visibilityState:"visible",permissionsPolicy:{allowsFeature:()=>policy}});
   const Image=class{constructor(){this.removeAttribute=vi.fn();}decode=vi.fn().mockResolvedValue();};
@@ -92,6 +92,26 @@ describe("camera preview recovery and lifecycle",()=>{
     const ui=harness({readyState:0});await flush();const task=ui.start();await flush();expect(ui.getEngine).not.toHaveBeenCalled();
     Object.assign(ui.video,{readyState:2,videoWidth:640,videoHeight:480});await ui.video.fire("loadeddata");await flush();expect(ui.getEngine).toHaveBeenCalledOnce();
     await vi.advanceTimersByTimeAsync(350);await task;expect(ui.status()).toContain("matched your reference");expect(ui.track.stop).toHaveBeenCalledOnce();expect(ui.video.srcObject).toBeNull();
+  });
+  it("checks all enrolled references and can match the third photo when the primary does not match",async()=>{
+    const references=["profiles/staff-1/reference-2","profiles/staff-1/reference-3"];
+    const ui=harness({referencePhotos:references});
+    let next=0;
+    const comparisons=[];
+    ui.engine.detect.mockImplementation(async input=>({face:[input===ui.video?goodFace():{...goodFace(),embedding:Array(64).fill(++next)}]}));
+    ui.engine.match.find.mockImplementation((_live,[reference])=>{
+      comparisons.push(reference[0]);
+      return {similarity:reference[0]===3?0.91:0.1};
+    });
+    await flush();
+    const task=ui.start();await flush();await vi.advanceTimersByTimeAsync(700);await task;
+    expect(ui.download).toHaveBeenCalledTimes(3);
+    expect(ui.download.mock.calls.map(([path])=>path)).toEqual(["profiles/staff-1/reference",...references]);
+    expect(comparisons).toContain(1);
+    expect(comparisons).toContain(2);
+    expect(comparisons).toContain(3);
+    expect(ui.status()).toContain("matched your reference");
+    expect(ui.client.rpc).not.toHaveBeenCalled();
   });
   it("fails with a useful video error and releases the camera when no image arrives",async()=>{
     const ui=harness({readyState:0});await flush();const task=ui.start();await flush();await vi.advanceTimersByTimeAsync(10_000);await task;

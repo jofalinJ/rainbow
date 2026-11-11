@@ -31,7 +31,7 @@
     <div class="self-attendance-actions"><button id="checkInButton" class="primary" type="button" disabled>Check in</button><button id="checkOutButton" type="button" disabled>Check out</button></div>
     <section id="facePilot" class="face-preview-panel" aria-labelledby="facePilotHeading">
       <div class="face-preview-head"><div><p class="eyebrow">OPTIONAL · ON-DEVICE PREVIEW</p><h3 id="facePilotHeading">Face biometric preview</h3></div><span class="face-preview-pill">Experimental</span></div>
-      <p class="face-preview-notice">Compare your live face with the private staff photo enrolled by an administrator. This optional check does <strong>not</strong> replace your attendance buttons or verify payroll. Camera access is requested only when you start; the browser controls permission prompts.</p>
+      <p class="face-preview-notice">Compare your live face with up to five private reference photos enrolled by an administrator. This optional check does <strong>not</strong> replace your attendance buttons or verify payroll. Camera access is requested only when you start; the browser controls permission prompts.</p>
       <label class="face-consent"><input type="checkbox" id="facePilotConsent"><span>I choose to use my enrolled photo for this face comparison. My consent is saved so I won't need to repeat it. I can withdraw it here at any time.</span></label>
       <div class="face-preview-actions"><button id="facePilotStart" type="button" disabled>Verify face (preview)</button><button id="facePilotStop" type="button" hidden>Stop camera</button></div>
       <p class="face-preview-notice">Use even light from in front of you, keep your whole face visible and look toward the camera. The preview allows up to 30 seconds to obtain consistent frames. A failed check does not mean you are a different person.</p>
@@ -47,6 +47,6 @@
 </main>
 <script src="app.js?v=20261111-online-products"></script>
 <script src="my-attendance.js?v=20261017-daily-attendance-v3"></script>
-<script type="module" src="face-preview.mjs?v=20261017-camera-recovery-v2"></script>
+<script type="module" src="face-preview.mjs?v=20261111-five-photo-references"></script>
 </body>
 </html>
