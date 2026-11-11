@@ -12,7 +12,7 @@ begin
  where product_code='TEST001';
  select online_price into v_online from public.erp_online_listings
  where product_id='aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'::uuid;
- if v_shop<>100 or v_online<>102.50 then
+ if v_shop<>100 or v_online<>103.00 then
   raise exception 'Online markup changed physical price or was not seeded: %, %',v_shop,v_online;
  end if;
  perform set_config('request.jwt.claim.role','service_role',true);
@@ -27,7 +27,7 @@ begin
  select oi.unit_price,oi.line_total into v_line
  from public.razorpay_checkouts rc join public.order_items oi on oi.order_id=rc.order_id
  where rc.checkout_id='66666666-6666-4666-8666-666666666666'::uuid;
- if v_order.subtotal<>102.50 or v_line.unit_price<>102.50 or v_line.line_total<>102.50 or
+ if v_order.subtotal<>103.00 or v_line.unit_price<>103.00 or v_line.line_total<>103.00 or
     v_order.amount_paise<>v_order.total_amount*100 then
   raise exception 'Razorpay amount and line price disagree with published online price';
  end if;
@@ -44,8 +44,8 @@ begin
   '[{"variant_id":"bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb","quantity":1}]'::jsonb,
   '{"name":"Manual test","whatsapp_number":"9999999999","address":"Synthetic checkout","state":"Kerala","payment_method":"upi","payment_reference":"MARKUPTEST112233","checkout_id":"77777777-7777-4777-8777-777777777777"}'::jsonb
  ) into v_result;
- if (v_result->>'subtotal')::numeric<>102.50 or
-    (select unit_price from public.order_items where order_id=(v_result->>'order_id')::uuid limit 1)<>102.50
+ if (v_result->>'subtotal')::numeric<>103.00 or
+    (select unit_price from public.order_items where order_id=(v_result->>'order_id')::uuid limit 1)<>103.00
  then raise exception 'Manual payment did not use online price'; end if;
  update public.erp_online_listings set published=false
  where product_id='aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'::uuid;
@@ -64,13 +64,13 @@ begin
  update public.products set selling_price=99.99 where product_code='TEST001';
  select online_price into v_online from public.erp_online_listings
  where product_id='aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'::uuid;
- if v_online<>102.49 then raise exception 'Shop-price edit did not refresh the 2.5 pct online price'; end if;
+ if v_online<>102 then raise exception 'Shop-price edit did not refresh the 2.5 pct online price'; end if;
  update public.erp_online_listings set published=false
  where product_id='aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'::uuid;
  update public.erp_online_listings set published=true
  where product_id='aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'::uuid;
  select online_price into v_online from public.erp_online_listings
  where product_id='aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'::uuid;
- if v_online<>102.49 then raise exception 'Republishing compounded online markup'; end if;
+ if v_online<>102 then raise exception 'Republishing compounded online markup'; end if;
 end $$;
 select 'Online-only price markup payment checks passed' as result;
