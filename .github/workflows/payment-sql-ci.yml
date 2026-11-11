@@ -5,6 +5,7 @@ on:
     paths:
       - 'supabase/migrations/20261021*'
       - 'supabase/migrations/20261103*'
+      - 'supabase/migrations/2026111113*'
       - 'tests/sql/**'
       - '.github/workflows/payment-sql-ci.yml'
   workflow_dispatch:
@@ -55,3 +56,7 @@ jobs:
         run: PGOPTIONS="-c check_function_bodies=off" psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261103183000_interstate_igst_checkout.sql
       - name: Verify interstate tax and checkout idempotency
         run: psql -v ON_ERROR_STOP=1 -f tests/sql/interstate-igst-behavior.sql
+      - name: Stage authoritative online-only markup in disposable payment DB
+        run: PGOPTIONS="-c check_function_bodies=off" psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261111130000_online_markup_2_5_percent.sql
+      - name: Check markup, checkout totals, order items and publishing
+        run: psql -v ON_ERROR_STOP=1 -f tests/sql/online-markup-payment.sql

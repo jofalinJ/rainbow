@@ -349,10 +349,10 @@ async function openOnlineListing(productId){
  const {data,error}=await bootSupabase().from("erp_online_listings")
  .select("published,online_price").eq("product_id",p.id).maybeSingle();
  if(error){$("onlineListingFeedback").textContent="ERP listings aren't available in this environment: "+error.message;}
- else{$("onlineListingFeedback").textContent="";$("onlineListingVisible").checked=Boolean(data?.published);$("onlineListingPrice").value=data?.online_price??"";}
+ else{$("onlineListingFeedback").textContent="";$("onlineListingVisible").checked=Boolean(data?.published);$("onlineListingPrice").value=data?.online_price==null?"":String(Math.round(Number(data.online_price)));}
  $("saveOnlineListing").disabled=Boolean(error);
  $("onlineListingPrice").disabled=true;
- $("onlineListingFeedback").textContent="Online prices currently use the master product price. Allocation must happen in Inventory.";
+ $("onlineListingFeedback").textContent="Online price is automatically 2.5% above the shop price, rounded to the nearest whole rupee. The shop price stays unchanged.";
  $("onlineListingDialog").showModal();
 }
 async function saveOnlineListing(){
@@ -369,7 +369,7 @@ async function saveOnlineListing(){
    online_price:null,updated_by:user.id,updated_at:new Date().toISOString()
   },{onConflict:"product_id"});
   if(error)throw error;
-  $("onlineListingFeedback").textContent="Online listing settings saved. The storefront shows active products with available online stock.";
+  $("onlineListingFeedback").textContent="Online listing saved. The website uses the shop price plus 2.5%, rounded to a whole rupee; available stock is still required.";
  }catch(error){$("onlineListingFeedback").textContent="Could not save: "+error.message;}
  finally{button.disabled=false;}
 }

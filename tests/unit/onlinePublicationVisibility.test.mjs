@@ -5,13 +5,14 @@ const read=path=>readFileSync(new URL("../../"+path,import.meta.url),"utf8");
 describe("online publication is required for public product discovery",()=>{
   it("filters the paged catalogue by published ERP listing",()=>{
     const script=read("shop-catalogue.js");
-    expect(script).toContain("erp_online_listings!inner(published)");
+    expect(script).toContain("erp_online_listings!inner(published,online_price)");
+    expect(script).toContain('online==null?product.selling_price:online');
     expect(script).toContain('.eq("erp_online_listings.published",true)');
     expect(script).toContain('.gt("product_variants.stock_quantity",0)');
   });
   it("applies publication to direct SKU links and related products",()=>{
     const script=read("product-page.js");
-    expect(script).toContain("erp_online_listings!inner(published)");
+    expect(script).toContain("erp_online_listings!inner(published,online_price)");
     expect(script).toContain('.eq("product_code",sku).eq("active",true).eq("erp_online_listings.published",true)');
     expect(script).toContain('.eq("active",true).eq("erp_online_listings.published",true).eq("type",product.type)');
   });

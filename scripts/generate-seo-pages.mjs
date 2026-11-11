@@ -165,9 +165,13 @@ export async function publicCatalogue() {
   const categories = await allRows("categories", "id,name,active,show_in_storefront,storefront_order",
     { active: "eq.true", show_in_storefront: "eq.true" }, "storefront_order.asc.nullslast,name.asc");
   const products = await allRows("products",
-    "id,category_id,product_code,product_name,description,selling_price,active,updated_at,product_images(public_url,alt_text,is_primary,sort_order),product_variants(active,stock_quantity),erp_online_listings!inner(published)",
+    "id,category_id,product_code,product_name,description,selling_price,active,updated_at,product_images(public_url,alt_text,is_primary,sort_order),product_variants(active,stock_quantity),erp_online_listings!inner(published,online_price)",
     { active: "eq.true", "erp_online_listings.published": "eq.true" }, "created_at.asc,id.asc");
-  return { categories, products };
+  const priced=products.map(product=>{
+    const listing=Array.isArray(product.erp_online_listings)?product.erp_online_listings[0]:product.erp_online_listings;
+    return {...product,selling_price:Number(listing?.online_price??product.selling_price)};
+  });
+  return { categories, products:priced };
 }
 function sitemapXml(entries) {
   return '<?xml version="1.0" encoding="UTF-8"?>\n' +

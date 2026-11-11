@@ -65,6 +65,14 @@ create table public.order_items(
 );
 insert into public.products(id,product_code,product_name,type,selling_price)
 values('aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa','TEST001','Test chain','chain',100.00);
+-- Online listing is present so server-authoritative markup can be checked.
+create table public.erp_online_listings (
+  product_id uuid primary key references public.products(id),
+  published boolean not null default false,
+  online_price numeric(12,2)
+);
+insert into public.erp_online_listings(product_id,published)
+values('aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa',true);
 insert into public.product_variants(id,product_id,stock_quantity)
 values('bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb',
        'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa',5);

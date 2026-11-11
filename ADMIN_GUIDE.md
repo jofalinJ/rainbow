@@ -18,6 +18,14 @@ Staff with active shop accounts can create and edit unpublished drafts, upload i
 
 Only the **admin/owner** can use **Show Online**, **Hide Online**, or **＋ Add Online Stock** in **Categories & Online (Online Push)**. To add online stock from existing shop inventory, choose a product, click **＋ Add Online Stock**, select the product variant, review the available quantities at each shop, select the physical shop and the number of pieces to transfer, then confirm. The selected quantity is deducted from that physical shop and transferred to the Online Store using the existing ERP dispatch/receipt workflow. The dialog shows the current online quantity, any reserved stock, and the maximum transferable shop quantity. A draft remains hidden when you use **Add Online Stock**; choose **Show Online** once the photo, positive price, and stock are ready. An already-published product can be topped up without publishing again. **Show Online** can also transfer recorded stock and publish in a single action when required. If no shop stock is available, receive real stock into Inventory first; neither button creates stock. An online product becomes purchasable only after publication and available Online Store stock.
 
+## Automatic online price (+2.5%) — after pricing release
+
+The Price field in Quick Add and Advanced Products is always the **physical-shop selling price**. When the owner chooses **Show Online**, the website price is automatically calculated as **shop price × 1.025**, rounded to the **nearest whole rupee** (50 paise or more rounds up). For example, ₹1,000 at the shop is displayed as ₹1,025 online; ₹100 becomes ₹103 online because the calculated ₹102.50 rounds up. No separate price entry is needed.
+
+The website listing, category cards, product details, cart, server-confirmed Razorpay amount, and future invoice unit price use the same marked-up online price. Existing discounts, GST and delivery are calculated afterward by the normal checkout rules. Physical POS billing and previously placed orders keep their original prices. **Hide Online → Show Online** does not apply the markup twice; editing the shop price updates the online price automatically.
+
+This feature requires the corresponding online-pricing Supabase migration and storefront release together. Do not deploy just the webpage changes or test the migration directly on production without staging validation.
+
 If the category requires a length, the editor asks the admin for that specification before publication.
 
 ## Owner controls

@@ -10,6 +10,7 @@ import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=
     ?window.supabase.createClient(SUPABASE_URL,KEY):null;
   const esc=x=>String(x??"").replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
   const money=x=>"₹"+Number(x||0).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2});
+  const productMoney=x=>"₹"+Number(x||0).toLocaleString("en-IN",{maximumFractionDigits:0});
   let cart=[];
   let cartVerified=false;
   let cartVerificationFailed=false;
@@ -88,10 +89,10 @@ import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=
       const variant=item.variant_label?" • "+esc(item.variant_label):"";
       return '<div class="order-item">'+
         (item.product.image?'<img src="'+esc(item.product.image)+'" alt="" loading="lazy" width="72" height="72">':'<div class="order-item-placeholder"></div>')+
-        '<div><h3>'+esc(item.product.product_name)+'</h3><small>'+variant.replace(/^ • /,"")+(variant?" • ":"")+money(item.product.selling_price)+'</small>'+
+        '<div><h3>'+esc(item.product.product_name)+'</h3><small>'+variant.replace(/^ • /,"")+(variant?" • ":"")+productMoney(item.product.selling_price)+'</small>'+
         '<div class="order-qty"><button type="button" data-dec="'+index+'" aria-label="Decrease quantity" '+(Number(item.quantity)<=1?'disabled':'')+'>−</button><span>'+Number(item.quantity)+'</span><button type="button" data-inc="'+index+'" aria-label="Increase quantity" '+(!stockKnown||Number(item.quantity)>=Number(item.current_stock)?'disabled':'')+'>＋</button><button type="button" data-remove="'+index+'" aria-label="Remove '+esc(item.product.product_name)+'">Remove</button></div>'+
         (stockMessage?'<small class="cart-warning">'+esc(stockMessage)+'</small>':'')+
-        '</div><div class="order-price">'+money(Number(item.product.selling_price)*Number(item.quantity))+'</div></div>';
+        '</div><div class="order-price">'+productMoney(Number(item.product.selling_price)*Number(item.quantity))+'</div></div>';
     }).join("");
     document.querySelectorAll("[data-inc]").forEach(button=>button.onclick=()=>change(Number(button.dataset.inc),1));
     document.querySelectorAll("[data-dec]").forEach(button=>button.onclick=()=>change(Number(button.dataset.dec),-1));
@@ -142,8 +143,8 @@ import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=
       let products=[];
       if(productIds.length){
         const {data,error}=await sb.from("products")
-          .select("id,product_code,product_name,type,selling_price,description,active,product_images(public_url,is_primary)")
-          .in("id",productIds);
+          .select("id,product_code,product_name,type,selling_price,description,active,product_images(public_url,is_primary),erp_online_listings!inner(published,online_price)")
+          .in("id",productIds).eq("erp_online_listings.published",true);
         if(error)throw error;
         products=data||[];
       }
@@ -155,6 +156,9 @@ import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=
         if(!variant||!product||variant.active===false||product.active===false){
           return {...item,unavailable:true,current_stock:0};
         }
+        const listing=Array.isArray(product.erp_online_listings)?product.erp_online_listings[0]:product.erp_online_listings;
+        const onlinePrice=Number(listing?.online_price??product.selling_price);
+        if(!Number.isFinite(onlinePrice)||onlinePrice<=0)return {...item,unavailable:true,current_stock:0};
         const images=Array.isArray(product.product_images)?product.product_images:[];
         const image=(images.find(entry=>entry.is_primary)||images[0]||{}).public_url||item.product.image||"";
         const opts=[];
@@ -171,7 +175,7 @@ import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=
             product_code:product.product_code,
             product_name:product.product_name,
             type:product.type,
-            selling_price:Number(product.selling_price),
+            selling_price:onlinePrice,
             description:product.description,
             image,
           }
