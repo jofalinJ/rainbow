@@ -82,7 +82,7 @@ jobs:
                  grep -Fq 'id="prepareOffline"' <<< "$billing" &&
                  grep -Fq 'offline-pos-bridge.mjs?v=20261111' <<< "$billing" &&
                  grep -Fq 'id="unlockForm"' <<< "$offline" &&
-                 grep -Fq 'PENDING SYNC' <<< "$offline" &&
+                 grep -Fq 'id="cashCollected"' <<< "$offline" &&
                  grep -Fq 'name:"AES-GCM"' <<< "$offlinecore" &&
                  grep -Fq 'p_request:sale.id' <<< "$offlinesync" &&
                  grep -Fq 'rainbow-staff-offline-pos-v2' <<< "$worker" &&
