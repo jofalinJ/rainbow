@@ -75,13 +75,17 @@ describe("owner quick publishing integrates with the existing shop",()=>{
   expect(js).toContain('state.categoryLimit=48');
   expect(css).toContain(".category-product-row");
  });
- it("publishes only after counted shop stock transfer, not by editing the online stock mirror",()=>{
+ it("publishes before ERP online receipt and never edits the online stock mirror",()=>{
   const js=read("admin/owner.js");
   const publish=js.slice(js.indexOf("async function confirmOnlineVisibility()"),js.indexOf("async function saveProduct(mode)"));
   expect(publish).toContain('await verifyOwner("publish")');
   expect(publish).toContain('qty>balance.onHand-balance.reserved');
   expect(publish).toContain('await transfer(source,state.online.id,variantId,qty');
-  expect(publish.indexOf('await transfer(')).toBeLessThan(publish.indexOf('await publication(product,true)'));
+  expect(publish.indexOf('await publication(product,true)')).toBeLessThan(publish.indexOf('await transfer('));
+  expect(js).toContain('const pendingQty=(pending||[]).reduce(');
+  expect(js).toContain('if(pendingQty>0){');
+  expect(js).toContain('await publication(product,true);await refresh();');
+  expect(js).toContain('if(mode==="stock"&&!published(product))throw new Error(');
   expect(js).toContain('async function publishExisting(product)');
   expect(js).toContain('if(!balances.some(b=>b.onHand>b.reserved))');
   expect(js).toContain('if(!canPublish())return sum+Math.max(0,Number(v.stock_quantity||0))');

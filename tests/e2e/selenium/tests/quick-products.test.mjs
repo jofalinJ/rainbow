@@ -45,6 +45,7 @@ function browserFixture(){
   if(name==="products")return products;
   if(name==="staff_profiles")return staff;
   if(name==="erp_stock_balances")return balances;
+  if(name==="erp_transfers")return transfers;
   if(name==="erp_online_listings")return products.flatMap(p=>p.erp_online_listings);
   if(name==="product_images")return products.flatMap(p=>p.product_images);
   if(name==="product_variants")return products.flatMap(p=>p.product_variants);
@@ -54,6 +55,8 @@ function browserFixture(){
   const q={table,action:"read",filters:[],values:null,
    select(){return q;},
    eq(key,value){q.filters.push([key,value]);return q;},
+   in(key,values){q.filters.push([key,values,"in"]);return q;},
+   limit(n){return Promise.resolve(dataResult(allRows(table).filter(match).slice(0,n)));},
    order(){return q;},
    range(start,end){return Promise.resolve(dataResult(allRows(table).filter(match).slice(start,end+1)));},
    insert(values){q.action="insert";q.values=values;return q;},
@@ -64,7 +67,7 @@ function browserFixture(){
    maybeSingle(){return Promise.resolve(run(true));},
    then(resolve,reject){return Promise.resolve().then(()=>run(false)).then(resolve,reject);}
   };
-  const match=row=>q.filters.every(([key,value])=>row[key]===value);
+  const match=row=>q.filters.every(([key,value,operator])=>operator==="in"?value.includes(row[key]):row[key]===value);
   function run(one){
    if(q.action==="read"){const rows=allRows(table).filter(match);return dataResult(one?rows[0]||null:rows);}
    writes.push({table,action:q.action,values:structuredClone(q.values)});
@@ -127,6 +130,11 @@ function browserFixture(){
      if(!transfer)throw Error("Unknown fixture transfer");
      const to=balances.find(b=>b.location_id===transfer.params.p_to&&b.variant_id===transfer.params.p_variant);
      if(!to)throw Error("Missing destination stock location");
+     if(locations.some(l=>l.id===to.location_id&&l.kind==="online")){
+      const product=products.find(p=>p.product_variants.some(v=>v.id===transfer.params.p_variant));
+      if(!product?.erp_online_listings?.some(l=>l.published))
+       throw Error("Publish an active product before allocating online stock");
+     }
      to.on_hand+=transfer.params.p_quantity;
      const variant=products.flatMap(p=>p.product_variants).find(v=>v.id===transfer.params.p_variant);
      variant.stock_quantity=balances.find(b=>b.location_id===locations.find(l=>l.kind==="online").id&&b.variant_id===variant.id).on_hand;
@@ -285,7 +293,7 @@ test("owner Show Online publishes counted stock and Hide Online safely reverses 
  }finally{if(driver)await driver.quit();await fixture.close();}
 });
 
-test("admin can add existing shop stock to an unpublished draft, publish it, and top it up without inventing stock",async()=>{
+test("admin uses Show Online to publish and transfer existing shop stock, then tops it up without inventing stock",async()=>{
  const fixture=await serve();
  const options=new chrome.Options().addArguments("--headless=new","--no-sandbox","--disable-dev-shm-usage",
   "--disable-background-networking","--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1","--window-size=390,850");
@@ -300,29 +308,23 @@ test("admin can add existing shop stock to an unpublished draft, publish it, and
   await driver.get(fixture.base+"/admin/owner.html?role=admin&seed=shop");
   await driver.wait(async()=>await (await field("ownerApp")).isDisplayed(),12000);
   await driver.executeScript("arguments[0].click()",await driver.findElement(By.css('[data-screen="categories"]')));
-  await press("Add Online Stock");
+  assert.equal((await driver.findElements(By.xpath("//div[contains(@class,'category-product-actions')]/button[contains(text(),'Add Online Stock')]"))).length,0,
+   "Draft products must be published with Show Online before allocating stock");
+  await press("Show Online");
   await driver.wait(async()=>await (await field("onlineVisibilityConfirm")).isEnabled(),8000);
   assert.match(await (await field("onlineVisibilityAvailable")).getText(),/3 pieces available/);
   assert.match(await (await field("onlineVisibilityCurrent")).getText(),/0 available/);
-  assert.match(await (await field("onlineVisibilityAfter")).getText(),/stays hidden/);
+  assert.match(await (await field("onlineVisibilityAfter")).getText(),/shown to customers/);
   assert.equal(await (await field("onlineVisibilityQty")).getAttribute("max"),"3");
   await (await field("onlineVisibilityQty")).clear();
   await (await field("onlineVisibilityQty")).sendKeys("2");
   await (await field("onlineVisibilityConfirm")).click();
-  await driver.wait(async()=>/Added 2 existing piece/.test(await (await field("ownerToast")).getText()),10000);
+  await driver.wait(async()=>/Visible online/.test(await (await field("categoryCatalogueList")).getText()),10000);
   let data=await driver.executeScript("return globalThis.__qa");
   assert.equal(data.transfers.length,1);
   assert.equal(data.transfers[0].params.p_quantity,2);
-  assert.equal(data.writes.filter(w=>w.table==="erp_online_listings").length,0,"Stock-only action must not publish a draft");
-  assert.deepEqual((await balance()).map(b=>b.on_hand),[1,2]);
-  assert.match(await (await field("categoryCatalogueList")).getText(),/Not online/);
-
-  await press("Show Online");
-  await driver.wait(async()=>/Visible online/.test(await (await field("categoryCatalogueList")).getText()),10000);
-  data=await driver.executeScript("return globalThis.__qa");
-  assert.equal(data.transfers.length,1,"Publishing already-online stock should not transfer anything again");
   assert.ok(data.writes.some(w=>w.table==="erp_online_listings"&&w.values.published===true));
-
+  assert.deepEqual((await balance()).map(b=>b.on_hand),[1,2]);
   await press("Add Online Stock");
   await driver.wait(async()=>await (await field("onlineVisibilityConfirm")).isEnabled(),8000);
   assert.equal(await (await field("onlineVisibilityQty")).getAttribute("max"),"1");
@@ -342,7 +344,7 @@ test("admin can add existing shop stock to an unpublished draft, publish it, and
   data=await driver.executeScript("return globalThis.__qa");
   assert.equal(data.transfers.length,2);
   assert.deepEqual((await balance()).map(b=>b.on_hand),[0,3]);
-  assert.ok(data.writes.filter(w=>w.table==="erp_online_listings"&&w.values.published===true).length===1,
+  assert.equal(data.writes.filter(w=>w.table==="erp_online_listings"&&w.values.published===true).length,1,
    "Top-up must not cause a second publish or duplicate listing");
  }finally{if(driver)await driver.quit();await fixture.close();}
 });
