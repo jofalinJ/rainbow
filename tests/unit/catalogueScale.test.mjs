@@ -13,7 +13,7 @@ function fakeClient(total=10000){
  query.then=(resolve,reject)=>{
    const range=calls.filter(c=>c[0]==="range").at(-1);
    const length=range?Math.max(0,Math.min(range[2]+1,total)-range[1]):24;
-   return Promise.resolve({count:total,data:Array.from({length},(_,i)=>({id:"test-"+(range[1]+i)})),error:null}).then(resolve,reject);
+   return Promise.resolve({count:total,data:Array.from({length},(_,i)=>({id:"test-"+(range[1]+i),selling_price:1000,erp_online_listings:[{published:true,online_price:1025}]})),error:null}).then(resolve,reject);
  };
  return {calls,from:table=>{calls.push(["from",table]);return {select:(columns,opts)=>{calls.push(["select",columns,opts]);return query;}}}};
 }
@@ -22,6 +22,7 @@ describe("catalogue scale: query and storage contracts",()=>{
    const c=fakeClient(10000);
    const first=await catalogue.page(c,{offset:0,limit:1000});
    expect(first.items).toHaveLength(48);
+   expect(first.items[0].selling_price).toBe(1025);
    expect(first.hasMore).toBe(true);
    expect(c.calls.find(row=>row[0]==="range")).toEqual(["range",0,47]);
    expect(c.calls.find(row=>row[0]==="select")[2]).toEqual({count:"exact"});
@@ -42,8 +43,8 @@ describe("catalogue scale: query and storage contracts",()=>{
    expect(c.calls).toContainEqual(["ilike","product_variants.color","Gold"]);
    expect(c.calls).toContainEqual(["ilike","product_variants.size","M"]);
    expect(c.calls).toContainEqual(["eq","product_variants.length_cm",60]);
-   expect(c.calls).toContainEqual(["gte","selling_price",100]);
-   expect(c.calls).toContainEqual(["lte","selling_price",500]);
+   expect(c.calls).toContainEqual(["gte","erp_online_listings.online_price",100]);
+   expect(c.calls).toContainEqual(["lte","erp_online_listings.online_price",500]);
    expect(c.calls).toContainEqual(["in","gender",["male","unisex"]]);
  });
  it("keeps empty wishlist empty instead of accidentally showing the entire shop",async()=>{
