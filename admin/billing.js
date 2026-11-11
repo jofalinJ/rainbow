@@ -261,7 +261,8 @@ $b("productSearch").addEventListener("input",renderCatalog);
 window.RainbowBillingPos={
  products:()=>catalog,
  addVariant:addToCart,
- search:code=>{$b("productSearch").value=code;renderCatalog();}
+ search:code=>{$b("productSearch").value=code;renderCatalog();},
+ shop:()=>({id:billingLocationId,name:$b("erpBillingLocation")?.selectedOptions?.[0]?.textContent||""})
 };
 $b("productSearch").addEventListener("keydown",e=>{
  if(e.key!=="Enter")return;
