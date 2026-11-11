@@ -5,6 +5,9 @@ declare
  v_shop numeric; v_online numeric; v_order record; v_line record; v_result jsonb;
  v_same jsonb; v_blocked boolean;
 begin
+ -- Prior migration tests consumed stock; reset only this disposable fixture.
+ update public.product_variants set stock_quantity=20
+ where id='bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb'::uuid;
  select selling_price into v_shop from public.products
  where product_code='TEST001';
  select online_price into v_online from public.erp_online_listings
