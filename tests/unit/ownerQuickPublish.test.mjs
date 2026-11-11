@@ -22,7 +22,7 @@ describe("owner quick publishing integrates with the existing shop",()=>{
   expect(html).not.toMatch(/salesforce/i);
   expect(html).toContain('id="roleAccessNote"');
   expect(html).toContain('id="ownerBulkBar"');
-  expect(html).toContain('app.js?v=20261111-online-products');
+  expect(html).toContain('app.js?v=20261111-sidebar-ready');
   expect(html).not.toContain("storefront-header");
   expect(html).not.toContain("storefront-footer");
  });
