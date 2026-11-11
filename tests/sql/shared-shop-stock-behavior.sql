@@ -95,7 +95,7 @@ update public.orders set payment_status='paid'
 where id='75000000-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 update public.orders set notes='duplicate webhook no second sale'
 where id='75000000-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
-do $
+do $paid_assert$
 declare v_balance record;
 begin
  select bal.on_hand,bal.reserved into v_balance
@@ -107,7 +107,7 @@ begin
  raise exception 'Shared stock mirror changed incorrectly on payment';end if;
  if (select count(*) from public.erp_stock_events where idempotency_key='75000000-aaaa-4aaa-8aaa-aaaaaaaaaaaa')<>1 then
  raise exception 'Payment stock event not exactly-once';end if;
-end $$;
+end $paid_assert$;
 -- Direct staff editing the checkout availability field is rejected.
 select set_config('request.jwt.claim.role','authenticated',true);
 do $$
