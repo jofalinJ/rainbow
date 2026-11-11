@@ -170,6 +170,7 @@ describe("encrypted offline billing contract",()=>{
   events.install({waitUntil:p=>{reply=p;}});
   return reply.then(()=>{
    expect(requests.some(x=>x.endsWith("/offline-pos.html"))).toBe(true);
+   expect(read("admin/service-worker.js")).toContain("rainbow-staff-offline-pos-v3");
    expect(requests.some(x=>x.includes("orders"))).toBe(false);
    expect(requests.some(x=>x.includes("invoices"))).toBe(false);
    const req={method:"GET",url:"https://rainbowgoldcovering.com/admin/billing.html",mode:"navigate"};
