@@ -69,6 +69,8 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261110213000_owner_quick_publish.sql
       - name: Check six-photo limit, publication validation and trigger permissions
         run: psql -v ON_ERROR_STOP=1 -f tests/sql/owner-quick-publish.sql
+      - name: Reject customer-forged local sales and preserve authorized cashier billing
+        run: psql -v ON_ERROR_STOP=1 -f tests/sql/erp-local-billing-rls.sql
       - name: Stage online-only pricing after owner publication in disposable ERP DB
         run: PGOPTIONS="-c check_function_bodies=off" psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261111130000_online_markup_2_5_percent.sql
       - name: Check price markup, repricing, rounding and product separation
