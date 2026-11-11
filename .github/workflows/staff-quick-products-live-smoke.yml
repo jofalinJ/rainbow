@@ -35,6 +35,7 @@ jobs:
                nav=$(curl -L --fail --silent --show-error --max-time 12 "${site}/admin/app.js?v=20261111-sidebar-ready") &&
                products=$(curl -L --fail --silent --show-error --max-time 12 "${site}/admin/products.html?release=${GITHUB_SHA}") &&
                billing=$(curl -L --fail --silent --show-error --max-time 12 "${site}/admin/billing.html?release=${GITHUB_SHA}") &&
+               offlinebridge=$(curl -L --fail --silent --show-error --max-time 12 "${site}/admin/offline-pos-bridge.mjs?release=${GITHUB_SHA}") &&
                offline=$(curl -L --fail --silent --show-error --max-time 12 "${site}/admin/offline-pos.html?release=${GITHUB_SHA}") &&
                offlinecore=$(curl -L --fail --silent --show-error --max-time 12 "${site}/admin/offline-pos-core.mjs?release=${GITHUB_SHA}") &&
                offlinesync=$(curl -L --fail --silent --show-error --max-time 12 "${site}/admin/offline-pos-sync.mjs?release=${GITHUB_SHA}") &&
@@ -52,7 +53,7 @@ jobs:
                  grep -Fq 'id="ownerMoreDetails"' <<< "$html" &&
                  grep -Fq 'id="categoryCatalogueList"' <<< "$html" &&
                  grep -Fq 'id="onlineVisibilityDialog"' <<< "$html" &&
-                 grep -Fq 'owner.js?v=20261111-smooth-transition' <<< "$html" &&
+                 grep -Fq 'owner.js?v=20261111-warranty' <<< "$html" &&
                  grep -Fq 'owner.css?v=20261111-smooth-transition' <<< "$html" &&
                  grep -Fq 'app.js?v=20261111-sidebar-ready' <<< "$html" &&
                  grep -Fq 'startup-spinner' <<< "$html" &&
@@ -68,7 +69,7 @@ jobs:
                  grep -Fq 'async function loadOnlineStockAvailability()' <<< "$script" &&
                  grep -Fq 'function renderCategoryCatalogue()' <<< "$script" &&
                  grep -Fq 'button.textContent=online?"Hide Online":"Show Online"' <<< "$script" &&
-                 grep -Fq 'Just three fields' <<< "$html" &&
+                 grep -Fq 'Product name, category, price and warranty' <<< "$html" &&
                  grep -Fq 'Save product for approval' <<< "$html" &&
                  ! grep -Fiq 'salesforce' <<< "$html" &&
                  grep -Fq 'show(["categories","products","editor","dashboard"].includes(requested)?requested:"categories")' <<< "$script" &&
@@ -84,6 +85,9 @@ jobs:
                  grep -Fq 'id="offlineDevicePassphrase"' <<< "$billing" &&
                  grep -Fq 'id="offlineConfirmPassphrase"' <<< "$billing" &&
                  grep -Fq 'offline-pos-bridge.mjs?v=20261111-inline-setup' <<< "$billing" &&
+                 grep -Fq 'form.addEventListener("submit"' <<< "$offlinebridge" &&
+                 grep -Fq 'confirmation.value!==passphrase' <<< "$offlinebridge" &&
+                 ! grep -Fq 'window.prompt(' <<< "$offlinebridge" &&
                  grep -Fq 'offline-pos-bridge.mjs?v=20261111' <<< "$billing" &&
                  grep -Fq 'id="unlockForm"' <<< "$offline" &&
                  grep -Fq 'id="cashCollected"' <<< "$offline" &&
