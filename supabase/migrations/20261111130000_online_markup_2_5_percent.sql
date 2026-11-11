@@ -55,6 +55,9 @@ and l.online_price is distinct from
     then round(p.selling_price*1.025,2) else null end);
 
 -- Online checkout and invoice line items use the published online price.
+-- Lock the variant, parent product and listing while computing the order.
+-- Re-reading item unit prices later in the transaction cannot race an admin
+-- shop-price edit or a concurrent unpublish event.
 -- All tax, discount, idempotency and stock rules are preserved.
 
 CREATE OR REPLACE FUNCTION public.create_razorpay_checkout(p_checkout_id uuid, p_items jsonb, p_customer jsonb)
@@ -150,7 +153,7 @@ begin
       into v_product from public.product_variants pv
       join public.products p on p.id=pv.product_id
       join public.erp_online_listings l on l.product_id=p.id and l.published and l.online_price>0
-      where pv.id=v_variant and pv.active and p.active for update of pv;
+      where pv.id=v_variant and pv.active and p.active for update of pv,p,l;
     if not found or v_product.stock_quantity < v_qty then
       raise exception 'Product unavailable or insufficient stock.';
     end if;
@@ -333,7 +336,7 @@ begin
       join public.products p on p.id=pv.product_id
       join public.erp_online_listings l on l.product_id=p.id and l.published and l.online_price>0
       where pv.id=v_id and pv.active=true and p.active=true
-      for update of pv;
+      for update of pv,p,l;
 
     if not found then
       raise exception 'Product variant is unavailable.';
@@ -391,7 +394,7 @@ begin
       join public.products p on p.id=pv.product_id
       join public.erp_online_listings l on l.product_id=p.id and l.published and l.online_price>0
       where pv.id=v_id and pv.active=true and p.active=true
-      for update of pv;
+      for update of pv,p,l;
 
     update public.product_variants
     set stock_quantity=stock_quantity-v_qty, updated_at=now()
