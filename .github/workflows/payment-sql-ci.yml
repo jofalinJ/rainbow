@@ -6,6 +6,7 @@ on:
       - 'supabase/migrations/20261021*'
       - 'supabase/migrations/20261103*'
       - 'supabase/migrations/2026111113*'
+      - 'supabase/migrations/2026111117*'
       - 'tests/sql/**'
       - '.github/workflows/payment-sql-ci.yml'
   workflow_dispatch:
@@ -60,3 +61,7 @@ jobs:
         run: PGOPTIONS="-c check_function_bodies=off" psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261111130000_online_markup_2_5_percent.sql
       - name: Check markup, checkout totals, order items and publishing
         run: psql -v ON_ERROR_STOP=1 -f tests/sql/online-markup-payment.sql
+      - name: Apply no-discount online checkout and product warranty
+        run: PGOPTIONS="-c check_function_bodies=off" psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261111170000_online_no_discount_product_warranty.sql
+      - name: Verify zero discount, correct GST and warranty limits
+        run: psql -v ON_ERROR_STOP=1 -f tests/sql/online-no-discount-warranty.sql

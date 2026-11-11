@@ -106,7 +106,7 @@ async function refresh(){
  const [categories,locations,products]=await Promise.all([
   fetchAll("categories","id,name,code_prefix,has_color,has_size,has_length,active,storefront_order,show_in_storefront",q=>q.order("storefront_order").order("name")),
   result(state.client.from("erp_locations").select("id,name,kind,active").eq("active",true).order("name")),
-  fetchAll("products","id,product_code,product_name,description,selling_price,category_id,type,gender,active,archived_at,created_at,product_images(id,public_url,storage_path,is_primary,sort_order),product_variants(id,product_id,stock_quantity,color,size,length_cm,active),erp_online_listings(published,online_price)",q=>q.order("created_at",{ascending:false}))
+  fetchAll("products","id,product_code,product_name,description,warranty_months,selling_price,category_id,type,gender,active,archived_at,created_at,product_images(id,public_url,storage_path,is_primary,sort_order),product_variants(id,product_id,stock_quantity,color,size,length_cm,active),erp_online_listings(published,online_price)",q=>q.order("created_at",{ascending:false}))
  ]);
  state.categories=categories||[];state.locations=locations||[];
  const categorySelect=$("categoryCatalogueFilter"),selectedCategory=categorySelect.value;
@@ -256,7 +256,7 @@ function edit(productId){
  resetEditor(p.category_id);state.editorId=p.id;
  $("editorTitle").textContent="Edit "+p.product_name;
  $("ownerName").value=p.product_name;
- $("ownerDescription").value=p.description||"";
+ $("ownerDescription").value=p.description||"";$("ownerWarrantyMonths").value=p.warranty_months==null?"":String(p.warranty_months);
  $("ownerPrice").value=p.selling_price;
  $("ownerSku").value=p.product_code;$("ownerSku").disabled=true;
  renderExtras();const v=variantOf(p);
@@ -311,7 +311,7 @@ function readInput(publish){
  if(cat?.has_length&&((publish&&(!Number.isFinite(length)||length<=0))||(length!==null&&(!Number.isFinite(length)||length<=0)))){message("Open More options and enter a valid length in centimetres.",true);$("ownerMoreDetails").open=true;ok=false;}
  if(!state.editorId&&stock>0&&!$("ownerStockConfirm").checked){fieldError("Stock","Confirm that this new stock was counted.");$("ownerMoreDetails").open=true;ok=false;}
  if(stock>0&&!$("ownerSource").value){fieldError("Stock","Choose the shop holding this stock.");$("ownerMoreDetails").open=true;ok=false;}
- return ok?{cat,name,price,stock,code,length,color:$("ownerColor")?.value.trim()||"0",size:$("ownerSize")?.value.trim()||"0",description:$("ownerDescription").value.trim()||null,source:$("ownerSource").value}:null;
+ return ok?{cat,name,price,stock,code,length,color:$("ownerColor")?.value.trim()||"0",size:$("ownerSize")?.value.trim()||"0",description:$("ownerDescription").value.trim()||null,warrantyMonths:$("ownerWarrantyMonths").value?Number($("ownerWarrantyMonths").value):null,source:$("ownerSource").value}:null;
 }
 async function uploadPhoto(file,code){
  const prepared=await window.RainbowImagePrep?.prepare(file);
@@ -572,7 +572,7 @@ async function saveProduct(mode){
   }
   if(previous&&!canPublish()&&published(previous))throw new Error("Only the owner can edit published products.");
   let product=previous,variant=previous?variantOf(previous):null;
-  const payload={category_id:data.cat.id,product_name:data.name,type:previous?.type||data.cat.name,gender:previous?.gender||"women",description:data.description,selling_price:data.price,length_cm:data.cat.has_length?data.length:null};
+  const payload={category_id:data.cat.id,product_name:data.name,type:previous?.type||data.cat.name,gender:previous?.gender||"women",description:data.description,warranty_months:data.warrantyMonths,selling_price:data.price,length_cm:data.cat.has_length?data.length:null};
   if(!product){
    const record=await result(state.client.from("products").insert({...payload,...(data.code?{product_code:data.code}:{}),active:true}).select("id,product_code,product_name,category_id,active,selling_price").single());
    product=record;state.editorId=record.id;
@@ -619,7 +619,7 @@ async function saveProduct(mode){
  }finally{state.busy=false;$("saveDraft").disabled=!canEdit();$("publishNow").disabled=!canPublish();}
 }
 async function duplicateProduct(p){
- const created=await result(state.client.from("products").insert({category_id:p.category_id,product_name:p.product_name+" (Copy)",type:p.type,selling_price:p.selling_price,description:p.description,gender:p.gender,active:true}).select("id,product_code").single());
+ const created=await result(state.client.from("products").insert({category_id:p.category_id,product_name:p.product_name+" (Copy)",type:p.type,selling_price:p.selling_price,description:p.description,warranty_months:p.warranty_months,gender:p.gender,active:true}).select("id,product_code").single());
  for(const v of variantsOf(p))await result(state.client.from("product_variants").insert({product_id:created.id,color:v.color,size:v.size,length_cm:v.length_cm,stock_quantity:0,active:true}));
  for(const photo of photosOf(p))await result(state.client.from("product_images").insert({product_id:created.id,storage_path:photo.storage_path,public_url:photo.public_url,alt_text:p.product_name,is_primary:photo.is_primary,sort_order:photo.sort_order}));
  if(canPublish())await publication(created,false);
@@ -846,7 +846,7 @@ function applyRoleUI(){
  $("publishNow").disabled=!owner;
  $("publishNow").title=owner?"Publish to the online store":"Only the owner can publish products.";
  $("ownerName").disabled=!editor;$("ownerCategory").disabled=!editor;
- $("ownerDescription").disabled=!editor;$("ownerPrice").disabled=!editor;
+ $("ownerDescription").disabled=!editor;$("ownerWarrantyMonths").disabled=!editor;$("ownerPrice").disabled=!editor;
  $("ownerStock").disabled=!editor;$("ownerSource").disabled=!editor;
  $("ownerSku").disabled=!editor;$("productPhotos").disabled=!editor;
  $("ownerStockConfirm").disabled=!editor;

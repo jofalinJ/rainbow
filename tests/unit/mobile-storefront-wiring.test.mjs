@@ -50,13 +50,13 @@ describe("Rainbow mobile storefront wiring",()=>{
     expect(shopJs).toContain('href=\'product.html?sku=');
     expect(shopJs).toContain('data-add-cart');
     expect(productJs).toContain('document.createElement("button")');
-    for(const id of ["placeOrder","payRazorpay","gatewayStatus","retryGateway","whatsappReceiptConsent","total","state"])
+    for(const id of ["placeOrder","payRazorpay","gatewayStatus","retryGateway","total","state"])
       expect(ids(checkout)).toContain(id);
     expect(checkoutJs).toContain('$("deliveryForm").addEventListener("submit"');
     expect(checkout).toContain('form="deliveryForm"');
     expect(checkoutJs).toContain('beginRazorpayPayment({');
     expect(checkoutJs).toContain('payment_method:"razorpay"');
-    expect(checkoutJs).toContain('whatsapp_opt_in:$("whatsappReceiptConsent")?.checked===true');
+    expect(checkoutJs).toContain("whatsapp_opt_in:false");
     expect(checkoutJs).not.toContain('rpc("create_online_order"');
     for(const id of ["payUpi","checkoutQR","paymentReference"])
       expect(ids(checkout)).not.toContain(id);

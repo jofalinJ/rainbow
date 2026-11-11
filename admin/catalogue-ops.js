@@ -2,8 +2,8 @@
 (function(root){
  "use strict";
  const PAGE_SIZE=40,IMPORT_MAX=500,IMAGE_MAX=50;
- const SELECT="id,product_code,product_name,type,gender,display_priority,active,selling_price,category_id,length_cm,description,thickness,gold_amount_g,product_variants(id,color,size,length_cm,stock_quantity,active),product_images(id,public_url,storage_path,is_primary,sort_order)";
- const FIELDS=["product_code","category","product_name","type","selling_price","gender","color","size","length_cm","description","thickness","gold_amount_g"];
+ const SELECT="id,product_code,product_name,type,gender,display_priority,active,selling_price,category_id,length_cm,description,warranty_months,thickness,gold_amount_g,product_variants(id,color,size,length_cm,stock_quantity,active),product_images(id,public_url,storage_path,is_primary,sort_order)";
+ const FIELDS=["product_code","category","product_name","type","selling_price","gender","color","size","length_cm","description","thickness","gold_amount_g","warranty_months"];
  const CODE_RE=/^[A-Za-z0-9][A-Za-z0-9/_-]{1,39}$/;
  const number=value=>Number(value);
  const cleanSearch=input=>String(input??"").trim().replace(/[^\p{L}\p{N}\s/_-]/gu," ").replace(/\s+/g," ").slice(0,70);
@@ -59,6 +59,7 @@
      const gold=raw.gold_amount_g===""||raw.gold_amount_g==null?null:number(raw.gold_amount_g);
      if(gold!==null&&(!Number.isFinite(gold)||gold<0||gold>100000))issues.push("Invalid gold amount");
      if((raw.description||"").length>4000)issues.push("Description exceeds 4,000 characters");
+      if(raw.warranty_months&&(!/^\d+$/.test(raw.warranty_months)||Number(raw.warranty_months)<8||Number(raw.warranty_months)>60))issues.push("Warranty must be 8–60 whole months");
      return {number:index+2,raw,issues};
    });
  }
@@ -76,7 +77,7 @@
        product:category?{
          category_id:category.id,product_code:p.product_code,product_name:p.product_name,type:p.type,
          selling_price:Number(p.selling_price),gender:(p.gender||"women").toLowerCase(),
-         description:p.description||null,length_cm:length,
+         description:p.description||null,warranty_months:p.warranty_months?Number(p.warranty_months):null,length_cm:length,
          thickness:p.thickness||null,gold_amount_g:p.gold_amount_g?Number(p.gold_amount_g):null,
          active:false
        }:null,

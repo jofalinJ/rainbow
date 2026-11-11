@@ -49,14 +49,13 @@ import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=
   }
     function totals(){
     const subtotal=roundMoney(cart.reduce((sum,item)=>sum+Number(item.product.selling_price||0)*Number(item.quantity||0),0));
-    const discount=roundMoney(subtotal*.03);
-    const taxable=roundMoney(subtotal-discount);
+    // Online checkout has no promotional discount; tax is calculated on the full subtotal.
+    const taxable=subtotal;
     const gst=gstComponentsForState(taxable,$("state").value);
     const {cgst=0,sgst=0,igst=0}=gst||{};
     const shipping=cart.length?deliveryFeeForState($("state").value):null;
     const total=shipping===null||!gst?null:roundMoney(taxable+cgst+sgst+igst+shipping);
     $("subtotal").textContent=money(subtotal);
-    $("discount").textContent=money(discount);
     $("cgst").textContent=money(cgst);
     $("sgst").textContent=money(sgst);
     $("igst").textContent=money(igst);
@@ -66,7 +65,7 @@ import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=
     $("delivery").textContent=shipping===null?"Choose state":money(shipping);
     $("total").textContent=total===null?"—":money(total);
     $("totalLabel").textContent="Total";
-    return {subtotal,discount,cgst,sgst,igst,shipping,total};
+    return {subtotal,cgst,sgst,igst,shipping,total};
   }
     function roundMoney(value){return Math.round((Number(value)+Number.EPSILON)*100)/100;}
   function cartItemHasStock(item){
@@ -248,7 +247,9 @@ import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=
       city:$("city").value.trim(),
       state:$("state").value.trim(),
       address,
-      whatsapp_opt_in:$("whatsappReceiptConsent")?.checked===true,
+      whatsapp_opt_in:false,
+      // Older cached checkouts must never be charged using a different pricing rule.
+      pricing_revision:"no-discount-20261111",
       payment_method:"razorpay"
     };
     if(shipping===null){msg("Choose a valid Indian state or union territory for delivery.","error");return;}
@@ -339,10 +340,8 @@ import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=
     razorpayMode=status.mode==="live"?"live":"test";
     const badge=document.querySelector("#razorpayChoice .checkout-mode");
     const choiceNote=document.querySelector("#razorpayChoice .payment-choice-note");
-    const detailsNote=document.querySelector("#razorpayDetails .payment-safety");
     if(badge)badge.textContent=razorpayMode==="live"?"LIVE":"TEST MODE";
     if(choiceNote)choiceNote.textContent=razorpayMode==="live"?"Real payment · Protected by Razorpay.":"Test only — no real charge.";
-    if(detailsNote)detailsNote.textContent=razorpayMode==="live"?"Your payment is verified securely before the order is confirmed.":"Razorpay TEST: no money is deducted. Payment is verified by our server.";
     connection?.classList.add(status.available?"is-online":"is-offline");
     if(message)message.textContent=status.message;
     if(indicator)indicator.title=status.available?"Connected":"Not connected";

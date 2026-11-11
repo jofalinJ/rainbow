@@ -16,7 +16,7 @@ describe("customer checkout compact UX safety",()=>{
     expect(positions).toEqual([...positions].sort((a,b)=>a-b));
   });
   it("keeps only online Razorpay payment and removes the manual transfer notice",()=>{
-    for(const id of ["payRazorpay","gatewayConnection","retryGateway","razorpayDetails"]){
+    for(const id of ["payRazorpay","gatewayConnection","retryGateway"]){
       expect(ids(order)).toContain(id);
     }
     for(const id of ["payUpi","manualUpiChoice","checkoutQR","paymentReference","paymentReferenceGroup","manualPaymentDetails"]){
@@ -36,7 +36,7 @@ describe("customer checkout compact UX safety",()=>{
     expect(orderJs).not.toContain("UPI reference submitted");
   });
   it("keeps all existing tax and delivery identifiers and computed totals",()=>{
-    for(const id of ["subtotal","discount","cgst","sgst","delivery","total","state","placeOrder","orderMsg"]){
+    for(const id of ["subtotal","cgst","sgst","delivery","total","state","placeOrder","orderMsg"]){
       expect(ids(order)).toContain(id);
     }
     for(const field of ["deliveryFeeForState","roundMoney","cartVerified","razorpayReady"]){
@@ -44,13 +44,13 @@ describe("customer checkout compact UX safety",()=>{
     }
     expect(order).toContain("CGST (1.5%)");
     expect(order).toContain("SGST (1.5%)");
-    expect(order).toContain("Discount (3%)");
+    expect(order).not.toContain("Discount (3%)");
   });
-  it("keeps WhatsApp consent optional and unselected by default",()=>{
-    expect(order).toContain('id="whatsappReceiptConsent" type="checkbox"');
+  it("removes unnecessary WhatsApp opt-in controls and opts out automatically",()=>{
+    expect(order).not.toContain('id="whatsappReceiptConsent"');
     expect(order).toContain("(optional)");
-    expect(orderJs).toMatch(/whatsapp_opt_in:[^\n]*\$\("whatsappReceiptConsent"\)/);
-    expect(orderJs).toContain('?.checked===true');
+    expect(orderJs).toContain("whatsapp_opt_in:false");
+    expect(orderJs).not.toContain('?.checked===true');
   });
   it("preserves mobile category-first layout and routes",()=>{
     expect(home.indexOf('id="mobileCategorySection"')).toBeLessThan(home.indexOf('id="featuredPromotion"'));

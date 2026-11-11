@@ -17,7 +17,7 @@ describe("owner quick publishing integrates with the existing shop",()=>{
   expect(html).toContain('id="ownerMoreDetails"');
   expect(html).toContain('data-screen="categories" class="active"');
   expect(html).toContain('Save product for approval');
-  expect(html).toContain('Just three fields');
+  expect(html).toContain('Product name, category, price and warranty');
   expect(html.indexOf('id="ownerName"')).toBeLessThan(html.indexOf('id="ownerMoreDetails"'));
   expect(html).not.toMatch(/salesforce/i);
   expect(html).toContain('id="roleAccessNote"');

@@ -203,12 +203,12 @@
    const button=$("exportCatalogueCsv");button.disabled=true;
    try{
      const client=await assertEditor();
-     const columns=["product_code","category","product_name","type","selling_price","gender","length_cm","description","thickness","gold_amount_g","active"];
+     const columns=["product_code","category","product_name","type","selling_price","gender","length_cm","description","thickness","gold_amount_g","warranty_months","active"];
      const results=[columns];let offset=0;
      // Export is a convenience snapshot; never treat it as a database-consistent backup.
      while(offset<20000){
        const {data,error}=await client.from("products")
-         .select("product_code,category_id,product_name,type,selling_price,gender,length_cm,description,thickness,gold_amount_g,active")
+         .select("product_code,category_id,product_name,type,selling_price,gender,length_cm,description,thickness,gold_amount_g,warranty_months,active")
          .order("id",{ascending:true}).range(offset,offset+249);
        if(error)throw error;
        if(!data?.length)break;
@@ -217,7 +217,7 @@
            p.product_code,
            cats.find(cat=>cat.id===p.category_id)?.name||"",
            p.product_name,p.type,p.selling_price,p.gender,p.length_cm,p.description,
-           p.thickness,p.gold_amount_g,p.active
+           p.thickness,p.gold_amount_g,p.warranty_months,p.active
          ]);
        }
        offset+=data.length;

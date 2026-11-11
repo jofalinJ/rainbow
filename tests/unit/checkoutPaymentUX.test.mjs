@@ -22,8 +22,8 @@ describe("Rainbow online-only secure checkout release",()=>{
     expect(methods[0]).toContain('value="razorpay"');
     expect(methods[0]).toMatch(/\bchecked\b/);
     expect(methods[0]).toMatch(/\bdisabled\b/);
-    expect(page).toContain('id="razorpayDetails"');
-    expect(page).toContain('id="whatsappReceiptConsent"');
+    expect(page).not.toContain('id="razorpayDetails"');
+    expect(page).not.toContain('id="whatsappReceiptConsent"');
     expect(script).toContain('Payment verified</h2>');
     expect(script).toContain('View / Print Invoice');
     expect(gateway).toContain('invoiceUrl:result.invoiceUrl||null');

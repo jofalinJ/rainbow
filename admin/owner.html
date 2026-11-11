@@ -14,7 +14,7 @@
 <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script defer src="app.js?v=20261111-sidebar-ready"></script>
 <script defer src="image-prep.js?v=20261110"></script>
-<script defer src="owner.js?v=20261111-smooth-transition"></script>
+<script defer src="owner.js?v=20261111-warranty"></script>
 </head>
 <body>
 <aside aria-label="Admin sidebar"></aside>
@@ -70,18 +70,20 @@
     <p class="field-error" id="errorPhotos"></p>
    </section>
    <section class="panel quick-details-panel">
-    <h2>2. Basic details <small>Just three fields</small></h2>
+    <h2>2. Basic details <small>Product name, category, price and warranty</small></h2>
     <div class="form-grid quick-core">
      <label class="wide">Product name <input id="ownerName" maxlength="160" required autocomplete="off" placeholder="e.g. Classic Thali Chain"><small class="field-error" id="errorName"></small></label>
      <label>Category <select id="ownerCategory" required></select><small class="field-error" id="errorCategory"></small></label>
      <label>Price (₹) <input id="ownerPrice" type="number" inputmode="decimal" step="0.01" min="0.01" max="10000000" required placeholder="e.g. 450"><small class="field-error" id="errorPrice"></small></label>
+     <label>Product warranty (optional) <select id="ownerWarrantyMonths" aria-label="Warranty offered for this product"><option value="">Not specified</option><option value="8">8 months</option><option value="12">1 year</option><option value="18">1 year 6 months</option><option value="24">2 years</option><option value="36">3 years</option><option value="48">4 years</option><option value="60">5 years</option></select></label>
     </div>
     <p class="quick-tip">Product code is automatic. You can save without stock; it will not appear in the online shop until the owner publishes it and allocates stock.</p>
    </section>
    <details id="ownerMoreDetails" class="panel optional-details">
     <summary>More options <small>Shop stock, description, size and product code</small></summary>
     <div class="form-grid">
-     <label class="wide">Description (optional) <textarea id="ownerDescription" maxlength="4000" rows="2" placeholder="Design, finish or warranty"></textarea></label>
+     <label class="wide">Description (optional) <textarea id="ownerDescription" maxlength="4000" rows="2" placeholder="Design, finish or care instructions"></textarea></label>
+      
      <label id="ownerStockLabel">Shop opening stock (optional) <input id="ownerStock" type="number" inputmode="numeric" min="0" max="100000" step="1" value="0"><small class="field-error" id="errorStock"></small></label>
      <label>Source shop <select id="ownerSource"></select><small id="ownerStockHint">Only choose a shop if you enter new physical stock. To allocate stock already recorded, use Inventory.</small></label>
      <label class="wide">Product code (optional) <input id="ownerSku" maxlength="40" pattern="[A-Za-z0-9/_-]+" placeholder="Leave blank to generate automatically"></label>

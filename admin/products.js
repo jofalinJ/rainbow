@@ -541,7 +541,7 @@ function startEditProduct(productId){
   $("category").value=String(product.category_id||"");updateFields();
   $("gender").value=product.gender||"women";$("active").checked=product.active!==false;
   $("name").value=product.product_name||"";$("type").value=product.type||"";$("price").value=product.selling_price??"";
-  $("description").value=product.description||"";$("length").value=product.length_cm??"";$("thickness").value=product.thickness??"";$("gold").value=product.gold_amount_g??"";
+  $("description").value=product.description||"";$("warrantyMonths").value=product.warranty_months==null?"":String(product.warranty_months);$("length").value=product.length_cm??"";$("thickness").value=product.thickness??"";$("gold").value=product.gold_amount_g??"";
   const photos=orderedPhotos(product);
   $("editCurrentPhotos").innerHTML=photos.map((photo,index)=>photo.public_url?'<img src="'+escHtml(photo.public_url)+'" alt="'+escHtml(product.product_name+' current photo '+(index+1))+'" loading="lazy">':'<span class="photo-count">Photo '+(index+1)+'</span>').join("")||'<small>No photos added yet.</small>';
   $("editPhotoHelp").textContent=photos.length+" of 5 photos currently saved. You can add "+Math.max(0,5-photos.length)+" more; each image must be 5 MB or smaller. New photos upload when you press Update Product.";
@@ -565,7 +565,7 @@ $("cameraFile").onchange=()=>showImages($("cameraFile").files);$("fileFile").onc
 
 async function saveExistingProduct(product,c,validation,productLength){
   const body={category_id:validation.value.categoryId,product_name:validation.value.name,type:validation.value.type,selling_price:validation.value.sellingPrice,
-    gender:$("gender").value,active:$("active").checked,description:$("description").value.trim()||null,length_cm:productLength,
+    gender:$("gender").value,active:$("active").checked,description:$("description").value.trim()||null,warranty_months:$("warrantyMonths").value?Number($("warrantyMonths").value):null,length_cm:productLength,
     thickness:c.has_thickness?($("thickness").value.trim()||null):null,gold_amount_g:c.has_gold_amount?(Number($("gold").value)||null):null};
   const updated=await sb("products?id=eq."+encodeURIComponent(product.id),{method:"PATCH",headers:{"Prefer":"return=representation"},body:JSON.stringify(body)});
   if(!updated||!updated.length)throw new Error("No product was updated. Check that your staff account has edit permission.");
@@ -622,7 +622,7 @@ $("form").onsubmit=async e=>{
       stock_quantity:opening.quantity,low_stock_limit:Number($("low").value??3)};
     const product=(await sb("products",{method:"POST",headers:{"Prefer":"return=representation"},body:JSON.stringify({
       category_id:validation.value.categoryId,product_name:validation.value.name,type:validation.value.type,
-      gender:$("gender").value,active:$("active").checked,selling_price:validation.value.sellingPrice,description:$("description").value.trim()||null,length_cm:productLength,
+      gender:$("gender").value,active:$("active").checked,selling_price:validation.value.sellingPrice,description:$("description").value.trim()||null,warranty_months:$("warrantyMonths").value?Number($("warrantyMonths").value):null,length_cm:productLength,
       thickness:c.has_thickness?($("thickness").value.trim()||null):null,gold_amount_g:c.has_gold_amount?(Number($("gold").value)||null):null
     })}))[0];
     pendingProductSave={product,operation:stockRules.createVariantStockOperation({productId:product.id,draft:variantDraft,opening,requestId:crypto.randomUUID()}),images:[...selectedImages],uploadedCount:0};
