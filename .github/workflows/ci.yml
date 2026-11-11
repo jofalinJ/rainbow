@@ -25,6 +25,8 @@ jobs:
       - run: npm run test:checkout:fixture
       - name: Product entry browser regression (local fixtures only)
         run: npm run test:product-entry:fixture
+      - name: Offline cash POS in-browser worker and encrypted queue regression
+        run: npm run test:offline-pos:fixture
       - run: npm run build
       - run: npm run build:pages
       - run: test -f dist-pages/index.html && test -f dist-pages/staff/index.html && test -f dist-pages/admin/login.html && test ! -e dist-pages/backend && test ! -e dist-pages/supabase && test ! -e dist-pages/tests

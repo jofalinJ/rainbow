@@ -1,8 +1,8 @@
-/* Android staff installability; does not grant access or cache business data. */
+/* Installs the encrypted offline cash POS shell. Business data stays in the locally encrypted vault; auth APIs are never cached. */
 (function(){
  if(!("serviceWorker" in navigator)||!window.isSecureContext)return;
  window.addEventListener("load",()=>{
    navigator.serviceWorker.register("./service-worker.js",{scope:"./"})
-     .catch(error=>console.warn("Staff app offline notice unavailable.",error));
+     .catch(error=>console.warn("Staff offline billing shell unavailable.",error));
  },{once:true});
 })();
