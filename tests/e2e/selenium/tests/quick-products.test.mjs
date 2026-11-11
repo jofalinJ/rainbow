@@ -177,18 +177,42 @@ test("Quick Products is photo-first; staff can save a draft on a 390px screen wi
  let driver;
  try{
   driver=await new Builder().forBrowser("chrome").setChromeOptions(options).build();
-  await driver.manage().window().setRect({width:390,height:850});
+  await driver.sendDevToolsCommand("Emulation.setDeviceMetricsOverride",{width:390,height:850,deviceScaleFactor:1,mobile:true});
   await driver.get(fixture.base+"/admin/owner.html?role=staff");
   const field=id=>driver.findElement(By.id(id));
   await driver.wait(async()=>await (await field("ownerApp")).isDisplayed(),12000);
   assert.equal(await (await field("startup")).isDisplayed(),false,"Login loading message must disappear");
-  assert.equal(await (await field("screen-editor")).isDisplayed(),true,"Quick Add must open first");
+  assert.equal(await (await field("screen-products")).isDisplayed(),true,"The catalogue opens on Products");
+  assert.equal(await (await field("screen-editor")).isDisplayed(),false);
+  const menu=await field("ownerMenu");
+  assert.equal(await menu.isDisplayed(),false);
+  const menuToggle=await field("menuToggle");
+  const openMenu=async()=>{
+   await menuToggle.click();
+   await driver.wait(async()=>(await menu.getRect()).x===0,3000);
+  };
+  await openMenu();
+  const sidebar=await menu.getText();
+  assert.match(sidebar,/Catalogue Dashboard[\s\S]*Products[\s\S]*Categories & Online[\s\S]*Shop operations[\s\S]*Inventory[\s\S]*Staff tools[\s\S]*My Attendance/i);
+  assert.doesNotMatch(sidebar,/Visit Store|Add Product|Admin Dashboard/);
+  const productsNav=await menu.findElement(By.css('[data-screen="products"]'));
+  assert.equal(await productsNav.getAttribute("aria-current"),"page");
+  assert.equal(await (await field("draftBadge")).isDisplayed(),false);
+  await menu.findElement(By.css('[data-screen="categories"]')).click();
+  assert.equal(await menuToggle.getAttribute("aria-expanded"),"false");
+  assert.equal(await driver.executeScript("return document.activeElement.id"),"ownerMain");
+  await openMenu();
+  await productsNav.click();
+  await driver.findElement(By.css('#screen-products [data-screen="editor"]')).click();
+  assert.equal(await (await field("screen-editor")).isDisplayed(),true);
+  assert.equal(await productsNav.getAttribute("aria-current"),"page");
   assert.equal(await (await field("ownerMoreDetails")).getAttribute("open"),null,"Stock options should begin folded");
   assert.equal(await (await field("publishNow")).isDisplayed(),false,"Staff should never be offered admin publishing");
   assert.equal(await (await field("saveDraft")).getText(),"Save product for approval");
   assert.ok(!(await driver.findElement(By.tagName("body")).getText()).includes("Salesforce"));
-  const width=await driver.executeScript("return document.documentElement.scrollWidth");
-  assert.ok(width<=390+2,"Quick add must not overflow the 390px viewport");
+  const {width,viewport}=await driver.executeScript("return {width:document.documentElement.scrollWidth,viewport:document.documentElement.clientWidth}");
+  assert.equal(viewport,390);
+  assert.ok(width<=viewport+2,"The product editor must fit the phone viewport");
 
   const photoInput=await field("productPhotos");
   await driver.executeScript(input=>{
@@ -204,6 +228,7 @@ test("Quick Products is photo-first; staff can save a draft on a 390px screen wi
   await driver.wait(async()=>await (await field("screen-categories")).isDisplayed(),15000);
   assert.equal((await driver.findElements(By.css(".category-product-row"))).length,1);
   assert.match(await (await field("categoryCatalogueList")).getText(),/Fixture gold covering chain/);
+  assert.equal(await (await field("draftBadge")).getAttribute("textContent"),"1 draft");
   assert.match(await (await field("categoryCatalogueList")).getText(),/Not online/);
   assert.match(await (await field("categoryCatalogueList")).getText(),/Owner controls online visibility/);
   assert.equal((await driver.findElements(By.css(".category-product-actions button.primary"))).length,0,
@@ -227,17 +252,22 @@ test("Quick Products is photo-first; staff can save a draft on a 390px screen wi
 test("owner Show Online publishes counted stock and Hide Online safely reverses it",async()=>{
  const fixture=await serve();
  const options=new chrome.Options().addArguments("--headless=new","--no-sandbox","--disable-dev-shm-usage",
-  "--disable-background-networking","--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1","--window-size=390,850");
+  "--disable-background-networking","--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1","--window-size=1280,900");
  let driver;
  try{
   driver=await new Builder().forBrowser("chrome").setChromeOptions(options).build();
-  await driver.manage().window().setRect({width:390,height:850});
+  await driver.manage().window().setRect({width:1280,height:900});
   const field=id=>driver.findElement(By.id(id));
   const categories=()=>driver.findElement(By.css('[data-screen="categories"]'));
   const action=label=>driver.findElement(By.xpath("//div[contains(@class,'category-product-actions')]/button[contains(text(),'"+label+"')]"));
   const openCategory=async()=>{
    await driver.wait(async()=>await (await field("ownerApp")).isDisplayed(),12000);
-   await driver.executeScript("arguments[0].click()",await categories());
+   const menu=await field("ownerMenu");
+   assert.equal(await menu.isDisplayed(),true);
+   assert.match(await menu.getText(),/Admin Dashboard/);
+   assert.doesNotMatch(await menu.getText(),/My Attendance|Visit Store|Add Product/);
+   await (await categories()).click();
+   assert.equal(await (await categories()).getAttribute("aria-current"),"page");
    await driver.wait(async()=>await (await field("categoryCatalogueList")).isDisplayed(),6000);
    assert.equal((await driver.findElements(By.css(".category-product-row"))).length,1);
   };

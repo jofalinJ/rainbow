@@ -3,18 +3,22 @@ import {readFileSync} from "node:fs";
 const read = path => readFileSync(new URL("../../"+path,import.meta.url),"utf8");
 
 describe("owner quick publishing integrates with the existing shop",()=>{
- it("uses its own mobile menu and leaves storefront navigation out of the admin shell",()=>{
+ it("groups the staff menu and keeps product creation on the catalogue pages",()=>{
   const html=read("admin/owner.html");
   expect(html).toContain('name="robots" content="noindex,nofollow,noarchive"');
-  for(const label of ["Dashboard","Products","Add Product","Categories","Visit Store","Logout"])
-   expect(html).toContain(label);
+  const sidebar=html.slice(html.indexOf('<aside id="ownerMenu"'),html.indexOf('</aside>'));
+  for(const label of ["Catalogue Dashboard","Products","Categories &amp; Online","Advanced Products","Inventory","Billing","Orders","Customers","Staff tools","Log out"])
+   expect(sidebar).toContain(label);
+  expect(sidebar).not.toContain('Visit Store');
+  expect(sidebar).not.toContain('data-screen="editor"');
+  expect(sidebar).toContain('data-screen="products" class="active" aria-current="page"');
+  expect(html).toContain('data-screen="editor">＋ Add Product</button>');
   expect(html).toContain('id="menuToggle"');
   expect(html).toContain('id="saveDraft"');
   expect(html).toContain('id="publishNow"');
   expect(html).toContain('id="productPhotos"');
   expect(html).toContain('id="ownerStockConfirm"');
   expect(html).toContain('id="ownerMoreDetails"');
-  expect(html).toContain('data-screen="editor" class="active"');
   expect(html).toContain('Save product for approval');
   expect(html).toContain('Just three fields');
   expect(html.indexOf('id="ownerName"')).toBeLessThan(html.indexOf('id="ownerMoreDetails"'));
@@ -38,7 +42,7 @@ describe("owner quick publishing integrates with the existing shop",()=>{
   expect(js).not.toContain("SUPABASE_SERVICE_ROLE_KEY");
   expect(js).not.toContain("ADMIN_SESSION_SECRET");
   expect(js).not.toMatch(/salesforce/i);
-  expect(js).toContain('resetEditor();show("editor");');
+  expect(js).toContain('screen:"products"');
   expect(js).toContain('toast("Product saved under "+data.cat.name+".",product.product_code,true)');
   expect(js).toContain('$("ownerMoreDetails").open=false');
   expect(js).toContain('if(!name){fieldError("Name"');

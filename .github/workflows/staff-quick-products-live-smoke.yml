@@ -1,5 +1,5 @@
 name: Live Quick Products release verification
-# Release 2026-11-10: check the actual cache-busted staff script and refreshed pages.
+# Check the cache-busted staff assets after the Pages deployment.
 
 on:
   push:
@@ -42,7 +42,10 @@ jobs:
                  grep -Fq 'id="ownerMoreDetails"' <<< "$html" &&
                  grep -Fq 'id="categoryCatalogueList"' <<< "$html" &&
                  grep -Fq 'id="onlineVisibilityDialog"' <<< "$html" &&
-                 grep -Fq 'owner.js?v=20261110-online-stock' <<< "$html" &&
+                 grep -Fq 'owner.js?v=20261111-owner-menu' <<< "$html" &&
+                 grep -Fq 'owner.css?v=20261111-owner-menu' <<< "$html" &&
+                 grep -Fq 'id="navOperations"' <<< "$html" &&
+                 ! grep -Fq 'Visit Store' <<< "$html" &&
                  grep -Fq 'id="onlineVisibilityAvailable"' <<< "$html" &&
                  grep -Fq 'id="onlineVisibilityCurrent"' <<< "$html" &&
                  grep -Fq 'addStock.textContent="＋ Add Online Stock"' <<< "$script" &&
@@ -52,7 +55,7 @@ jobs:
                  grep -Fq 'Just three fields' <<< "$html" &&
                  grep -Fq 'Save product for approval' <<< "$html" &&
                  ! grep -Fiq 'salesforce' <<< "$html" &&
-                 grep -Fq 'resetEditor();show("editor");' <<< "$script" &&
+                 grep -Fq 'screen:"products"' <<< "$script" &&
                  grep -Fq '#startup[hidden]{display:none!important}' <<< "$styling" &&
                  grep -Fq 'const canPublish=()=>state.role==="admin"' <<< "$script" &&
                  grep -Fq 'applyRoleUI();' <<< "$script" &&

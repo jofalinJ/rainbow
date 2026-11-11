@@ -7,11 +7,11 @@
 <meta name="theme-color" content="#8B0000">
 <link rel="icon" href="../assets/brand/rainbow-logo.png" type="image/png">
 <title>Staff Products | Rainbow Gold Covering</title>
-<link rel="stylesheet" href="owner.css?v=20261110-online-stock">
+<link rel="stylesheet" href="owner.css?v=20261111-owner-menu">
 <script src="config.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script defer src="image-prep.js?v=20261110"></script>
-<script defer src="owner.js?v=20261110-online-stock"></script>
+<script defer src="owner.js?v=20261111-owner-menu"></script>
 </head>
 <body>
 <div id="startup" role="status" class="startup">Checking your shop staff account…</div>
@@ -22,29 +22,34 @@
  <strong>RAINBOW GOLD COVERING</strong>
 </header>
 <div id="drawerBackdrop" class="backdrop" hidden></div>
-<aside id="ownerMenu" class="owner-sidebar" aria-label="Staff product menu">
- <div class="owner-brand"><img src="../assets/brand/rainbow-logo.png" alt="" width="48" height="48"><div>RAINBOW<br>GOLD COVERING<small>Quick product entry</small></div></div>
- <nav aria-label="Product catalogue sections">
-  <button type="button" data-screen="editor" class="active">＋ Add Product</button>
-  <button type="button" data-screen="products">Products <span id="draftBadge" class="count">0 drafts</span></button>
-  <button type="button" data-screen="dashboard">Dashboard</button>
-  <button type="button" data-screen="categories">Categories &amp; Online</button>
-  <a href="../index.html" target="_blank" rel="noopener">Visit Store ↗</a>
-  <span class="nav-section">OTHER STAFF TOOLS</span>
-  <a href="products.html">Advanced Products</a>
-  <a href="inventory.html">Inventory</a>
-  <a href="billing.html">Billing</a>
-  <a href="orders.html">Orders</a>
-  <a href="customers.html">Customers</a>
-  <a href="my-attendance.html" data-non-admin>My Attendance</a>
-  <a href="index.html" data-admin-only>Admin Dashboard</a>
-  <button type="button" id="ownerLogout">Logout</button>
+<aside id="ownerMenu" class="owner-sidebar" aria-label="Staff menu">
+ <div class="owner-brand"><img src="../assets/brand/rainbow-logo.png" alt="" width="48" height="48"><div>RAINBOW<br>GOLD COVERING</div></div>
+ <nav aria-label="Staff navigation">
+  <div class="nav-group" role="group" aria-labelledby="navCatalogue">
+   <p class="nav-section" id="navCatalogue">Catalogue</p>
+   <button type="button" data-screen="dashboard">Catalogue Dashboard</button>
+   <button type="button" data-screen="products" class="active" aria-current="page">Products <span id="draftBadge" class="count" hidden></span></button>
+   <button type="button" data-screen="categories">Categories &amp; Online</button>
+   <a href="products.html">Advanced Products</a>
+  </div>
+  <div class="nav-group" role="group" aria-labelledby="navOperations">
+   <p class="nav-section" id="navOperations">Shop operations</p>
+   <a href="inventory.html">Inventory</a>
+   <a href="billing.html">Billing</a>
+   <a href="orders.html">Orders</a>
+   <a href="customers.html">Customers</a>
+  </div>
+  <div class="nav-group" role="group" aria-labelledby="navStaff">
+   <p class="nav-section" id="navStaff">Staff tools</p>
+   <a href="my-attendance.html" data-non-admin>My Attendance</a>
+   <a href="index.html" data-admin-only>Admin Dashboard</a>
+   <button type="button" id="ownerLogout">Log out</button>
+  </div>
  </nav>
- <p class="nav-note">Signed in with the existing Rainbow staff account. Publishing follows shop permissions.</p>
 </aside>
 <main id="ownerMain" tabindex="-1">
  <p id="roleAccessNote" class="permission-note" role="status" aria-live="polite"></p>
- <section id="screen-dashboard" class="screen">
+ <section id="screen-dashboard" class="screen" hidden>
   <div class="page-heading"><div><p class="eyebrow">STAFF CATALOGUE</p><h1>Catalogue dashboard</h1><p>Products and online availability at a glance.</p></div><button class="primary" type="button" data-screen="editor">＋ Add Product</button></div>
   <div class="stats" id="statTiles">
    <div><small>Published</small><strong id="statPublished">–</strong></div>
@@ -54,7 +59,7 @@
   </div>
   <section class="panel"><h2>Needs attention</h2><div id="needsAttention" class="attention-list">Loading…</div></section>
  </section>
- <section id="screen-products" class="screen" hidden>
+ <section id="screen-products" class="screen">
   <div class="page-heading"><div><p class="eyebrow">CATALOGUE</p><h1>Products</h1><p>All saved products. Use Categories &amp; Online to choose what customers see.</p></div><button class="primary" type="button" data-screen="editor">＋ Add Product</button></div>
   <div class="filter-bar">
    <label class="grow">Search products<input id="ownerSearch" type="search" placeholder="Name or product code" autocomplete="off"></label>
