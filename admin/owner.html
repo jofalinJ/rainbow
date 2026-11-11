@@ -9,16 +9,23 @@
 <title>Online Products | Rainbow Gold Covering</title>
 <link rel="stylesheet" href="style.css?v=20261103-premium">
 <link rel="stylesheet" href="premium.css?v=20261103">
-<link rel="stylesheet" href="owner.css?v=20261111-unified-admin">
+<link rel="stylesheet" href="owner.css?v=20261111-smooth-transition">
 <script src="config.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script defer src="app.js?v=20261111-online-products"></script>
+<script defer src="app.js?v=20261111-sidebar-ready"></script>
 <script defer src="image-prep.js?v=20261110"></script>
-<script defer src="owner.js?v=20261111-unified-admin"></script>
+<script defer src="owner.js?v=20261111-smooth-transition"></script>
 </head>
 <body>
 <aside aria-label="Admin sidebar"></aside>
-<div id="startup" role="status" class="startup">Checking your shop staff account…</div>
+<div id="startup" role="status" aria-live="polite" class="startup">
+  <div class="startup-content">
+    <img src="../assets/brand/rainbow-logo.png" alt="" width="48" height="48">
+    <span class="startup-spinner" aria-hidden="true"></span>
+    <strong>Online Products</strong>
+    <p>Opening your shop catalogue…</p>
+  </div>
+</div>
 <div id="ownerApp" hidden>
 <main id="ownerMain" tabindex="-1">
  <nav class="owner-page-tabs" aria-label="Online product tools">
