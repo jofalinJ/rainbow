@@ -2,10 +2,95 @@ const SUPABASE_CONFIG=window.RAINBOW_SUPABASE_CONFIG||{};
 const SUPABASE_URL=String(SUPABASE_CONFIG.supabaseUrl||"").trim();
 const SUPABASE_ANON_KEY=String(SUPABASE_CONFIG.supabasePublishableKey||"").trim();
 let sbClient=null;
+let portalUserId=null;
 function bootSupabase(){if(sbClient)return sbClient;if(!window.supabase?.createClient)throw new Error("Supabase library did not load. Refresh the page.");sbClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);return sbClient;}
-async function getAuthUser(){const {data,error}=await bootSupabase().auth.getUser();if(error){if(error.name==="AuthSessionMissingError"||error.status===401||error.status===403)location.href="login.html";throw new Error("Session error: "+error.message);}if(!data.user){location.href="login.html";throw new Error("Please sign in.");}return data.user;}
-async function requireSession(){const client=bootSupabase();const {data:userData,error:userError}=await client.auth.getUser();if(userError||!userData.user){location.href="login.html";throw new Error("Please sign in.");}const {data:sessionData,error:sessionError}=await client.auth.getSession();if(sessionError||!sessionData.session){location.href="login.html";throw new Error("Session expired. Please sign in again.");}return sessionData.session;}
-async function getMyProfile(){const user=await getAuthUser();const {data,error}=await bootSupabase().from("staff_profiles").select("role,active,full_name,username").eq("user_id",user.id).maybeSingle();if(error)throw new Error("Could not load staff profile: "+error.message);if(!data)throw new Error("No staff profile exists for this login.");return data;}
+function redirectToStaffLogin(){
+  location.href=location.pathname.endsWith("/owner.html")?"login.html?next=owner.html":"login.html";
+}
+async function getAuthUser(){
+  const {data,error}=await bootSupabase().auth.getUser();
+  if(error){
+    if(error.name==="AuthSessionMissingError"||error.status===401||error.status===403)redirectToStaffLogin();
+    throw new Error("Session error: "+error.message);
+  }
+  if(!data?.user){redirectToStaffLogin();throw new Error("Please sign in.");}
+  return data.user;
+}
+async function findActiveStaffProfile(client,userId){
+  const {data,error}=await client.from("staff_profiles")
+    .select("role,active,archived_at,full_name,username").eq("user_id",userId).maybeSingle();
+  if(error)throw new Error("Could not load staff profile: "+error.message);
+  return data?.active===true&&!data.archived_at&&["admin","inventory_staff","cashier"].includes(data.role)?data:null;
+}
+async function requireStaffProfile(userId){
+  const profile=await findActiveStaffProfile(bootSupabase(),userId);
+  if(!profile){redirectToStaffLogin();throw new Error("An active staff account is required.");}
+  return profile;
+}
+function closeStaffPage(){
+  document.body.inert=true;
+  document.body.style.visibility="hidden";
+  redirectToStaffLogin();
+}
+async function getStaffAccess(){
+  const client=bootSupabase();
+  const user=await getAuthUser();
+  const profile=await requireStaffProfile(user.id);
+  const {data,error}=await client.auth.getSession();
+  if(error||data?.session?.user?.id!==user.id){
+    redirectToStaffLogin();
+    throw new Error("Session expired. Please sign in again.");
+  }
+  if(portalUserId&&portalUserId!==user.id){
+    closeStaffPage();
+    throw new Error("Session changed. Please sign in again.");
+  }
+  portalUserId=user.id;
+  return {profile,session:data.session};
+}
+async function requireSession(){return (await getStaffAccess()).session;}
+async function getMyProfile(){
+  return (await getStaffAccess()).profile;
+}
+
+function bindStaffLogin(form){
+  const msg=document.getElementById("msg");
+  if(!SUPABASE_URL||!SUPABASE_ANON_KEY||!window.supabase?.createClient){
+    msg.textContent="Login configuration is unavailable.";
+    return;
+  }
+  const username=document.getElementById("username");
+  const password=document.getElementById("password");
+  const submit=form.querySelector("button");
+  // Keep credentials entered here out of the shared browser session until staff
+  // membership has been verified. A rejected attempt leaves storefront sign-in intact.
+  const verifier=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{
+    storageKey:"rainbow-staff-login-check",persistSession:false,autoRefreshToken:false,detectSessionInUrl:false
+  }});
+  form.addEventListener("submit",async event=>{
+    event.preventDefault();
+    if(submit.disabled)return;
+    submit.disabled=true;
+    msg.textContent="Signing in…";
+    try{
+      const loginId=username.value.trim();
+      const email=loginId.includes("@")?loginId:loginId.toLowerCase()+"@staff.rainbow.local";
+      const {data,error}=await verifier.auth.signInWithPassword({email,password:password.value});
+      if(error||!data?.user||!data.session||!await findActiveStaffProfile(verifier,data.user.id)){
+        msg.textContent="Invalid username or password.";
+        return;
+      }
+      const {access_token,refresh_token}=data.session;
+      const {data:stored,error:sessionError}=await bootSupabase().auth.setSession({access_token,refresh_token});
+      if(sessionError||stored?.session?.user?.id!==data.user.id)throw new Error("Staff session could not be saved.");
+      location.href=new URLSearchParams(location.search).get("next")==="owner.html"?"owner.html":"index.html";
+    }catch{
+      msg.textContent="Could not sign in right now. Please try again.";
+    }finally{
+      submit.disabled=false;
+    }
+  });
+}
 async function sb(path,options={}){const session=await requireSession();const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),15000);try{const r=await fetch(SUPABASE_URL+"/rest/v1/"+path,{...options,headers:{apikey:SUPABASE_ANON_KEY,Authorization:"Bearer "+session.access_token,"Content-Type":"application/json",...(options.headers||{})},signal:controller.signal});const body=await r.text();if(!r.ok)throw new Error(body||("Request failed: "+r.status));if(!body.trim())return null;return JSON.parse(body);}catch(e){if(e.name==="AbortError")throw new Error("Supabase request timed out. Check your connection.");throw e;}finally{clearTimeout(timer);}}
 const ADMIN_NAV_ITEMS=[
   {label:"Dashboard",href:"index.html",roles:["admin"]},
@@ -63,8 +148,6 @@ function renderAuthorizedSidebar(profile,allowedItems){
 async function applyRoleNavigation(){
   try{
     const p=await getMyProfile();
-    if(!p.active){await bootSupabase().auth.signOut();location.href="login.html";return null;}
-    if(!["admin","inventory_staff","cashier"].includes(p.role))throw new Error("Invalid staff role: "+p.role);
     const allowedItems=ADMIN_NAV_ITEMS.filter(item=>item.roles.includes(p.role));
     const page=(location.pathname.split("/").pop()||"index.html").toLowerCase();
     if(!allowedItems.some(item=>item.href.split("?")[0]===page)){
@@ -72,6 +155,7 @@ async function applyRoleNavigation(){
       return null;
     }
     renderAuthorizedSidebar(p,allowedItems);
+    document.body.inert=false;
     return p;
   }catch(e){
     console.error(e);
@@ -101,12 +185,6 @@ function startDashboardLiveUpdates(){
   document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")loadDashboard();});
   window.addEventListener("pagehide",()=>{if(dashboardRefreshTimer)clearTimeout(dashboardRefreshTimer);if(dashboardPollTimer)clearInterval(dashboardPollTimer);if(dashboardLiveChannel)client.removeChannel(dashboardLiveChannel);},{once:true});
 }
-  // Staff app installation only: pages remain authenticated and require online APIs.
-  if(typeof navigator!=="undefined"&&"serviceWorker" in navigator&&window.isSecureContext&&document.head){
-    const link=document.createElement("link");link.rel="manifest";link.href="manifest.webmanifest";document.head.append(link);
-    const script=document.createElement("script");script.src="pwa.js";document.head.append(script);
-  }
-renderSharedSidebar();
 async function bootAdminPage(){
   const profile=await applyRoleNavigation();
   if(profile?.role==="admin"&&document.querySelector("#sales")){
@@ -116,5 +194,24 @@ async function bootAdminPage(){
 }
 // Pages with privileged content can wait for the shared navigation to finish
 // verifying staff access before removing their initial loading cover.
-function startAdminPage(){window.rainbowSidebarReady=bootAdminPage();}
-if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",startAdminPage,{once:true});else startAdminPage();
+function startAdminPage(){
+  if(window.supabase?.createClient){
+    bootSupabase().auth.onAuthStateChange((_event,session)=>{
+      if(portalUserId&&session?.user?.id!==portalUserId)closeStaffPage();
+    });
+  }
+  window.rainbowSidebarReady=bootAdminPage();
+}
+const staffLoginForm=document.querySelector("#login");
+if(staffLoginForm){
+  bindStaffLogin(staffLoginForm);
+}else{
+  document.body.inert=true;
+  // Staff app installation only: pages remain authenticated and require online APIs.
+  if(typeof navigator!=="undefined"&&"serviceWorker" in navigator&&window.isSecureContext&&document.head){
+    const link=document.createElement("link");link.rel="manifest";link.href="manifest.webmanifest";document.head.append(link);
+    const script=document.createElement("script");script.src="pwa.js";document.head.append(script);
+  }
+  renderSharedSidebar();
+  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",startAdminPage,{once:true});else startAdminPage();
+}

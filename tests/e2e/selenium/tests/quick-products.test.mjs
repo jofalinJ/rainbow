@@ -106,7 +106,12 @@ function browserFixture(){
   return q;
  }
  const client={
-  auth:{getUser:async()=>dataResult({user:{id:"dddddddd-dddd-4ddd-8ddd-dddddddddddd"}}),signOut:async()=>dataResult(null)},
+  auth:{
+   getUser:async()=>dataResult({user:{id:staff[0].user_id}}),
+   getSession:async()=>dataResult({session:{user:{id:staff[0].user_id}}}),
+   onAuthStateChange(){},
+   signOut:async()=>dataResult(null)
+  },
   from:query,
   storage:{from:()=>({
    createSignedUploadUrl:async item=>dataResult({path:item,token:"local-fixture-token"}),
