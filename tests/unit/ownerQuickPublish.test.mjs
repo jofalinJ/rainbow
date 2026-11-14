@@ -22,7 +22,7 @@ describe("owner quick publishing integrates with the existing shop",()=>{
   expect(html).not.toMatch(/salesforce/i);
   expect(html).toContain('id="roleAccessNote"');
   expect(html).toContain('id="ownerBulkBar"');
-  expect(html).toContain('app.js?v=20261111-sidebar-ready');
+  expect(html).toContain('app.js?v=20261114-staff-access');
   expect(html).not.toContain("storefront-header");
   expect(html).not.toContain("storefront-footer");
  });
@@ -139,7 +139,8 @@ describe("owner quick publishing integrates with the existing shop",()=>{
  });
  it("keeps returning admins in the owner area without open redirects",()=>{
   const login=read("admin/login.html");
-  expect(login).toContain('get("next")==="owner.html"');
+  expect(login).toContain('src="app.js?v=20261114-staff-access"');
+  expect(read("admin/app.js")).toContain('get("next")==="owner.html"');
   const admin=read("admin/app.js");
   expect(admin).toContain('{label:"Online Products",href:"owner.html?screen=categories",roles:["admin","inventory_staff","cashier"]}');
  });

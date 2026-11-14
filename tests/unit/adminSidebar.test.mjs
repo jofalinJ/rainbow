@@ -28,20 +28,24 @@ class Element {
   }
 }
 
-function sidebarFor(role, page, authResult) {
+function sidebarFor(role, page, authResult, options={}) {
   const aside = new Element("aside");
   const location = { pathname: "/admin/" + page, href: "" };
   const document = {
     readyState: "loading",
-    body: { appendChild() {} },
+    body: { inert:false,style:{},appendChild() {} },
     createElement: tag => new Element(tag),
     querySelector: selector => selector === "body > aside" ? aside : null,
     addEventListener() {}
   };
-  const profile = { role, full_name: "Current staff member", active: true };
+  const profile = options.profile===undefined
+    ? { role, full_name: "Current staff member", active: true } : options.profile;
+  let onAuthChange;
   const client = {
     auth: {
       getUser: async () => authResult || ({ data: { user: { id: "staff-1" } }, error: null }),
+      getSession: async () => ({data:{session:{user:{id:options.sessionUser||"staff-1"}}},error:null}),
+      onAuthStateChange: callback => {onAuthChange=callback;},
       signOut: async () => ({ error: null })
     },
     from: () => ({
@@ -59,7 +63,10 @@ function sidebarFor(role, page, authResult) {
   };
   const context = createContext({ document, window, location, console: { ...console, error() {} } });
   runInContext(source, context, { filename: "admin/app.js" });
-  return { aside, location, verify: () => runInContext("applyRoleNavigation()", context) };
+  return { aside, location, body:document.body, verify: () => runInContext("applyRoleNavigation()", context),
+    requireSession: () => runInContext("requireSession()", context),
+    start: () => runInContext("startAdminPage(); window.rainbowSidebarReady", context),
+    updateSession: (event,session) => onAuthChange(event,session) };
 }
 
 describe("shared admin sidebar", () => {
@@ -77,6 +84,39 @@ describe("shared admin sidebar", () => {
     const {location, verify}=sidebarFor("admin","staff.html",{data:{user:null},error:{name:"AuthRetryableFetchError",status:503,message:"Unavailable"}});
     await verify();
     expect(location.href).toBe("");
+  });
+  it.each([
+    ["storefront",null],
+    ["disabled",{role:"cashier",active:false}],
+    ["archived",{role:"admin",active:true,archived_at:"2026-11-14"}],
+    ["unsupported",{role:"customer",active:true}]
+  ])("denies a %s account at the shared portal access check",async (_label,profile)=>{
+    const {aside,location,verify,requireSession}=sidebarFor("admin","billing.html",null,{profile});
+    await expect(requireSession()).rejects.toThrow("An active staff account is required.");
+    expect(location.href).toBe("login.html");
+    await expect(verify()).resolves.toBeNull();
+    expect(aside.querySelector("nav").children).toHaveLength(0);
+  });
+  it.each(["admin","cashier","inventory_staff"])("accepts an active %s browser session",async role=>{
+    const {requireSession}=sidebarFor(role,"billing.html");
+    await expect(requireSession()).resolves.toMatchObject({user:{id:"staff-1"}});
+  });
+  it("requires the verified profile and session to belong to the same user",async ()=>{
+    const {requireSession,location}=sidebarFor("admin","owner.html",null,{sessionUser:"another-user"});
+    await expect(requireSession()).rejects.toThrow("Session expired.");
+    expect(location.href).toBe("login.html?next=owner.html");
+  });
+  it("closes a staff page if the browser changes to a different account",async ()=>{
+    const {body,location,start,updateSession}=sidebarFor("cashier","billing.html");
+    expect(body.inert).toBe(true);
+    await start();
+    expect(body.inert).toBe(false);
+    updateSession("TOKEN_REFRESHED",{user:{id:"staff-1"}});
+    expect(body.inert).toBe(false);
+    updateSession("SIGNED_IN",{user:{id:"different-user"}});
+    expect(body.inert).toBe(true);
+    expect(body.style.visibility).toBe("hidden");
+    expect(location.href).toBe("login.html");
   });
   it.each([
     ["inventory_staff", "inventory.html"],
@@ -132,7 +172,7 @@ describe("shared admin sidebar", () => {
       "products.html","reports.html","settings.html","staff.html"];
     for(const page of pages){
       const html=readFileSync(path.resolve("admin",page),"utf8");
-      expect(html).toContain("app.js?v=20261111-online-products");
+      expect(html).toContain("app.js?v=20261114-staff-access");
       expect(html).not.toContain("app.js?v=20261018-unified-shop-staff-v2");
     }
   });
