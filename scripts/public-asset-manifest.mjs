@@ -10,7 +10,7 @@ export const publicRootFiles=[
   "content.css","content.js","mobile-storefront.css","mobile-storefront.js","design-system.css","premium-storefront.css","invoice-template.css","invoice-template.js",
   "invoice.js","order-pricing.mjs","pin-lookup.mjs","order.css","order.js",
   "payment-config.js","order-razorpay.mjs",
-  "product-page.css","product-page.js","shop-catalogue.js"
+  "product-page.css","product-page.js","shop-catalogue.js","shop-bag.js"
 ];
 export const publicDirectories=["admin","staff","assets","src/domain","categories","products"];
 

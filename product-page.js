@@ -5,7 +5,7 @@
  const safeUrl=new URL(location.href),sku=(safeUrl.searchParams.get("sku")||"").trim();
  const cfg=window.RAINBOW_SUPABASE_CONFIG||{};
  const money=n=>"₹"+Number(n||0).toLocaleString("en-IN",{maximumFractionDigits:2});
- const cartKey="rainbow_cart_v1";
+ const bag=window.RainbowBag;
  const set=(id,value)=>{if($(id))$(id).textContent=String(value??"");};
  const showError=message=>{$("productLoading").hidden=true;$("productError").hidden=false;set("productError",message);};
  if(!sku||sku.length>100){showError("This design link is incomplete. Browse available jewellery instead.");return;}
@@ -20,31 +20,30 @@
  const imagesOf=p=>(p.product_images||[]).filter(i=>i.public_url).sort((a,b)=>Number(Boolean(b.is_primary))-Number(Boolean(a.is_primary))||Number(a.sort_order||0)-Number(b.sort_order||0)).slice(0,5);
  const inStock=p=>(p.product_variants||[]).filter(v=>v.active!==false&&Number(v.stock_quantity)>0);
  const variantLabel=v=>[v.color&&v.color!=="0"?"Colour: "+v.color:"",v.size&&v.size!=="0"?"Size: "+v.size:"",v.length_cm?"Length: "+v.length_cm+" cm":""].filter(Boolean).join(" · ")||"Standard";
- const cart=()=>{try{const items=JSON.parse(localStorage.getItem(cartKey)||"[]");return Array.isArray(items)?items:[];}catch{return[];}};
- function refreshCart(){set("detailCartCount","("+cart().reduce((s,x)=>s+Number(x.quantity||0),0)+")");}
+ function refreshCart(){set("detailCartCount","("+bag.read().reduce((sum,item)=>sum+Number(item.quantity),0)+")");}
+ refreshCart();
+ window.addEventListener("storage",event=>{if(event.key===bag.key||event.key===null)refreshCart();});
+ window.addEventListener("pageshow",event=>{if(event.persisted)refreshCart();});
  let product,selected;
  function updateVariant(){
    selected=inStock(product).find(v=>String(v.id)===$("detailVariant").value)||null;
    const stock=selected?Number(selected.stock_quantity):0;
    set("detailStock",stock>0?stock+" available":"Out of stock");
-   $("detailQty").max=String(Math.max(1,stock));$("detailQty").value=String(Math.min(stock||1,Math.max(1,Number($("detailQty").value)||1)));
+   const maxQuantity=Math.min(bag.maxQuantity,Math.max(1,stock));
+   $("detailQty").max=String(maxQuantity);$("detailQty").value=String(Math.min(maxQuantity,Math.max(1,Number($("detailQty").value)||1)));
+   $("detailQty").disabled=!selected;
    $("detailAdd").disabled=!selected;$("detailBuy").disabled=!selected;
  }
  function addToCart(buy){
    if(!selected)return;
    const qty=Number($("detailQty").value);
-   if(!Number.isInteger(qty)||qty<1||qty>Number(selected.stock_quantity)){set("detailMessage","Choose an available quantity.");return;}
-   const items=cart();
-   const existing=items.find(item=>String(item.variant_id)===String(selected.id));
-   const current=Number(existing?.quantity||0);
-   if(current+qty>Number(selected.stock_quantity)){set("detailMessage","Only "+selected.stock_quantity+" available; reduce the quantity.");return;}
-   const line={variant_id:selected.id,quantity:current+qty,variant_label:variantLabel(selected),product:{
+   const line={variant_id:selected.id,variant_label:variantLabel(selected),product:{
      id:product.id,product_code:product.product_code,product_name:product.product_name,type:product.type,
      selling_price:Number(product.selling_price),description:product.description||"",image:imagesOf(product)[0]?.public_url||"",
      variant_color:selected.color||null,variant_size:selected.size||null,variant_length_cm:selected.length_cm||null
    }};
-   if(existing)Object.assign(existing,line);else items.push(line);
-   try{localStorage.setItem(cartKey,JSON.stringify(items));}catch{set("detailMessage","Could not save your bag on this device.");return;}
+   const error=bag.add(line,qty,selected.stock_quantity);
+   if(error){set("detailMessage",error);return;}
    window.RainbowAnalytics?.track("add_to_cart",{item_id:product.product_code,quantity:qty});
    refreshCart();set("detailMessage","Added to your bag.");
    if(buy)location.href="order.html";
@@ -140,6 +139,11 @@
    document.head.append(json);
    $("productLoading").hidden=true;$("productDetail").hidden=false;
    refreshCart();window.RainbowAnalytics?.track("view_item",{item_id:product.product_code});
-   if(product.type){const related=await client.from("products").select(fields).eq("active",true).eq("erp_online_listings.published",true).eq("type",product.type).neq("id",product.id).limit(8);if(!related.error)renderRelated(related.data||[]);}
+   if(product.type){
+     try{
+       const related=await client.from("products").select(fields).eq("active",true).eq("erp_online_listings.published",true).eq("type",product.type).neq("id",product.id).limit(8);
+       if(!related.error)renderRelated(related.data||[]);
+     }catch(error){console.warn("Related designs could not be loaded",error);}
+   }
  }catch(error){console.error("Product detail fetch failed",error);showError("We couldn't load this design. Please check your connection and try again.");}
 })();

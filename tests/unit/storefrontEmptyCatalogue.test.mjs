@@ -20,6 +20,6 @@ describe("zero-stock storefront remains useful to shoppers",()=>{
     expect(script).toContain("Retry loading below");
   });
   it("serves the new script rather than cached old empty-state content",()=>{
-    expect(home).toContain("content.js?v=20261103-empty-catalogue");
+    expect(home).toContain("content.js?v=20261114-shopping");
   });
 });

@@ -50,8 +50,8 @@ describe("online-only checkout readiness",()=>{
   });
   it("requires verified stock, shipping and gateway readiness before online payment",()=>{
     expect(js).toContain("shipping!==null");
-    expect(js).toContain("cart.every(cartItemHasStock)");
-    expect(js).toContain("if(!cartVerified||cartVerificationFailed)");
+    expect(js).toContain("cart.some(item=>!cartItemHasStock(item))");
+    expect(js).toContain("if(!cartVerified||cartVerificationFailed||bagProblem())");
     expect(js).toContain("if(!razorpayReady)");
     expect(js).toContain("beginRazorpayPayment({");
     expect(js).toContain("displayTotal:totals().total");

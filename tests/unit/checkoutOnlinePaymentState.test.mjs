@@ -9,6 +9,7 @@ const part=(start,end)=>{
   return source.slice(a,b);
 };
 const stock=part("  function cartItemHasStock(item){","  function render(){");
+const savedBag=part("  function cartIsCurrent(){","  function updateCount(){");
 const update=part("  function updatePlaceOrderState(){","    async function verifyCart(){");
 const readiness=part("  async function checkGateway(){",'  $("retryGateway").addEventListener');
 const submission=part("    async function placeOrder(){",'\n  $("clearCart")');
@@ -30,6 +31,8 @@ function checkout(overrides={}){
     orderLayout:{hidden:false},orderSuccess:{hidden:true,innerHTML:""},
   };
   const notes={badge:{},choice:{},safety:{}};
+  const cart=overrides.cart??[{variant_id:"qa-variant",quantity:1,current_stock:5}];
+  let storedCart=structuredClone(cart);
   const context={
     $:id=>fields[id],
     document:{querySelector:selector=>({
@@ -37,17 +40,18 @@ function checkout(overrides={}){
       "#razorpayChoice .payment-choice-note":notes.choice,
       "#razorpayDetails .payment-safety":notes.safety,
     })[selector]||null},
-    sb:{rpc:vi.fn()},cart:[{variant_id:"qa-variant",quantity:1,current_stock:5}],
-    cartVerified:true,cartVerificationFailed:false,submitting:false,razorpayReady:false,razorpayMode:"test",readinessAttempt:0,
+    sb:{rpc:vi.fn()},cart,readBag:()=>structuredClone(storedCart),lastSavedCart:JSON.stringify(storedCart),
+    MAX_CART_LINES:50,MAX_CART_QUANTITY:100,
+    cartVerified:true,cartVerificationFailed:false,cartRefreshPending:false,submitting:false,razorpayReady:false,razorpayMode:"test",readinessAttempt:0,
     deliveryFeeForState:value=>value==="Tamil Nadu"?50:null,
     razorpayAvailability:vi.fn(async()=>({available:false,mode:"test",message:"Payment service unavailable"})),
     beginRazorpayPayment:vi.fn(async()=>({status:"dismissed"})),
-    validateDeliveryFields:()=>true,msg:vi.fn(),render:vi.fn(),save:vi.fn(),focusOrderConfirmation:vi.fn(),
+    validateDeliveryFields:()=>true,msg:vi.fn(),cartStatus:vi.fn(),render:vi.fn(()=>context.update()),refreshCart:vi.fn(),save:vi.fn(()=>true),focusOrderConfirmation:vi.fn(),
     totals:()=>({total:100}),esc:value=>String(value),URL,console:{error:vi.fn()},
     ...overrides,
   };
-  runInNewContext(stock+update+readiness+submission+"\nthis.update=updatePlaceOrderState;this.check=checkGateway;this.submit=placeOrder;",context);
-  return {context,fields,notes,classNames};
+  runInNewContext(stock+savedBag+update+readiness+submission+"\nthis.update=updatePlaceOrderState;this.check=checkGateway;this.submit=placeOrder;",context);
+  return {context,fields,notes,classNames,storeCart:items=>{storedCart=items;}};
 }
 
 describe("online-only checkout readiness and submission",()=>{
@@ -108,6 +112,8 @@ describe("online-only checkout readiness and submission",()=>{
     ["unavailable variant",{cart:[{quantity:1,current_stock:5,unavailable:true}]}],
     ["insufficient stock",{cart:[{quantity:6,current_stock:5}]}],
     ["unknown stock",{cart:[{quantity:1}]}],
+    ["too many options",{cart:Array.from({length:51},(_,variant_id)=>({variant_id,quantity:1,current_stock:5}))}],
+    ["too many pieces of one option",{cart:[{quantity:101,current_stock:150}]}],
     ["submission already running",{submitting:true}],
   ])("keeps Pay disabled with %s even when the gateway is ready",(_label,overrides)=>{
     const ui=checkout({razorpayReady:true,...overrides});
@@ -160,6 +166,27 @@ describe("online-only checkout readiness and submission",()=>{
     ui.fields.whatsappReceiptConsent.checked=true;
     await ui.context.submit();
     expect(send.mock.calls[1][0].customer.whatsapp_opt_in).toBe(true);
+  });
+
+  it("refreshes instead of submitting when another tab changed the saved bag",async()=>{
+    const ui=checkout({razorpayReady:true});
+    ui.storeCart([{variant_id:"another-variant",quantity:1}]);
+    await ui.context.submit();
+    expect(ui.context.refreshCart).toHaveBeenCalledOnce();
+    expect(ui.context.beginRazorpayPayment).not.toHaveBeenCalled();
+  });
+
+  it("removes the quantities paid for and preserves additions made during payment",async()=>{
+    const payment=defer();
+    const ui=checkout({razorpayReady:true,beginRazorpayPayment:vi.fn(()=>payment.promise)});
+    const paid=ui.context.submit();
+    const newLine={variant_id:"another-variant",quantity:1};
+    ui.storeCart([{variant_id:"qa-variant",quantity:3},newLine]);
+    payment.resolve({status:"paid",mode:"live",orderNumber:"RG-123"});
+    await paid;
+    expect(ui.context.save).toHaveBeenCalledExactlyOnceWith([{variant_id:"qa-variant",quantity:2},newLine]);
+    expect(ui.fields.orderLayout.hidden).toBe(true);
+    expect(ui.fields.orderSuccess.hidden).toBe(false);
   });
 
   it("keeps an authorized payment pending with its order number and without exposing an invoice",async()=>{
