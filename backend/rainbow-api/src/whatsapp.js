@@ -1,5 +1,6 @@
 // Official Meta WhatsApp Cloud API sender. Runs only from the Worker cron.
-// No browser can invoke this, and no tests send live WhatsApp traffic.
+// No browser can invoke this, and tests must mock all provider requests.
+import {isLiveConfigured} from "./payment-crypto.js";
 const digits=v=>String(v||"").replace(/\D/g,"");
 const validNumber=v=>/^[1-9]\d{9,14}$/.test(v);
 
@@ -7,10 +8,18 @@ export async function sendPaidInvoiceWhatsApp(env, {fetchImpl=fetch}={}){
   if(env.WHATSAPP_SEND_ENABLED!=="true")return {state:"disabled"};
   const allowlist=String(env.WHATSAPP_TEST_RECIPIENT_ALLOWLIST||"")
     .split(",").map(digits).filter(validNumber);
-  // This Worker ONLY supports rzp_test_ keys: do not send to actual customers
-  // unless a number was explicitly allowlisted for test notifications.
-  if(!String(env.RAZORPAY_KEY_ID||"").startsWith("rzp_test_") || !allowlist.length)
+  const live=env.PAYMENTS_MODE==="live";
+  // Default to an allowlisted dry run even when Razorpay itself is live.
+  // Releasing customer-wide WhatsApp is a separate, explicit operator action.
+  if(live){
+    if(!isLiveConfigured(env))return {state:"live_payment_not_ready"};
+    if(env.WHATSAPP_LIVE_SEND_ENABLED!=="true")return {state:"live_notifications_disabled"};
+  }else if((env.PAYMENTS_MODE && env.PAYMENTS_MODE!=="test") ||
+           !String(env.RAZORPAY_KEY_ID||"").startsWith("rzp_test_")){
     return {state:"test_recipient_allowlist_required"};
+  }
+  const sendAll=live && env.WHATSAPP_LIVE_SEND_ALL==="true";
+  if(!sendAll && !allowlist.length)return {state:"test_recipient_allowlist_required"};
   const token=String(env.WHATSAPP_ACCESS_TOKEN||"");
   const phoneId=String(env.WHATSAPP_PHONE_NUMBER_ID||"");
   const template=String(env.WHATSAPP_TEMPLATE_NAME||"");
@@ -32,7 +41,7 @@ export async function sendPaidInvoiceWhatsApp(env, {fetchImpl=fetch}={}){
   };
 
   const pending=await rpc("claim_paid_invoice_whatsapp",{
-    p_limit:5,p_allowed_numbers:allowlist
+    p_limit:5,p_allowed_numbers:sendAll?null:allowlist
   });
   if(!Array.isArray(pending))throw new Error("Invalid WhatsApp outbox batch");
   const graphUrl="https://graph.facebook.com/"+version+"/"+phoneId+"/messages";
@@ -42,7 +51,7 @@ export async function sendPaidInvoiceWhatsApp(env, {fetchImpl=fetch}={}){
     const recipient=digits(item.recipient);
     let invoice;
     try{invoice=new URL(item.invoice_url);}catch{invoice=null;}
-    const approved=allowlist.includes(recipient)&&validNumber(recipient)&&
+    const approved=(sendAll||allowlist.includes(recipient))&&validNumber(recipient)&&
       invoice?.origin==="https://rainbowgoldcovering.com"&&
       invoice.pathname==="/invoice.html"&&
       /^[0-9a-f-]{36}$/i.test(invoice.searchParams.get("token")||"");
