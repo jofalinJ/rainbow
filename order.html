@@ -25,10 +25,12 @@
     <section class="order-card checkout-panel" aria-labelledby="bagHeading">
       <div class="order-card-head">
         <div><span class="checkout-eyebrow">STEP 01 / YOUR BAG</span><h2 id="bagHeading">Your bag</h2></div>
-        <button id="clearCart" type="button">Clear bag</button>
+        <button id="clearCart" type="button" disabled>Clear bag</button>
       </div>
       <p class="checkout-subtitle checkout-essential-note">Prices and stock are verified before payment.</p>
       <div id="orderItems"></div>
+      <p id="cartStatus" class="order-msg" role="status" hidden></p>
+      <button id="retryCart" type="button" class="payment-retry" hidden>Retry price and stock check</button>
     </section>
     <section class="order-card checkout-panel" aria-labelledby="deliveryHeading">
       <div class="checkout-section-title"><span class="checkout-eyebrow">STEP 02 / DELIVERY</span><h2 id="deliveryHeading">Delivery details</h2></div>
@@ -88,5 +90,5 @@
   </aside>
 </div></div></main>
 <footer class="container footer"><span class="footer-brand"><img class="footer-logo" src="assets/brand/rainbow-logo.png" alt="Rainbow Gold Covering logo" width="28" height="28" loading="lazy"><span>RAINBOW GOLD COVERING</span></span><span><a class="instagram-link" href="https://www.instagram.com/rainbow_kollam_gold_covering/" target="_blank" rel="noopener noreferrer">Instagram · @rainbow_kollam_gold_covering</a></span><span class="footer-legal-link"><a href="privacy-policy.html">Privacy Policy</a></span><span class="footer-legal-link"><a href="terms-and-conditions.html">Terms &amp; Conditions</a></span><span class="footer-legal-link"><a href="sitemap.html">Sitemap</a></span></footer>
-<script src="payment-config.js?v=20261021-checkout-v2"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script type="module" src="order.js?v=20261111-whatsapp-receipt-optin"></script>
+<script src="payment-config.js?v=20261021-checkout-v2"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="shop-bag.js?v=20261114-shopping"></script><script type="module" src="order.js?v=20261114-shopping"></script>
 </body></html>

@@ -22,6 +22,15 @@ async function runWithDriver(name, fn) {
   finally { await driver.quit(); }
 }
 
+async function waitForCatalogue(driver){
+  const status=await driver.findElement(By.id("productStatus"));
+  await driver.wait(async()=>{
+    const value=(await status.getText()).trim();
+    return Boolean(value)&&!["Loading products…","Loading jewellery…"].includes(value);
+  },35000);
+  return (await status.getText()).trim();
+}
+
 test("customer home page loads and exposes the main shopping sections", async () => {
   await runWithDriver("customer-home", async (driver) => {
     await driver.get(BASE_URL + "/");
@@ -37,14 +46,7 @@ test("customer home page loads and exposes the main shopping sections", async ()
 test("customer product catalogue resolves to a usable state", async () => {
   await runWithDriver("customer-products", async (driver) => {
     await driver.get(BASE_URL + "/");
-    const status = await driver.findElement(By.css("#productStatus"));
-    // The catalogue has a 15-second network timeout; give its explicit empty
-    // or connectivity state enough time to render instead of racing that timer.
-    await driver.wait(async () => {
-      const value=(await status.getText()).trim();
-      return Boolean(value)&&!["Loading products…","Loading jewellery…"].includes(value);
-    },25000);
-    const value = (await status.getText()).trim();
+    const value=await waitForCatalogue(driver);
     assert.notEqual(value, "Products are temporarily unavailable.");
     assert.match(value, /choose a product type|no product types|online collections are being prepared|product(s)? available/i);
   });
@@ -122,8 +124,7 @@ test("customer mobile navigation opens and closes with accessible state", async 
 test("admin-selected homepage promotion opens the matching product details", async () => {
   await runWithDriver("featured-promotion", async (driver) => {
     await driver.get(BASE_URL + "/");
-    const status = await driver.findElement(By.css("#productStatus"));
-    await driver.wait(async () => (await status.getText()).trim() !== "Loading products…", 15000);
+    await waitForCatalogue(driver);
     const section = await driver.findElement(By.css("#featuredPromotion"));
     // The feature is intentionally hidden until an admin publishes a product.
     if (!(await section.isDisplayed())) return;
@@ -201,8 +202,7 @@ test("mobile storefront puts cart beside account and displays photo categories w
     await driver.findElement(By.css("#menuToggle")).click();
     const drawer=await driver.findElement(By.css("#shopDrawer"));
     await driver.wait(async()=>driver.executeScript(element=>Math.abs(element.getBoundingClientRect().left)<1,drawer),5000);
-    const status=await driver.findElement(By.css("#productStatus"));
-    await driver.wait(async()=> (await status.getText()).trim()!=="Loading products…",15000);
+    await waitForCatalogue(driver);
     // Catalogue refreshes may replace links; inspect one consistent DOM snapshot.
     const categories=await driver.findElement(By.css("#drawerCategories"));
     const imageCounts=await driver.executeScript(element=>Array.from(element.querySelectorAll(".drawer-type-link"),link=>

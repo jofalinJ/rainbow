@@ -10,6 +10,10 @@ function section(start,end){
 }
 const requestSource=section("  function catalogueRequest(","  const initialSection=");
 const loadSource=section("  async function loadMoreProducts(","  function resetCatalogue(");
+const renderSource=section("  function render(){","  function bindCollectionFilters(");
+const pagerSource=section("  function renderPager(","  async function loadMoreProducts(");
+const pagingSource=section("  function resetCatalogue(","  function scheduleCatalogRefresh(");
+const homepageSource=section("  async function loadLatestProducts(","  function startRealtime(");
 const deferred=()=>{
   let resolve,reject;
   const promise=new Promise((yes,no)=>{resolve=yes;reject=no;});
@@ -35,6 +39,34 @@ function harness(){
   });
   runInNewContext(requestSource+loadSource+"\nthis.load=loadMoreProducts;this.request=catalogueRequest;",context);
   return {context,page,snapshots,status,load:context.load,request:context.request};
+}
+
+function desktopHomepage(){
+  const ui=harness(),{context,status}=ui;
+  const grid={innerHTML:"",querySelectorAll:()=>[]};
+  const pager={hidden:true};
+  let retry;
+  const button={addEventListener:(_event,listener)=>{retry=listener;}};
+  const nodes={productGrid:grid,productStatus:status,cataloguePager:pager,cataloguePageStatus:{},loadMoreProducts:button};
+  const categories=vi.fn(),promotions=vi.fn();
+  const client={from:table=>{
+    const query={select:()=>query,eq:()=>query,order:()=>query,limit:()=>query,
+      then:(resolve,reject)=>(table==="categories"?categories():promotions()).then(resolve,reject)};
+    return query;
+  }};
+  Object.assign(context,{
+    client,metadataLoading:false,marketingLoading:false,catalogueCategoriesLoaded:false,
+    catalogueCategories:[],promotionProductIds:[],promotionProducts:[],newestProducts:[],
+    visibleProducts:[],activeCategory:"",activeSearch:"",activeSegment:"all",catalogueSort:"featured",filterState:{},
+    showAllProducts:false,visualSearchSignature:null,wishlistOnly:false,
+    categoryBuckets:()=>context.catalogueCategories.map(category=>({label:category.name,products:[]})),
+    renderCategorySidebar:vi.fn(),renderMobileCategories:vi.fn(),renderLatestArrivals:vi.fn(),
+    esc:value=>value,categoryIcon:()=>"",
+    document:{getElementById:id=>nodes[id],querySelectorAll:()=>[],body:{classList:{toggle:vi.fn()}}},
+    window:{setTimeout,clearTimeout,matchMedia:()=>({matches:false})}
+  });
+  runInNewContext(renderSource+pagerSource+pagingSource+homepageSource+"\nbindCataloguePaging();this.loadHomepage=loadProducts;",context);
+  return {...ui,grid,pager,button,categories,promotions,retry,loadHomepage:context.loadHomepage};
 }
 
 beforeEach(()=>vi.useFakeTimers());
@@ -126,6 +158,51 @@ describe("desktop catalogue request lifecycle",()=>{
     await Promise.resolve();await Promise.resolve();
     expect(ui.snapshots).toHaveLength(completedRenders);
     expect(ui.context.catalogueProducts).toEqual([]);
+  });
+});
+
+describe("desktop catalogue homepage",()=>{
+  it.each(["categories","products"])("shows Retry when %s fail to load from the category landing page",async failure=>{
+    const ui=desktopHomepage();
+    const categoryResult={data:[{name:"Rings"}],error:null};
+    const products={items:[],total:0,hasMore:false};
+    ui.categories.mockResolvedValue(categoryResult);
+    ui.promotions.mockResolvedValue({data:[],error:null});
+    ui.page.mockResolvedValue(products);
+    if(failure==="categories")ui.categories.mockResolvedValueOnce({error:new Error("Offline")});
+    else ui.page.mockRejectedValueOnce(new Error("Offline"));
+
+    await ui.loadHomepage();
+    expect(ui.status.textContent).toMatch(/could not load/i);
+    expect(ui.grid.innerHTML).toMatch(/retry loading/i);
+    expect(ui.pager.hidden).toBe(false);
+    expect(ui.button.textContent).toBe("Retry loading");
+
+    ui.retry();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(ui.status.textContent).toBe("Choose a product type to explore.");
+    expect(ui.grid.innerHTML).toContain("Rings");
+    expect(ui.pager.hidden).toBe(true);
+  });
+
+  it("renders the catalogue while homepage promotions stall and latest arrivals fail",async()=>{
+    const ui=desktopHomepage(),promotionRequest=deferred();
+    ui.categories.mockResolvedValue({data:[{name:"Rings"}],error:null});
+    ui.promotions.mockReturnValue(promotionRequest.promise);
+    ui.page.mockImplementation((_client,filters)=>filters.sort==="newest"
+      ?Promise.reject(new Error("Latest arrivals failed"))
+      :Promise.resolve({items:[],total:0,hasMore:false}));
+
+    await ui.loadHomepage();
+    expect(ui.status.textContent).toBe("Choose a product type to explore.");
+    expect(ui.grid.innerHTML).toContain("Rings");
+    expect(ui.context.marketingLoading).toBe(true);
+
+    await vi.advanceTimersByTimeAsync(15_000);
+    expect(ui.status.textContent).toBe("Choose a product type to explore.");
+    expect(ui.pager.hidden).toBe(true);
+    expect(ui.context.marketingLoading).toBe(false);
+    expect(vi.getTimerCount()).toBe(0);
   });
 });
 

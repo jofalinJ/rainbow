@@ -1,5 +1,6 @@
 import {describe,it,expect} from "vitest";
 import {readFileSync} from "node:fs";
+import {runInNewContext} from "node:vm";
 const read=path=>readFileSync(new URL("../../"+path,import.meta.url),"utf8");
 
 describe("online publication is required for public product discovery",()=>{
@@ -27,15 +28,47 @@ describe("online publication is required for public product discovery",()=>{
 });
 
 describe("Buy Now does not erase the customer's existing bag",()=>{
-  it("reuses existing product-page cart",()=>{
-    const js=read("product-page.js");
-    expect(js).toContain("const items=cart();");
-    expect(js).not.toContain("buy?[]:cart()");
+  const source=read("shop-bag.js");
+  const product={id:"design-1",product_name:"Fixture necklace"};
+  const line=id=>({variant_id:id,product});
+  function bagWith(items){
+    const window={};
+    let value=JSON.stringify(items);
+    const storage={
+      getItem:()=>value,
+      setItem:(_key,next)=>{value=next;}
+    };
+    runInNewContext(source,{window,localStorage:storage});
+    return {bag:window.RainbowBag,storage};
+  }
+  it("uses the same bag logic for quick view and the standalone product page",()=>{
+    for(const script of ["content.js","product-page.js"]){
+      expect(read(script)).toContain("window.RainbowBag");
+      expect(read(script)).toContain("bag.add(");
+    }
   });
-  it("merges the modal selection with existing bag before continuing",()=>{
-    const js=read("content.js");
-    expect(js).toContain("const mergedQty=Math.min(stock");
-    expect(js).toContain("else cart.push(makeCartItem(mergedQty));");
-    expect(js).not.toContain("saveCart([makeCartItem(");
+  it("merges the requested quantity without changing other options",()=>{
+    const {bag}=bagWith([{...line("short"),quantity:2},{...line("long"),quantity:3}]);
+    expect(bag.add(line("short"),2,4)).toBe("");
+    expect(bag.read().map(item=>item.quantity)).toEqual([4,3]);
+  });
+  it("rejects the entire addition if it exceeds available stock or the per-option limit",()=>{
+    const {bag}=bagWith([{...line("short"),quantity:2},{...line("long"),quantity:99}]);
+    expect(bag.add(line("short"),2,3)).toContain("1 more");
+    expect(bag.add(line("long"),2,120)).toContain("1 more");
+    expect(bag.read().map(item=>item.quantity)).toEqual([2,99]);
+    expect(bag.add(line("long"),1,120)).toBe("");
+    expect(bag.read()[1].quantity).toBe(100);
+  });
+  it("keeps older bags readable and declines new options at the checkout line limit",()=>{
+    const {bag}=bagWith(Array.from({length:51},(_,index)=>({...line(String(index)),quantity:1})));
+    expect(bag.add(line("extra"),1,4)).toContain("50 different options");
+    expect(bag.read()).toHaveLength(51);
+  });
+  it("reports storage errors and leaves the previous bag intact",()=>{
+    const {bag,storage}=bagWith([{...line("short"),quantity:1}]);
+    storage.setItem=()=>{throw new Error("Storage is full");};
+    expect(bag.add(line("short"),1,4)).toContain("Could not save");
+    expect(bag.read()[0].quantity).toBe(1);
   });
 });

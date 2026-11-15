@@ -6,9 +6,12 @@ on:
     paths:
       - 'index.html'
       - 'content.css'
+      - 'content.js'
       - 'order.html'
       - 'order.js'
+      - 'product.html'
       - 'product-page.js'
+      - 'shop-bag.js'
       - 'shop-catalogue.js'
       - 'admin/products.html'
       - 'admin/owner.html'
@@ -23,23 +26,31 @@ jobs:
     name: Confirm updated storefront, checkout, and warranty assets
     runs-on: ubuntu-latest
     steps:
-      - name: Check exact deployed no-discount checkout, branding and warranty assets
+      - name: Check deployed shopping, checkout, branding and warranty assets
         shell: bash
         run: |
           set -euo pipefail
           site="https://rainbowgoldcovering.com"
           for attempt in $(seq 1 18); do
             if home=$(curl -L --fail --silent --show-error --max-time 12 "$site/") &&
-               css=$(curl -L --fail --silent --show-error --max-time 12 "$site/content.css") &&
+               css=$(curl -L --fail --silent --show-error --max-time 12 "$site/content.css?v=20261114-shopping") &&
                checkout=$(curl -L --fail --silent --show-error --max-time 12 "$site/order.html") &&
-               pricing=$(curl -L --fail --silent --show-error --max-time 12 "$site/order.js") &&
+               pricing=$(curl -L --fail --silent --show-error --max-time 12 "$site/order.js?v=20261114-shopping") &&
+               bag=$(curl -L --fail --silent --show-error --max-time 12 "$site/shop-bag.js?v=20261114-shopping") &&
+               product=$(curl -L --fail --silent --show-error --max-time 12 "$site/product.html") &&
                catalogue=$(curl -L --fail --silent --show-error --max-time 12 "$site/shop-catalogue.js") &&
-               detail=$(curl -L --fail --silent --show-error --max-time 12 "$site/product-page.js") &&
+               detail=$(curl -L --fail --silent --show-error --max-time 12 "$site/product-page.js?v=20261114-shopping") &&
                advanced=$(curl -L --fail --silent --show-error --max-time 12 "$site/admin/products.html") &&
                quick=$(curl -L --fail --silent --show-error --max-time 12 "$site/admin/owner.html"); then
               if grep -Fq '<small class="brand-since">SINCE 1996</small>' <<< "$home" &&
                  grep -Fq '.storefront-header-row .logo .brand-since{margin-top:2px}' <<< "$css" &&
-                 grep -Fq 'order.js?v=20261111-no-discount-copy' <<< "$checkout" &&
+                 grep -Fq 'content.js?v=20261114-shopping' <<< "$home" &&
+                 grep -Fq 'order.js?v=20261114-shopping' <<< "$checkout" &&
+                 grep -Fq 'product-page.js?v=20261114-shopping' <<< "$product" &&
+                 grep -Fq 'shop-bag.js?v=20261114-shopping' <<< "$home" &&
+                 grep -Fq 'shop-bag.js?v=20261114-shopping' <<< "$checkout" &&
+                 grep -Fq 'shop-bag.js?v=20261114-shopping' <<< "$product" &&
+                 grep -Fq 'window.RainbowBag=' <<< "$bag" &&
                  grep -Fq 'id="igstLine"' <<< "$checkout" &&
                  ! grep -Fq 'Discount (3%)' <<< "$checkout" &&
                  ! grep -Fq 'id="discount"' <<< "$checkout" &&
@@ -51,11 +62,11 @@ jobs:
                  grep -Fq 'description,warranty_months,' <<< "$detail" &&
                  grep -Fq 'id="warrantyMonths"' <<< "$advanced" &&
                  grep -Fq 'id="ownerWarrantyMonths"' <<< "$quick"; then
-                echo "Live storefront displays Since 1996, no online discount, no redundant payment details and warranty selectors."
+                echo "Live storefront shopping, checkout, branding and warranty assets verified."
                 exit 0
               fi
             fi
             if [ "$attempt" -lt 18 ]; then sleep 10; fi
           done
-          echo "::error::Live storefront has not deployed the new branding, no-discount checkout and warranty assets."
+          echo "::error::Live storefront assets are stale or incomplete."
           exit 1

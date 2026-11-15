@@ -15,13 +15,14 @@ async function submit(overrides={},invalidEmail=false){
     value,checked:false,setCustomValidity:vi.fn(),removeAttribute:vi.fn(),setAttribute:vi.fn(),
     checkValidity:()=>id!=="email"||!invalidEmail,reportValidity:vi.fn(),
   }]));
+  fields.orderLayout={hidden:false};
   const beginRazorpayPayment=vi.fn(async()=>({status:"dismissed"}));
   const messages=[];
   const context={
     $:id=>fields[id],sb:{},cart:[{variant_id:"qa-variant",quantity:1,current_stock:5}],
-    cartVerified:true,cartVerificationFailed:false,submitting:false,razorpayReady:true,razorpayMode:"test",
-    cartItemHasStock:()=>true,selectedPaymentMethod:()=>"razorpay",deliveryFeeForState:()=>50,
-    updatePlaceOrderState:vi.fn(),msg:(text,kind)=>messages.push({text,kind}),render:vi.fn(),totals:()=>({total:100}),beginRazorpayPayment,
+    cartVerified:true,cartVerificationFailed:false,cartRefreshPending:false,submitting:false,razorpayReady:true,razorpayMode:"test",
+    cartIsCurrent:()=>true,bagProblem:()=>"",deliveryFeeForState:()=>50,
+    msg:(text,kind)=>messages.push({text,kind}),render:vi.fn(),totals:()=>({total:100}),beginRazorpayPayment,
   };
   runInNewContext(phoneValidation+validation+source.slice(start,end)+"\nthis.submit=placeOrder;",context);
   await context.submit();

@@ -5,32 +5,59 @@ import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=
   const CONFIG=window.RAINBOW_SUPABASE_CONFIG||{};
   const SUPABASE_URL=String(CONFIG.supabaseUrl||"").trim();
   const KEY=String(CONFIG.supabasePublishableKey||"").trim();
-  const CART_KEY="rainbow_cart_v1";
+  const {key:CART_KEY,maxLines:MAX_CART_LINES,maxQuantity:MAX_CART_QUANTITY,read:readBag}=window.RainbowBag;
   const $=id=>document.getElementById(id);
   const sb=window.supabase?.createClient&&SUPABASE_URL&&KEY
     ?window.supabase.createClient(SUPABASE_URL,KEY):null;
   const esc=x=>String(x??"").replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
   const money=x=>"₹"+Number(x||0).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2});
-  const productMoney=x=>"₹"+Number(x||0).toLocaleString("en-IN",{maximumFractionDigits:0});
   let cart=[];
+  let lastSavedCart="";
   let cartVerified=false;
   let cartVerificationFailed=false;
+  let cartVerificationAttempt=0;
+  let cartRefreshPending=false;
   let submitting=false;
   let razorpayReady=false;
   let razorpayMode="test";
   let readinessAttempt=0;
 
   function read(){
-    try{
-      const saved=JSON.parse(localStorage.getItem(CART_KEY)||"[]");
-      cart=Array.isArray(saved)?saved.filter(x=>x&&x.variant_id&&x.product&&Number.isInteger(Number(x.quantity))&&Number(x.quantity)>0).slice(0,50):[];
-    }catch{cart=[];}
+    cart=readBag();
+    lastSavedCart=JSON.stringify(cart);
     updateCount();
   }
-  function save(){
-    try{localStorage.setItem(CART_KEY,JSON.stringify(cart));}
-    catch{msg("Your browser could not save the cart. Check available storage and try again.","error");}
+  function save(items){
+    const data=JSON.stringify(items);
+    try{localStorage.setItem(CART_KEY,data);}
+    catch{
+      cartStatus("Your browser could not save changes to your bag. Check available storage and try again.","error",cartVerificationFailed&&Boolean(sb));
+      return false;
+    }
+    cart=items;
+    lastSavedCart=data;
     updateCount();
+    return true;
+  }
+  function refreshCart(){
+    if(submitting){cartRefreshPending=true;return;}
+    read();
+    if(!$("orderLayout").hidden)verifyCart();
+  }
+  function cartIsCurrent(){
+    if(JSON.stringify(readBag())===lastSavedCart)return true;
+    refreshCart();
+    return false;
+  }
+  function removePaidItems(paidItems){
+    const paidQuantities=new Map(paidItems.map(item=>[String(item.variant_id),item.quantity]));
+    const remaining=readBag().flatMap(item=>{
+      const paidQuantity=paidQuantities.get(String(item.variant_id));
+      if(!paidQuantity)return [item];
+      const quantity=Number(item.quantity)-paidQuantity;
+      return quantity>0?[{...item,quantity}]:[];
+    });
+    return save(remaining);
   }
   function updateCount(){
     const el=$("cartCount");
@@ -42,6 +69,13 @@ import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=
   function msg(text,kind=""){
     const el=$("orderMsg");
     if(el){el.textContent=text;el.className="order-msg "+kind;}
+  }
+  function cartStatus(text,kind="",retry=false){
+    const status=$("cartStatus");
+    status.textContent=text;
+    status.className="order-msg "+kind;
+    status.hidden=!text;
+    $("retryCart").hidden=!retry;
   }
   function phoneLooksValid(phone){
     const digits=String(phone||"").replace(/\D/g,"");
@@ -72,82 +106,121 @@ import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=
     return item.unavailable!==true&&Number.isFinite(Number(item.current_stock))&&
       Number(item.current_stock)>=Number(item.quantity);
   }
-  function render(){
-    if(!cart.length){
-      $("orderItems").innerHTML='<div class="empty">Your cart is empty. <a href="index.html#products">Browse products →</a></div>';
-      totals();
-      updatePlaceOrderState();
+  function bagProblem(){
+    if(cart.length>MAX_CART_LINES)return "Checkout supports up to "+MAX_CART_LINES+" different items. Remove "+(cart.length-MAX_CART_LINES)+" to continue.";
+    if(cart.some(item=>Number(item.quantity)>MAX_CART_QUANTITY))return "Reduce the highlighted quantities to "+MAX_CART_QUANTITY+" or fewer per option.";
+    if(cartVerified&&cart.some(item=>!cartItemHasStock(item)))return "Remove unavailable items or adjust quantities to the available stock.";
+    return "";
+  }
+  function showCartStatus(){
+    const problem=bagProblem();
+    if(problem){cartStatus(problem,"error",cartVerificationFailed&&Boolean(sb));return;}
+    if(cartVerificationFailed){
+      cartStatus(sb?"We could not verify current prices and stock. Check your connection and try again.":"Checkout is temporarily unavailable. Please try again later.","error",Boolean(sb));
       return;
     }
-    $("orderItems").innerHTML=cart.map((item,index)=>{
-      const stockKnown=Number.isFinite(Number(item.current_stock));
-      const out=item.unavailable===true||(stockKnown&&Number(item.current_stock)<=0);
-      const exceeds=stockKnown&&Number(item.quantity)>Number(item.current_stock);
-      const stockMessage=item.unavailable===true?"This option is unavailable. Remove it to continue."
-        :out?"Out of stock. Remove this item to continue."
-        :exceeds?"Only "+Number(item.current_stock)+" available. Reduce the quantity to continue.":"";
-      const variant=item.variant_label?" • "+esc(item.variant_label):"";
-      return '<div class="order-item">'+
+    cartStatus(cart.length&&!cartVerified?"Checking price and stock…":"");
+  }
+  function render(){
+    const items=$("orderItems");
+    const active=document.activeElement;
+    const previousAction=["inc","dec","remove"].find(action=>active?.dataset?.[action]!==undefined&&items.contains(active));
+    const previousId=previousAction?active.closest(".order-item").dataset.variant:null;
+    const clear=$("clearCart");
+    clear.disabled=submitting||!cart.length;
+    items.innerHTML=cart.length?cart.map((item,index)=>{
+      const quantity=Number(item.quantity);
+      const stock=Number(item.current_stock);
+      const stockKnown=cartVerified&&Number.isFinite(stock);
+      const availableLimit=stockKnown?Math.min(stock,MAX_CART_QUANTITY):MAX_CART_QUANTITY;
+      const stockMessage=cartVerified&&item.unavailable===true?"This option is unavailable. Remove it to continue."
+        :stockKnown&&stock<=0?"Out of stock. Remove this item to continue."
+        :stockKnown&&stock<MAX_CART_QUANTITY&&quantity>stock?"Only "+stock+" available. Reduce the quantity to continue."
+        :quantity>MAX_CART_QUANTITY?"Up to "+MAX_CART_QUANTITY+" per option. Reduce the quantity to continue.":"";
+      const variant=item.variant_label?esc(item.variant_label)+" • ":"";
+      const name=esc(item.product.product_name);
+      return '<div class="order-item" data-variant="'+esc(item.variant_id)+'">'+
         (item.product.image?'<img src="'+esc(item.product.image)+'" alt="" loading="lazy" width="72" height="72">':'<div class="order-item-placeholder"></div>')+
-        '<div><h3>'+esc(item.product.product_name)+'</h3><small>'+variant.replace(/^ • /,"")+(variant?" • ":"")+productMoney(item.product.selling_price)+'</small>'+
-        '<div class="order-qty"><button type="button" data-dec="'+index+'" aria-label="Decrease quantity" '+(Number(item.quantity)<=1?'disabled':'')+'>−</button><span>'+Number(item.quantity)+'</span><button type="button" data-inc="'+index+'" aria-label="Increase quantity" '+(!stockKnown||Number(item.quantity)>=Number(item.current_stock)?'disabled':'')+'>＋</button><button type="button" data-remove="'+index+'" aria-label="Remove '+esc(item.product.product_name)+'">Remove</button></div>'+
+        '<div><h3>'+name+'</h3><small>'+variant+money(item.product.selling_price)+'</small>'+
+        '<div class="order-qty"><button type="button" data-dec="'+index+'" aria-label="Decrease quantity for '+name+'" '+(submitting||quantity<=1?'disabled':'')+'>−</button><span>'+quantity+'</span><button type="button" data-inc="'+index+'" aria-label="Increase quantity for '+name+'" '+(submitting||!stockKnown||quantity>=availableLimit?'disabled':'')+'>＋</button><button type="button" data-remove="'+index+'" aria-label="Remove '+name+'" '+(submitting?'disabled':'')+'>Remove</button></div>'+
         (stockMessage?'<small class="cart-warning">'+esc(stockMessage)+'</small>':'')+
-        '</div><div class="order-price">'+productMoney(Number(item.product.selling_price)*Number(item.quantity))+'</div></div>';
-    }).join("");
-    document.querySelectorAll("[data-inc]").forEach(button=>button.onclick=()=>change(Number(button.dataset.inc),1));
-    document.querySelectorAll("[data-dec]").forEach(button=>button.onclick=()=>change(Number(button.dataset.dec),-1));
-    document.querySelectorAll("[data-remove]").forEach(button=>button.onclick=()=>removeItem(Number(button.dataset.remove)));
+        '</div><div class="order-price">'+money(Number(item.product.selling_price)*quantity)+'</div></div>';
+    }).join(""):'<div class="empty">Your cart is empty. <a href="index.html#products">Browse products →</a></div>';
+    items.querySelectorAll("[data-inc]").forEach(button=>button.onclick=()=>change(Number(button.dataset.inc),1));
+    items.querySelectorAll("[data-dec]").forEach(button=>button.onclick=()=>change(Number(button.dataset.dec),-1));
+    items.querySelectorAll("[data-remove]").forEach(button=>button.onclick=()=>removeItem(Number(button.dataset.remove)));
+    if(previousAction){
+      const index=cart.findIndex(item=>String(item.variant_id)===previousId);
+      const fallback=Math.min(Number(active.dataset[previousAction]),cart.length-1);
+      const rowIndex=index>=0?index:fallback;
+      const actions=index>=0?[previousAction,"inc","dec","remove"]:["remove","inc","dec"];
+      const target=actions.map(action=>items.querySelector('[data-'+action+'="'+rowIndex+'"]:not(:disabled)')).find(Boolean);
+      (target||items.querySelector(".empty a"))?.focus({preventScroll:true});
+    }else if(active===clear&&!cart.length){
+      items.querySelector(".empty a")?.focus({preventScroll:true});
+    }
     totals();
     updatePlaceOrderState();
   }
   function change(index,delta){
     const item=cart[index];
-    if(!item)return;
-    const stock=Number(item.current_stock);
-    if(delta>0&&Number.isFinite(stock)&&Number(item.quantity)>=stock)return;
-    item.quantity=Math.max(1,Math.min(Number.isFinite(stock)?stock:100,Number(item.quantity)+delta));
-    save();
-    render();
+    if(submitting||!item||!cartIsCurrent())return;
+    const quantity=Number(item.quantity);
+    const stock=cartVerified?Number(item.current_stock):NaN;
+    const limit=Math.min(MAX_CART_QUANTITY,Number.isFinite(stock)?stock:MAX_CART_QUANTITY);
+    if(delta>0&&(!Number.isFinite(stock)||quantity>=limit))return;
+    const nextQuantity=Math.max(1,quantity+delta);
+    if(nextQuantity===quantity)return;
+    const items=cart.slice();
+    items[index]={...item,quantity:nextQuantity};
+    if(save(items)){render();showCartStatus();}
   }
   function removeItem(index){
-    cart.splice(index,1);
-    save();
-    render();
-    if(!cart.length)msg("");
+    if(submitting||!cart[index]||!cartIsCurrent())return;
+    const wasOverLimit=cart.length>MAX_CART_LINES;
+    if(!save(cart.filter((_,itemIndex)=>itemIndex!==index)))return;
+    if(!cart.length||(wasOverLimit&&cart.length===MAX_CART_LINES))verifyCart();
+    else{render();showCartStatus();}
   }
   function updatePlaceOrderState(){
     const button=$("placeOrder");
     if(!button)return;
     const shipping=deliveryFeeForState($("state").value);
-    const payReady=cart.length>0&&cartVerified&&!cartVerificationFailed&&
-      cart.every(cartItemHasStock)&&shipping!==null;
+    const payReady=cart.length>0&&cartVerified&&!cartVerificationFailed&&!bagProblem()&&shipping!==null;
     button.textContent=submitting?"Processing…":razorpayMode==="live"?"Pay securely →":"Pay securely · TEST →";
     button.disabled=submitting||!payReady||!razorpayReady;
   }
     async function verifyCart(){
-    if(!cart.length){cartVerified=true;render();return;}
+    const attempt=++cartVerificationAttempt;
+    cartVerified=false;
+    cartVerificationFailed=false;
+    if(!cart.length||cart.length>MAX_CART_LINES){render();showCartStatus();return;}
     if(!sb){
       cartVerificationFailed=true;
-      msg("Checkout is temporarily unavailable. Please try again later.","error");
       render();
+      showCartStatus();
       return;
     }
-    msg("Checking price and stock…");
+    render();
+    showCartStatus();
     try{
       const variantIds=[...new Set(cart.map(item=>String(item.variant_id)))];
       const {data:variants,error:variantError}=await sb.from("product_variants")
-        .select("id,product_id,stock_quantity,active,color,size").in("id",variantIds);
+        .select("id,product_id,stock_quantity,active,color,size,length_cm").in("id",variantIds);
+      if(attempt!==cartVerificationAttempt)return;
       if(variantError)throw variantError;
       const foundVariants=variants||[];
       const productIds=[...new Set(foundVariants.map(item=>item.product_id).filter(Boolean))];
       let products=[];
       if(productIds.length){
         const {data,error}=await sb.from("products")
-          .select("id,product_code,product_name,type,selling_price,description,active,product_images(public_url,is_primary),erp_online_listings!inner(published,online_price)")
+          .select("id,product_code,product_name,type,selling_price,description,active,length_cm,product_images(public_url,is_primary),erp_online_listings!inner(published,online_price)")
           .in("id",productIds).eq("erp_online_listings.published",true);
+        if(attempt!==cartVerificationAttempt)return;
         if(error)throw error;
         products=data||[];
       }
+      if(!cartIsCurrent())return;
       const variantById=new Map(foundVariants.map(item=>[String(item.id),item]));
       const productById=new Map(products.map(item=>[String(item.id),item]));
       cart=cart.map(item=>{
@@ -164,6 +237,8 @@ import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=
         const opts=[];
         if(variant.color!=null&&String(variant.color)!=="0"&&String(variant.color).trim())opts.push("Color: "+variant.color);
         if(variant.size!=null&&String(variant.size)!=="0"&&String(variant.size).trim())opts.push("Size: "+variant.size);
+        const length=Number(variant.length_cm??product.length_cm);
+        if(Number.isFinite(length)&&length>0)opts.push("Length: "+length+" cm");
         return {
           ...item,
           unavailable:false,
@@ -182,17 +257,14 @@ import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=
         };
       });
       cartVerified=true;
-      cartVerificationFailed=false;
-      save();
       render();
-      if(cart.some(item=>item.unavailable||Number(item.quantity)>Number(item.current_stock))){
-        msg("Some cart items need attention. Remove unavailable items or adjust quantities before ordering.","error");
-      }else msg("");
+      showCartStatus();
     }catch(error){
+      if(attempt!==cartVerificationAttempt||!cartIsCurrent())return;
       console.error("Cart verification failed.",error);
       cartVerificationFailed=true;
-      msg("We could not verify current prices and stock. Check your connection and reload checkout before ordering.","error");
       render();
+      showCartStatus();
     }
   }
   function focusOrderConfirmation(paid=false){
@@ -229,9 +301,9 @@ import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=
   }
     async function placeOrder(){
     if(submitting||!cart.length)return;
+    if(!cartIsCurrent())return;
     if(!sb){msg("Checkout is temporarily unavailable. Please try again later.","error");return;}
-    if(!cartVerified||cartVerificationFailed){msg("Current prices and stock have not been verified. Reload checkout and try again.","error");return;}
-    if(cart.some(item=>!cartItemHasStock(item))){msg("Please remove unavailable items or reduce quantities to the available stock.","error");render();return;}
+    if(!cartVerified||cartVerificationFailed||bagProblem()){showCartStatus();return;}
     if(!validateDeliveryFields())return;
     const name=$("name").value.trim();
     const phone=$("phone").value.trim();
@@ -257,18 +329,19 @@ import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=
       msg("Online payment is temporarily unavailable. Retry the connection before paying.","error");return;
     }
     submitting=true;
-    updatePlaceOrderState();
+    render();
     msg("Starting secure checkout…");
+    const items=cart.map(item=>({variant_id:item.variant_id,quantity:Number(item.quantity)}));
     try{
       const result=await beginRazorpayPayment({
-        items:cart.map(item=>({variant_id:item.variant_id,quantity:Number(item.quantity)})),
+        items,
         customer,
         displayTotal:totals().total,
         expectedMode:razorpayMode,
         onPaymentFailed:reason=>msg("Payment failed: "+reason+" You can retry in Razorpay or close checkout.","error")
       });
       if(result.status==="paid"){
-        cart=[];save();
+        const bagUpdated=removePaidItems(items);
         $("orderLayout").hidden=true;
         $("orderSuccess").hidden=false;
         const safeBill=(()=>{
@@ -285,6 +358,7 @@ import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=
           (result.mode==="live"?"<p>Your payment has been securely verified.</p>":"<p>No real money was deducted.</p>")+
           (safeBill?"<p><a class='btn btn-dark' target='_blank' rel='noopener noreferrer' href='"+esc(safeBill)+
             "'>View / Print Invoice →</a></p>":"<p>Your invoice is being prepared. Contact the shop with the order number if it does not appear.</p>")+
+          (bagUpdated?"":"<p>Your browser could not update your bag. Review it before your next order.</p>")+
           "<a class='btn btn-light' href='index.html#products'>Continue shopping</a>";
         msg("");
         focusOrderConfirmation(true);
@@ -298,11 +372,15 @@ import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=
       msg(error.message||"We could not submit the payment details. Please check the information and try again.","error");
     }finally{
       submitting=false;
-      updatePlaceOrderState();
+      if(cartRefreshPending){cartRefreshPending=false;refreshCart();}
+      else if(!$("orderLayout").hidden)render();
     }
   }
 
-  $("clearCart").onclick=()=>{cart=[];cartVerified=true;cartVerificationFailed=false;save();render();msg("");};
+  $("clearCart").onclick=()=>{
+    if(!submitting&&cartIsCurrent()&&save([])){verifyCart();msg("");}
+  };
+  $("retryCart").addEventListener("click",refreshCart);
   $("deliveryForm").addEventListener("submit",event=>{event.preventDefault();placeOrder();});
   for(const id of ["name","phone","email","pin","city","state","address"]){
     $(id).addEventListener("input",()=>{$(id).setCustomValidity("");$(id).removeAttribute("aria-invalid");});
@@ -317,9 +395,7 @@ import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=
     statusElement:$("pinLookupStatus"),
     localitySelect:$("pinLocality"),localityWrap:$("pinLocalityWrap")
   });
-  read();
-  render();
-  verifyCart();
+  refreshCart();
   async function checkGateway(){
     const attempt=++readinessAttempt;
     razorpayReady=false;
@@ -355,8 +431,11 @@ import {razorpayAvailability,beginRazorpayPayment} from "./order-razorpay.mjs?v=
   document.addEventListener("visibilitychange",()=>{
     if(document.visibilityState==="visible" && !razorpayReady)checkGateway();
   });
+  window.addEventListener("storage",event=>{
+    if(event.storageArea===localStorage&&(event.key===CART_KEY||event.key===null))refreshCart();
+  });
   window.addEventListener("pageshow",event=>{
-    if(event.persisted)checkGateway();
+    if(event.persisted){refreshCart();checkGateway();}
   });
   checkGateway();
 })();

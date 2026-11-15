@@ -10,6 +10,7 @@
   const catalogue=window.RainbowCatalogue;
   const paging={epoch:0,loading:false,hasMore:true,total:0,offset:0,autoPages:0,error:""};
   let promotionProducts=[],newestProducts=[],metadataLoading=false,loaderObserver=null,showAllProducts=false;
+  let catalogueCategoriesLoaded=false,marketingLoading=false;
   const filterState={minPrice:"",maxPrice:"",color:"",size:"",length:"",inStock:true};
   let catalogueSort="featured";
   const track=(name,detail={})=>window.RainbowAnalytics?.track(name,detail);
@@ -23,7 +24,7 @@
   function stopGalleryRotation(){if(galleryTimer){clearInterval(galleryTimer);galleryTimer=null;}}
   function trapDialogFocus(event,container){
     if(event.key!=="Tab"||!container)return;
-    const controls=[...container.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])')]
+    const controls=[...container.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),details > summary:first-of-type,[tabindex]:not([tabindex="-1"])')]
       .filter(element=>!element.hidden&&element.getClientRects().length>0&&element.getAttribute("aria-hidden")!=="true");
     const first=controls[0],last=controls[controls.length-1];
     if(!first){event.preventDefault();container.focus();return;}
@@ -47,13 +48,11 @@
   const getImage=product=>(getProductImages(product)[0]||{}).public_url||"";
   const getThumb=product=>catalogue?.thumbnailUrl(getProductImages(product)[0])||getImage(product);
   const responsiveSource=product=>{const original=getImage(product),small=getThumb(product);return small&&small!==original?(" srcset=\'"+esc(small)+" 480w, "+esc(original)+" 1600w\' sizes=\'(max-width:700px) 50vw, (max-width:1000px) 33vw, 25vw\'"):"";};
-  const CART_KEY="rainbow_cart_v1";
+  const bag=window.RainbowBag;
   function readWishlist(){try{const value=JSON.parse(localStorage.getItem(WISHLIST_KEY)||"[]");return Array.isArray(value)?value.map(String):[]}catch{return[];}}
   function saveWishlist(){try{localStorage.setItem(WISHLIST_KEY,JSON.stringify([...wishlistIds]));}catch{}updateWishlistCount();}
   function updateWishlistCount(){const badge=document.getElementById("wishlistCount");if(badge){badge.textContent=String(wishlistIds.size);badge.hidden=wishlistIds.size===0;}const button=document.getElementById("wishlistToggle");if(button){button.setAttribute("aria-pressed",String(wishlistOnly));button.classList.toggle("is-selected",wishlistOnly);}}
-  const getCart=()=>{try{return JSON.parse(localStorage.getItem(CART_KEY)||"[]")}catch{return[]}};
-  const saveCart=items=>{localStorage.setItem(CART_KEY,JSON.stringify(items));updateCartCount()};
-  const updateCartCount=()=>{const el=document.getElementById("cartCount");if(el)el.textContent=getCart().reduce((n,x)=>n+Number(x.quantity||0),0)};
+  const updateCartCount=()=>{const el=document.getElementById("cartCount");if(el)el.textContent=bag.read().reduce((n,x)=>n+Number(x.quantity),0)};
   const getStock=product=>(Array.isArray(product.product_variants)?product.product_variants:[])
     .filter(v=>v.active!==false).reduce((sum,v)=>sum+Number(v.stock_quantity||0),0);
 
@@ -371,7 +370,7 @@
     if(wishlistButton){wishlistButton.setAttribute("aria-pressed",String(wishlistOnly));wishlistButton.classList.toggle("is-selected",wishlistOnly);}
     document.body.classList.toggle("mobile-wishlist-view",wishlistOnly);
 
-    if(categoryLanding){
+    if(categoryLanding&&!paging.loading&&!paging.error){
       renderPager(true);
       const buckets=categoryBuckets();
       if(status)status.textContent=buckets.length?"Choose a product type to explore.":"Our online collections are being prepared.";
@@ -385,6 +384,7 @@
       grid.querySelectorAll("[data-category-tile]").forEach(tile=>tile.addEventListener("click",()=>{
         activeCategory=tile.dataset.categoryTile||"";showAllProducts=false;
         track("select_category",{category:activeCategory});resetCatalogue();
+        heading?.focus({preventScroll:true});
         document.getElementById("products")?.scrollIntoView({behavior:scrollBehavior,block:"start"});
       }));
       return;
@@ -421,11 +421,35 @@
       card.addEventListener("click",event=>{if(event.target.closest("[data-wishlist-product],a[href]"))return;open();});
       card.querySelector("[data-product-open]")?.addEventListener("keydown",event=>{if(event.key===" "){event.preventDefault();open();}});
     });
-    grid.querySelectorAll("[data-wishlist-product]:not([data-wishlist-bound])").forEach(button=>{button.dataset.wishlistBound="true";button.addEventListener("click",event=>{
-      event.preventDefault();event.stopPropagation();const id=String(button.dataset.wishlistProduct);
-      if(wishlistIds.has(id))wishlistIds.delete(id);else wishlistIds.add(id);
-      saveWishlist();document.dispatchEvent(new CustomEvent("rainbow:mobile-toast",{detail:{message:wishlistIds.has(id)?"Added to saved designs":"Removed from saved designs"}}));render();
-    });});
+    grid.querySelectorAll("[data-wishlist-product]:not([data-wishlist-bound])").forEach(button=>{
+      button.dataset.wishlistBound="true";
+      button.addEventListener("click",event=>{
+        event.stopPropagation();
+        const product=catalogueProducts.find(item=>String(item.id)===button.dataset.wishlistProduct);
+        if(!product)return;
+        toggleWishlist(product);
+        if(wishlistOnly)document.getElementById("productHeading")?.focus({preventScroll:true});
+      });
+    });
+  }
+
+  function toggleWishlist(product){
+    const id=String(product.id);
+    const saved=!wishlistIds.has(id);
+    if(saved)wishlistIds.add(id);else wishlistIds.delete(id);
+    saveWishlist();
+    document.dispatchEvent(new CustomEvent("rainbow:mobile-toast",{detail:{
+      message:saved?"Added to saved designs":"Removed from saved designs"
+    }}));
+    if(wishlistOnly)resetCatalogue();
+    else document.querySelectorAll("[data-wishlist-product]").forEach(button=>{
+      if(button.dataset.wishlistProduct!==id)return;
+      button.classList.toggle("is-saved",saved);
+      button.setAttribute("aria-pressed",String(saved));
+      button.setAttribute("aria-label",(saved?"Remove ":"Add ")+product.product_name+(saved?" from":" to")+" wishlist");
+      button.textContent=saved?"♥":"♡";
+    });
+    return saved;
   }
 
   function bindCollectionFilters(){
@@ -618,7 +642,8 @@
     if(!document.querySelector(".utility-overlay:not([hidden])"))utilityReturnFocus=document.activeElement;
     closeUtilityOverlays(false);
     overlay.hidden=false;overlay.setAttribute("aria-hidden","false");document.body.classList.add("utility-open");
-    (overlay.querySelector(".utility-panel input:not([disabled]):not([hidden])")||overlay.querySelector(".utility-close"))?.focus();
+    const firstInput=[...overlay.querySelectorAll(".utility-panel input:not([disabled])")].find(input=>input.getClientRects().length>0);
+    (firstInput||overlay.querySelector(".utility-close"))?.focus();
   }
   function closeUtilityOverlays(restoreFocus=true){
     const wasOpen=Boolean(document.querySelector(".utility-overlay:not([hidden])"));
@@ -920,10 +945,10 @@
         '<div class="product-breadcrumb"><span>Rainbow Gold Covering</span><span aria-hidden="true">›</span><span>'+esc(category)+'</span></div>'+
         '<h2 id="modalProductName">'+esc(product.product_name)+'</h2>'+
         '<div class="product-type modal-product-type">'+esc(category)+'</div>'+
-        '<div class="modal-price-row"><div class="modal-price">'+money(product.selling_price)+'</div><span class="product-stock '+(stockOf(selectedVariant)===0?"out":"in")+'" data-variant-status>'+(stockOf(selectedVariant)===0?"Out of stock":"In stock")+'</span></div>'+
+        '<div class="modal-price-row"><div class="modal-price">'+money(product.selling_price)+'</div><span class="product-stock" data-variant-status></span></div>'+
         choiceControls+genericVariantPicker+
         '<div class="product-quantity-row"><span>Quantity</span><div class="quantity-picker"><button type="button" data-qty-minus aria-label="Decrease quantity">−</button><span data-qty>1</span><button type="button" data-qty-plus aria-label="Increase quantity">＋</button></div></div>'+
-        '<div class="product-buy-actions"><button class="btn btn-dark" type="button" data-add-cart>Add to Cart</button><button class="btn btn-light" type="button" data-buy-now>Buy Now →</button></div>'+
+        '<div class="product-buy-actions"><p class="product-bag-feedback" role="status"></p><button class="btn btn-dark" type="button" data-add-cart>Add to Cart</button><button class="btn btn-light" type="button" data-buy-now>Buy Now →</button></div>'+
         '<button class="modal-wishlist-button'+(savedInWishlist?' is-saved':'')+'" type="button" data-modal-wishlist aria-pressed="'+savedInWishlist+'"><span aria-hidden="true">'+(savedInWishlist?'♥':'♡')+'</span><span>'+(savedInWishlist?'Saved to wishlist':'Save to wishlist')+'</span></button>'+
         detailsPanel+lengthGuide+
         '<div class="product-support-card"><span>Need help?</span><p>Ask us about this design, sizing, or delivery options.</p><button type="button" data-contact-store>Contact Rainbow on WhatsApp <span aria-hidden="true">↗</span></button></div>'+
@@ -933,9 +958,11 @@
     const minus=content.querySelector("[data-qty-minus]"),plus=content.querySelector("[data-qty-plus]");
     const addButton=content.querySelector("[data-add-cart]"),buyButton=content.querySelector("[data-buy-now]");
     const status=content.querySelector("[data-variant-status]");
+    const bagFeedback=content.querySelector(".product-bag-feedback");
     let selectedQty=1;
     const updateVariantState=()=>{
-      const stock=stockOf(selectedVariant);
+      const stock=Math.min(bag.maxQuantity,stockOf(selectedVariant));
+      bagFeedback.textContent="";
       if(status){status.textContent=!selectedVariant?"Unavailable combination":stock===0?"Out of stock":"In stock";status.className="product-stock "+(!selectedVariant||stock===0?"out":"in");}
       if(qtyEl)qtyEl.textContent=String(selectedQty);
       if(minus)minus.disabled=!selectedVariant||stock===0||selectedQty<=1;
@@ -1031,10 +1058,9 @@
     }
     resumeGallery();
     minus.onclick=()=>{selectedQty=Math.max(1,selectedQty-1);updateVariantState();};
-    plus.onclick=()=>{selectedQty=Math.min(Math.max(1,stockOf(selectedVariant)),selectedQty+1);updateVariantState();};
-    const makeCartItem=quantity=>({
+    plus.onclick=()=>{selectedQty=Math.min(bag.maxQuantity,Math.max(1,stockOf(selectedVariant)),selectedQty+1);updateVariantState();};
+    const makeCartItem=()=>({
       variant_id:selectedVariant.id,
-      quantity,
       variant_label:labelForVariant(selectedVariant),
       product:{
         id:product.id,product_code:product.product_code,product_name:product.product_name,type:product.type,
@@ -1044,47 +1070,27 @@
         variant_length_cm:valueFor(selectedVariant,"length")||null
       }
     });
-    const addSelectedToCart=replace=>{
+    const addSelectedToCart=buy=>{
       const stock=stockOf(selectedVariant);
-      if(!selectedVariant||stock<=0){if(status)status.textContent="This option is out of stock.";return;}
-      const cart=getCart();
-      if(replace){
-        // Preserve existing bag lines when the customer continues directly to checkout.
-        const existing=cart.find(item=>String(item.variant_id)===String(selectedVariant.id));
-        const mergedQty=Math.min(stock,(Number(existing?.quantity)||0)+selectedQty);
-        if(existing)Object.assign(existing,makeCartItem(mergedQty));
-        else cart.push(makeCartItem(mergedQty));
-        saveCart(cart);
-        location.href="order.html";
-        return;
-      }
-      const existing=cart.find(item=>String(item.variant_id)===String(selectedVariant.id));
-      const oldQty=Number(existing?.quantity||0);
-      if(oldQty>=stock){if(status)status.textContent="The cart already contains all available stock for this option.";return;}
-      const next=Math.min(stock,oldQty+selectedQty);
-      if(existing){existing.quantity=next;existing.variant_label=labelForVariant(selectedVariant);existing.product=makeCartItem(next).product;}
-      else cart.push(makeCartItem(next));
-      saveCart(cart);track("add_to_cart",{item_id:product.product_code||product.id,quantity:selectedQty});
+      if(!selectedVariant||stock<=0)return;
+      const error=bag.add(makeCartItem(),selectedQty,stock);
+      if(error){bagFeedback.textContent=error;return;}
+      updateCartCount();track("add_to_cart",{item_id:product.product_code||product.id,quantity:selectedQty});
+      if(buy){location.href="order.html";return;}
       document.dispatchEvent(new CustomEvent("rainbow:mobile-toast",{detail:{message:"Added to your bag"}}));
-      if(status)status.textContent="Added to cart.";
       closeProductModal();
     };
     addButton.onclick=()=>addSelectedToCart(false);
     buyButton.onclick=()=>addSelectedToCart(true);
     const modalWishlistButton=content.querySelector("[data-modal-wishlist]");
     if(modalWishlistButton)modalWishlistButton.addEventListener("click",()=>{
-      const id=String(product.id);
-      if(wishlistIds.has(id))wishlistIds.delete(id);else wishlistIds.add(id);
-      saveWishlist();
-      const saved=wishlistIds.has(id);
-      document.dispatchEvent(new CustomEvent("rainbow:mobile-toast",{detail:{message:saved?"Added to saved designs":"Removed from saved designs"}}));
+      const saved=toggleWishlist(product);
       modalWishlistButton.classList.toggle("is-saved",saved);
       modalWishlistButton.setAttribute("aria-pressed",String(saved));
       const icon=modalWishlistButton.querySelector("span[aria-hidden]");
       const label=modalWishlistButton.querySelector("span:not([aria-hidden])");
       if(icon)icon.textContent=saved?"♥":"♡";
       if(label)label.textContent=saved?"Saved to wishlist":"Save to wishlist";
-      render();
     });
     content.querySelector("[data-contact-store]")?.addEventListener("click",()=>{
       const text="Hello Rainbow Gold Covering! I have a question about "+product.product_name+
@@ -1096,6 +1102,7 @@
     if(panel)panel.scrollTop=0;
     modal.classList.add("open");
     modal.setAttribute("aria-hidden","false");
+    modal.inert=false;
     document.body.classList.add("modal-open");
     updateProductNavigation();
     modal.querySelector(".product-modal-close")?.focus({preventScroll:true});
@@ -1120,9 +1127,10 @@
     stopGalleryRotation();
     const modal=document.getElementById("productModal");if(!modal?.classList.contains("open"))return;
     modal.classList.remove("open");modal.setAttribute("aria-hidden","true");document.body.classList.remove("modal-open");activeProductId="";updateProductNavigation();
+    modal.inert=true;
     const restore=modalReturnFocus;modalReturnFocus=null;
     if(restore?.isConnected)restore.focus({preventScroll:true});
-    else document.getElementById("mainContent")?.focus({preventScroll:true});
+    else document.getElementById(wishlistOnly?"productHeading":"mainContent")?.focus({preventScroll:true});
   }
   function bindProductModal(){
     document.querySelectorAll("[data-close-product]").forEach(el=>el.addEventListener("click",closeProductModal));
@@ -1209,13 +1217,18 @@
     }
   }
   function resetCatalogue(){
+    if(client&&catalogue&&!catalogueCategoriesLoaded)return loadProducts();
     paging.epoch++;paging.offset=0;paging.total=0;paging.loading=false;paging.error="";
     paging.hasMore=true;paging.autoPages=0;
-    catalogueProducts=[];visibleProducts=[];render();
+    catalogueProducts=[];visibleProducts=[];
+    if(!client||!catalogue)render();
     return loadMoreProducts();
   }
   function bindCataloguePaging(){
-    document.getElementById("loadMoreProducts")?.addEventListener("click",()=>loadMoreProducts(true));
+    document.getElementById("loadMoreProducts")?.addEventListener("click",()=>{
+      if(catalogueCategoriesLoaded)loadMoreProducts(true);
+      else loadProducts();
+    });
     const sentinel=document.getElementById("catalogueSentinel");
     if(sentinel&&"IntersectionObserver" in window){
       loaderObserver=new IntersectionObserver(entries=>{
@@ -1238,36 +1251,68 @@
       loadProducts();
     },400);
   }
+  async function loadLatestProducts(){
+    const {items}=await catalogueRequest(catalogue.page(client,{sort:"newest",limit:4}));
+    newestProducts=items;
+    renderMobileCategories();
+    renderLatestArrivals();
+    renderPromotion();
+  }
+  async function loadPromotionProducts(){
+    const {data,error}=await catalogueRequest(client.from("storefront_promotion_items")
+      .select("product_id,display_order").order("display_order",{ascending:true}).limit(8));
+    if(error)throw error;
+    const ids=(data||[]).map(product=>String(product.product_id));
+    const result=ids.length?await catalogueRequest(catalogue.page(client,{wishlistIds:ids,limit:8})):{items:[]};
+    promotionProductIds=ids;
+    promotionProducts=result.items;
+    renderMobileCategories();
+    renderPromotion();
+  }
+  function loadCatalogueMarketing(){
+    if(marketingLoading)return;
+    marketingLoading=true;
+    Promise.allSettled([loadLatestProducts(),loadPromotionProducts()]).then(results=>{
+      marketingLoading=false;
+      for(const result of results){
+        if(result.status==="rejected")console.warn("Featured jewellery unavailable",result.reason);
+      }
+    });
+  }
   async function loadProducts(){
-    if(metadataLoading)return;
+    if(!client||metadataLoading)return;
+    if(!catalogue){
+      const status=document.getElementById("productStatus");
+      if(status)status.textContent="Products are temporarily unavailable. Please refresh to try again.";
+      return;
+    }
     metadataLoading=true;
-    const status=document.getElementById("productStatus");
     try{
-      if(!catalogue)throw new Error("Catalogue discovery module was not loaded.");
-      const [categoriesResult,promotionResult]=await Promise.all([
-        client.from("categories").select("id,name,storefront_order,show_in_storefront")
-          .eq("active",true).order("storefront_order",{ascending:true}).order("name",{ascending:true}),
-        client.from("storefront_promotion_items").select("product_id,display_order").order("display_order",{ascending:true}).limit(8)
-      ]);
-      if(categoriesResult.error)throw categoriesResult.error;
-      catalogueCategories=categoriesResult.data||[];
-      promotionProductIds=promotionResult.error?[]:(promotionResult.data||[]).map(p=>String(p.product_id));
-      const [latestResult,promotionResultPage]=await Promise.all([
-        catalogue.page(client,{sort:"newest",limit:4}),
-        promotionProductIds.length?catalogue.page(client,{wishlistIds:promotionProductIds,limit:8})
-          :Promise.resolve({items:[]})
-      ]);
-      newestProducts=latestResult.items;
-      promotionProducts=promotionResultPage.items;
-      renderMobileCategories();
-      renderLatestArrivals();
-      renderPromotion();
-      await resetCatalogue();
-    }catch(error){
-      console.warn("Catalogue metadata unavailable",error);
-      if(status)status.textContent="Products are temporarily unavailable. Please try again.";
-      const categoryLoading=document.querySelector("#mobileCategoryTrack .mobile-category-loading");
-      if(categoryLoading)categoryLoading.textContent="Collections are temporarily unavailable. Refresh to try again.";
+      if(!catalogueCategoriesLoaded){
+        paging.loading=true;
+        paging.error="";
+        render();
+      }
+      try{
+        const {data,error}=await catalogueRequest(client.from("categories")
+          .select("id,name,storefront_order,show_in_storefront").eq("active",true)
+          .order("storefront_order",{ascending:true}).order("name",{ascending:true}));
+        if(error)throw error;
+        catalogueCategories=data||[];
+        catalogueCategoriesLoaded=true;
+      }catch(error){
+        console.warn("Catalogue categories unavailable",error);
+        if(!catalogueCategoriesLoaded){
+          paging.loading=false;
+          paging.error="Check your connection and retry.";
+          render();
+          return;
+        }
+      }
+      // Featured sections can fail or take longer than the catalogue itself.
+      const firstPage=resetCatalogue();
+      loadCatalogueMarketing();
+      await firstPage;
     }finally{metadataLoading=false;}
   }
   function startRealtime(){
@@ -1283,6 +1328,8 @@
   async function init(){
     applyBusinessConfig();
     updateCartCount();
+    window.addEventListener("storage",event=>{if(event.key===bag.key||event.key===null)updateCartCount();});
+    window.addEventListener("pageshow",event=>{if(event.persisted)updateCartCount();});
     updateWishlistCount();
     bindProductModal();
     document.getElementById("promotionView")?.addEventListener("click",()=>{
