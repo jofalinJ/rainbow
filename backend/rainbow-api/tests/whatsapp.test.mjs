@@ -72,3 +72,75 @@ test("refuses tampered invoice URL without contacting WhatsApp",async()=>{
   await sendPaidInvoiceWhatsApp(base,{fetchImpl});
   assert.equal(paths.some(p=>p.endsWith("/messages")),false);
 });
+
+
+const liveBase={
+  ...base,
+  PAYMENTS_MODE:"live",
+  PAYMENTS_ENABLED:"true",
+  LIVE_PAYMENTS_RELEASED:"true",
+  RAZORPAY_LIVE_KEY_ID:"rzp_live_fake",
+  RAZORPAY_LIVE_KEY_SECRET:"mock_not_real",
+  RAZORPAY_LIVE_WEBHOOK_SECRET:"mock_not_real"
+};
+
+test("live mode cannot send without an independent WhatsApp release",async()=>{
+  let calls=0;
+  const fetchImpl=async()=>{calls++;throw Error("unexpected provider call");};
+  assert.deepEqual(await sendPaidInvoiceWhatsApp(liveBase,{fetchImpl}),
+    {state:"live_notifications_disabled"});
+  assert.deepEqual(await sendPaidInvoiceWhatsApp({...liveBase,WHATSAPP_LIVE_SEND_ENABLED:"true",
+    WHATSAPP_TEST_RECIPIENT_ALLOWLIST:""},{fetchImpl}),
+    {state:"test_recipient_allowlist_required"});
+  assert.deepEqual(await sendPaidInvoiceWhatsApp({...liveBase,WHATSAPP_LIVE_SEND_ENABLED:"true",
+    LIVE_PAYMENTS_RELEASED:"false"},{fetchImpl}),
+    {state:"live_payment_not_ready"});
+  assert.equal(calls,0);
+});
+
+test("live release defaults to an allowlisted recipient and does not send to everyone",async()=>{
+  const seen=[];
+  const fetchImpl=async(url,opts)=>{
+    const path=new URL(url).pathname;
+    seen.push(path);
+    if(path.endsWith("/claim_paid_invoice_whatsapp")){
+      assert.deepEqual(JSON.parse(opts.body).p_allowed_numbers,["919999999999"]);
+      return ok([sample]);
+    }
+    if(path.endsWith("/messages")){
+      assert.equal(JSON.parse(opts.body).to,sample.recipient);
+      return ok({messages:[{id:"wamid.live-allowlisted-test"}]});
+    }
+    if(path.endsWith("/finish_paid_invoice_whatsapp"))return ok(true);
+    throw Error("Unexpected request "+path);
+  };
+  assert.deepEqual(await sendPaidInvoiceWhatsApp({...liveBase,
+    WHATSAPP_LIVE_SEND_ENABLED:"true"},{fetchImpl}),{state:"processed",count:1});
+  assert.equal(seen.filter(x=>x.endsWith("/messages")).length,1);
+});
+
+test("live customer-wide sending needs an additional explicit send-all switch",async()=>{
+  const paths=[];
+  const fetchImpl=async(url,opts)=>{
+    const path=new URL(url).pathname;
+    paths.push(path);
+    if(path.endsWith("/claim_paid_invoice_whatsapp")){
+      assert.equal(JSON.parse(opts.body).p_allowed_numbers,null);
+      return ok([sample]);
+    }
+    if(path.endsWith("/messages")){
+      assert.equal(JSON.parse(opts.body).template.name,"rainbow_paid_order_invoice");
+      return ok({messages:[{id:"wamid.live-production-test"}]});
+    }
+    if(path.endsWith("/finish_paid_invoice_whatsapp")){
+      assert.equal(JSON.parse(opts.body).p_provider_id,"wamid.live-production-test");
+      return ok(true);
+    }
+    throw Error("Unexpected request "+path);
+  };
+  const result=await sendPaidInvoiceWhatsApp({...liveBase,
+    WHATSAPP_LIVE_SEND_ENABLED:"true",WHATSAPP_LIVE_SEND_ALL:"true",
+    WHATSAPP_TEST_RECIPIENT_ALLOWLIST:""},{fetchImpl});
+  assert.deepEqual(result,{state:"processed",count:1});
+  assert.equal(paths.filter(x=>x.endsWith("/messages")).length,1);
+});
