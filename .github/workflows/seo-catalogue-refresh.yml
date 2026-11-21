@@ -1,6 +1,11 @@
 name: Cloudflare SEO catalogue scheduled refresh
 
 on:
+  pull_request:
+    paths:
+      - '.github/workflows/seo-catalogue-refresh.yml'
+      - 'scripts/generate-seo-pages.mjs'
+      - 'tests/seo/**'
   schedule:
     - cron: "23 */6 * * *"
   workflow_dispatch:
@@ -37,7 +42,7 @@ jobs:
           if-no-files-found: error
 
   trigger-approved-deploy:
-    if: vars.RAINBOW_SEO_CATALOGUE_APPROVED == 'true'
+    if: github.event_name != 'pull_request' && vars.RAINBOW_SEO_CATALOGUE_APPROVED == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Request Cloudflare Pages rebuild with current online catalogue
