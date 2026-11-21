@@ -16,6 +16,8 @@ const allow=new Set(["/admin/login.html","/admin/index.html","/admin/audit.html"
   "/admin/style.css","/admin/premium.css","/design-system.css",
   "/assets/brand/rainbow-logo.png"]);
 function bootFixture(){
+  const window=globalThis;
+  const location=window.location;
   const uid={
     admin:"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
     cashier:"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
@@ -132,7 +134,7 @@ async function serve(){
         "text/css; charset=utf-8":pathname.endsWith(".png")?
         "image/png":"text/javascript; charset=utf-8");
       res.end(content);
-    }catch(error){res.statusCode=500;res.end("Fixture server error");}
+    }catch{res.statusCode=500;res.end("Fixture server error");}
   });
   await new Promise(resolve=>server.listen(0,"127.0.0.1",resolve));
   return {base:"http://127.0.0.1:"+server.address().port,
