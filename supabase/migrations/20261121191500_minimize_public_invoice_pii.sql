@@ -51,5 +51,5 @@ AS $function$
           or exists(select 1 from public.payments p
              where p.order_id=o.id and p.method='upi' and p.status='paid'
                and p.verified_by is not null and p.verified_at is not null))));
-$function$
+$function$;
 COMMIT;
