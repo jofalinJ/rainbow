@@ -1,5 +1,6 @@
 // Official Meta WhatsApp Cloud API sender. Runs only from the Worker cron.
-// No browser can invoke this, and no tests send live WhatsApp traffic.
+// Production messaging requires a separate default-OFF owner approval, verified
+// business sender and SQL-enforced paid customer opt-in. No browser can invoke it.
 const digits=v=>String(v||"").replace(/\D/g,"");
 const validNumber=v=>/^[1-9]\d{9,14}$/.test(v);
 
@@ -7,10 +8,15 @@ export async function sendPaidInvoiceWhatsApp(env, {fetchImpl=fetch}={}){
   if(env.WHATSAPP_SEND_ENABLED!=="true")return {state:"disabled"};
   const allowlist=String(env.WHATSAPP_TEST_RECIPIENT_ALLOWLIST||"")
     .split(",").map(digits).filter(validNumber);
-  // This Worker ONLY supports rzp_test_ keys: do not send to actual customers
-  // unless a number was explicitly allowlisted for test notifications.
-  if(!String(env.RAZORPAY_KEY_ID||"").startsWith("rzp_test_") || !allowlist.length)
-    return {state:"test_recipient_allowlist_required"};
+  const wantsProduction=env.PAYMENTS_MODE==="live";
+  if(wantsProduction && env.WHATSAPP_PRODUCTION_APPROVED!=="true")
+    return {state:"production_not_approved"};
+  const live=wantsProduction && env.WHATSAPP_PRODUCTION_APPROVED==="true" &&
+    env.LIVE_PAYMENTS_RELEASED==="true" &&
+    /^rzp_live_[A-Za-z0-9]+$/.test(String(env.RAZORPAY_LIVE_KEY_ID||""));
+  const test=!wantsProduction && /^rzp_test_[A-Za-z0-9]+$/.test(String(env.RAZORPAY_KEY_ID||"")) &&
+    allowlist.length>0;
+  if(!live && !test)return {state:"test_recipient_allowlist_required"};
   const token=String(env.WHATSAPP_ACCESS_TOKEN||"");
   const phoneId=String(env.WHATSAPP_PHONE_NUMBER_ID||"");
   const template=String(env.WHATSAPP_TEMPLATE_NAME||"");
@@ -31,9 +37,26 @@ export async function sendPaidInvoiceWhatsApp(env, {fetchImpl=fetch}={}){
     return response.json();
   };
 
-  const pending=await rpc("claim_paid_invoice_whatsapp",{
-    p_limit:5,p_allowed_numbers:allowlist
-  });
+  if(live){
+    // Meta Phone Number ID is opaque: verify the actual outbound number to
+    // avoid sending paid invoices from the wrong WhatsApp Business identity.
+    const expectedSender=digits(env.WHATSAPP_EXPECTED_SENDER_E164);
+    if(!validNumber(expectedSender))return {state:"expected_sender_required"};
+    let displayed;
+    try{
+      const senderResponse=await fetchImpl(
+        "https://graph.facebook.com/"+version+"/"+phoneId+"?fields=display_phone_number",{
+          headers:{"Authorization":"Bearer "+token}
+        });
+      if(!senderResponse.ok)return {state:"sender_not_verified"};
+      displayed=await senderResponse.json();
+    }catch{return {state:"sender_not_verified"};}
+    if(digits(displayed.display_phone_number)!==expectedSender)
+      return {state:"sender_mismatch"};
+  }
+  const pending=live
+    ?await rpc("claim_paid_invoice_whatsapp_production",{p_limit:5})
+    :await rpc("claim_paid_invoice_whatsapp",{p_limit:5,p_allowed_numbers:allowlist});
   if(!Array.isArray(pending))throw new Error("Invalid WhatsApp outbox batch");
   const graphUrl="https://graph.facebook.com/"+version+"/"+phoneId+"/messages";
   for(const item of pending){
@@ -42,7 +65,8 @@ export async function sendPaidInvoiceWhatsApp(env, {fetchImpl=fetch}={}){
     const recipient=digits(item.recipient);
     let invoice;
     try{invoice=new URL(item.invoice_url);}catch{invoice=null;}
-    const approved=allowlist.includes(recipient)&&validNumber(recipient)&&
+    const approved=(live||allowlist.includes(recipient))&&validNumber(recipient)&&
+      item.whatsapp_opt_in===true&&item.payment_verified===true&&
       invoice?.origin==="https://rainbowgoldcovering.com"&&
       invoice.pathname==="/invoice.html"&&
       /^[0-9a-f-]{36}$/i.test(invoice.searchParams.get("token")||"");
