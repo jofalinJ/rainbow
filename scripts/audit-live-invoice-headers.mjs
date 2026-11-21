@@ -1,6 +1,8 @@
 // Read-only public origin probe; no invoice token, no cookies, no PII, no writes.
 // The Cloudflare Pages _headers file must not be assumed to control GitHub Pages.
 import process from "node:process";
+import {resolve} from "node:path";
+import {pathToFileURL} from "node:url";
 
 const TARGET="https://rainbowgoldcovering.com/invoice.html";
 const APPROVED=new Set(["rainbowgoldcovering.com","www.rainbowgoldcovering.com"]);
@@ -42,7 +44,7 @@ export async function auditPublicInvoiceHeaders(fetcher=fetch){
  };
 }
 
-if(process.argv[1]&&import.meta.url===new URL("file://"+process.argv[1]).href){
+if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href){
  auditPublicInvoiceHeaders().then(result=>{
   process.stdout.write(JSON.stringify(result,null,2)+"\n");
   const missing=Object.entries(result.checks).filter(([,v])=>!v).map(([k])=>k);
