@@ -10,7 +10,7 @@ const promotionFix=read("supabase/migrations/20261015200500_fix_promotion_delete
 describe("complete online order review",()=>{
   it("loads online orders only and retrieves all billing breakdown fields",()=>{
     expect(orders).toContain('.eq("source","online")');
-    for(const field of ["subtotal","discount_amount","cgst_amount","sgst_amount","delivery_fee",
+    for(const field of ["subtotal","discount_amount","cgst_amount","sgst_amount","igst_amount","delivery_fee",
       "variant_color","variant_size","length_cm","thickness","unit_price","line_total",
       "transaction_reference","verified_at","amount"]){
       expect(orders).toContain(field);
@@ -28,6 +28,14 @@ describe("complete online order review",()=>{
     expect(orders).toContain("needsPaymentReconciliation(o)");
     expect(orders).toContain("Review captured payment / refund");
     expect(orders).toContain("Do not ship or send a paid-order notification");
+  });
+  it("includes interstate IGST in admin billing breakdown and order total validation",()=>{
+    // Checkout stores IGST separately for destinations outside Tamil Nadu.
+    const interstate=read("supabase/migrations/20261103183000_interstate_igst_checkout.sql");
+    expect(interstate).toContain("igst_amount");
+    expect(orders).toContain('["IGST",o.igst_amount]');
+    expect(orders).toContain("Number(o.cgst_amount||0)+Number(o.sgst_amount||0)+Number(o.igst_amount||0)+Number(o.delivery_fee||0)");
+    expect(orders).toContain("igst_amount,delivery_fee,total_amount");
   });
   it("never changes order status directly from the browser",()=>{
     expect(orders).toContain('rpc("update_online_order_status"');

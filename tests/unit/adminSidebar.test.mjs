@@ -172,9 +172,40 @@ describe("shared admin sidebar", () => {
       "products.html","reports.html","settings.html","staff.html"];
     for(const page of pages){
       const html=readFileSync(path.resolve("admin",page),"utf8");
-      expect(html).toContain("app.js?v=20261114-staff-access");
+      expect(html).toContain(page==="index.html"
+        ?"app.js?v=20261121-paid-daily-sales"
+        :"app.js?v=20261114-staff-access");
       expect(html).not.toContain("app.js?v=20261018-unified-shop-staff-v2");
     }
+  });
+
+  it("allows active owners to open the protected Audit History screen",async()=>{
+    const {aside,location,verify}=sidebarFor("admin","audit.html");
+    await verify();
+    expect(location.href).toBe("");
+    const labels=aside.querySelector("nav").children.map(child=>child.textContent);
+    expect(labels).toContain("Audit History");
+    expect(labels).toContain("Reports");
+  });
+
+  it.each(["cashier","inventory_staff"])("blocks %s from audit history and owner reports",async role=>{
+    for(const page of ["audit.html","reports.html","index.html","attendance.html"]){
+      const {aside,location,verify}=sidebarFor(role,page);
+      await verify();
+      expect(aside.querySelector("nav").children).toHaveLength(0);
+      expect(location.href).toBe("billing.html");
+    }
+  });
+
+  it.each([
+    ["disabled",{role:"admin",active:false,archived_at:null}],
+    ["archived",{role:"admin",active:true,archived_at:"2026-11-21T00:00:00Z"}],
+    ["unsupported role",{role:"owner",active:true,archived_at:null}]
+  ])("fails closed when the account is %s even with a valid auth session",async (_label,profile)=>{
+    const {aside,location,verify}=sidebarFor("admin","audit.html",undefined,{profile});
+    await verify();
+    expect(aside.querySelector("nav").children).toHaveLength(0);
+    expect(location.href).toBe("login.html");
   });
 
 });

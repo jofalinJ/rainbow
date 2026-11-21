@@ -51,14 +51,15 @@ async function render(){
  $("saveOffline").disabled=expired||!selected.length||!$("cashCollected").checked||!$("offlineStaffOperator").value.trim();
  const pending=data.pending.slice().reverse().slice(0,70);
  $("pendingList").innerHTML=pending.map(s=>{
-  const title=s.status==="synced"?"CONFIRMED · "+html(s.receipt?.invoice_number||"Invoice"):
-   s.status==="needs_review"?"NEEDS OWNER REVIEW":"PENDING SYNC";
+  const title=s.status==="synced"
+   ?(s.reconciliationNote?"CONFIRMED · CASH REVIEW · ":"CONFIRMED · ")+html(s.receipt?.invoice_number||"Invoice")
+   :s.status==="needs_review"?"NEEDS OWNER REVIEW":"PENDING SYNC";
   const invoice=s.status==="synced"&&s.receipt?.public_token
    ?'<a target="_blank" rel="noopener" href="../invoice.html?token='+encodeURIComponent(s.receipt.public_token)+'">View final invoice</a>':"";
   const provisional=s.status!=="synced"?
    '<button type="button" data-print="'+html(s.id)+'">Print provisional receipt</button>':"";
   return '<div><b>'+title+'</b><br><span class="muted">'+html(s.id.slice(0,8))+' · '+html(new Date(s.createdAt).toLocaleString("en-IN"))+
-   ' · Staff: '+html(s.operator||"Not recorded")+' · '+fmt(s.totals.total)+'</span><br>'+html(s.lastError||"")+' '+invoice+provisional+'</div>';
+   ' · Staff: '+html(s.operator||"Not recorded")+' · '+fmt(s.totals.total)+'</span><br>'+html(s.reconciliationNote||s.lastError||"")+' '+invoice+provisional+'</div>';
  }).join("")||'<p class="muted">No offline cash records yet.</p>';
  for(const el of document.querySelectorAll("[data-print]"))el.onclick=()=>printOffline(pending.find(s=>s.id===el.dataset.print));
  setConnection();
@@ -146,7 +147,7 @@ async function syncOnline(force=false){
     console.warn("Offline stock could not be refreshed",error);
     message+=" Refresh saved products before the next offline shift.";
    }
-   status(message);
+   status(message,stats.needsReview>0);
   }
   else if(stats.needsReview)status(stats.needsReview+" offline record(s) need owner review.",true);
   else if(stats.delayed)status("Sync delayed. Saved records are safe on this device; retry after reconnect.",true);

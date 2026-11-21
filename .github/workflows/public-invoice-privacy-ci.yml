@@ -1,0 +1,50 @@
+name: Public invoice privacy in disposable PostgreSQL
+
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/20261121191500_minimize_public_invoice_pii.sql'
+      - 'tests/sql/public-invoice-privacy-*.sql'
+      - '.github/workflows/public-invoice-privacy-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  invoice-bearer-privacy:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: privacy_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d privacy_test"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    env:
+      PGHOST: localhost
+      PGPORT: "5432"
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: privacy_test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL client if missing
+        run: |
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+      - name: Create synthetic paid, unpaid and local invoices
+        run: psql -v ON_ERROR_STOP=1 -f tests/sql/public-invoice-privacy-fixture.sql
+      - name: Install proposed public invoice PII minimization
+        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261121191500_minimize_public_invoice_pii.sql
+      - name: Validate anonymous public invoice eligibility, fields and privacy
+        run: psql -v ON_ERROR_STOP=1 -f tests/sql/public-invoice-privacy-behavior.sql

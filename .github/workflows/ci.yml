@@ -24,6 +24,8 @@ jobs:
       - run: npm run test:unit
       - run: node --test tests/ops/owner-readiness.test.mjs
       - run: npm run test:checkout:fixture
+      - name: Staff authentication and owner role navigation in isolated Chrome fixture
+        run: node --test --test-concurrency=1 tests/e2e/selenium/tests/staff-auth-local-fixture.test.mjs
       - name: Product entry browser regression (local fixtures only)
         run: npm run test:product-entry:fixture
       - name: Offline cash POS in-browser worker and encrypted queue regression

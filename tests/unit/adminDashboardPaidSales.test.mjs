@@ -33,3 +33,31 @@ describe("admin sales dashboard",()=>{
     expect(scope.console.error).not.toHaveBeenCalled();
   });
 });
+
+
+describe("India-day sales pagination",()=>{
+ it("does not cap daily sales at the 50 most recent orders",async()=>{
+  const today=new Date().toISOString();
+  const paid=Array.from({length:65},(_,i)=>({
+   id:"paid"+i,created_at:today,status:"confirmed",
+   payment_status:"paid",total_amount:100
+  }));
+  const dom=new Map(),elements={querySelector(selector){
+   if(!dom.has(selector))dom.set(selector,{textContent:"",innerHTML:""});
+   return dom.get(selector);
+  }};
+  const sb=vi.fn(async route=>{
+   if(route.includes("&payment_status=eq.paid&"))return paid;
+   if(route.startsWith("orders?"))return paid.slice(0,50);
+   return [];
+  });
+  const scope={sb,document:elements,Date,console:{error:vi.fn()}};
+  runInNewContext(script.slice(start,end)+"\nthis.loadDashboard=loadDashboard;",scope);
+  await scope.loadDashboard();
+  expect(dom.get("#sales").textContent).toBe("₹6,500");
+  expect(dom.get("#salesMeta").textContent).toBe("65 paid orders today");
+  expect(sb.mock.calls.some(([route])=>route.includes("Asia/Kolkata"))).toBe(false);
+  expect(sb.mock.calls.some(([route])=>route.includes("created_at=gte."))).toBe(true);
+  expect(scope.console.error).not.toHaveBeenCalled();
+ });
+});

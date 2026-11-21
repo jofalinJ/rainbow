@@ -102,6 +102,7 @@ const ADMIN_NAV_ITEMS=[
   {label:"Billing",href:"billing.html",roles:["admin","cashier","inventory_staff"]},
   {label:"Customers",href:"customers.html",roles:["admin","cashier","inventory_staff"]},
   {label:"Reports",href:"reports.html",roles:["admin"]},
+  {label:"Audit History",href:"audit.html",roles:["admin"]},
   {label:"Staff",href:"staff.html",roles:["admin"]},
   {label:"My Attendance",href:"my-attendance.html",roles:["cashier","inventory_staff"]},
   {label:"Attendance",href:"attendance.html",roles:["admin"]}
@@ -171,7 +172,48 @@ async function applyRoleNavigation(){
 async function logout(){await bootSupabase().auth.signOut();location.href="login.html";}
 function comingSoon(name){alert(name+" is not enabled yet.");return false;}
 window.addEventListener("pageshow",event=>{if(event.persisted)window.location.reload();});
-async function loadDashboard(){try{const [products,orders,low,best]=await Promise.all([sb("products?select=id&active=eq.true"),sb("orders?select=id,total_amount,created_at,status,payment_status&order=created_at.desc&limit=50"),sb("low_stock_products?select=*"),sb("best_selling_products?select=*&limit=5")]);const today=new Date();today.setHours(0,0,0,0);const todayPaidOrders=(orders||[]).filter(o=>new Date(o.created_at)>=today&&o.payment_status==="paid"&&!["cancelled","refunded"].includes(o.status));const sales=todayPaidOrders.reduce((s,o)=>s+Number(o.total_amount||0),0);const salesEl=document.querySelector("#sales");if(salesEl)salesEl.textContent="₹"+sales.toLocaleString("en-IN",{maximumFractionDigits:0});const meta=document.querySelector("#salesMeta");if(meta)meta.textContent=todayPaidOrders.length+" paid orders today";const ordersEl=document.querySelector("#orders");if(ordersEl)ordersEl.textContent=(orders||[]).length;const productsEl=document.querySelector("#products");if(productsEl)productsEl.textContent=(products||[]).length;const lowEl=document.querySelector("#lowCount");if(lowEl)lowEl.textContent=(low||[]).length;const orderRows=document.querySelector("#orderRows");if(orderRows)orderRows.innerHTML=(orders||[]).slice(0,5).map(o=>"<tr><td>#"+o.id.slice(0,8).toUpperCase()+"</td><td>₹"+Number(o.total_amount||0).toLocaleString("en-IN")+"</td><td><b>"+o.status+"</b></td></tr>").join("")||"<tr><td colspan='3'>No orders yet.</td></tr>";const lowRows=document.querySelector("#lowRows");if(lowRows)lowRows.innerHTML=(low||[]).slice(0,5).map(x=>"<div class='stock'><div><b>"+x.product_name+"</b><small>"+x.product_code+"</small></div><strong>"+x.stock_quantity+" left</strong></div>").join("")||"<p>No low-stock products.</p>";const bestRows=document.querySelector("#bestRows");if(bestRows)bestRows.innerHTML=(best||[]).map((x,i)=>"<div class='seller'><span>0"+(i+1)+"</span><div><b>"+x.product_name+"</b><small>"+x.units_sold+" sold</small></div><strong>₹"+Number(x.sales_amount||0).toLocaleString("en-IN")+"</strong></div>").join("")||"<p>No sales yet.</p>"}catch(e){console.error(e);const meta=document.querySelector("#salesMeta");if(meta)meta.textContent="Error: "+e.message;const rows=document.querySelector("#orderRows");if(rows)rows.innerHTML="<tr><td colspan='3'>Could not load dashboard: "+e.message+"</td></tr>";}}
+async function loadDashboard(){
+  try{
+    // The 50-order list is for recent activity ONLY. Accounting totals use
+    // all paid orders within the actual India shop day, paginated at the source.
+    async function fetchShopDayPaid(){
+      const parts=Object.fromEntries(
+        new Intl.DateTimeFormat("en-GB",{timeZone:"Asia/Kolkata",year:"numeric",
+          month:"2-digit",day:"2-digit"}).formatToParts(new Date()).map(p=>[p.type,p.value])
+      );
+      const dayStart=Date.UTC(Number(parts.year),Number(parts.month)-1,Number(parts.day))-
+        330*60*1000;
+      const from=new Date(dayStart).toISOString(),to=new Date(dayStart+86400000).toISOString();
+      let count=0,sum=0;
+      for(let page=0;page<200;page++){
+        const offset=page*500;
+        const route="orders?select=id,total_amount,status,payment_status,created_at"+
+          "&payment_status=eq.paid&created_at=gte."+encodeURIComponent(from)+
+          "&created_at=lt."+encodeURIComponent(to)+
+          "&order=created_at.asc,id.asc&limit=500&offset="+offset;
+        const batch=await sb(route);
+        if(!Array.isArray(batch))throw new Error("Paid sales query failed");
+        for(const o of batch){
+          if(o.payment_status==="paid"&&!["cancelled","refunded"].includes(o.status)){
+            count++;
+            const amount=Number(o.total_amount||0);
+            if(!Number.isFinite(amount))throw new Error("Invalid paid order amount");
+            sum+=amount;
+          }
+        }
+        if(batch.length<500)return {sum,count};
+      }
+      throw new Error("Today's paid orders exceed the safe report page limit");
+    }
+    const [products,orders,low,best,daily]=await Promise.all([
+      sb("products?select=id&active=eq.true"),
+      sb("orders?select=id,total_amount,created_at,status,payment_status&order=created_at.desc&limit=50"),
+      sb("low_stock_products?select=*"),
+      sb("best_selling_products?select=*&limit=5"),
+      fetchShopDayPaid()
+    ]);
+    const sales=daily.sum;
+    const salesEl=document.querySelector("#sales");if(salesEl)salesEl.textContent="₹"+sales.toLocaleString("en-IN",{maximumFractionDigits:0});const meta=document.querySelector("#salesMeta");if(meta)meta.textContent=daily.count+" paid orders today";const ordersEl=document.querySelector("#orders");if(ordersEl)ordersEl.textContent=(orders||[]).length;const productsEl=document.querySelector("#products");if(productsEl)productsEl.textContent=(products||[]).length;const lowEl=document.querySelector("#lowCount");if(lowEl)lowEl.textContent=(low||[]).length;const orderRows=document.querySelector("#orderRows");if(orderRows)orderRows.innerHTML=(orders||[]).slice(0,5).map(o=>"<tr><td>#"+o.id.slice(0,8).toUpperCase()+"</td><td>₹"+Number(o.total_amount||0).toLocaleString("en-IN")+"</td><td><b>"+o.status+"</b></td></tr>").join("")||"<tr><td colspan='3'>No orders yet.</td></tr>";const lowRows=document.querySelector("#lowRows");if(lowRows)lowRows.innerHTML=(low||[]).slice(0,5).map(x=>"<div class='stock'><div><b>"+x.product_name+"</b><small>"+x.product_code+"</small></div><strong>"+x.stock_quantity+" left</strong></div>").join("")||"<p>No low-stock products.</p>";const bestRows=document.querySelector("#bestRows");if(bestRows)bestRows.innerHTML=(best||[]).map((x,i)=>"<div class='seller'><span>0"+(i+1)+"</span><div><b>"+x.product_name+"</b><small>"+x.units_sold+" sold</small></div><strong>₹"+Number(x.sales_amount||0).toLocaleString("en-IN")+"</strong></div>").join("")||"<p>No sales yet.</p>"}catch(e){console.error(e);const meta=document.querySelector("#salesMeta");if(meta)meta.textContent="Error: "+e.message;const rows=document.querySelector("#orderRows");if(rows)rows.innerHTML="<tr><td colspan='3'>Could not load dashboard: "+e.message+"</td></tr>";}}
 let dashboardLiveChannel=null,dashboardRefreshTimer=null,dashboardPollTimer=null;
 function startDashboardLiveUpdates(){
   if(dashboardPollTimer)return;

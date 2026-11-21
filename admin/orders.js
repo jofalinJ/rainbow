@@ -64,7 +64,7 @@ async function loadOrders({quiet=false}={}){
   let timeoutId;
   try{
     const request=ordersClient.from("orders")
-      .select("id,order_number,source,status,payment_status,subtotal,discount_amount,cgst_amount,sgst_amount,delivery_fee,total_amount,shipping_address,created_at,updated_at,customers:customers!orders_customer_id_fkey(name,whatsapp_number,email,address,city,state,pin_code),order_items:order_items!order_items_order_id_fkey(product_code,product_name,quantity,unit_price,line_total,variant_color,variant_size,length_cm,thickness,discount_amount),payments:payments!payments_order_id_fkey(id,method,status,transaction_reference,amount,paid_at,verified_at),invoices:invoices!invoices_order_id_fkey(invoice_number,public_token)")
+      .select("id,order_number,source,status,payment_status,subtotal,discount_amount,cgst_amount,sgst_amount,igst_amount,delivery_fee,total_amount,shipping_address,created_at,updated_at,customers:customers!orders_customer_id_fkey(name,whatsapp_number,email,address,city,state,pin_code),order_items:order_items!order_items_order_id_fkey(product_code,product_name,quantity,unit_price,line_total,variant_color,variant_size,length_cm,thickness,discount_amount),payments:payments!payments_order_id_fkey(id,method,status,transaction_reference,amount,paid_at,verified_at),invoices:invoices!invoices_order_id_fkey(invoice_number,public_token)")
       .eq("source","online")
       .order("created_at",{ascending:false})
       .abortSignal(controller.signal);
@@ -169,10 +169,10 @@ function openOrder(id){
   const selectOptions=choices.map(status=>"<option value='"+esc(status)+"'"+(status===o.status?" selected":"")+">"+esc(status)+"</option>").join("");
   const mismatch=o.status==="delivered"&&o.payment_status!=="paid";
   const recordedAmount=Number(o.subtotal||0)-Number(o.discount_amount||0)+
-    Number(o.cgst_amount||0)+Number(o.sgst_amount||0)+Number(o.delivery_fee||0);
+    Number(o.cgst_amount||0)+Number(o.sgst_amount||0)+Number(o.igst_amount||0)+Number(o.delivery_fee||0);
   const amountMismatch=Math.abs(recordedAmount-Number(o.total_amount||0))>0.02;
   const amounts=[["Subtotal",o.subtotal],["Discount",o.discount_amount],["CGST",o.cgst_amount],
-    ["SGST",o.sgst_amount],["Delivery",o.delivery_fee],["Order total",o.total_amount]]
+    ["SGST",o.sgst_amount],["IGST",o.igst_amount],["Delivery",o.delivery_fee],["Order total",o.total_amount]]
     .map(([name,value])=>"<div><span>"+esc(name)+"</span><strong>"+money(value)+"</strong></div>").join("");
   document.querySelector("#mBody").innerHTML=
     (reviewNeeded?"<p class='order-detail-warning'>⚠ Cancelled or refunded order shows captured payment. Do not ship or send a paid-order notification. Investigate and refund when required.</p>":"")+

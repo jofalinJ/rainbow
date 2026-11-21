@@ -1,0 +1,54 @@
+name: Invoice token index integrity (disposable PostgreSQL)
+
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/20261121190000_deduplicate_invoice_token_index.sql'
+      - 'tests/sql/invoice-token-index-*.sql'
+      - '.github/workflows/invoice-token-index-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  invoice-token-unique:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: invoice_index_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d invoice_index_test"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    env:
+      PGHOST: localhost
+      PGPORT: "5432"
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: invoice_index_test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL client if missing
+        run: |
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+      - name: Create synthetic invoice and both indexes
+        run: psql -v ON_ERROR_STOP=1 -f tests/sql/invoice-token-index-fixture.sql
+      - name: Apply staged deduplication to disposable database
+        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261121190000_deduplicate_invoice_token_index.sql
+      - name: Prove uniqueness and invoice preservation
+        run: psql -v ON_ERROR_STOP=1 -f tests/sql/invoice-token-index-behavior.sql
+      - name: Migration remains idempotent without destroying the retained index
+        run: |
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261121190000_deduplicate_invoice_token_index.sql
+          psql -v ON_ERROR_STOP=1 -f tests/sql/invoice-token-index-behavior.sql

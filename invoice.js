@@ -3,6 +3,10 @@ function getToken(){return new URLSearchParams(location.search).get("token");}
 async function loadInvoice(){
   const token=getToken();
   if(!token){$inv("invoice").innerHTML="<div class='error'>Missing bill link.</div>";return;}
+  // Reject malformed bearer tokens locally; never put them into logs or error UI.
+  if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(token)){
+    $inv("invoice").innerHTML="<div class='error'>Invalid bill link.</div>";return;
+  }
   try{
     const cfg=window.RAINBOW_SUPABASE_CONFIG||{};
     if(!window.RainbowInvoice||!window.supabase?.createClient)throw new Error("Invoice dependencies did not load.");
@@ -25,7 +29,7 @@ async function loadInvoice(){
     }
     if(new URLSearchParams(location.search).get("print")==="1")setTimeout(()=>window.print(),350);
   }catch(e){
-    console.error(e);
+    // Avoid logging provider errors that may contain a private invoice token.
     $inv("invoice").innerHTML="<div class='error'>Could not load this bill. Please return to Bills and try again.</div>";
   }
 }

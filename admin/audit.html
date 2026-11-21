@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#8f1520">
+<title>Rainbow Gold Covering — Audit History</title>
+<link rel="stylesheet" href="style.css?v=20261103-premium">
+<link rel="icon" type="image/png" href="../assets/brand/rainbow-logo.png">
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="../design-system.css?v=20261103-a11y">
+<link rel="stylesheet" href="premium.css?v=20261103">
+<script defer src="app.js?v=20261121-audit-history"></script>
+<script defer src="audit.js?v=20261121"></script>
+<style>
+.audit-controls{display:flex;align-items:end;gap:12px;flex-wrap:wrap;margin:14px 0}
+.audit-controls label{display:block;font-size:13px;color:#595959}
+.audit-controls select{display:block;min-height:44px;margin-top:6px;padding:9px 12px;border:1px solid #ddd;border-radius:8px;background:#fff}
+.audit-table{width:100%;border-collapse:collapse;font-size:13px}
+.audit-table th,.audit-table td{padding:11px 9px;border-bottom:1px solid #ececec;text-align:left;vertical-align:top}
+.audit-table th{color:#666}
+.audit-table td code{overflow-wrap:anywhere;font-size:12px}
+.audit-scroll{overflow:auto;width:100%}
+#auditStatus{margin:10px 0;color:#555}
+@media(max-width:700px){.audit-table{min-width:660px}.audit-controls{align-items:stretch}}
+</style>
+</head>
+<body>
+<a class="skip-link" href="#mainContent">Skip to main content</a>
+<aside aria-label="Admin sidebar"></aside>
+<main id="mainContent" tabindex="-1">
+<header><div><p class="eyebrow">SECURITY &amp; OPERATIONS</p><h1>Audit history</h1></div>
+<button id="reloadAudit" type="button">Refresh</button></header>
+<section class="panel">
+<h2>Operational changes</h2>
+<p class="muted">Owner-only log of product price/visibility changes, online publishing, staff access and stock movements. No customer messages or passwords are stored in the audit details.</p>
+<div class="audit-controls">
+<label for="auditType">Show
+<select id="auditType"><option value="">All changes</option>
+<option value="product">Products</option><option value="online_listing">Online publishing</option>
+<option value="staff_access">Staff access</option><option value="stock_event">Stock movements</option>
+</select></label>
+</div>
+<p id="auditStatus" role="status" aria-live="polite">Checking owner access…</p>
+<div class="audit-scroll"><table class="audit-table">
+<thead><tr><th>Date</th><th>Change</th><th>Record</th><th>Actor</th><th>Details</th></tr></thead>
+<tbody id="auditRows"><tr><td colspan="5">Loading audit history…</td></tr></tbody>
+</table></div>
+<p class="muted">Most recent 200 records, read-only. Older records remain in the database subject to your retention policy. Changes made before the audit migration will not appear here.</p>
+</section>
+</main>
+</body>
+</html>

@@ -52,10 +52,22 @@ export async function syncOfflineSale(vault,sale,client){
  if(error)throw error;
  if(!data?.invoice_number||!data?.public_token||!data?.order_id)
   throw new Error("POS did not return a verified invoice. Retry the same request ID.");
- // The RPC uses numeric PostgreSQL rounding. Do not silently accept cash mismatch.
- // If this ever differs, retain the idempotent sale and flag the mismatch for staff.
- const saved=await vault.markSynced(sale.id,data);
- return {status:"synced",sale:saved,receipt:data,difference:Math.abs(Number(data.total_amount)-Number(sale.totals.total))};
+ // The RPC may have committed the invoice already. NEVER retry as a new sale
+ // because the cash collected and authoritative server total differ.
+ // Persist a review warning alongside the confirmed receipt instead.
+ const invoiceTotal=data.total_amount==null?NaN:Number(data.total_amount);
+ const cashTotal=sale.totals?.total==null?NaN:Number(sale.totals.total);
+ const difference=Number.isFinite(invoiceTotal)&&Number.isFinite(cashTotal)
+  ?round(invoiceTotal-cashTotal):null;
+ const needsReview=difference===null||Math.abs(difference)>0.01;
+ const note=difference===null
+  ?"Confirmed invoice total could not be compared with cash collected. Owner review required; do not create a new sale."
+  :"Cash collected differs from the confirmed invoice by ₹"+Math.abs(difference).toFixed(2)+
+    ". Owner review required; do not create a new sale.";
+ const saved=needsReview
+  ?await vault.markSynced(sale.id,data,note)
+  :await vault.markSynced(sale.id,data);
+ return {status:"synced",sale:saved,receipt:data,difference,needsReview};
 }
 export async function syncQueuedSales(vault,client,onProgress=()=>{}){
  const snapshot=await vault.read();
@@ -67,7 +79,10 @@ export async function syncQueuedSales(vault,client,onProgress=()=>{}){
    const result=await syncOfflineSale(vault,sale,client);
    if(result.status==="synced"){
     stats.confirmed++;
-    if(result.difference>0.01){onProgress("Invoice "+result.receipt.invoice_number+" needs amount review.");}
+    if(result.needsReview){
+     stats.needsReview++;
+     onProgress("Invoice "+result.receipt.invoice_number+" was confirmed but needs cash reconciliation. Do not issue another sale.");
+    }
    }
   }catch(error){
    if(isTransientSyncError(error)){

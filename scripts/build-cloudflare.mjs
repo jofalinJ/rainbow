@@ -70,14 +70,14 @@ async function validatePublishedTree(directory){
     const relative=path.relative(output,full).replaceAll(path.sep,"/");
     if(/^(?:categories|products)\//.test(relative)&&entry.name!=="index.html")
       throw new Error("Unexpected generated SEO asset: "+relative);
-    if(!entry.isFile()||!publicExtensions.has(path.extname(entry.name).toLowerCase()))
+    if(!entry.isFile()||(relative!=="_headers" && !publicExtensions.has(path.extname(entry.name).toLowerCase())))
       throw new Error("Unsafe publicly shipped file: "+path.relative(output,full));
   }
 }
 await validatePublishedTree(output);
 
 for(const required of [
-  "index.html","staff/index.html","admin/login.html","admin/owner.html","admin/owner.js","admin/owner.css","admin/manifest.webmanifest",
+  "_headers","invoice.html","index.html","staff/index.html","admin/login.html","admin/owner.html","admin/owner.js","admin/owner.css","admin/manifest.webmanifest",
   "admin/service-worker.js","src/domain/productRules.mjs",
   "payment-config.js","order-razorpay.mjs","order.js"
 ]){

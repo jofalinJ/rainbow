@@ -1,0 +1,54 @@
+name: Verified customer order tracking in disposable PostgreSQL
+
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/20261121203000_verified_customer_order_tracking.sql'
+      - 'tests/sql/verified-customer-tracking-*.sql'
+      - '.github/workflows/verified-customer-tracking-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verified-identity-tracking:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: tracking_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d tracking_test"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    env:
+      PGHOST: localhost
+      PGPORT: "5432"
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: tracking_test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL client if necessary
+        run: |
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+      - name: Create isolated accounts and order records
+        run: psql -v ON_ERROR_STOP=1 -f tests/sql/verified-customer-tracking-fixture.sql
+      - name: Apply candidate security migration to isolated database
+        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261121203000_verified_customer_order_tracking.sql
+      - name: Verify verified/unverified identities, stale tokens and anonymous denial
+        run: psql -v ON_ERROR_STOP=1 -f tests/sql/verified-customer-tracking-behavior.sql
+      - name: Verify migration is safe to repeat
+        run: |
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261121203000_verified_customer_order_tracking.sql
+          psql -v ON_ERROR_STOP=1 -f tests/sql/verified-customer-tracking-behavior.sql
