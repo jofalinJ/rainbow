@@ -40,12 +40,14 @@ CREATE TABLE public.erp_stock_events(
  quantity_delta integer NOT NULL, actor_id uuid
 );
 
-CREATE OR REPLACE FUNCTION public.is_admin()
-RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path=public AS $f$
+CREATE OR REPLACE FUNCTION app_private.erp_is_admin()
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path=pg_catalog,public AS $f$
  SELECT EXISTS(
    SELECT 1 FROM public.staff_profiles
    WHERE user_id=(SELECT auth.uid()) AND role='admin' AND active
      AND archived_at IS NULL
  );
 $f$;
-GRANT EXECUTE ON FUNCTION public.is_admin() TO authenticated;
+GRANT USAGE ON SCHEMA app_private TO authenticated;
+GRANT EXECUTE ON FUNCTION app_private.erp_is_admin() TO authenticated;
