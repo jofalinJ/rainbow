@@ -96,6 +96,8 @@ CREATE TABLE public.order_shipments(
  dispatch_date date,status text,updated_at timestamptz DEFAULT now()
 );
 GRANT USAGE ON SCHEMA public TO anon,authenticated,service_role;
+GRANT USAGE ON SCHEMA app_private TO authenticated;
+GRANT EXECUTE ON FUNCTION app_private.erp_is_admin() TO authenticated;
 GRANT USAGE ON SCHEMA auth TO authenticated,service_role;
 GRANT EXECUTE ON FUNCTION auth.uid() TO authenticated,service_role;
 GRANT EXECUTE ON FUNCTION auth.role() TO authenticated,service_role;
