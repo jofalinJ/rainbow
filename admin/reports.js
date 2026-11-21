@@ -20,6 +20,21 @@ function renderReports(orders,products){
   const rows=document.querySelector("#reportRows");
   if(rows)rows.innerHTML=orders.slice(0,30).map(o=>"<tr><td><b>"+reportEsc(o.order_number||("Order "+String(o.id||"").slice(0,8)))+"</b></td><td>"+reportEsc(reportDate(o.created_at))+"</td><td>"+reportEsc(o.source||"—")+"</td><td>"+reportEsc(o.payment_status||"—")+"</td><td>"+reportEsc(o.status||"—")+"</td><td>"+reportMoney(o.total_amount)+"</td></tr>").join("")||"<tr><td colspan='6'>No orders are available to report.</td></tr>";
 }
+// Never present a partial 1,000-row sample as the shop's complete sales total.
+async function fetchAllReportOrders(controller){
+  const all=[],pageSize=1000,maxPages=100;
+  for(let page=0;page<maxPages;page++){
+    const {data,error}=await reportsClient.from("orders")
+      .select("id,order_number,source,status,payment_status,total_amount,created_at")
+      .order("created_at",{ascending:false}).order("id",{ascending:false})
+      .range(page*pageSize,(page+1)*pageSize-1).abortSignal(controller.signal);
+    if(error)throw error;
+    const batch=Array.isArray(data)?data:[];
+    all.push(...batch);
+    if(batch.length<pageSize)return all;
+  }
+  throw new Error("Report exceeds 100,000 orders. Use a paged accounting export.");
+}
 async function loadReports(){
   const button=document.querySelector("#refreshReports"),rows=document.querySelector("#reportRows");
   if(button){button.disabled=true;button.textContent="Refreshing…";}
@@ -28,12 +43,12 @@ async function loadReports(){
   const controller=new AbortController();let timer;
   try{
     const request=Promise.all([
-      reportsClient.from("orders").select("id,order_number,source,status,payment_status,total_amount,created_at").order("created_at",{ascending:false}).limit(1000).abortSignal(controller.signal),
+      fetchAllReportOrders(controller),
       reportsClient.from("products").select("id").eq("active",true).abortSignal(controller.signal)
     ]);
     const timeout=new Promise((resolve,reject)=>{timer=setTimeout(()=>{controller.abort();reject(new Error("Report request timed out. Check your connection and refresh."));},15000);});
-    const [{data:orders,error:ordersError},{data:products,error:productsError}]=await Promise.race([request,timeout]);
-    if(ordersError)throw ordersError;if(productsError)throw productsError;
+    const [orders,{data:products,error:productsError}]=await Promise.race([request,timeout]);
+    if(productsError)throw productsError;
     renderReports(Array.isArray(orders)?orders:[],Array.isArray(products)?products:[]);
     reportStatus("Report refreshed at "+new Date().toLocaleTimeString("en-IN")+".");
   }catch(error){
