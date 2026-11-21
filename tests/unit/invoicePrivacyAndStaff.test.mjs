@@ -23,7 +23,7 @@ async function invoiceScene(search,{result=null,error=null}={}){
    supabase:{createClient:()=>({rpc})},
    RainbowInvoice:{render,money:n=>"₹"+n},
    open:vi.fn(),print:vi.fn()};
- const scope={document:doc,location:{search},window:win,
+ const scope={document:doc,location:{search},window:win,RainbowInvoice:win.RainbowInvoice,
    URLSearchParams,console:fakeConsole,setTimeout:vi.fn()};
  runInNewContext(invoice.replace(/\bloadInvoice\(\);\s*$/,"this.invoiceLoadPromise=loadInvoice();"),scope);
  await scope.invoiceLoadPromise;
