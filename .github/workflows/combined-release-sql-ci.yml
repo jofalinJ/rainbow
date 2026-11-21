@@ -1,0 +1,86 @@
+name: Combined Rainbow SQL migration rehearsal (disposable PostgreSQL)
+
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/20261121140000_admin_audit_trail.sql'
+      - 'supabase/migrations/20261121151500_production_whatsapp_paid_invoice_claim.sql'
+      - 'supabase/migrations/20261121163000_whatsapp_delivery_tracking.sql'
+      - 'supabase/migrations/20261121190000_deduplicate_invoice_token_index.sql'
+      - 'supabase/migrations/20261121191500_minimize_public_invoice_pii.sql'
+      - 'supabase/migrations/20261121203000_verified_customer_order_tracking.sql'
+      - 'tests/sql/combined-release-*.sql'
+      - '.github/workflows/combined-release-sql-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  combined-release-sql:
+    name: Apply all six migrations together, verify behavior and rerun idempotently
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: rainbow_combined_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d rainbow_combined_test"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    env:
+      PGHOST: localhost
+      PGPORT: "5432"
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: rainbow_combined_test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare PostgreSQL client
+        run: |
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+      - name: Install synthetic production-shaped schema and test-only records
+        run: psql -v ON_ERROR_STOP=1 -f tests/sql/combined-release-fixture.sql
+      - name: Apply all pending release migrations in the intended production order
+        run: |
+          set -euo pipefail
+          for migration in \
+            supabase/migrations/20261121140000_admin_audit_trail.sql \
+            supabase/migrations/20261121151500_production_whatsapp_paid_invoice_claim.sql \
+            supabase/migrations/20261121163000_whatsapp_delivery_tracking.sql \
+            supabase/migrations/20261121190000_deduplicate_invoice_token_index.sql \
+            supabase/migrations/20261121191500_minimize_public_invoice_pii.sql \
+            supabase/migrations/20261121203000_verified_customer_order_tracking.sql
+          do
+            psql -v ON_ERROR_STOP=1 -f "$migration"
+          done
+      - name: Prove receipts, tracking, audit, grants and WhatsApp eligibility coexist
+        run: psql -v ON_ERROR_STOP=1 -f tests/sql/combined-release-behavior.sql
+      - name: Reapply migrations to the disposable database without dropping records
+        run: |
+          set -euo pipefail
+          for migration in \
+            supabase/migrations/20261121140000_admin_audit_trail.sql \
+            supabase/migrations/20261121151500_production_whatsapp_paid_invoice_claim.sql \
+            supabase/migrations/20261121163000_whatsapp_delivery_tracking.sql \
+            supabase/migrations/20261121190000_deduplicate_invoice_token_index.sql \
+            supabase/migrations/20261121191500_minimize_public_invoice_pii.sql \
+            supabase/migrations/20261121203000_verified_customer_order_tracking.sql
+          do
+            psql -v ON_ERROR_STOP=1 -f "$migration"
+          done
+          psql -v ON_ERROR_STOP=1 -f tests/sql/combined-release-behavior.sql
+      - name: Confirm real customer environments were never contacted
+        run: |
+          test "$PGHOST" = "localhost"
+          test "$PGDATABASE" = "rainbow_combined_test"
