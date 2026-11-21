@@ -187,12 +187,15 @@ export class OfflineVault{
    return sale.syncActorId;
   });
  }
- async markSynced(id,receipt){
+ async markSynced(id,receipt,reconciliationNote=""){
   return this.mutate(data=>{
    const sale=data.pending.find(s=>s.id===id);
    if(!sale)throw new Error("Offline sale disappeared before confirmation.");
    if(sale.status==="synced")return sale;
+   // The server invoice is authoritative and must not be issued twice. Keep
+   // any cash difference visible to the shop owner after final confirmation.
    sale.status="synced";sale.receipt=receipt;sale.lastError="";
+   sale.reconciliationNote=String(reconciliationNote||"").slice(0,250);
    // Keep the local availability conservative if the server succeeded but
    // the next online stock-refresh could not complete.
    for(const item of sale.items){
