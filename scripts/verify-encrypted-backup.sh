@@ -12,7 +12,7 @@ if [[ ! -f "$archive" || ! -r "$archive" ]]; then
   printf 'Encrypted backup not readable.\n' >&2
   exit 2
 fi
-if [[ ! -f "$AGE_IDENTITY_FILE" || ! -r "$AGE_IDENTITY_FILE" ]]; then
+if [[ -z "${AGE_IDENTITY_FILE:-}" || ! -f "${AGE_IDENTITY_FILE:-}" || ! -r "${AGE_IDENTITY_FILE:-}" ]]; then
   printf 'AGE_IDENTITY_FILE must point to a readable private age identity file.\n' >&2
   exit 2
 fi
