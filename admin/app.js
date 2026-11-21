@@ -102,6 +102,7 @@ const ADMIN_NAV_ITEMS=[
   {label:"Billing",href:"billing.html",roles:["admin","cashier","inventory_staff"]},
   {label:"Customers",href:"customers.html",roles:["admin","cashier","inventory_staff"]},
   {label:"Reports",href:"reports.html",roles:["admin"]},
+  {label:"Audit History",href:"audit.html",roles:["admin"]},
   {label:"Staff",href:"staff.html",roles:["admin"]},
   {label:"My Attendance",href:"my-attendance.html",roles:["cashier","inventory_staff"]},
   {label:"Attendance",href:"attendance.html",roles:["admin"]}
