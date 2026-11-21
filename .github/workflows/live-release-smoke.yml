@@ -39,7 +39,8 @@ jobs:
                quick=$(curl -L --fail --silent --show-error --max-time 12 "$site/admin/owner.html"); then
               if grep -Fq '<small class="brand-since">SINCE 1996</small>' <<< "$home" &&
                  grep -Fq '.storefront-header-row .logo .brand-since{margin-top:2px}' <<< "$css" &&
-                 grep -Fq 'order.js?v=20261111-no-discount-copy' <<< "$checkout" &&
+                 grep -Fq 'order.js?v=20261111-whatsapp-receipt-optin' <<< "$checkout" &&
+                 grep -Fq 'id="whatsappReceiptConsent"' <<< "$checkout" &&
                  grep -Fq 'id="igstLine"' <<< "$checkout" &&
                  ! grep -Fq 'Discount (3%)' <<< "$checkout" &&
                  ! grep -Fq 'id="discount"' <<< "$checkout" &&

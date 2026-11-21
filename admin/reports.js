@@ -5,10 +5,14 @@ const reportDate=value=>{if(!value)return "—";const d=new Date(value);return N
 function setReportValue(id,value){const el=document.getElementById(id);if(el)el.textContent=value;}
 function reportStatus(message,error=false){const el=document.querySelector("#reportMessage");if(el){el.textContent=message;el.className="form-msg"+(error?" error":"");}}
 function renderReports(orders,products){
-  const activeOrders=orders.filter(o=>!["cancelled","refunded"].includes(String(o.status||"").toLowerCase()));
-  const sales=activeOrders.reduce((sum,o)=>sum+Number(o.total_amount||0),0);
-  const start=new Date();start.setHours(0,0,0,0);
-  const todayCount=orders.filter(o=>o.created_at&&new Date(o.created_at)>=start&&!["cancelled","refunded"].includes(String(o.status||"").toLowerCase())).length;
+  // Financial totals must exclude unpaid/pending orders, not just cancellations.
+  const paidOrders=orders.filter(o=>String(o.payment_status||"").toLowerCase()==="paid"&&
+    !["cancelled","refunded"].includes(String(o.status||"").toLowerCase()));
+  const sales=paidOrders.reduce((sum,o)=>sum+Number(o.total_amount||0),0);
+  const storeDay=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Kolkata",year:"numeric",month:"2-digit",day:"2-digit"});
+  const today=storeDay.format(new Date());
+  const todayCount=paidOrders.filter(o=>o.created_at&&!Number.isNaN(new Date(o.created_at).getTime())&&
+    storeDay.format(new Date(o.created_at))===today).length;
   setReportValue("reportOrders",String(orders.length));
   setReportValue("reportSales",reportMoney(sales));
   setReportValue("reportTodayOrders",String(todayCount));
@@ -16,6 +20,101 @@ function renderReports(orders,products){
   const rows=document.querySelector("#reportRows");
   if(rows)rows.innerHTML=orders.slice(0,30).map(o=>"<tr><td><b>"+reportEsc(o.order_number||("Order "+String(o.id||"").slice(0,8)))+"</b></td><td>"+reportEsc(reportDate(o.created_at))+"</td><td>"+reportEsc(o.source||"—")+"</td><td>"+reportEsc(o.payment_status||"—")+"</td><td>"+reportEsc(o.status||"—")+"</td><td>"+reportMoney(o.total_amount)+"</td></tr>").join("")||"<tr><td colspan='6'>No orders are available to report.</td></tr>";
 }
+// Never present a partial 1,000-row sample as the shop's complete sales total.
+async function fetchAllReportOrders(controller){
+  const all=[],pageSize=1000,maxPages=100;
+  for(let page=0;page<maxPages;page++){
+    const {data,error}=await reportsClient.from("orders")
+      .select("id,order_number,source,status,payment_status,total_amount,created_at")
+      .order("created_at",{ascending:false}).order("id",{ascending:false})
+      .range(page*pageSize,(page+1)*pageSize-1).abortSignal(controller.signal);
+    if(error)throw error;
+    const batch=Array.isArray(data)?data:[];
+    all.push(...batch);
+    if(batch.length<pageSize)return all;
+  }
+  throw new Error("Report exceeds 100,000 orders. Use a paged accounting export.");
+}
+// Daily close is a read-only view. No drawer amounts or credentials are saved.
+let expectedClosingCash=null;
+function shopDayWindow(now=new Date()){
+  const formatter=new Intl.DateTimeFormat("en-GB",{
+    timeZone:"Asia/Kolkata",year:"numeric",month:"2-digit",day:"2-digit"
+  });
+  const fields=Object.fromEntries(formatter.formatToParts(now).map(p=>[p.type,p.value]));
+  const start=Date.UTC(Number(fields.year),Number(fields.month)-1,Number(fields.day))-330*60*1000;
+  return [new Date(start).toISOString(),new Date(start+86400000).toISOString()];
+}
+function sumPaidMethods(rows){
+  const totals={cash:0,upi:0,card:0,bank_transfer:0,razorpay:0};
+  for(const p of rows){
+    const order=Array.isArray(p.orders)?p.orders[0]:p.orders;
+    if(p.status!=="paid"||!order||order.payment_status!=="paid"||
+       ["cancelled","refunded"].includes(String(order.status||"").toLowerCase()))continue;
+    const method=String(p.method||"").toLowerCase(),amount=Number(p.amount);
+    if(Object.hasOwn(totals,method)&&Number.isFinite(amount)&&amount>=0)
+      totals[method]+=amount;
+  }
+  for(const method of Object.keys(totals))totals[method]=Math.round((totals[method]+Number.EPSILON)*100)/100;
+  return totals;
+}
+function updateCashDifference(){
+  const field=document.getElementById("closingCashCount");
+  const output=document.getElementById("closingCashDifference");
+  if(!field||!output)return;
+  if(expectedClosingCash===null){
+    output.textContent="Load the paid payment summary before reconciling cash.";
+    return;
+  }
+  if(field.value.trim()===""){
+    output.textContent="Enter physically counted cash to compare. Unsynced offline receipts are not included.";
+    return;
+  }
+  const counted=Number(field.value);
+  if(!Number.isFinite(counted)||counted<0){
+    output.textContent="Enter a valid non-negative cash count.";
+    return;
+  }
+  const difference=Math.round((counted-expectedClosingCash)*100)/100;
+  output.textContent=Math.abs(difference)<0.01?"Cash matches confirmed cash-payment records.":
+    (difference<0?"Cash short by ":"Cash over by ")+reportMoney(Math.abs(difference))+
+    ". Check provisional offline sales and contact the owner before closing.";
+}
+async function loadDailyClose(){
+  const status=document.getElementById("closingStatus"),button=document.getElementById("refreshClosing");
+  if(button)button.disabled=true;
+  if(status)status.textContent="Reading confirmed payment receipts for today's India shop date…";
+  try{
+    const [from,to]=shopDayWindow();
+    const receipts=[];
+    const pageSize=1000;
+    for(let page=0;page<100;page++){
+      const {data,error}=await reportsClient.from("payments")
+        .select("id,method,amount,status,paid_at,orders!inner(status,payment_status)")
+        .eq("status","paid").gte("paid_at",from).lt("paid_at",to)
+        .order("id",{ascending:true}).range(page*pageSize,(page+1)*pageSize-1);
+      if(error)throw error;
+      const rows=Array.isArray(data)?data:[];
+      receipts.push(...rows);
+      if(rows.length<pageSize)break;
+      if(page===99)throw new Error("Payment report exceeded safe page limit; use a dated export.");
+    }
+    const totals=sumPaidMethods(receipts);
+    for(const method of Object.keys(totals)){
+      setReportValue("closing"+method[0].toUpperCase()+method.slice(1).replace("_transfer","Transfer"),reportMoney(totals[method]));
+    }
+    expectedClosingCash=totals.cash;
+    updateCashDifference();
+    if(status)status.textContent="Paid payment records only. Compare with physical cash, gateway settlement and unsynced offline receipts.";
+  }catch(error){
+    expectedClosingCash=null;
+    updateCashDifference();
+    if(status)status.textContent="Daily closing summary unavailable: "+String(error?.message||"Refresh to retry.");
+  }finally{if(button)button.disabled=false;}
+}
+document.getElementById("refreshClosing")?.addEventListener("click",loadDailyClose);
+document.getElementById("closingCashCount")?.addEventListener("input",updateCashDifference);
+
 async function loadReports(){
   const button=document.querySelector("#refreshReports"),rows=document.querySelector("#reportRows");
   if(button){button.disabled=true;button.textContent="Refreshing…";}
@@ -24,13 +123,14 @@ async function loadReports(){
   const controller=new AbortController();let timer;
   try{
     const request=Promise.all([
-      reportsClient.from("orders").select("id,order_number,source,status,payment_status,total_amount,created_at").order("created_at",{ascending:false}).limit(1000).abortSignal(controller.signal),
+      fetchAllReportOrders(controller),
       reportsClient.from("products").select("id").eq("active",true).abortSignal(controller.signal)
     ]);
     const timeout=new Promise((resolve,reject)=>{timer=setTimeout(()=>{controller.abort();reject(new Error("Report request timed out. Check your connection and refresh."));},15000);});
-    const [{data:orders,error:ordersError},{data:products,error:productsError}]=await Promise.race([request,timeout]);
-    if(ordersError)throw ordersError;if(productsError)throw productsError;
+    const [orders,{data:products,error:productsError}]=await Promise.race([request,timeout]);
+    if(productsError)throw productsError;
     renderReports(Array.isArray(orders)?orders:[],Array.isArray(products)?products:[]);
+    void loadDailyClose(); // Separate read-only query: payment permissions must not break the order report.
     reportStatus("Report refreshed at "+new Date().toLocaleTimeString("en-IN")+".");
   }catch(error){
     console.error("Report could not be loaded",error);

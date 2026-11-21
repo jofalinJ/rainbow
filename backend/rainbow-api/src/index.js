@@ -3,6 +3,7 @@ import { health } from "./routes/health.js";
 import { erpCatalogue } from "./routes/erp-catalogue.js";
 import { razorpayRoute, expireRazorpayReservations } from "./routes/razorpay.js";
 import { sendPaidInvoiceWhatsApp } from "./whatsapp.js";
+import { whatsappDeliveryWebhook } from "./routes/whatsapp-webhook.js";
 
 export default {
   async fetch(request, env = {}) {
@@ -12,6 +13,7 @@ export default {
       return health(request, env);
     }
     if (path === "/api/erp/catalogue") return erpCatalogue(request,env);
+    if (path === "/api/whatsapp/status") return whatsappDeliveryWebhook(request,env);
     if (path.startsWith("/api/razorpay/")) return razorpayRoute(request,env);
     return notFound();
   },

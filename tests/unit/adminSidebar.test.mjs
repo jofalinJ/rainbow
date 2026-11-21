@@ -172,7 +172,9 @@ describe("shared admin sidebar", () => {
       "products.html","reports.html","settings.html","staff.html"];
     for(const page of pages){
       const html=readFileSync(path.resolve("admin",page),"utf8");
-      expect(html).toContain("app.js?v=20261114-staff-access");
+      expect(html).toContain(page==="index.html"
+        ?"app.js?v=20261121-paid-daily-sales"
+        :"app.js?v=20261114-staff-access");
       expect(html).not.toContain("app.js?v=20261018-unified-shop-staff-v2");
     }
   });

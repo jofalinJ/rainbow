@@ -19,7 +19,7 @@ const sale=(data=fixture())=>makePendingSale(data,[{variant_id:variantId,quantit
 function fakeClient(opts={}){
  const rpc=vi.fn().mockResolvedValue({data:{invoice_number:"INV-TEST",order_number:"LS-TEST",
   public_token:"22222222-2222-4222-8222-222222222222",order_id:"33333333-3333-4333-8333-333333333333",
-  total_amount:999},error:null});
+  total_amount:opts.invoiceTotal??1998.2},error:null});
  const table={
   staff_profiles:{role:opts.role||"cashier",active:opts.active!==false},
   erp_locations:{id:locationId,active:true,kind:"branch"},
@@ -73,6 +73,36 @@ describe("encrypted offline billing contract",()=>{
   });
   expect(vault.markSynced).toHaveBeenCalledWith(requestId,expect.objectContaining({invoice_number:"INV-TEST"}));
   expect(vault.claimSyncActor).toHaveBeenCalledWith(requestId,actorId);
+ });
+ it("retains a confirmed invoice but warns about cash differences without retrying",async()=>{
+  const record=sale();
+  const vault={
+   markSynced:vi.fn(async(id,receipt,note)=>({...record,id,status:"synced",receipt,reconciliationNote:note})),
+   claimSyncActor:vi.fn(async()=>actorId)
+  };
+  const client=fakeClient({invoiceTotal:1997});
+  const result=await syncOfflineSale(vault,record,client);
+  expect(result.status).toBe("synced");
+  expect(result.needsReview).toBe(true);
+  expect(result.difference).toBe(-1.2);
+  expect(vault.markSynced).toHaveBeenCalledWith(requestId,
+   expect.objectContaining({invoice_number:"INV-TEST"}),
+   expect.stringContaining("Cash collected differs"));
+  expect(client.rpc).toHaveBeenCalledOnce();
+  expect(result.sale.reconciliationNote).toMatch(/do not create a new sale/i);
+ });
+ it("counts a cash mismatch as owner review while keeping the final invoice",async()=>{
+  const record=sale(),vault={
+   read:vi.fn(async()=>({pending:[record]})),
+   markSynced:vi.fn(async(id,receipt,note)=>({...record,id,status:"synced",receipt,reconciliationNote:note})),
+   claimSyncActor:vi.fn(async()=>actorId)
+  };
+  const client=fakeClient({invoiceTotal:2000});
+  const stats=await syncQueuedSales(vault,client);
+  expect(stats.confirmed).toBe(1);
+  expect(stats.needsReview).toBe(1);
+  expect(client.rpc).toHaveBeenCalledOnce();
+  expect(read("admin/offline-pos.mjs")).toContain("CONFIRMED · CASH REVIEW");
  });
  it("lets a different authorized cashier synchronize a shared shop record",async()=>{
   const record=sale(),secondUser="cccccccc-cccc-4ccc-8ccc-cccccccccccc";
@@ -170,7 +200,7 @@ describe("encrypted offline billing contract",()=>{
   events.install({waitUntil:p=>{reply=p;}});
   return reply.then(()=>{
    expect(requests.some(x=>x.endsWith("/offline-pos.html"))).toBe(true);
-   expect(read("admin/service-worker.js")).toContain("rainbow-staff-offline-pos-v4");
+   expect(read("admin/service-worker.js")).toContain("rainbow-staff-offline-pos-v5");
    expect(requests.some(x=>x.includes("orders"))).toBe(false);
    expect(requests.some(x=>x.includes("invoices"))).toBe(false);
    const req={method:"GET",url:"https://rainbowgoldcovering.com/admin/billing.html",mode:"navigate"};

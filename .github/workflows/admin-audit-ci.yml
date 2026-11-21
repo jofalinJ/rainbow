@@ -1,0 +1,50 @@
+name: Admin operational audit SQL in disposable PostgreSQL
+
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/20261121140000_admin_audit_trail.sql'
+      - 'tests/sql/admin-audit-*.sql'
+      - '.github/workflows/admin-audit-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit-security:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: audit_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d audit_test"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    env:
+      PGHOST: localhost
+      PGPORT: "5432"
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: audit_test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL client if missing
+        run: |
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+      - name: Create disposable Supabase role and business table fixtures
+        run: psql -v ON_ERROR_STOP=1 -f tests/sql/admin-audit-fixture.sql
+      - name: Install proposed audit migration in disposable database only
+        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261121140000_admin_audit_trail.sql
+      - name: Verify audit events, access controls and redaction
+        run: psql -v ON_ERROR_STOP=1 -f tests/sql/admin-audit-behavior.sql
