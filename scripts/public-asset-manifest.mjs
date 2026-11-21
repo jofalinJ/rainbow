@@ -1,7 +1,7 @@
 /** The only files and directories shipped to Cloudflare Pages. Keep the
  * developer preview server on the same allowlist as production. */
 export const publicRootFiles=[
-  "index.html","order.html","product.html","invoice.html","404.html",
+  "index.html","order.html","product.html","invoice.html","_headers","404.html",
   "reset-password.html","account-recovery.js","recovery-redirect.js","supabase-client.js",
   "privacy-policy.html","returns-and-refunds.html",
   "shipping-policy.html","terms-and-conditions.html",
