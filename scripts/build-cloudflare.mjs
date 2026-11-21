@@ -77,7 +77,7 @@ async function validatePublishedTree(directory){
 await validatePublishedTree(output);
 
 for(const required of [
-  "index.html","staff/index.html","admin/login.html","admin/owner.html","admin/owner.js","admin/owner.css","admin/manifest.webmanifest",
+  "_headers","invoice.html","index.html","staff/index.html","admin/login.html","admin/owner.html","admin/owner.js","admin/owner.css","admin/manifest.webmanifest",
   "admin/service-worker.js","src/domain/productRules.mjs",
   "payment-config.js","order-razorpay.mjs","order.js"
 ]){
