@@ -17,7 +17,8 @@ const sample={
   recipient:"919999999999",
   invoice_url:"https://rainbowgoldcovering.com/invoice.html?token=00000000-0000-4000-8000-000000000001",
   order_number:"RG-TEST-PAID",
-  customer_name:"Test Customer"
+  customer_name:"Test Customer",
+  whatsapp_opt_in:true,payment_verified:true
 };
 const ok=(body)=>new Response(JSON.stringify(body),{status:200,headers:{"content-type":"application/json"}});
 
@@ -72,3 +73,73 @@ test("refuses tampered invoice URL without contacting WhatsApp",async()=>{
   await sendPaidInvoiceWhatsApp(base,{fetchImpl});
   assert.equal(paths.some(p=>p.endsWith("/messages")),false);
 });
+
+
+const mockLive={
+  ...base,PAYMENTS_MODE:"live",LIVE_PAYMENTS_RELEASED:"true",
+  RAZORPAY_LIVE_KEY_ID:"rzp_live_mock123",
+  WHATSAPP_PRODUCTION_APPROVED:"true",WHATSAPP_EXPECTED_SENDER_E164:"919999999998"
+};
+test("live WhatsApp remains default-OFF even with valid Razorpay live keys",async()=>{
+  let calls=0;
+  const fetchImpl=async()=>{calls++;throw Error("Should not call Meta or Supabase");};
+  const state=await sendPaidInvoiceWhatsApp({...mockLive,WHATSAPP_PRODUCTION_APPROVED:"false"},{fetchImpl});
+  assert.deepEqual(state,{state:"production_not_approved"});
+  assert.equal(calls,0);
+});
+test("live messaging refuses an unverified or unexpected Meta sender number",async()=>{
+  let calls=[];
+  const fetchImpl=async url=>{
+    calls.push(new URL(url).pathname);
+    return ok({display_phone_number:"+91 99999 99999"});
+  };
+  const state=await sendPaidInvoiceWhatsApp(mockLive,{fetchImpl});
+  assert.deepEqual(state,{state:"sender_mismatch"});
+  assert.equal(calls.length,1);
+  assert.ok(calls[0].endsWith("/"+mockLive.WHATSAPP_PHONE_NUMBER_ID));
+});
+test("live sends only claimed opted-in paid invoice after verifying sender",async()=>{
+  const paths=[];
+  const fetchImpl=async(url,opts={})=>{
+    const path=new URL(url).pathname;paths.push(path);
+    if(path.endsWith("/"+mockLive.WHATSAPP_PHONE_NUMBER_ID)){
+      assert.equal(new URL(url).searchParams.get("fields"),"display_phone_number");
+      return ok({display_phone_number:"+91 99999 99998"});
+    }
+    if(path.endsWith("/claim_paid_invoice_whatsapp_production")){
+      assert.deepEqual(JSON.parse(opts.body),{p_limit:5});
+      return ok([sample]);
+    }
+    if(path.endsWith("/messages")){
+      assert.equal(JSON.parse(opts.body).to,sample.recipient);
+      return ok({messages:[{id:"wamid.live-mocked"}]});
+    }
+    if(path.endsWith("/finish_paid_invoice_whatsapp")){
+      assert.equal(JSON.parse(opts.body).p_provider_id,"wamid.live-mocked");
+      return ok(true);
+    }
+    throw Error("Unexpected path "+path);
+  };
+  const state=await sendPaidInvoiceWhatsApp(mockLive,{fetchImpl});
+  assert.deepEqual(state,{state:"processed",count:1});
+  assert.equal(paths.filter(p=>p.endsWith("/messages")).length,1);
+  assert.equal(paths.filter(p=>p.endsWith("/claim_paid_invoice_whatsapp")).length,0);
+});
+test("live refuses rows without explicit opt-in or paid-verification markers",async()=>{
+  const paths=[];
+  const fetchImpl=async(url,opts={})=>{
+    const path=new URL(url).pathname;paths.push(path);
+    if(path.endsWith("/"+mockLive.WHATSAPP_PHONE_NUMBER_ID))
+      return ok({display_phone_number:"+91 99999 99998"});
+    if(path.endsWith("/claim_paid_invoice_whatsapp_production"))
+      return ok([{...sample,whatsapp_opt_in:false}]);
+    if(path.endsWith("/finish_paid_invoice_whatsapp")){
+      assert.equal(JSON.parse(opts.body).p_error,"recipient_not_allowlisted_or_bad_invoice_link");
+      return ok(true);
+    }
+    throw Error("Unexpected WhatsApp API call "+path);
+  };
+  await sendPaidInvoiceWhatsApp(mockLive,{fetchImpl});
+  assert.equal(paths.some(p=>p.endsWith("/messages")),false);
+});
+
