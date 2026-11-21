@@ -7,7 +7,7 @@ const read=path=>readFileSync(new URL("../../"+path,import.meta.url),"utf8");
 function render(orders){
  const nodes=new Map();
  const node=id=>{
-   if(!nodes.has(id))nodes.set(id,{textContent:"",innerHTML:""});
+   if(!nodes.has(id))nodes.set(id,{textContent:"",innerHTML:"",value:"",addEventListener:()=>{}});
    return nodes.get(id);
  };
  const document={
@@ -21,7 +21,7 @@ function render(orders){
  };
  runInNewContext(read("admin/reports.js"),context);
  context.renderReports(orders,[{id:"product-1"}]);
- return {get:id=>node(id).textContent,rows:node("reportRows").innerHTML};
+ return {get:id=>node(id).textContent,rows:node("reportRows").innerHTML,context,node};
 }
 
 describe("accounting-safe admin reports",()=>{
@@ -67,6 +67,35 @@ describe("accounting-safe admin reports",()=>{
   const all=await context.fetchAllReportOrders(new AbortController());
   expect(all.length).toBe(1002);
   expect(calls).toBe(2);
+ });
+ it("summarizes confirmed paid payment methods without counting refunds or failures",()=>{
+  const r=render([]);
+  const totals=r.context.sumPaidMethods([
+   {status:"paid",method:"cash",amount:100,orders:{status:"confirmed",payment_status:"paid"}},
+   {status:"paid",method:"razorpay",amount:50.99,orders:{status:"confirmed",payment_status:"paid"}},
+   {status:"paid",method:"cash",amount:9999,orders:{status:"refunded",payment_status:"paid"}},
+   {status:"failed",method:"upi",amount:1000,orders:{status:"cancelled",payment_status:"failed"}},
+   {status:"paid",method:"card",amount:25,orders:{status:"confirmed",payment_status:"paid"}}
+  ]);
+  expect(totals.cash).toBe(100);
+  expect(totals.razorpay).toBe(50.99);
+  expect(totals.upi).toBe(0);
+  expect(totals.card).toBe(25);
+ });
+ it("uses the India calendar boundary for daily closing",()=>{
+  const r=render([]);
+  const [start,end]=r.context.shopDayWindow(new Date("2026-11-20T18:40:00Z"));
+  expect(start).toBe("2026-11-20T18:30:00.000Z");
+  expect(end).toBe("2026-11-21T18:30:00.000Z");
+ });
+ it("flags cash shortage or overage without saving a drawer total",()=>{
+  const r=render([]);
+  r.node("closingCashCount").value="95";
+  runInNewContext("expectedClosingCash=100",r.context);
+  r.context.updateCashDifference();
+  expect(r.get("closingCashDifference")).toContain("Cash short by");
+  expect(r.get("closingCashDifference")).toContain("₹5");
+  expect(read("admin/reports.html")).toContain('id="closingCashCount"');
  });
  it("loads the versioned paid-sales script in the report page",()=>{
   const html=read("admin/reports.html");
