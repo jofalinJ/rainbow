@@ -302,6 +302,121 @@ test("valid payment.captured webhook rechecks provider and settles",async()=>{
   }finally{globalThis.fetch=oldFetch;}
 });
 
+
+test("signed refund.processed verifies provider refund and cumulative payment before recording, never creating a refund",async()=>{
+  const previous=globalThis.fetch,calls=[];
+  const refundId="rfnd_example1234567",payload=JSON.stringify({event:"refund.processed",payload:{
+    refund:{entity:{id:refundId,payment_id:rPayment,status:"processed"}}}});
+  globalThis.fetch=mockFetch({
+    ["/v1/refunds/"+refundId]:{id:refundId,payment_id:rPayment,status:"processed",amount:1000,currency:"INR"},
+    ["/v1/payments/"+rPayment]:{
+      id:rPayment,order_id:rOrder,status:"captured",currency:"INR",amount:5000,amount_refunded:1000
+    },
+    "/rest/v1/rpc/record_razorpay_refund":options=>{
+      assert.deepEqual(JSON.parse(options.body),{
+        p_gateway_order_id:rOrder,p_payment_id:rPayment,
+        p_amount_paise:5000,p_amount_refunded_paise:1000,
+        p_event_id:"evt_refund1",p_refund_id:refundId
+      });
+      return mockReply({state:"refund_required",paid:false});
+    }
+  },calls);
+  try{
+    const signature=await hmacHex(baseEnv.RAZORPAY_WEBHOOK_SECRET,payload);
+    const response=await worker.fetch(request("/api/razorpay/webhook",payload,"POST","",{
+      "x-razorpay-signature":signature,"x-razorpay-event-id":"evt_refund1"
+    }),baseEnv);
+    assert.equal(response.status,200);
+    assert.deepEqual(await response.json(),{success:true,state:"refund_required"});
+    assert.deepEqual(calls.map(call=>[call.method,call.path]),[
+      ["GET","/v1/refunds/"+refundId],["GET","/v1/payments/"+rPayment],
+      ["POST","/rest/v1/rpc/record_razorpay_refund"]
+    ]);
+    assert.equal(calls.some(call=>call.path.includes("/refund")&&call.method==="POST"),false);
+  }finally{globalThis.fetch=previous;}
+});
+test("full refund event is reconciled with provider cumulative refunded amount",async()=>{
+  const previous=globalThis.fetch,calls=[],refundId="rfnd_full123456789";
+  const payload=JSON.stringify({event:"refund.processed",payload:{refund:{entity:{
+    id:refundId,payment_id:rPayment
+  }}}});
+  globalThis.fetch=mockFetch({
+    ["/v1/refunds/"+refundId]:{id:refundId,payment_id:rPayment,status:"processed",amount:5000,currency:"INR"},
+    ["/v1/payments/"+rPayment]:{id:rPayment,order_id:rOrder,status:"refunded",
+      currency:"INR",amount:5000,amount_refunded:5000},
+    "/rest/v1/rpc/record_razorpay_refund":options=>{
+      assert.equal(JSON.parse(options.body).p_amount_refunded_paise,5000);
+      return mockReply({state:"refunded"});
+    }
+  },calls);
+  try{
+    const signature=await hmacHex(baseEnv.RAZORPAY_WEBHOOK_SECRET,payload);
+    const response=await worker.fetch(request("/api/razorpay/webhook",payload,"POST","",{
+      "x-razorpay-signature":signature,"x-razorpay-event-id":"evt_refundfull"
+    }),baseEnv);
+    assert.equal(response.status,200);
+    assert.equal((await response.json()).state,"refunded");
+    assert.equal(calls.length,3);
+  }finally{globalThis.fetch=previous;}
+});
+test("forged, pending, and inconsistent refunds cannot change order payment records",async()=>{
+  const previous=globalThis.fetch,calls=[],refundId="rfnd_example1234567";
+  const payload=JSON.stringify({event:"refund.processed",payload:{refund:{entity:{
+    id:refundId,payment_id:rPayment
+  }}}});
+  globalThis.fetch=mockFetch({
+    ["/v1/refunds/"+refundId]:{id:refundId,payment_id:rPayment,status:"pending",
+      amount:1000,currency:"INR"}
+  },calls);
+  try{
+    const badSig=await worker.fetch(request("/api/razorpay/webhook",payload,"POST","",{
+      "x-razorpay-signature":"bad","x-razorpay-event-id":"evt_refund2"
+    }),baseEnv);
+    assert.equal(badSig.status,401);
+    assert.equal(calls.length,0);
+    const signature=await hmacHex(baseEnv.RAZORPAY_WEBHOOK_SECRET,payload);
+    const response=await worker.fetch(request("/api/razorpay/webhook",payload,"POST","",{
+      "x-razorpay-signature":signature,"x-razorpay-event-id":"evt_refund2"
+    }),baseEnv);
+    assert.equal(response.status,409);
+    assert.deepEqual(calls.map(x=>x.path),["/v1/refunds/"+refundId]);
+  }finally{globalThis.fetch=previous;}
+});
+test("refund.processed rejects invalid payment refund amounts before database update",async()=>{
+  const previous=globalThis.fetch,calls=[],refundId="rfnd_example1234567";
+  const payload=JSON.stringify({event:"refund.processed",payload:{refund:{entity:{
+    id:refundId,payment_id:rPayment
+  }}}});
+  globalThis.fetch=mockFetch({
+    ["/v1/refunds/"+refundId]:{id:refundId,payment_id:rPayment,status:"processed",
+      amount:2500,currency:"INR"},
+    ["/v1/payments/"+rPayment]:{id:rPayment,order_id:rOrder,status:"captured",
+      amount:5000,amount_refunded:1200,currency:"INR"}
+  },calls);
+  try{
+    const signature=await hmacHex(baseEnv.RAZORPAY_WEBHOOK_SECRET,payload);
+    const response=await worker.fetch(request("/api/razorpay/webhook",payload,"POST","",{
+      "x-razorpay-signature":signature,"x-razorpay-event-id":"evt_badamount"
+    }),baseEnv);
+    assert.equal(response.status,409);
+    assert.equal(calls.length,2);
+    assert.equal(calls.some(x=>x.method==="POST"),false);
+  }finally{globalThis.fetch=previous;}
+});
+test("refund.failed does not record a refund from an unprocessed event",async()=>{
+  const prev=globalThis.fetch,calls=[];
+  globalThis.fetch=mockFetch({},calls);
+  try{
+    const payload=JSON.stringify({event:"refund.failed",payload:{refund:{entity:{id:"rfnd_unknown"}}}});
+    const signature=await hmacHex(baseEnv.RAZORPAY_WEBHOOK_SECRET,payload);
+    const response=await worker.fetch(request("/api/razorpay/webhook",payload,"POST","",{
+      "x-razorpay-signature":signature,"x-razorpay-event-id":"evt_failedrefund"
+    }),baseEnv);
+    assert.deepEqual(await response.json(),{success:true,ignored:true});
+    assert.deepEqual(calls,[]);
+  }finally{globalThis.fetch=prev;}
+});
+
 const liveEnv={...baseEnv,PAYMENTS_MODE:"live",
   RAZORPAY_LIVE_KEY_ID:"rzp_live_Example123",RAZORPAY_LIVE_KEY_SECRET:"live-secret",
   RAZORPAY_LIVE_WEBHOOK_SECRET:"live-webhook",LIVE_PAYMENTS_RELEASED:"true",
