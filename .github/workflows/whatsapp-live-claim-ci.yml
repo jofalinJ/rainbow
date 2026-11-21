@@ -1,0 +1,50 @@
+name: WhatsApp production claim checks in disposable PostgreSQL
+
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/20261121151500_production_whatsapp_paid_invoice_claim.sql'
+      - 'tests/sql/whatsapp-live-claim-*.sql'
+      - '.github/workflows/whatsapp-live-claim-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-consent:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: whatsapp_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d whatsapp_test"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    env:
+      PGHOST: localhost
+      PGPORT: "5432"
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: whatsapp_test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL client if missing
+        run: |
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+      - name: Load isolated paid invoice fixtures
+        run: psql -v ON_ERROR_STOP=1 -f tests/sql/whatsapp-live-claim-fixture.sql
+      - name: Install proposed service-only claim function
+        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261121151500_production_whatsapp_paid_invoice_claim.sql
+      - name: Confirm consent, settled status, permissions and idempotency
+        run: psql -v ON_ERROR_STOP=1 -f tests/sql/whatsapp-live-claim-behavior.sql
