@@ -9,6 +9,33 @@ permissions:
   contents: read
 
 jobs:
+  # Always produce an inspectable SEO preview, even before release approval.
+  # This fetches only published, public-RLS catalogue data and never deploys.
+  preview:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Generate catalogue SEO preview locally (read-only Supabase)
+        run: node scripts/generate-seo-pages.mjs
+      - name: Validate generated SEO URLs and escaping
+        run: node --test tests/seo/seo-pages.test.mjs
+      - name: Upload preview, not production files
+        uses: actions/upload-artifact@v4
+        with:
+          name: seo-catalogue-preview
+          path: |
+            sitemap.xml
+            scripts/seo-manifest.json
+            categories/
+            products/
+          retention-days: 7
+          if-no-files-found: error
+
   trigger-approved-deploy:
     if: vars.RAINBOW_SEO_CATALOGUE_APPROVED == 'true'
     runs-on: ubuntu-latest
