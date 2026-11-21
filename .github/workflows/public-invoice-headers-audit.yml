@@ -1,0 +1,34 @@
+name: Public invoice privacy HTTP headers (read-only)
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/audit-live-invoice-headers.mjs'
+      - 'tests/unit/liveInvoiceHeaders.test.mjs'
+      - '.github/workflows/public-invoice-headers-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect-current-host:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Read only the public invoice page HEAD response (never request any receipt token)
+        run: |
+          set -euo pipefail
+          node scripts/audit-live-invoice-headers.mjs | tee invoice-http-header-check.json
+          test -s invoice-http-header-check.json
+      - name: Upload non-sensitive headers assessment
+        uses: actions/upload-artifact@v4
+        with:
+          name: invoice-http-header-audit
+          path: invoice-http-header-check.json
+          retention-days: 7
+          if-no-files-found: error
