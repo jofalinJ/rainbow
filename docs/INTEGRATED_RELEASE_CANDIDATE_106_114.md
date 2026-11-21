@@ -43,6 +43,40 @@ Never mark skipped acceptance checks as passed.
 7. **WhatsApp onboarding:** Verify the actual sender ID/number in Meta, approved utility template/language/parameters, webhook challenge and signature, and status callback. Only after opt-in and explicit merchant approval activate the separate production sender flags for a controlled recipient; provider message-ID acceptance does **not** prove delivery.
 8. **Monitor and rollback:** Watch webhook failures, reconciliation warnings, stock, invoice mismatches, outbox status and owner audit history. Disable WhatsApp send switches immediately on unexpected traffic. Revert frontend/Worker deploy via previous release if needed; database rollback requires a separate reviewed, non-destructive migration plan. Do not drop audit/history tables to roll back a frontend issue.
 
+## Verified combined CI — 21 November 2026
+
+The isolated integrated release candidate (commit `038101236639375cb4784b64e892a148953891d7`, before this documentation-only update) completed these jobs successfully:
+
+| Workflow | Result |
+| --- | --- |
+| General repository CI, unit/static/security, fixture regressions | PASS — https://github.com/jofalinJ/rainbow/actions/runs/44914060429 |
+| Cloudflare API tests | PASS — https://github.com/jofalinJ/rainbow/actions/runs/44914060477 |
+| Payment SQL in disposable PostgreSQL | PASS — https://github.com/jofalinJ/rainbow/actions/runs/44914060435 |
+| Admin audit RLS/trigger SQL | PASS — https://github.com/jofalinJ/rainbow/actions/runs/44914060471 |
+| Production WhatsApp claim/consent SQL | PASS — https://github.com/jofalinJ/rainbow/actions/runs/44914060445 |
+| Meta delivery-status SQL | PASS — https://github.com/jofalinJ/rainbow/actions/runs/44914060522 |
+| SEO preview, deploy job skipped by design | PASS — https://github.com/jofalinJ/rainbow/actions/runs/44914060461 |
+| Razorpay live readiness smoke | PASS — https://github.com/jofalinJ/rainbow/actions/runs/44914060494 |
+
+The isolated Supabase integration and authenticated Selenium E2E jobs were SKIPPED because their dedicated environment/test-secret conditions were not met. Do not treat these as passed. The earlier live public Selenium smoke tested the *currently deployed* site, not this branch.
+
+### Live Supabase preflight (SELECT-only)
+
+- New `public.admin_audit_events`, `public.whatsapp_provider_status_inbox`, `public.claim_paid_invoice_whatsapp_production(integer)` and `public.record_whatsapp_delivery_status(...)` are **not** deployed. Their migrations remain proposals on this branch.
+- Existing service-role-only `public.record_razorpay_refund(...)` is present.
+- Stock balance integrity: **zero** negative or over-reserved balance records in this point-in-time inspection.
+- Supabase security advisor notices (not all necessarily defects): four backend-only RLS tables with no policies; one anonymously callable `get_public_invoice` SECURITY DEFINER endpoint (the tokenized receipt design may intentionally require anonymous access); 24 authenticated-callable SECURITY DEFINER RPCs requiring individual role checks; and one disabled leaked-password-protection configuration.
+- Supabase performance advisor notices: 25 unindexed foreign keys, 14 unused indexes, 32 multiple-permissive-policy warnings and one duplicate-index warning. These are review items, not evidence of immediate downtime; do not blindly change indexes or policies on a live shop.
+
+Priority references:
+- [Privileged functions callable anonymously](https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable)
+- [Privileged functions callable by authenticated users](https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable)
+- [Leaked-password protection](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection)
+- [Multiple permissive RLS policies](https://supabase.com/docs/guides/database/database-linter?lint=0006_multiple_permissive_policies)
+- [Unindexed foreign keys](https://supabase.com/docs/guides/database/database-linter?lint=0001_unindexed_foreign_keys)
+
+No role, policy, credential or database setting was altered by this inspection.
+
 ## Business-policy decisions to resolve outside code
 
 - Current `record_razorpay_refund` database function marks an order cancelled for partial refund and refunded for a full refund. Confirm whether this is appropriate before subscribing to `refund.processed`; returns and exchanges need separate physical stock receipt and merchant authorization.
