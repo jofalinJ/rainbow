@@ -5,10 +5,14 @@ const reportDate=value=>{if(!value)return "—";const d=new Date(value);return N
 function setReportValue(id,value){const el=document.getElementById(id);if(el)el.textContent=value;}
 function reportStatus(message,error=false){const el=document.querySelector("#reportMessage");if(el){el.textContent=message;el.className="form-msg"+(error?" error":"");}}
 function renderReports(orders,products){
-  const activeOrders=orders.filter(o=>!["cancelled","refunded"].includes(String(o.status||"").toLowerCase()));
-  const sales=activeOrders.reduce((sum,o)=>sum+Number(o.total_amount||0),0);
-  const start=new Date();start.setHours(0,0,0,0);
-  const todayCount=orders.filter(o=>o.created_at&&new Date(o.created_at)>=start&&!["cancelled","refunded"].includes(String(o.status||"").toLowerCase())).length;
+  // Financial totals must exclude unpaid/pending orders, not just cancellations.
+  const paidOrders=orders.filter(o=>String(o.payment_status||"").toLowerCase()==="paid"&&
+    !["cancelled","refunded"].includes(String(o.status||"").toLowerCase()));
+  const sales=paidOrders.reduce((sum,o)=>sum+Number(o.total_amount||0),0);
+  const storeDay=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Kolkata",year:"numeric",month:"2-digit",day:"2-digit"});
+  const today=storeDay.format(new Date());
+  const todayCount=paidOrders.filter(o=>o.created_at&&!Number.isNaN(new Date(o.created_at).getTime())&&
+    storeDay.format(new Date(o.created_at))===today).length;
   setReportValue("reportOrders",String(orders.length));
   setReportValue("reportSales",reportMoney(sales));
   setReportValue("reportTodayOrders",String(todayCount));
