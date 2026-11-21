@@ -45,6 +45,29 @@ describe("accounting-safe admin reports",()=>{
   expect(r.get("reportTodayOrders")).toBe("0");
   expect(r.rows).toContain("R-UNPAID");
  });
+ it("retrieves more than 1,000 orders instead of silently underreporting",async()=>{
+  const rows=Array.from({length:1002},(_,i)=>({id:String(i),total_amount:1,payment_status:"paid"}));
+  let calls=0;
+  const client={from:()=>({
+   select(){return this;},
+   order(){return this;},
+   range(start,end){this.start=start;this.end=end;return this;},
+   async abortSignal(){
+    calls++;
+    return {data:rows.slice(this.start,this.end+1),error:null};
+   }
+  })};
+  const context={
+   bootSupabase:()=>client,
+   requireSession:()=>({then:()=>({catch:()=>{}})}),
+   document:{getElementById:()=>null,querySelector:()=>null},
+   console,Date,Intl,Number,AbortController,setTimeout,clearTimeout
+  };
+  runInNewContext(read("admin/reports.js"),context);
+  const all=await context.fetchAllReportOrders(new AbortController());
+  expect(all.length).toBe(1002);
+  expect(calls).toBe(2);
+ });
  it("loads the versioned paid-sales script in the report page",()=>{
   const html=read("admin/reports.html");
   expect(html).toContain("reports.js?v=20261121-paid-sales");
