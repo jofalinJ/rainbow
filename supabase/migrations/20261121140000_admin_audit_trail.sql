@@ -26,7 +26,7 @@ REVOKE ALL ON SEQUENCE public.admin_audit_events_id_seq FROM PUBLIC, anon, authe
 DROP POLICY IF EXISTS "Active owner reads operational audit" ON public.admin_audit_events;
 CREATE POLICY "Active owner reads operational audit"
  ON public.admin_audit_events FOR SELECT TO authenticated
- USING ((SELECT public.is_admin()));
+ USING ((SELECT app_private.erp_is_admin()));
 
 -- Only triggers invoke the writer. Keep it in an unexposed schema, no direct
 -- client privileges, and restrict the journal to a small hardcoded field set.
