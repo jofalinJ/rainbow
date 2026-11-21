@@ -234,6 +234,37 @@ async function webhook(request,env){
   if(!eventId || eventId.length>128) return apiError("Invalid event identifier");
   try{
     const event=JSON.parse(raw);
+    if(event.event==="refund.processed"){
+      // A signed event is only a notification, never proof of a completed refund.
+      // Read both authoritative provider records before recording the refund.
+      // This never initiates a refund, restocks goods or changes fulfilment.
+      const advertised=event.payload?.refund?.entity;
+      if(!validId(advertised?.id,"rfnd_")||
+         !validId(advertised?.payment_id,"pay_"))
+        return apiError("Invalid refund event",400);
+      const refund=await callRazorpay(env,"/refunds/"+encodeURIComponent(advertised.id));
+      if(refund.id!==advertised.id || refund.payment_id!==advertised.payment_id ||
+         refund.status!=="processed" || refund.currency!=="INR" ||
+         !Number.isSafeInteger(refund.amount) || refund.amount<=0)
+        return apiError("Refund is not verified as processed",409);
+      const payment=await callRazorpay(env,"/payments/"+encodeURIComponent(refund.payment_id));
+      if(payment.id!==refund.payment_id || !validId(payment.order_id,"order_") ||
+         payment.currency!=="INR" ||
+         !Number.isSafeInteger(payment.amount) || payment.amount<100 ||
+         !Number.isSafeInteger(payment.amount_refunded) ||
+         payment.amount_refunded<refund.amount ||
+         payment.amount_refunded>payment.amount ||
+         !["captured","refunded"].includes(payment.status))
+        return apiError("Refund payment does not match provider records",409);
+      // The existing service-role-only SQL RPC serializes refund updates, uses
+      // the provider's cumulative refund amount and ignores older event totals.
+      const recorded=await callDb(env,"record_razorpay_refund",{
+        p_gateway_order_id:payment.order_id,p_payment_id:payment.id,
+        p_amount_paise:payment.amount,p_amount_refunded_paise:payment.amount_refunded,
+        p_event_id:eventId,p_refund_id:refund.id
+      });
+      return json({success:true,state:recorded.state});
+    }
     if(event.event!=="payment.captured") return json({success:true,ignored:true});
     const eventPayment=event.payload?.payment?.entity;
     if(!validId(eventPayment?.id,"pay_") || !validId(eventPayment?.order_id,"order_"))
