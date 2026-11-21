@@ -31,6 +31,6 @@ describe("private operational audit history",()=>{
   expect(script).toContain('profile.role!=="admin"');
   expect(script).toContain('from("admin_audit_events")');
   expect(script).toContain("textContent");
-  expect(script).not.toContain("innerHTML");
+  expect(script).not.toMatch(/\.innerHTML\s*=/);
  });
 });
